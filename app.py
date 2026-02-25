@@ -1048,6 +1048,184 @@ def api_agencies():
 
 
 # ==========================================
+# PUBLIC API - RECORDS
+# ==========================================
+
+@app.route('/api/records')
+def api_records():
+    """List individual incident records with filtering and pagination"""
+    conn = get_db()
+    page     = max(1, request.args.get('page', 1, type=int))
+    per_page = min(100, max(1, request.args.get('per_page', 20, type=int)))
+    county        = request.args.get('county', '').strip()
+    incident_type = request.args.get('incident_type', '').strip()
+    date_from    = request.args.get('date_from', '').strip()
+    date_to      = request.args.get('date_to', '').strip()
+    search       = request.args.get('search', '').strip()
+
+    where, params = [], []
+    if county:
+        where.append('county = ?'); params.append(county)
+    if incident_type:
+        where.append('incident_type = ?'); params.append(incident_type)
+    if date_from:
+        where.append('date >= ?'); params.append(date_from)
+    if date_to:
+        where.append('date <= ?'); params.append(date_to)
+    if search:
+        where.append('(details LIKE ? OR location LIKE ? OR officer LIKE ?)')
+        term = f'%{search}%'
+        params.extend([term, term, term])
+
+    clause = ('WHERE ' + ' AND '.join(where)) if where else ''
+    total = conn.execute(f'SELECT COUNT(*) FROM records {clause}', params).fetchone()[0]
+    
+    rows = conn.execute(
+        f'SELECT id, blotter_id, cfs_number, date, time, incident_type, location, details, county, officer, created_at '
+        f'FROM records {clause} ORDER BY date DESC, created_at DESC LIMIT ? OFFSET ?',
+        params + [per_page, (page - 1) * per_page]
+    ).fetchall()
+    conn.close()
+    
+    return jsonify({
+        'records': [dict(r) for r in rows],
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': max(1, (total + per_page - 1) // per_page)
+    })
+
+
+@app.route('/api/records/<int:record_id>')
+def api_record(record_id):
+    """Get a single record with its command logs"""
+    conn = get_db()
+    row = conn.execute(
+        'SELECT * FROM records WHERE id = ?', (record_id,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    
+    logs = conn.execute(
+        'SELECT timestamp, officer, entry FROM command_logs WHERE record_id = ? ORDER BY timestamp',
+        (record_id,)
+    ).fetchall()
+    conn.close()
+    
+    result = dict(row)
+    result['command_logs'] = [dict(l) for l in logs]
+    return jsonify(result)
+
+
+# ==========================================
+# PUBLIC API - BLOTTERS
+# ==========================================
+
+@app.route('/api/blotters')
+def api_blotters():
+    """List all blotters with pagination"""
+    conn = get_db()
+    page     = max(1, request.args.get('page', 1, type=int))
+    per_page = min(100, max(1, request.args.get('per_page', 20, type=int)))
+    county = request.args.get('county', '').strip()
+
+    where, params = [], []
+    if county:
+        where.append('county = ?'); params.append(county)
+
+    clause = ('WHERE ' + ' AND '.join(where)) if where else ''
+    total = conn.execute(f'SELECT COUNT(*) FROM blotters {clause}', params).fetchone()[0]
+    
+    rows = conn.execute(
+        f'SELECT id, filename, county, upload_date, incident_count, source_type, file_path '
+        f'FROM blotters {clause} ORDER BY upload_date DESC LIMIT ? OFFSET ?',
+        params + [per_page, (page - 1) * per_page]
+    ).fetchall()
+    conn.close()
+    
+    return jsonify({
+        'blotters': [dict(r) for r in rows],
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': max(1, (total + per_page - 1) // per_page)
+    })
+
+
+@app.route('/api/blotters/<int:blotter_id>')
+def api_blotter(blotter_id):
+    """Get a single blotter with its posts"""
+    conn = get_db()
+    row = conn.execute(
+        'SELECT id, filename, county, upload_date, incident_count, source_type, file_path '
+        'FROM blotters WHERE id = ?', (blotter_id,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    
+    posts = conn.execute(
+        'SELECT id, title, summary, agency_name, agency_type, incident_date, incident_type '
+        'FROM posts WHERE blotter_id = ?', (blotter_id,)
+    ).fetchall()
+    conn.close()
+    
+    result = dict(row)
+    result['posts'] = [dict(p) for p in posts]
+    return jsonify(result)
+
+
+# ==========================================
+# PUBLIC API - STATS
+# ==========================================
+
+@app.route('/api/stats')
+def api_stats():
+    """Get comprehensive database statistics"""
+    conn = get_db()
+    stats = {
+        'total_records':    conn.execute('SELECT COUNT(*) FROM records').fetchone()[0],
+        'total_posts':      conn.execute('SELECT COUNT(*) FROM posts').fetchone()[0],
+        'total_blotters':   conn.execute('SELECT COUNT(*) FROM blotters').fetchone()[0],
+        'total_counties':   conn.execute('SELECT COUNT(DISTINCT county) FROM records WHERE county IS NOT NULL').fetchone()[0],
+        'total_agencies':  conn.execute('SELECT COUNT(DISTINCT agency_name) FROM posts WHERE agency_name IS NOT NULL').fetchone()[0],
+    }
+    
+    # Latest blotter
+    latest = conn.execute(
+        'SELECT county, upload_date FROM blotters ORDER BY upload_date DESC LIMIT 1'
+    ).fetchone()
+    if latest:
+        stats['latest_blotter'] = dict(latest)
+    
+    # Date range
+    date_range = conn.execute(
+        'SELECT MIN(date) as earliest, MAX(date) as latest FROM records'
+    ).fetchone()
+    if date_range:
+        stats['date_range'] = dict(date_range)
+    
+    # Top counties by incidents
+    top_counties = conn.execute(
+        'SELECT county, COUNT(*) as count FROM records WHERE county IS NOT NULL GROUP BY county ORDER BY count DESC LIMIT 10'
+    ).fetchall()
+    stats['top_counties'] = [dict(r) for r in top_counties]
+    
+    # Top incident types
+    top_types = conn.execute(
+        'SELECT incident_type, COUNT(*) as count FROM records WHERE incident_type IS NOT NULL AND incident_type != "" GROUP BY incident_type ORDER BY count DESC LIMIT 10'
+    ).fetchall()
+    stats['top_incident_types'] = [dict(r) for r in top_types]
+    
+    conn.close()
+    return jsonify(stats)
+
+
+# ==========================================
+# ADMIN ANALYTICS
+
+# ==========================================
 # ADMIN ANALYTICS
 # ==========================================
 
