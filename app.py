@@ -5,7 +5,7 @@ Public browse + Admin panel only (no memberships)
 
 import os
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
@@ -1123,6 +1123,13 @@ def admin_analytics():
 @app.errorhandler(404)
 def not_found(e):
     return render_template('404.html'), 404
+
+
+@app.route('/uploads/<path:filename>')
+def serve_upload(filename):
+    """Serve files from the uploads directory"""
+    return send_from_directory(config.UPLOAD_DIR, filename)
+
 
 @app.errorhandler(500)
 def server_error(e):
