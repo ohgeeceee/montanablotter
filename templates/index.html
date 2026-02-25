@@ -422,9 +422,9 @@
 
                         {% set share_date = post.incident_date | to_iso_date %}
                         {% set share_url = 'https://montanablotter.com/?date=' ~ share_date ~ '&agency=' ~ (post.agency_name or '') %}
-                        <button type="button" class="share-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors"
+                        <button type="button" class="share-btn inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200"
                                 data-share-url="{{ share_url }}">
-                            <i class="fas fa-link"></i>Share
+                            <i class="fas fa-share-alt"></i>Share
                         </button>
                     </div>
                 </article>
@@ -614,10 +614,14 @@
             var url = this.getAttribute('data-share-url');
             navigator.clipboard.writeText(url).then(function() {
                 var original = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                var originalClass = btn.className;
+                // Change to success state
+                btn.className = 'share-btn inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg text-xs font-semibold shadow-sm transform transition-all duration-200';
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Copied!';
                 setTimeout(function() {
+                    btn.className = originalClass;
                     btn.innerHTML = original;
-                }, 2000);
+                }, 2500);
             });
         });
     });
