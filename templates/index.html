@@ -349,106 +349,100 @@
                 {% endif %}
             </div>
             {% endif %}
-
             {% if posts %}
+                <div class="space-y-4">
                 {% for post in posts %}
-                <article class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6 hover:shadow-md transition">
+                <article class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 sm:p-6 hover:shadow-md hover:border-slate-300 transition-all duration-200">
 
-                    <!-- Header row -->
+                    <!-- Header -->
                     <div class="flex items-start justify-between gap-3 mb-3">
-                        <h2 class="text-xl font-black text-slate-900 leading-snug">
-                            {{ post.title or 'Daily Activity Report' }}
-                        </h2>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight truncate">
+                                {{ post.title or 'Daily Activity Report' }}
+                            </h2>
+                            <div class="flex items-center gap-2 mt-1.5 text-xs text-slate-500">
+                                {% if post.incident_date %}
+                                <span class="flex items-center gap-1">
+                                    <i class="fas fa-calendar-alt"></i>{{ post.incident_date }}
+                                </span>
+                                {% endif %}
+                                {% if post.county %}
+                                <span class="text-slate-300">•</span>
+                                <span class="flex items-center gap-1">
+                                    <i class="fas fa-map-marker-alt"></i>{{ post.county }} County
+                                </span>
+                                {% endif %}
+                                {% if post.agency_name %}
+                                <span class="text-slate-300">•</span>
+                                <span class="flex items-center gap-1">
+                                    <i class="fas fa-building"></i>{{ post.agency_name }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
                         {% if post.agency_type == 'sheriff' %}
-                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
-                            <i class="fas fa-star text-[10px]"></i>Sheriff
+                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                            <i class="fas fa-star"></i>Sheriff
                         </span>
                         {% elif post.agency_type == 'police' %}
-                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800">
-                            <i class="fas fa-shield-alt text-[10px]"></i>Police
+                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-100">
+                            <i class="fas fa-shield-alt"></i>Police
                         </span>
                         {% else %}
-                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
-                            Agency
+                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-50 text-slate-600 border border-slate-100">
+                            <i class="fas fa-building"></i>Agency
                         </span>
                         {% endif %}
                     </div>
 
-                    <!-- Meta -->
-                    <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mb-4">
-                        {% if post.incident_date %}
-                        <span><i class="fas fa-calendar-alt mr-1"></i>{{ post.incident_date }}</span>
-                        {% endif %}
-                        {% if post.county %}
-                        <span><i class="fas fa-map-marker-alt mr-1"></i>{{ post.county }} County</span>
-                        {% endif %}
-                        {% if post.city %}
-                        <span><i class="fas fa-city mr-1"></i>{{ post.city }}</span>
-                        {% endif %}
-                        {% if post.agency_name %}
-                        <span><i class="fas fa-building mr-1"></i>{{ post.agency_name }}</span>
-                        {% endif %}
-                    </div>
-
-                    <!-- Digest body -->
-                    <div class="text-slate-700 text-sm leading-relaxed space-y-1">
+                    <!-- Summary -->
+                    <div class="text-slate-600 text-sm leading-relaxed mb-4">
                         {% for line in (post.summary or '').split('\n') %}
                             {% if line.strip() %}
                                 {% if loop.first %}
-                                <p class="font-semibold text-slate-800">{{ line }}</p>
+                                <p class="font-medium text-slate-800 mb-1">{{ line }}</p>
                                 {% else %}
-                                <p>{{ line }}</p>
+                                <p class="text-slate-600">{{ line }}</p>
                                 {% endif %}
                             {% endif %}
                         {% endfor %}
                     </div>
 
-                    {% if post.file_path %}
-                    <div class="mt-4 pt-4 border-t border-slate-100">
-                        {% set filename = post.file_path.split('/')[-1] %}
-                        <a href="/uploads/{{ filename }}" target="_blank" rel="noopener"
-                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg text-xs font-bold transition">
-                            <i class="fas fa-file-pdf text-[11px]"></i> View Original PDF
-                        </a>
-                    </div>
-                    {% endif %}
+                    <!-- Actions -->
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                        {% if post.file_path %}
+                            {% set filename = post.file_path.split('/')[-1] %}
+                            <a href="/uploads/{{ filename }}" target="_blank" rel="noopener"
+                               class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors">
+                                <i class="fas fa-file-pdf"></i>View Original
+                            </a>
+                        {% else %}
+                        <span></span>
+                        {% endif %}
 
-                    <!-- Share buttons -->
-                    {% set share_date = post.incident_date | to_iso_date %}
-                    {% set share_url = 'https://montanablotters.com/?date=' ~ share_date ~ '&agency=' ~ (post.agency_name or '') %}
-                    {% set share_text = (post.title or 'Daily Activity Report') ~ ' — Montana Blotter' %}
-                    <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
-                        <span class="text-xs text-slate-400 font-medium">Share:</span>
-                        <a href="https://twitter.com/intent/tweet?text={{ share_text | urlencode }}&url={{ share_url | urlencode }}"
-                           target="_blank" rel="noopener"
-                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black hover:bg-gray-700 text-white rounded-lg text-xs font-bold transition">
-                            <i class="fab fa-twitter text-[11px]"></i> X
-                        </a>
-                        <a href="https://www.facebook.com/sharer/sharer.php?u={{ share_url | urlencode }}"
-                           target="_blank" rel="noopener"
-                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition">
-                            <i class="fab fa-facebook-f text-[11px]"></i> Facebook
-                        </a>
-                        <button onclick="navigator.clipboard.writeText('{{ share_url }}'); this.innerHTML='<i class=\'fas fa-check\'></i> Copied!'; setTimeout(()=>this.innerHTML='<i class=\'fas fa-link\'></i> Copy link',2000)"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition">
-                            <i class="fas fa-link text-[11px]"></i> Copy link
+                        {% set share_date = post.incident_date | to_iso_date %}
+                        {% set share_url = 'https://montanablotters.com/?date=' ~ share_date ~ '&agency=' ~ (post.agency_name or '') %}
+                        <button onclick="navigator.clipboard.writeText('{{ share_url }}'); this.innerHTML='<i class=\"fas fa-check\"></i> Copied'; setTimeout(()=>this.innerHTML='<i class=\"fas fa-link\"></i> Share',2000)"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
+                            <i class="fas fa-link"></i>Share
                         </button>
                     </div>
                 </article>
                 {% endfor %}
+                </div>
 
                 <!-- Pagination -->
                 {% if total_pages > 1 %}
-                <nav class="flex items-center justify-between pt-2 pb-8">
-                    <p class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }}</p>
+                <nav class="flex items-center justify-between pt-6 pb-4">
+                    <p class="text-sm text-slate-500">Page <span class="font-medium text-slate-700">{{ page }}</span> of {{ total_pages }}</p>
                     <div class="flex gap-2">
                         {% if page > 1 %}
                         <a href="?county={{ county }}&city={{ city }}&agency_type={{ agency_type }}&agency={{ agency }}&q={{ q }}&date={{ date_filter }}&page={{ page - 1 }}"
-                           class="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 font-medium">&larr; Prev</a>
+                           class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-medium transition-all">&larr; Previous</a>
                         {% endif %}
                         {% if page < total_pages %}
                         <a href="?county={{ county }}&city={{ city }}&agency_type={{ agency_type }}&agency={{ agency }}&q={{ q }}&date={{ date_filter }}&page={{ page + 1 }}"
-                           class="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 font-medium">Next &rarr;</a>
+                           class="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-800 font-medium transition-all">Next &rarr;</a>
                         {% endif %}
                     </div>
                 </nav>
