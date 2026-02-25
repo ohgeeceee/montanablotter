@@ -421,9 +421,9 @@
                         {% endif %}
 
                         {% set share_date = post.incident_date | to_iso_date %}
-                        {% set share_url = 'https://montanablotters.com/?date=' ~ share_date ~ '&agency=' ~ (post.agency_name or '') %}
-                        <button onclick="navigator.clipboard.writeText('{{ share_url }}'); this.innerHTML = '<i class=\"fas fa-check\"></i> Copied'; setTimeout(() => this.innerHTML = '<i class=\"fas fa-link\"></i> Share', 2000)"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
+                        {% set share_url = 'https://montanablotter.com/?date=' ~ share_date ~ '&agency=' ~ (post.agency_name or '') %}
+                        <button type="button" class="share-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors"
+                                data-share-url="{{ share_url }}">
                             <i class="fas fa-link"></i>Share
                         </button>
                     </div>
@@ -606,6 +606,21 @@
             }
         });
     })();
+    </script>
+
+    <script>
+    document.querySelectorAll('.share-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var url = this.getAttribute('data-share-url');
+            navigator.clipboard.writeText(url).then(function() {
+                var original = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                setTimeout(function() {
+                    btn.innerHTML = original;
+                }, 2000);
+            });
+        });
+    });
     </script>
 
 </body>
