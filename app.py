@@ -86,7 +86,7 @@ def index():
             date_filter = ''
 
     sql = """
-        SELECT posts.*, blotters.county AS blotter_county
+        SELECT posts.*, blotters.county AS blotter_county, blotters.file_path AS file_path
         FROM posts
         JOIN blotters ON posts.blotter_id = blotters.id
         WHERE 1=1
@@ -545,7 +545,7 @@ def posts():
 
     # Build filter query
     sql = """
-        SELECT posts.*, blotters.county as blotter_county
+        SELECT posts.*, blotters.county as blotter_county, blotters.file_path AS file_path
         FROM posts
         JOIN blotters ON posts.blotter_id = blotters.id
         WHERE 1=1
