@@ -191,6 +191,68 @@
             <p class="font-bold mb-1"><i class="fas fa-triangle-exclamation mr-2"></i>Disclaimer</p>
             <p>Jail roster links are provided as a public convenience and may change without notice. Montana Blotter is not affiliated with any county government. For the most current inmate information, contact the county sheriff's office directly. Inmate status can change rapidly — always verify with the detention facility.</p>
         </div>
+
+        <!-- Records Pending Section -->
+        <div class="mt-14">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="bg-yellow-500 text-white p-2 rounded-lg">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-900">Blotter Records Pending</h2>
+            </div>
+            <p class="text-slate-500 text-sm mb-2 max-w-3xl">
+                The following <strong class="text-slate-700">49 counties</strong> have not yet submitted public activity reports to Montana Blotter.
+                Police blotters and daily activity logs are public records under Montana law —
+                any resident has the right to request them from their local sheriff's office.
+            </p>
+            <p class="text-slate-500 text-sm mb-8 max-w-3xl">
+                If you live in one of these counties, consider calling your sheriff's office and asking them to publish or share their blotter.
+                The more transparency requested by residents, the more likely agencies are to respond.
+            </p>
+
+            <!-- Script callout -->
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-8 max-w-3xl">
+                <p class="text-sm font-black text-blue-900 mb-2"><i class="fas fa-phone mr-2"></i>What to say when you call:</p>
+                <p class="text-sm text-blue-800 italic">
+                    "Hi, I'm a resident of [County] County. I'd like to ask whether your office publishes a daily or weekly police blotter or activity report, and if so, how I can receive it. These are public records and I'd love to stay informed about public safety in our community."
+                </p>
+            </div>
+
+            {% set responding = ['Flathead', 'Gallatin', 'Hill', 'Lewis and Clark', 'Missoula', 'Valley', 'Yellowstone'] %}
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for name, url, phone, has_online in counties %}
+                {% if name not in responding %}
+                <div class="bg-white rounded-xl border border-yellow-200 shadow-sm p-5 flex flex-col gap-2">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="font-black text-slate-900 text-base">{{ name }} County</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">{{ name }} County Sheriff's Office</p>
+                        </div>
+                        <span class="text-xs font-bold text-yellow-700 bg-yellow-50 border border-yellow-300 px-2 py-0.5 rounded-full whitespace-nowrap">
+                            <i class="fas fa-clock text-xs mr-1"></i>Pending
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-3 mt-1">
+                        <a href="tel:{{ phone }}"
+                           class="flex-1 text-center text-sm font-bold bg-slate-900 hover:bg-slate-700 text-white py-2 px-3 rounded-lg transition">
+                            <i class="fas fa-phone mr-1"></i>Request Records
+                        </a>
+                        <span class="text-xs text-slate-400 font-mono whitespace-nowrap">{{ phone }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <p class="text-xs text-slate-400 mt-6">
+                <i class="fas fa-info-circle mr-1"></i>
+                Is your sheriff's office already publishing a blotter? Email us at
+                <a href="mailto:records@montanablotter.com" class="underline hover:text-slate-600">records@montanablotter.com</a>
+                and we'll add them.
+            </p>
+        </div>
+
     </div>
 
     <!-- Footer -->

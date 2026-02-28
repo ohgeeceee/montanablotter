@@ -56,12 +56,14 @@
                         <th class="px-6 py-3 text-left">County</th>
                         <th class="px-6 py-3 text-left">Upload Date</th>
                         <th class="px-6 py-3 text-center">Incidents</th>
-                        <th class="px-6 py-3 text-center">Status</th>
+                        <th class="px-6 py-3 text-center">Ingest Status</th>
+                        <th class="px-6 py-3 text-center">Case Status</th>
                         <th class="px-6 py-3 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for blotter in blotters %}
+                    {% set post_info = posts_map.get(blotter.id) %}
                     <tr class="hover:bg-slate-50 transition">
                         <td class="px-6 py-4 text-sm font-bold text-slate-800">{{ blotter.filename }}</td>
                         <td class="px-6 py-4 text-sm text-slate-600">{{ blotter.county or '—' }}</td>
@@ -75,14 +77,52 @@
                                 {{ blotter.status or 'unknown' }}
                             </span>
                         </td>
+
+                        <!-- Case Status — live toggle (only if a post exists for this blotter) -->
+                        <td class="px-6 py-4 text-center">
+                            {% if post_info %}
+                            {% set cs = post_info.case_status %}
+                            <button type="button"
+                                    class="status-cycle-btn inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all hover:opacity-80 cursor-pointer"
+                                    data-post-id="{{ post_info.id }}"
+                                    data-current="{{ cs }}"
+                                    title="Click to cycle: active → pending → resolved">
+                                {% if cs == 'active' %}
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                </span>
+                                <span class="text-red-700 border-red-200 bg-red-50">Active Scene</span>
+                                {% elif cs == 'resolved' %}
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                                <span class="text-emerald-700 border-emerald-200 bg-emerald-50">Resolved</span>
+                                {% else %}
+                                <span class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>
+                                <span class="text-amber-700 border-amber-200 bg-amber-50">Pending</span>
+                                {% endif %}
+                            </button>
+                            {% else %}
+                            <span class="text-xs text-slate-300 italic">no post</span>
+                            {% endif %}
+                        </td>
+
                         <td class="px-6 py-4 text-right">
-                            <form action="/admin/blotter/{{ blotter.id }}/delete" method="POST"
-                                  onsubmit="return confirm('Delete this blotter and all its records?');">
-                                <button type="submit"
-                                        class="text-slate-400 hover:text-red-500 transition text-sm px-2 py-1 rounded hover:bg-red-50">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </form>
+                            <div class="flex items-center justify-end gap-1">
+                                {% if post_info %}
+                                <a href="/admin/post/{{ post_info.id }}/redact"
+                                   title="PII Redaction Editor"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition">
+                                    <i class="fas fa-eraser text-[10px]"></i> Redact
+                                </a>
+                                {% endif %}
+                                <form action="/admin/blotter/{{ blotter.id }}/delete" method="POST"
+                                      onsubmit="return confirm('Delete this blotter and all its records?');">
+                                    <button type="submit"
+                                            class="text-slate-400 hover:text-red-500 transition text-sm px-2 py-1.5 rounded hover:bg-red-50">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -98,6 +138,56 @@
         </div>
 
     </div>
+
+<script>
+// Status dot config
+const STATUS_CYCLE = { active: 'pending', pending: 'resolved', resolved: 'active' };
+const STATUS_META = {
+    active: {
+        label: 'Active Scene',
+        dotHtml: '<span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>',
+        textClass: 'text-red-700',
+        borderClass: 'border-red-200',
+        bgClass: 'bg-red-50',
+    },
+    pending: {
+        label: 'Pending',
+        dotHtml: '<span class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>',
+        textClass: 'text-amber-700',
+        borderClass: 'border-amber-200',
+        bgClass: 'bg-amber-50',
+    },
+    resolved: {
+        label: 'Resolved',
+        dotHtml: '<span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>',
+        textClass: 'text-emerald-700',
+        borderClass: 'border-emerald-200',
+        bgClass: 'bg-emerald-50',
+    },
+};
+
+document.querySelectorAll('.status-cycle-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var postId  = btn.dataset.postId;
+        var current = btn.dataset.current;
+        var next    = STATUS_CYCLE[current] || 'pending';
+
+        fetch('/admin/post/' + postId + '/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: next }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.ok) return;
+            var meta = STATUS_META[next];
+            btn.dataset.current = next;
+            btn.innerHTML = meta.dotHtml + '<span class="' + meta.textClass + '">' + meta.label + '</span>';
+        })
+        .catch(function () { /* silent — page refresh will show correct state */ });
+    });
+});
+</script>
 
 </body>
 </html>

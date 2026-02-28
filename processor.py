@@ -9,6 +9,7 @@ import logging
 from typing import Optional
 from pdf_parser import BlotterParser, parse_text_blotter
 import summarizer
+import blotter_auditor
 from pipeline_state import (
     increment_ingestion_retry,
     log_pipeline_event,
@@ -185,6 +186,31 @@ def process_new_blotter(
                     {'error': str(e)},
                 )
 
+        # --- Legal / PII audit ---
+        try:
+            audit_results = blotter_auditor.audit_blotter_posts(batch_id)
+            flagged = [r for r in audit_results if not r.audit_passed]
+            logging.info(
+                f"Blotter auditor: {len(audit_results)} post(s) audited, "
+                f"{len(flagged)} flagged for review"
+            )
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'audit',
+                    'warn' if flagged else 'ok',
+                    {'audited': len(audit_results), 'flagged': len(flagged)},
+                )
+        except Exception as e:
+            logging.warning(f"Blotter auditor failed for batch #{batch_id}: {e}")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'audit',
+                    'warn',
+                    {'error': str(e)},
+                )
+
         if ingestion_job_id is not None:
             log_pipeline_event(
                 ingestion_job_id,
@@ -337,6 +363,31 @@ def process_text_blotter(
                 log_pipeline_event(
                     ingestion_job_id,
                     'summarize',
+                    'warn',
+                    {'error': str(e)},
+                )
+
+        # --- Legal / PII audit ---
+        try:
+            audit_results = blotter_auditor.audit_blotter_posts(blotter_id)
+            flagged = [r for r in audit_results if not r.audit_passed]
+            logging.info(
+                f"Blotter auditor: {len(audit_results)} post(s) audited, "
+                f"{len(flagged)} flagged"
+            )
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'audit',
+                    'warn' if flagged else 'ok',
+                    {'audited': len(audit_results), 'flagged': len(flagged)},
+                )
+        except Exception as e:
+            logging.warning(f"Blotter auditor failed for text blotter #{blotter_id}: {e}")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'audit',
                     'warn',
                     {'error': str(e)},
                 )

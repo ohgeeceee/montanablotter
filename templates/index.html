@@ -10,6 +10,54 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-900">
 
+    <!-- Official Banner -->
+    <div id="official-banner" class="bg-[#1a2744] text-white text-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-1.5 flex items-center justify-between gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+                <!-- Montana state flag SVG (simplified: blue field + seal colors) -->
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-sm overflow-hidden flex-shrink-0 border border-white/20" aria-hidden="true">
+                    <svg viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg" width="20" height="14">
+                        <rect width="20" height="14" fill="#003087"/>
+                        <text x="10" y="10" text-anchor="middle" font-size="7" font-weight="bold" fill="#CFB53B" font-family="serif">MT</text>
+                    </svg>
+                </span>
+                <span class="font-medium tracking-wide text-white/90">
+                    An official website of the <strong class="text-white font-bold">Montana Public Records Initiative</strong>
+                </span>
+            </div>
+            <button id="banner-expand-btn"
+                    aria-expanded="false"
+                    aria-controls="banner-detail"
+                    class="flex items-center gap-1 text-blue-300 hover:text-white transition font-semibold whitespace-nowrap">
+                How you know
+                <svg id="banner-chevron" class="w-3 h-3 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+        </div>
+        <!-- Expandable trust detail (USWDS-style) -->
+        <div id="banner-detail" class="hidden border-t border-white/10 bg-[#162036]">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 grid sm:grid-cols-2 gap-4">
+                <div class="flex gap-3">
+                    <div class="flex-shrink-0 mt-0.5 text-blue-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-bold text-white text-xs mb-0.5">Official Montana public records data</p>
+                        <p class="text-white/60 text-[11px] leading-relaxed">Blotter reports are sourced directly from Montana county sheriffs and municipal police departments and processed by automated AI summarization.</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex-shrink-0 mt-0.5 text-blue-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-bold text-white text-xs mb-0.5">Secure &amp; privacy-respecting</p>
+                        <p class="text-white/60 text-[11px] leading-relaxed">All records are reviewed by our PII Auditor before publication. Personal identifiers are redacted in accordance with Montana open records law.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Navbar -->
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
@@ -221,6 +269,16 @@
                         </select>
                     </div>
 
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Case Status</label>
+                        <select name="status" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">All Statuses</option>
+                            <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>🔴 Active Scene</option>
+                            <option value="pending"  {% if status_filter == 'pending'  %}selected{% endif %}>🟡 Pending Investigation</option>
+                            <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>🟢 Resolved</option>
+                        </select>
+                    </div>
+
                     <button type="submit"
                             class="w-full bg-slate-900 hover:bg-blue-600 text-white text-sm font-bold py-2 rounded-lg transition">
                         Apply Filters
@@ -322,7 +380,7 @@
         <div class="flex-1 min-w-0 space-y-6">
 
             <!-- Active filters banner -->
-            {% if date_filter or county or city or agency_type or agency or q %}
+            {% if date_filter or county or city or agency_type or agency or q or status_filter %}
             <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="text-slate-500 font-semibold">Filtered by:</span>
                 {% if date_filter %}
@@ -346,6 +404,19 @@
                 {% endif %}
                 {% if q %}
                 <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-medium">&ldquo;{{ q }}&rdquo;</span>
+                {% endif %}
+                {% if status_filter == 'active' %}
+                <span class="inline-flex items-center gap-1.5 bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
+                    <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>Active Scene
+                </span>
+                {% elif status_filter == 'pending' %}
+                <span class="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>Pending Investigation
+                </span>
+                {% elif status_filter == 'resolved' %}
+                <span class="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>Resolved
+                </span>
                 {% endif %}
             </div>
             {% endif %}
@@ -380,19 +451,51 @@
                                 {% endif %}
                             </div>
                         </div>
-                        {% if post.agency_type == 'sheriff' %}
-                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                            <i class="fas fa-star"></i>Sheriff
-                        </span>
-                        {% elif post.agency_type == 'police' %}
-                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-100">
-                            <i class="fas fa-shield-alt"></i>Police
-                        </span>
-                        {% else %}
-                        <span class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-50 text-slate-600 border border-slate-100">
-                            <i class="fas fa-building"></i>Agency
-                        </span>
-                        {% endif %}
+
+                        <!-- Badges: status + agency type -->
+                        <div class="flex-shrink-0 flex items-center gap-2">
+
+                            <!-- Status dot badge -->
+                            {% set cs = post.case_status or 'pending' %}
+                            {% if cs == 'active' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-red-50 text-red-700 border border-red-200"
+                                  title="Active Scene">
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                </span>
+                                Active Scene
+                            </span>
+                            {% elif cs == 'resolved' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  title="Resolved">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                                Resolved
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"
+                                  title="Pending Investigation">
+                                <span class="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>
+                                Pending
+                            </span>
+                            {% endif %}
+
+                            <!-- Agency type badge -->
+                            {% if post.agency_type == 'sheriff' %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                                <i class="fas fa-star"></i>Sheriff
+                            </span>
+                            {% elif post.agency_type == 'police' %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-red-50 text-red-700 border border-red-100">
+                                <i class="fas fa-shield-alt"></i>Police
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-50 text-slate-600 border border-slate-100">
+                                <i class="fas fa-building"></i>Agency
+                            </span>
+                            {% endif %}
+
+                        </div>
                     </div>
 
                     <!-- Summary -->
@@ -437,11 +540,11 @@
                     <p class="text-sm text-slate-500">Page <span class="font-medium text-slate-700">{{ page }}</span> of {{ total_pages }}</p>
                     <div class="flex gap-2">
                         {% if page > 1 %}
-                        <a href="?county={{ county }}&city={{ city }}&agency_type={{ agency_type }}&agency={{ agency }}&q={{ q }}&date={{ date_filter }}&page={{ page - 1 }}"
+                        <a href="?county={{ county }}&city={{ city }}&agency_type={{ agency_type }}&agency={{ agency }}&q={{ q }}&date={{ date_filter }}&status={{ status_filter }}&page={{ page - 1 }}"
                            class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-medium transition-all">&larr; Previous</a>
                         {% endif %}
                         {% if page < total_pages %}
-                        <a href="?county={{ county }}&city={{ city }}&agency_type={{ agency_type }}&agency={{ agency }}&q={{ q }}&date={{ date_filter }}&page={{ page + 1 }}"
+                        <a href="?county={{ county }}&city={{ city }}&agency_type={{ agency_type }}&agency={{ agency }}&q={{ q }}&date={{ date_filter }}&status={{ status_filter }}&page={{ page + 1 }}"
                            class="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-800 font-medium transition-all">Next &rarr;</a>
                         {% endif %}
                     </div>
@@ -580,6 +683,19 @@
 
     <!-- Mobile menu & sidebar toggle scripts -->
     <script>
+    // Official banner expand/collapse
+    (function () {
+        var btn    = document.getElementById('banner-expand-btn');
+        var detail = document.getElementById('banner-detail');
+        var chev   = document.getElementById('banner-chevron');
+        if (!btn || !detail) return;
+        btn.addEventListener('click', function () {
+            var open = detail.classList.toggle('hidden');
+            btn.setAttribute('aria-expanded', String(!open));
+            chev.style.transform = open ? '' : 'rotate(180deg)';
+        });
+    })();
+
     // Hamburger nav menu
     (function () {
         var btn  = document.getElementById('mobile-menu-btn');
