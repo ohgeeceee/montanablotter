@@ -11,3 +11,7 @@
 
 # Daily DB backup at 2am
 0 2 * * * /root/montanablotter/backup_db.sh >> /root/montanablotter/backup.log 2>&1
+
+# CrimeMapping.com — pull Billings PD incidents daily at 6am
+# Uses org_id=513 (Billings Police). No API key required.
+0 6 * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/crimemapping_fetcher.py >> /root/montanablotter/crimemapping.log 2>&1
