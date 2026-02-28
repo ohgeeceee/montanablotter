@@ -91,14 +91,15 @@ def track_page_view():
 @app.route('/')
 def index():
     """Public homepage — daily activity reports with calendar filter"""
-    county      = request.args.get('county', '')
-    city        = request.args.get('city', '')
-    agency_type = request.args.get('agency_type', '')
-    agency      = request.args.get('agency', '')   # specific agency_name
+    county       = request.args.get('county', '')
+    city         = request.args.get('city', '')
+    agency_type  = request.args.get('agency_type', '')
+    agency       = request.args.get('agency', '')   # specific agency_name
     search_query = request.args.get('q', '')
-    date_filter = request.args.get('date', '')   # expects YYYY-MM-DD
-    page        = max(1, request.args.get('page', 1, type=int))
-    per_page    = 10
+    date_filter  = request.args.get('date', '')     # expects YYYY-MM-DD
+    status_filter = request.args.get('status', '')  # active | pending | resolved
+    page         = max(1, request.args.get('page', 1, type=int))
+    per_page     = 10
 
     conn = get_db()
 
@@ -138,6 +139,9 @@ def index():
     if date_sql_val:
         sql += " AND posts.incident_date = ?"
         params.append(date_sql_val)
+    if status_filter in ('active', 'pending', 'resolved'):
+        sql += " AND COALESCE(posts.case_status, 'pending') = ?"
+        params.append(status_filter)
 
     count_sql = sql.replace(
         "SELECT posts.*, blotters.county AS blotter_county", "SELECT COUNT(*)")
@@ -217,6 +221,7 @@ def index():
                            agency=agency,
                            q=search_query,
                            date_filter=date_filter,
+                           status_filter=status_filter,
                            dates_with_posts=dates_with_posts,
                            total_records=total_records,
                            leaderboard=leaderboard)
@@ -961,6 +966,41 @@ def city_page(slug):
     )
 
 
+# ==========================================
+# WARRANT PAGES
+# ==========================================
+
+# Slim list of counties shown on warrant pages — reuses COUNTY_DATA
+_WARRANT_COUNTIES = [
+    'yellowstone', 'gallatin', 'missoula', 'cascade', 'flathead',
+    'lewis-and-clark', 'silver-bow',
+]
+
+
+@app.route('/warrants')
+def warrants_hub():
+    counties = [COUNTY_DATA[s] for s in _WARRANT_COUNTIES if s in COUNTY_DATA]
+    return render_template(
+        'warrants_hub.html',
+        counties=counties,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/warrants/<slug>')
+def warrant_county(slug):
+    county = COUNTY_DATA.get(slug)
+    if not county:
+        return render_template('404.html'), 404
+    all_counties = [COUNTY_DATA[s] for s in _WARRANT_COUNTIES if s in COUNTY_DATA]
+    return render_template(
+        'warrant_county.html',
+        county=county,
+        all_counties=all_counties,
+        current_year=datetime.now().year,
+    )
+
+
 @app.route('/laws')
 def montana_laws():
     return render_template('laws.html')
@@ -1280,9 +1320,13 @@ def admin_blotters():
     """View and manage all blotters"""
     conn = get_db()
     blotters = conn.execute('SELECT * FROM blotters ORDER BY upload_date DESC').fetchall()
+    # Fetch the post (id + case_status) associated with each blotter
+    posts_map = {}
+    for row in conn.execute('SELECT id, blotter_id, case_status FROM posts'):
+        posts_map[row['blotter_id']] = {'id': row['id'],
+                                        'case_status': row['case_status'] or 'pending'}
     conn.close()
-    
-    return render_template('admin_blotters.html', blotters=blotters)
+    return render_template('admin_blotters.html', blotters=blotters, posts_map=posts_map)
 
 @app.route('/admin/blotter/<int:blotter_id>/delete', methods=['POST'])
 @login_required
@@ -1301,6 +1345,56 @@ def admin_delete_blotter(blotter_id):
     
     flash('Blotter deleted successfully')
     return redirect(url_for('admin_blotters'))
+
+@app.route('/admin/post/<int:post_id>/redact', methods=['GET', 'POST'])
+@login_required
+def admin_redact_post(post_id):
+    """PII Redaction Editor — highlight, black-bar, and save a sanitised post summary."""
+    conn = get_db()
+    post = conn.execute('SELECT * FROM posts WHERE id = ?', (post_id,)).fetchone()
+    if not post:
+        conn.close()
+        flash('Post not found.')
+        return redirect(url_for('admin_blotters'))
+
+    if request.method == 'POST':
+        redacted_summary = request.form.get('redacted_summary', '').strip()
+        mark_clean       = request.form.get('mark_clean', '') == '1'
+        new_status       = 'clean' if mark_clean else (post['audit_status'] or 'pending')
+        conn.execute(
+            'UPDATE posts SET summary = ?, audit_status = ? WHERE id = ?',
+            (redacted_summary, new_status, post_id),
+        )
+        conn.commit()
+        conn.close()
+        flash('Post redacted and saved successfully.' if mark_clean
+              else 'Draft saved — not yet marked clean.')
+        return redirect(url_for('admin_redact_post', post_id=post_id))
+
+    # Build PII spans from current summary
+    from blotter_auditor import get_pii_spans
+    summary    = post['summary'] or ''
+    pii_spans  = get_pii_spans(summary)
+    conn.close()
+    return render_template('admin_redaction.html',
+                           post=post,
+                           pii_spans=pii_spans)
+
+
+@app.route('/admin/post/<int:post_id>/status', methods=['POST'])
+@login_required
+def admin_update_post_status(post_id):
+    """AJAX endpoint — cycle case_status for a post (active / pending / resolved)."""
+    data = request.get_json(force=True) or {}
+    new_status = data.get('status', 'pending')
+    if new_status not in ('active', 'pending', 'resolved'):
+        return jsonify({'ok': False, 'error': 'invalid status'}), 400
+    conn = get_db()
+    conn.execute('UPDATE posts SET case_status = ? WHERE id = ?', (new_status, post_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True, 'status': new_status})
+
 
 @app.route('/admin/settings', methods=['GET', 'POST'])
 @login_required

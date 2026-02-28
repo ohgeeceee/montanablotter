@@ -292,6 +292,28 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_path ON page_views(path)')
 
+    # Case status for status indicator dots
+    try:
+        cursor.execute("ALTER TABLE posts ADD COLUMN case_status TEXT DEFAULT 'pending'")
+        print('✅ Added posts.case_status')
+    except sqlite3.OperationalError:
+        pass
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_posts_case_status ON posts(case_status)")
+
+    # Blotter Auditor columns on posts table
+    for col, definition in [
+        ('audit_status',     "TEXT DEFAULT 'pending'"),
+        ('pii_flags',        'TEXT'),
+        ('meta_description', 'TEXT'),
+        ('audited_at',       'TEXT'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE posts ADD COLUMN {col} {definition}')
+            print(f'✅ Added posts.{col}')
+        except sqlite3.OperationalError:
+            pass  # Already exists
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_audit_status ON posts(audit_status)')
+
     conn.commit()
     conn.close()
     print("✅ Migration complete")
