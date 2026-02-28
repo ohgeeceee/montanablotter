@@ -279,6 +279,19 @@ def migrate():
         "WHERE source_document_id IS NOT NULL"
     )
 
+    # Page views table for visitor analytics
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS page_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT NOT NULL,
+            ip_hash TEXT,
+            referrer TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_path ON page_views(path)')
+
     conn.commit()
     conn.close()
     print("✅ Migration complete")

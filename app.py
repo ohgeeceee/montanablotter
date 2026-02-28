@@ -5,6 +5,7 @@ Public browse + Admin panel only (no memberships)
 
 import os
 import sqlite3
+import hashlib
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
@@ -57,6 +58,31 @@ def load_user(user_id):
     if res:
         return User(res['id'], res['username'])
     return None
+
+# ==========================================
+# PAGE VIEW TRACKING
+# ==========================================
+
+@app.before_request
+def track_page_view():
+    """Log public page views for visitor analytics (admin routes and static files excluded)."""
+    if request.path.startswith('/admin') or request.path.startswith('/static'):
+        return
+    if request.path in ('/favicon.ico',):
+        return
+    ip_hash = hashlib.sha256((request.remote_addr or '').encode()).hexdigest()[:16]
+    referrer = (request.referrer or '')[:500]
+    try:
+        conn = sqlite3.connect(config.DB_PATH)
+        conn.execute(
+            'INSERT INTO page_views (path, ip_hash, referrer) VALUES (?, ?, ?)',
+            (request.path, ip_hash, referrer)
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass  # Never break the site for analytics
+
 
 # ==========================================
 # PUBLIC ROUTES (No Login Required)
@@ -387,6 +413,552 @@ def render_markdown(text):
 @app.route('/jail-rosters')
 def jail_rosters():
     return render_template('jail_rosters.html')
+
+
+# ==========================================
+# COUNTY PAGES
+# ==========================================
+
+COUNTY_DATA = {
+    'yellowstone': {
+        'slug': 'yellowstone',
+        'name': 'Yellowstone',
+        'seat': 'Billings',
+        'phone': '406-256-2929',
+        'roster_url': 'https://www.yellowstonecountymt.gov/sheriff/detention/dcsearch.asp',
+        'warrant_url': 'https://www.yellowstonecountymt.gov/justicecourt/JCWarrants.asp',
+        'description': (
+            "Yellowstone County is Montana's most populous county, home to Billings — the state's largest city. "
+            "Law enforcement is handled by the Yellowstone County Sheriff's Office, the Billings Police Department, "
+            "and the Laurel Police Department, among others. The county seat, Billings, sits at the junction of "
+            "Interstate 90 and I-94, making it a key transit corridor that law enforcement monitors closely for "
+            "drug trafficking and vehicle crime. The Yellowstone County Detention Facility is located in Billings "
+            "and publishes a live inmate roster online. The county also operates a dedicated cold case unit."
+        ),
+        'agencies': [
+            {'name': 'Yellowstone County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-256-2929'},
+            {'name': 'Billings Police Department', 'type': 'police', 'phone': '406-657-8460'},
+            {'name': 'Laurel Police Department', 'type': 'police', 'phone': '406-628-4040'},
+        ],
+        'neighbors': [
+            {'name': 'Carbon', 'slug': 'carbon'},
+            {'name': 'Stillwater', 'slug': 'stillwater'},
+            {'name': 'Golden Valley', 'slug': 'golden-valley'},
+            {'name': 'Musselshell', 'slug': 'musselshell'},
+            {'name': 'Treasure', 'slug': 'treasure'},
+            {'name': 'Big Horn', 'slug': 'big-horn'},
+        ],
+    },
+    'gallatin': {
+        'slug': 'gallatin',
+        'name': 'Gallatin',
+        'seat': 'Bozeman',
+        'phone': '406-582-2100',
+        'roster_url': 'https://gallatin-so-mt.zuercherportal.com/#/inmates',
+        'warrant_url': None,
+        'description': (
+            "Gallatin County, home to Bozeman and Montana State University, is one of the fastest-growing counties "
+            "in the United States. The Gallatin County Sheriff's Office patrols the unincorporated areas of the county, "
+            "while the Bozeman Police Department covers the city. West Yellowstone, at the north entrance to Yellowstone "
+            "National Park, is also in Gallatin County and sees significant seasonal traffic and related law enforcement "
+            "activity. The county has seen a rise in property crime and traffic incidents in step with its rapid population "
+            "growth, and drug enforcement has become an increasing priority as meth and fentanyl distribution networks "
+            "have expanded into the Bozeman area."
+        ),
+        'agencies': [
+            {'name': 'Gallatin County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-582-2100'},
+            {'name': 'Bozeman Police Department', 'type': 'police', 'phone': '406-582-2000'},
+            {'name': 'West Yellowstone Police Department', 'type': 'police', 'phone': '406-646-7600'},
+        ],
+        'neighbors': [
+            {'name': 'Park', 'slug': 'park'},
+            {'name': 'Meagher', 'slug': 'meagher'},
+            {'name': 'Broadwater', 'slug': 'broadwater'},
+            {'name': 'Jefferson', 'slug': 'jefferson'},
+            {'name': 'Madison', 'slug': 'madison'},
+        ],
+    },
+    'missoula': {
+        'slug': 'missoula',
+        'name': 'Missoula',
+        'seat': 'Missoula',
+        'phone': '406-258-4780',
+        'roster_url': 'https://webapps.missoulacounty.us/jailroster/Inmates',
+        'warrant_url': None,
+        'description': (
+            "Missoula County is home to the University of Montana and the city of Missoula, western Montana's largest "
+            "urban center. The Missoula County Sheriff's Office and Missoula Police Department are the primary law "
+            "enforcement agencies. In 2024, the Missoula Police Department reported a 9.9% decrease in felony violent "
+            "crime, including 36 robberies, 357 assaults, and 2 homicides — though theft and disorderly conduct "
+            "increased. The county also has an active drug task force that seized nearly 40,000 dosage units of "
+            "fentanyl in 2024. The Missoula County Detention Center publishes a real-time inmate roster updated "
+            "throughout the day."
+        ),
+        'agencies': [
+            {'name': 'Missoula County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-258-4780'},
+            {'name': 'Missoula Police Department', 'type': 'police', 'phone': '406-552-6300'},
+        ],
+        'neighbors': [
+            {'name': 'Ravalli', 'slug': 'ravalli'},
+            {'name': 'Mineral', 'slug': 'mineral'},
+            {'name': 'Powell', 'slug': 'powell'},
+            {'name': 'Lake', 'slug': 'lake'},
+            {'name': 'Sanders', 'slug': 'sanders'},
+            {'name': 'Granite', 'slug': 'granite'},
+        ],
+    },
+    'cascade': {
+        'slug': 'cascade',
+        'name': 'Cascade',
+        'seat': 'Great Falls',
+        'phone': '406-454-6840',
+        'roster_url': 'https://www.cascadecountymt.gov/314/Inmate-Roster',
+        'warrant_url': 'https://greatfallsmt.net/municipalcourt/warrants-list',
+        'description': (
+            "Cascade County is home to Great Falls, Montana's third-largest city and the county seat. The county is "
+            "served by the Cascade County Sheriff's Office and the Great Falls Police Department. Great Falls sits "
+            "along the Missouri River and is a regional hub for north-central Montana. Malmstrom Air Force Base, "
+            "located within the city, brings a substantial military population to the area. The Great Falls Municipal "
+            "Court publishes an active warrant list online. Cascade County Detention Center maintains a public inmate "
+            "roster with current bookings."
+        ),
+        'agencies': [
+            {'name': 'Cascade County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-454-6840'},
+            {'name': 'Great Falls Police Department', 'type': 'police', 'phone': '406-455-8500'},
+        ],
+        'neighbors': [
+            {'name': 'Chouteau', 'slug': 'chouteau'},
+            {'name': 'Judith Basin', 'slug': 'judith-basin'},
+            {'name': 'Meagher', 'slug': 'meagher'},
+            {'name': 'Lewis and Clark', 'slug': 'lewis-and-clark'},
+            {'name': 'Teton', 'slug': 'teton'},
+        ],
+    },
+    'flathead': {
+        'slug': 'flathead',
+        'name': 'Flathead',
+        'seat': 'Kalispell',
+        'phone': '406-758-5610',
+        'roster_url': 'https://apps.flathead.mt.gov/jailroster/',
+        'warrant_url': 'https://apps.flathead.mt.gov/warrants/warrants_list.php',
+        'description': (
+            "Flathead County is located in northwest Montana and includes Kalispell, Whitefish, and Columbia Falls. "
+            "It borders Glacier National Park to the east and Flathead Lake — the largest natural freshwater lake west "
+            "of the Mississippi — to the south. The Flathead County Sheriff's Office and Kalispell Police Department "
+            "are the primary agencies. The county's outdoor recreation economy and proximity to the Canadian border "
+            "create unique law enforcement challenges. The Flathead Beacon newspaper publishes a detailed daily police "
+            "blotter. Flathead County offers a public warrant list and live inmate roster online."
+        ),
+        'agencies': [
+            {'name': 'Flathead County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-758-5610'},
+            {'name': 'Kalispell Police Department', 'type': 'police', 'phone': '406-758-7780'},
+            {'name': 'Whitefish Police Department', 'type': 'police', 'phone': '406-863-2420'},
+            {'name': 'Columbia Falls Police Department', 'type': 'police', 'phone': '406-892-2222'},
+        ],
+        'neighbors': [
+            {'name': 'Lake', 'slug': 'lake'},
+            {'name': 'Lincoln', 'slug': 'lincoln'},
+            {'name': 'Sanders', 'slug': 'sanders'},
+            {'name': 'Glacier', 'slug': 'glacier'},
+            {'name': 'Pondera', 'slug': 'pondera'},
+        ],
+    },
+    'lewis-and-clark': {
+        'slug': 'lewis-and-clark',
+        'name': 'Lewis and Clark',
+        'seat': 'Helena',
+        'phone': '406-447-8270',
+        'roster_url': 'https://www.lccountymt.gov/Sheriff/Detention-Center',
+        'warrant_url': 'https://www.helenamt.gov/Departments/Municipal-Court/Arrest-Warrants-Defendants-in-Custody',
+        'description': (
+            "Lewis and Clark County is the home of Helena, Montana's state capital. As the seat of state government, "
+            "the county hosts the Montana Legislature, the Governor's office, and numerous state agencies. The Lewis "
+            "and Clark County Sheriff's Office and Helena Police Department are the primary law enforcement agencies. "
+            "The Helena Municipal Court publishes a list of active arrest warrants and defendants in custody online. "
+            "Montana Blotter currently receives daily activity reports directly from the Helena Police Department, "
+            "making Lewis and Clark County one of our most consistently covered areas."
+        ),
+        'agencies': [
+            {'name': 'Lewis and Clark County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-447-8270'},
+            {'name': 'Helena Police Department', 'type': 'police', 'phone': '406-442-3233'},
+            {'name': 'East Helena Police Department', 'type': 'police', 'phone': '406-227-8222'},
+        ],
+        'neighbors': [
+            {'name': 'Cascade', 'slug': 'cascade'},
+            {'name': 'Meagher', 'slug': 'meagher'},
+            {'name': 'Broadwater', 'slug': 'broadwater'},
+            {'name': 'Jefferson', 'slug': 'jefferson'},
+            {'name': 'Powell', 'slug': 'powell'},
+            {'name': 'Teton', 'slug': 'teton'},
+        ],
+    },
+    'silver-bow': {
+        'slug': 'silver-bow',
+        'name': 'Silver Bow',
+        'seat': 'Butte',
+        'phone': '406-497-1120',
+        'roster_url': 'https://co.silverbow.mt.us/3274/Detention-Center',
+        'warrant_url': None,
+        'description': (
+            "Silver Bow County is a consolidated city-county government — the City and County of Butte-Silver Bow — "
+            "making it one of the few such unified governments in the western United States. Butte has a rich mining "
+            "history and is home to the Berkeley Pit Superfund site. The Butte-Silver Bow Law Enforcement Division "
+            "handles both municipal and county law enforcement functions. The Silver Bow County Detention Center "
+            "maintains inmate booking information. Butte is located at the junction of I-90 and I-15, making it a "
+            "significant node in Montana's highway network and a transit point for drug trafficking routes."
+        ),
+        'agencies': [
+            {'name': 'Butte-Silver Bow Law Enforcement', 'type': 'police', 'phone': '406-497-1120'},
+        ],
+        'neighbors': [
+            {'name': 'Deer Lodge', 'slug': 'deer-lodge'},
+            {'name': 'Jefferson', 'slug': 'jefferson'},
+            {'name': 'Beaverhead', 'slug': 'beaverhead'},
+            {'name': 'Madison', 'slug': 'madison'},
+            {'name': 'Granite', 'slug': 'granite'},
+        ],
+    },
+}
+
+
+@app.route('/county/<slug>')
+def county_page(slug):
+    county = COUNTY_DATA.get(slug)
+    if not county:
+        return render_template('404.html'), 404
+
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 10
+
+    conn = get_db()
+
+    count_row = conn.execute(
+        'SELECT COUNT(*) FROM posts WHERE county = ?', (county['name'],)
+    ).fetchone()
+    post_count = count_row[0] if count_row else 0
+    total_pages = max(1, (post_count + per_page - 1) // per_page)
+
+    posts = conn.execute(
+        """SELECT posts.*, blotters.county AS blotter_county
+           FROM posts
+           JOIN blotters ON posts.blotter_id = blotters.id
+           WHERE posts.county = ?
+           ORDER BY posts.incident_date DESC, posts.created_at DESC
+           LIMIT ? OFFSET ?""",
+        (county['name'], per_page, (page - 1) * per_page)
+    ).fetchall()
+
+    record_count = conn.execute(
+        'SELECT COUNT(*) FROM records WHERE county = ?', (county['name'],)
+    ).fetchone()[0]
+
+    last_row = conn.execute(
+        'SELECT incident_date FROM posts WHERE county = ? ORDER BY incident_date DESC LIMIT 1',
+        (county['name'],)
+    ).fetchone()
+    last_report = last_row['incident_date'] if last_row else None
+
+    conn.close()
+
+    return render_template(
+        'county_page.html',
+        county=county,
+        posts=posts,
+        post_count=post_count,
+        record_count=record_count,
+        last_report=last_report,
+        page=page,
+        total_pages=total_pages,
+        current_year=datetime.now().year,
+    )
+
+
+# ==========================================
+# CITY PAGES
+# ==========================================
+
+CITY_DATA = {
+    'billings': {
+        'slug': 'billings',
+        'name': 'Billings',
+        'county': 'Yellowstone',
+        'county_slug': 'yellowstone',
+        'county_roster_url': 'https://www.yellowstonecountymt.gov/sheriff/detention/dcsearch.asp',
+        'pd_name': 'Billings Police Department',
+        'pd_phone': '406-657-8460',
+        'pd_url': 'https://www.billingsmt.gov/2564/Police-Department',
+        'pd_records_url': 'https://www.billingsmt.gov/2874/Warrants',
+        'warrant_url': 'https://www.billingsmt.gov/2874/Warrants',
+        'municipal_court_url': None,
+        'search_terms': ['Billings', 'Billings Police'],
+        'description': (
+            "The Billings Police Department serves Montana's largest city, with a population of around 120,000. "
+            "Billings sits at the crossroads of Interstate 90 and I-94 in Yellowstone County, making it a major "
+            "commercial and transportation hub for the region. The department operates multiple divisions including "
+            "patrol, investigations, traffic, and a dedicated drug task force that works alongside county and federal "
+            "agencies to combat meth and fentanyl distribution in the Yellowstone Valley. The Billings Police "
+            "Department publishes regular crime statistics and participates in the national Project Safe Neighborhoods "
+            "initiative."
+        ),
+        'nearby': [
+            {'name': 'Laurel', 'slug': 'laurel'},
+            {'name': 'Hardin', 'slug': 'hardin'},
+        ],
+    },
+    'missoula': {
+        'slug': 'missoula',
+        'name': 'Missoula',
+        'county': 'Missoula',
+        'county_slug': 'missoula',
+        'county_roster_url': 'https://webapps.missoulacounty.us/jailroster/Inmates',
+        'pd_name': 'Missoula Police Department',
+        'pd_phone': '406-552-6300',
+        'pd_url': 'https://www.ci.missoula.mt.us/212/Police-Department',
+        'pd_records_url': None,
+        'warrant_url': None,
+        'municipal_court_url': 'https://www.ci.missoula.mt.us/335/Crime-Activity',
+        'search_terms': ['Missoula', 'Missoula Police'],
+        'description': (
+            "The Missoula Police Department serves a city of approximately 75,000 people in western Montana, home "
+            "to the University of Montana. In 2024, the department reported a 9.9% decrease in felony violent crime, "
+            "with 36 robberies, 357 assaults, and 2 homicides. Theft and disorderly conduct increased during the "
+            "same period. The MPD's drug task force seized nearly 40,000 dosage units of fentanyl in 2024. The "
+            "department releases an annual crime report and posts crime activity data online. Missoula Police "
+            "work closely with the Missoula County Sheriff's Office and the University of Montana Police."
+        ),
+        'nearby': [
+            {'name': 'Lolo', 'slug': 'lolo'},
+        ],
+    },
+    'bozeman': {
+        'slug': 'bozeman',
+        'name': 'Bozeman',
+        'county': 'Gallatin',
+        'county_slug': 'gallatin',
+        'county_roster_url': 'https://gallatin-so-mt.zuercherportal.com/#/inmates',
+        'pd_name': 'Bozeman Police Department',
+        'pd_phone': '406-582-2000',
+        'pd_url': 'https://www.bozeman.net/departments/police',
+        'pd_records_url': None,
+        'warrant_url': None,
+        'municipal_court_url': 'https://www.bozeman.net/departments/municipal-court',
+        'search_terms': ['Bozeman', 'Bozeman Police'],
+        'description': (
+            "The Bozeman Police Department serves one of the fastest-growing cities in the United States. Bozeman's "
+            "population has grown dramatically over the past decade, driven by an influx of remote workers, tech "
+            "companies, and outdoor recreation tourism around Yellowstone National Park. In 2025, the BPD reported "
+            "a 60% increase in traffic violations — a direct consequence of the city's rapid growth and increased "
+            "vehicle traffic. The department works closely with the Gallatin County Sheriff's Office and Montana "
+            "State University Police. Property crime and drug-related offenses have grown alongside the city's "
+            "expanding population."
+        ),
+        'nearby': [
+            {'name': 'Belgrade', 'slug': 'belgrade'},
+            {'name': 'Manhattan', 'slug': 'manhattan'},
+        ],
+    },
+    'great-falls': {
+        'slug': 'great-falls',
+        'name': 'Great Falls',
+        'county': 'Cascade',
+        'county_slug': 'cascade',
+        'county_roster_url': 'https://www.cascadecountymt.gov/314/Inmate-Roster',
+        'pd_name': 'Great Falls Police Department',
+        'pd_phone': '406-455-8500',
+        'pd_url': 'https://greatfallsmt.net/police',
+        'pd_records_url': None,
+        'warrant_url': 'https://greatfallsmt.net/municipalcourt/warrants-list',
+        'municipal_court_url': 'https://greatfallsmt.net/municipalcourt',
+        'search_terms': ['Great Falls', 'Great Falls Police'],
+        'description': (
+            "The Great Falls Police Department serves Montana's third-largest city, situated along the Missouri River "
+            "in Cascade County. The city is home to Malmstrom Air Force Base, a significant presence that affects "
+            "the local population and law enforcement dynamics. Great Falls serves as the commercial and medical hub "
+            "for a large swath of north-central Montana. The Great Falls Municipal Court publishes an active online "
+            "warrant list. The GFPD works alongside the Cascade County Sheriff's Office and Malmstrom's security "
+            "forces. The department has a strong community policing focus and participates in regional drug task "
+            "force operations."
+        ),
+        'nearby': [
+            {'name': 'Havre', 'slug': 'havre'},
+        ],
+    },
+    'helena': {
+        'slug': 'helena',
+        'name': 'Helena',
+        'county': 'Lewis and Clark',
+        'county_slug': 'lewis-and-clark',
+        'county_roster_url': 'https://www.lccountymt.gov/Sheriff/Detention-Center',
+        'pd_name': 'Helena Police Department',
+        'pd_phone': '406-442-3233',
+        'pd_url': 'https://www.helenamt.gov/Departments/Police',
+        'pd_records_url': None,
+        'warrant_url': 'https://www.helenamt.gov/Departments/Municipal-Court/Arrest-Warrants-Defendants-in-Custody',
+        'municipal_court_url': 'https://www.helenamt.gov/Departments/Municipal-Court',
+        'search_terms': ['Helena', 'Helena Police'],
+        'description': (
+            "The Helena Police Department serves Montana's state capital, a city of approximately 33,000 people in "
+            "Lewis and Clark County. As the seat of state government, Helena is home to the Montana Legislature, "
+            "the Governor's office, the Montana Supreme Court, and numerous state agencies. Montana Blotter currently "
+            "receives daily activity reports directly from the Helena Police Department, making it one of our most "
+            "consistently covered agencies. The HPD's media log is published each weekday and includes all calls for "
+            "service, arrests, and notable incidents. The Helena Municipal Court publishes active arrest warrants "
+            "and current defendants in custody online."
+        ),
+        'nearby': [
+            {'name': 'East Helena', 'slug': 'east-helena'},
+            {'name': 'Havre', 'slug': 'havre'},
+        ],
+    },
+    'kalispell': {
+        'slug': 'kalispell',
+        'name': 'Kalispell',
+        'county': 'Flathead',
+        'county_slug': 'flathead',
+        'county_roster_url': 'https://apps.flathead.mt.gov/jailroster/',
+        'pd_name': 'Kalispell Police Department',
+        'pd_phone': '406-758-7780',
+        'pd_url': 'https://kalispell.com/police',
+        'pd_records_url': None,
+        'warrant_url': 'https://apps.flathead.mt.gov/warrants/warrants_list.php',
+        'municipal_court_url': None,
+        'search_terms': ['Kalispell', 'Kalispell Police'],
+        'description': (
+            "The Kalispell Police Department serves the county seat of Flathead County in northwest Montana. "
+            "Kalispell is the largest city in the region and the commercial hub for the Flathead Valley, which "
+            "includes Whitefish and Columbia Falls. The city's proximity to Glacier National Park and Flathead Lake "
+            "draws significant seasonal tourism. The KPD works closely with the Flathead County Sheriff's Office, "
+            "which maintains both a public jail roster and a public warrant list online. The Flathead Beacon "
+            "newspaper provides detailed daily police blotter coverage for the Flathead Valley."
+        ),
+        'nearby': [
+            {'name': 'Whitefish', 'slug': 'whitefish'},
+            {'name': 'Columbia Falls', 'slug': 'columbia-falls'},
+        ],
+    },
+    'butte': {
+        'slug': 'butte',
+        'name': 'Butte',
+        'county': 'Silver Bow',
+        'county_slug': 'silver-bow',
+        'county_roster_url': 'https://co.silverbow.mt.us/3274/Detention-Center',
+        'pd_name': 'Butte-Silver Bow Law Enforcement',
+        'pd_phone': '406-497-1120',
+        'pd_url': 'https://co.silverbow.mt.us/192/Law-Enforcement',
+        'pd_records_url': None,
+        'warrant_url': None,
+        'municipal_court_url': None,
+        'search_terms': ['Butte', 'Butte-Silver Bow', 'Butte Silver Bow'],
+        'description': (
+            "Butte-Silver Bow Law Enforcement is the unified law enforcement division of the consolidated "
+            "City and County of Butte-Silver Bow — one of the few city-county government consolidations in the "
+            "western United States. Butte has a storied mining history and is home to the Berkeley Pit Superfund "
+            "site. The city sits at the junction of I-90 and I-15, key corridors for both commerce and, "
+            "historically, drug trafficking routes. The consolidated government structure means a single law "
+            "enforcement agency handles both municipal and county functions, and the Silver Bow County Detention "
+            "Center handles all local inmate booking."
+        ),
+        'nearby': [
+            {'name': 'Anaconda', 'slug': 'anaconda'},
+            {'name': 'Deer Lodge', 'slug': 'deer-lodge'},
+        ],
+    },
+    'havre': {
+        'slug': 'havre',
+        'name': 'Havre',
+        'county': 'Hill',
+        'county_slug': 'hill',
+        'county_roster_url': None,
+        'pd_name': 'Havre Police Department',
+        'pd_phone': '406-265-4397',
+        'pd_url': None,
+        'pd_records_url': None,
+        'warrant_url': None,
+        'municipal_court_url': None,
+        'search_terms': ['Havre', 'Havre Police', 'HAVRE POLICE'],
+        'description': (
+            "The Havre Police Department serves Hill County's largest city, located in north-central Montana near "
+            "the Canadian border. Havre is home to Montana State University–Northern and serves as a regional hub "
+            "for the Hi-Line communities along Highway 2. The city's proximity to the border creates unique law "
+            "enforcement challenges including drug smuggling and human trafficking concerns. Montana Blotter "
+            "currently receives daily activity reports directly from the Havre Police Department, making it one of "
+            "our most consistently covered agencies on the Hi-Line."
+        ),
+        'nearby': [
+            {'name': 'Great Falls', 'slug': 'great-falls'},
+        ],
+    },
+}
+
+
+@app.route('/city/<slug>')
+def city_page(slug):
+    city = CITY_DATA.get(slug)
+    if not city:
+        return render_template('404.html'), 404
+
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 10
+
+    # Build a LIKE-based OR clause across city and agency_name for each search term
+    terms = city['search_terms']
+    where_clauses = []
+    params_count = []
+    for term in terms:
+        where_clauses.append('(posts.city LIKE ? OR posts.agency_name LIKE ?)')
+        params_count.extend([f'%{term}%', f'%{term}%'])
+
+    where_sql = ' OR '.join(where_clauses)
+
+    conn = get_db()
+
+    count_row = conn.execute(
+        f'SELECT COUNT(*) FROM posts WHERE {where_sql}', params_count
+    ).fetchone()
+    post_count = count_row[0] if count_row else 0
+    total_pages = max(1, (post_count + per_page - 1) // per_page)
+
+    params_fetch = params_count + [per_page, (page - 1) * per_page]
+    posts = conn.execute(
+        f"""SELECT posts.*, blotters.county AS blotter_county
+            FROM posts
+            JOIN blotters ON posts.blotter_id = blotters.id
+            WHERE {where_sql}
+            ORDER BY posts.incident_date DESC, posts.created_at DESC
+            LIMIT ? OFFSET ?""",
+        params_fetch
+    ).fetchall()
+
+    # Count incidents from records table using same city terms
+    rec_clauses = []
+    rec_params = []
+    for term in terms:
+        rec_clauses.append('location LIKE ?')
+        rec_params.append(f'%{term}%')
+    record_count = conn.execute(
+        f"SELECT COUNT(*) FROM records WHERE {' OR '.join(rec_clauses)}",
+        rec_params
+    ).fetchone()[0]
+
+    last_row = conn.execute(
+        f'SELECT incident_date FROM posts WHERE {where_sql} ORDER BY incident_date DESC LIMIT 1',
+        params_count
+    ).fetchone()
+    last_report = last_row['incident_date'] if last_row else None
+
+    conn.close()
+
+    return render_template(
+        'city_page.html',
+        city=city,
+        posts=posts,
+        post_count=post_count,
+        record_count=record_count,
+        last_report=last_report,
+        page=page,
+        total_pages=total_pages,
+        current_year=datetime.now().year,
+    )
 
 
 @app.route('/laws')
@@ -1291,6 +1863,57 @@ def admin_analytics():
         agency_labels=agency_labels, agency_counts=agency_counts,
         county_labels=county_labels, county_this=county_this_vals, county_last=county_last_vals,
         blotter_labels=blotter_labels, blotter_counts=blotter_counts,
+    )
+
+
+# ==========================================
+# VISITOR ANALYTICS
+# ==========================================
+
+@app.route('/admin/visitors')
+@login_required
+def admin_visitors():
+    conn = get_db()
+
+    # Summary counts
+    today     = conn.execute("SELECT COUNT(*) FROM page_views WHERE date(created_at)=date('now')").fetchone()[0]
+    this_week = conn.execute("SELECT COUNT(*) FROM page_views WHERE created_at >= date('now','-7 days')").fetchone()[0]
+    this_month= conn.execute("SELECT COUNT(*) FROM page_views WHERE created_at >= date('now','start of month')").fetchone()[0]
+    all_time  = conn.execute("SELECT COUNT(*) FROM page_views").fetchone()[0]
+
+    # Unique visitors (by ip_hash) — last 30 days
+    unique_today     = conn.execute("SELECT COUNT(DISTINCT ip_hash) FROM page_views WHERE date(created_at)=date('now')").fetchone()[0]
+    unique_week      = conn.execute("SELECT COUNT(DISTINCT ip_hash) FROM page_views WHERE created_at >= date('now','-7 days')").fetchone()[0]
+    unique_month     = conn.execute("SELECT COUNT(DISTINCT ip_hash) FROM page_views WHERE created_at >= date('now','start of month')").fetchone()[0]
+
+    # Views per day — last 30 days
+    daily_rows = conn.execute(
+        "SELECT date(created_at) AS day, COUNT(*) AS cnt FROM page_views "
+        "WHERE created_at >= date('now','-30 days') GROUP BY day ORDER BY day"
+    ).fetchall()
+    daily_labels = [r['day'] for r in daily_rows]
+    daily_counts = [r['cnt'] for r in daily_rows]
+
+    # Top 10 pages
+    top_pages = conn.execute(
+        "SELECT path, COUNT(*) AS cnt FROM page_views "
+        "WHERE created_at >= date('now','-30 days') "
+        "GROUP BY path ORDER BY cnt DESC LIMIT 10"
+    ).fetchall()
+
+    # Top 10 referrers (exclude empty/direct)
+    top_referrers = conn.execute(
+        "SELECT referrer, COUNT(*) AS cnt FROM page_views "
+        "WHERE referrer != '' AND created_at >= date('now','-30 days') "
+        "GROUP BY referrer ORDER BY cnt DESC LIMIT 10"
+    ).fetchall()
+
+    conn.close()
+    return render_template('admin_visitors.html',
+        today=today, this_week=this_week, this_month=this_month, all_time=all_time,
+        unique_today=unique_today, unique_week=unique_week, unique_month=unique_month,
+        daily_labels=daily_labels, daily_counts=daily_counts,
+        top_pages=top_pages, top_referrers=top_referrers,
     )
 
 
