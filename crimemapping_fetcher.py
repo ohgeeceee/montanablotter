@@ -1,31 +1,25 @@
 """
 crimemapping_fetcher.py
 =======================
-Daily incident puller from CrimeMapping.com for Billings, MT
-(and any other agency on the platform).
+Daily incident puller from CrimeMapping.com for all Montana agencies
+on the platform.
 
 CrimeMapping.com is operated by CentralSquare Technologies. Their incident
 data is publicly displayed on their map portal. This module calls the same
 internal JSON endpoints the map UI uses.
 
 IMPORTANT: There is no official documented public API. Verify compliance with
-https://www.crimemapping.com/terms before using in production. Consider
-requesting a direct data feed from the Billings Police Department instead.
+https://www.crimemapping.com/terms before using in production.
 
 HOW THIS WORKS (reverse-engineered from browser DevTools):
-  1. POST /map/MapUpdated     → returns 104 pin records (max per page)
-  2. POST /Map/CrimeIncidents_Read → returns full incident list (up to 200/page)
+  1. POST /map/MapUpdated          → primes session, returns total count
+  2. POST /Map/CrimeIncidents_Read → returns full paginated incident list
 
-AGENCY IDs (integer, from GetOrganizations):
-  Billings Police      : 513
-  Great Falls Police   : 587
-  Montana State Univ   : 682
-  Carbon County Sheriff: 641
-  Red Lodge Police     : 643
-
-BOUNDING BOX for Billings, MT (Web Mercator EPSG:3857):
-  Center: x=-12078957, y=5745884
-  Use a 30km radius box around the center.
+CLI USAGE:
+  python crimemapping_fetcher.py --all-montana          # ingest all 8 MT agencies
+  python crimemapping_fetcher.py --org-id 513           # one agency by ID
+  python crimemapping_fetcher.py --all-montana --dry-run
+  python crimemapping_fetcher.py --days-back 7          # backfill last week
 """
 
 import sqlite3
@@ -41,21 +35,75 @@ import config
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Configuration
+# All Montana agencies on CrimeMapping (as of 2026-02)
+# org_id from /map/GetOrganizations; cx/cy from the same response
+# radius_m: 30 km box works for city PDs; 60 km for county sheriffs
 # ---------------------------------------------------------------------------
 
-BILLINGS_PD_CONFIG = {
-    "org_id":      513,                          # integer ID from GetOrganizations
-    "agency_name": "Billings Police Department",
-    "agency_type": "police",
-    "county":      "Yellowstone",
-    "city":        "Billings",
-    # Bounding box center for Billings, MT in Web Mercator (EPSG:3857)
-    # Box is built as center ± radius in fetch_incidents()
-    "cx": -12078957.0,
-    "cy":   5745884.0,
-    "radius_m": 30000,   # 30 km
-}
+MONTANA_AGENCIES = [
+    {
+        "org_id":      513,
+        "agency_name": "Billings Police Department",
+        "county":      "Yellowstone",
+        "city":        "Billings",
+        "cx": -12078957.0,  "cy": 5745884.0,  "radius_m": 30000,
+    },
+    {
+        "org_id":      587,
+        "agency_name": "Great Falls Police Department",
+        "county":      "Cascade",
+        "city":        "Great Falls",
+        "cx": -12390407.0,  "cy": 6024222.0,  "radius_m": 30000,
+    },
+    {
+        "org_id":      122,
+        "agency_name": "Flathead County Sheriff",
+        "county":      "Flathead",
+        "city":        "Kalispell",
+        "cx": -12724965.0,  "cy": 6138410.0,  "radius_m": 60000,
+    },
+    {
+        "org_id":      682,
+        "agency_name": "Montana State University Police",
+        "county":      "Gallatin",
+        "city":        "Bozeman",
+        "cx": -12362616.0,  "cy": 5727149.0,  "radius_m": 15000,
+    },
+    {
+        "org_id":      641,
+        "agency_name": "Carbon County Sheriff",
+        "county":      "Carbon",
+        "city":        "Red Lodge",
+        "cx": -12161328.0,  "cy": 5652275.0,  "radius_m": 60000,
+    },
+    {
+        "org_id":      643,
+        "agency_name": "Red Lodge Police Department",
+        "county":      "Carbon",
+        "city":        "Red Lodge",
+        "cx": -12161327.0,  "cy": 5651152.0,  "radius_m": 15000,
+    },
+    {
+        "org_id":      642,
+        "agency_name": "Bridger Police Department",
+        "county":      "Carbon",
+        "city":        "Bridger",
+        "cx": -12124267.0,  "cy": 5668027.0,  "radius_m": 15000,
+    },
+    {
+        "org_id":      620,
+        "agency_name": "Chouteau County Sheriff",
+        "county":      "Chouteau",
+        "city":        "Fort Benton",
+        "cx": -12318506.0,  "cy": 6078687.0,  "radius_m": 60000,
+    },
+]
+
+# Convenience lookup by org_id
+AGENCIES_BY_ID = {a["org_id"]: a for a in MONTANA_AGENCIES}
+
+# Keep backward compat
+BILLINGS_PD_CONFIG = AGENCIES_BY_ID[513]
 
 # Crime category IDs → labels (from CrimeMapping map UI)
 CRIME_CATEGORY_MAP = {
@@ -396,25 +444,63 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    parser = argparse.ArgumentParser(description="Pull CrimeMapping incidents into Montana Blotter")
+    parser = argparse.ArgumentParser(
+        description="Pull CrimeMapping incidents into Montana Blotter"
+    )
+    parser.add_argument(
+        "--all-montana", action="store_true",
+        help="Fetch all Montana agencies (default when no --org-id given)",
+    )
+    parser.add_argument(
+        "--org-id", type=int, default=None,
+        help="Fetch a single agency by CrimeMapping org ID",
+    )
     parser.add_argument("--days-back", type=int, default=1, help="Days to look back (default 1)")
     parser.add_argument("--dry-run", action="store_true", help="Fetch and print without writing to DB")
+    parser.add_argument("--list", action="store_true", help="List all configured Montana agencies")
     args = parser.parse_args()
 
-    if args.dry_run:
-        cfg = BILLINGS_PD_CONFIG
-        now = datetime.now(timezone.utc)
-        end = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        start = end - timedelta(days=args.days_back)
-        raw = fetch_incidents(
-            org_id=cfg["org_id"],
-            cx=cfg["cx"], cy=cfg["cy"], radius_m=cfg["radius_m"],
-            start_date=start, end_date=end,
-        )
-        for inc in raw:
-            norm = normalise_incident(inc, cfg["county"], cfg["city"])
-            print(json.dumps(norm, indent=2, default=str))
-        print(f"\n--- {len(raw)} incidents fetched ---")
+    if args.list:
+        print(f"{'ID':>6}  {'County':<16}  {'City':<14}  Agency")
+        print("-" * 66)
+        for a in MONTANA_AGENCIES:
+            print(f"{a['org_id']:>6}  {a['county']:<16}  {a['city']:<14}  {a['agency_name']}")
+        raise SystemExit(0)
+
+    # Decide which agencies to run
+    if args.org_id:
+        if args.org_id not in AGENCIES_BY_ID:
+            parser.error(f"org_id {args.org_id} not found. Use --list to see available agencies.")
+        agencies = [AGENCIES_BY_ID[args.org_id]]
     else:
-        bid = ingest_crimemapping(days_back=args.days_back)
-        print(f"Done — blotter_id={bid}")
+        agencies = MONTANA_AGENCIES   # --all-montana is the default
+
+    now = datetime.now(timezone.utc)
+    end = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = end - timedelta(days=args.days_back)
+
+    if args.dry_run:
+        for cfg in agencies:
+            print(f"\n{'='*60}")
+            print(f"DRY RUN: {cfg['agency_name']} (org_id={cfg['org_id']})")
+            print(f"{'='*60}")
+            raw = fetch_incidents(
+                org_id=cfg["org_id"],
+                cx=cfg["cx"], cy=cfg["cy"], radius_m=cfg["radius_m"],
+                start_date=start, end_date=end,
+            )
+            for inc in raw:
+                norm = normalise_incident(inc, cfg["county"], cfg["city"])
+                print(json.dumps(norm, indent=2, default=str))
+            print(f"--- {len(raw)} incidents from {cfg['agency_name']} ---")
+    else:
+        total_blotters = 0
+        for cfg in agencies:
+            logger.info(f"--- Ingesting {cfg['agency_name']} ---")
+            bid = ingest_crimemapping(config_override=cfg, days_back=args.days_back)
+            if bid:
+                total_blotters += 1
+                print(f"  {cfg['agency_name']}: blotter_id={bid}")
+            else:
+                print(f"  {cfg['agency_name']}: no new incidents")
+        print(f"\nDone — {total_blotters} blotter(s) created")
