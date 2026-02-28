@@ -1,14 +1,11 @@
-"""
-Summarizer - Uses Claude to generate a single daily digest post per blotter.
-
-REQUIREMENT: config.py must contain:
-    ANTHROPIC_API_KEY = 'sk-ant-...'
-"""
-
 import json
 import logging
+import os
 import re
 import sqlite3
+from typing import Optional
+
+import requests
 
 import config
 
@@ -20,8 +17,8 @@ logger = logging.getLogger(__name__)
 # Agency detection
 # ---------------------------------------------------------------------------
 
-def _detect_agency(content: str, sender_email: str = None,
-                   filename: str = None, county: str = None) -> tuple[str, str]:
+def _detect_agency(content: str, sender_email: Optional[str] = None,
+                   filename: Optional[str] = None, county: Optional[str] = None) -> tuple[str, str]:
     """
     Return (agency_type, agency_name) by checking filename first, then
     content keywords, then sender_email.
@@ -80,23 +77,20 @@ def _detect_agency(content: str, sender_email: str = None,
 # Core public function
 # ---------------------------------------------------------------------------
 
-def generate_posts(blotter_id: int, sender_email: str = None) -> int:
-    """
-    Generate one daily digest post for the blotter if one doesn't exist yet.
-    Returns 1 if created, 0 if already exists or no records found.
+def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
+    openai_api_key = os.getenv("OPENAI_API_KEY") or getattr(config, "OPENAI_API_KEY", None)
+    openai_model = os.getenv("OPENAI_MODEL") or getattr(config, "OPENAI_MODEL", "gpt-4o-mini")
 
-    Requires config.ANTHROPIC_API_KEY.
-    Falls back to a plain-text digest on any Claude API failure.
-    """
+    anthropic_client = None
     try:
         import anthropic
         api_key = getattr(config, "ANTHROPIC_API_KEY", None)
-        client = anthropic.Anthropic(api_key=api_key) if api_key else None
-        if not api_key:
-            logger.warning("ANTHROPIC_API_KEY not set – using fallback digest")
+        anthropic_client = anthropic.Anthropic(api_key=api_key) if api_key else None
     except ImportError:
-        logger.warning("anthropic not installed – using fallback digest")
-        client = None
+        anthropic_client = None
+
+    if not openai_api_key and anthropic_client is None:
+        logger.warning("No LLM API key configured (OPENAI_API_KEY/ANTHROPIC_API_KEY) – using fallback digest")
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -154,7 +148,6 @@ def generate_posts(blotter_id: int, sender_email: str = None) -> int:
         combined_text, sender_email, filename=blotter_filename, county=county
     )
 
-    # Format incident list for Claude
     incident_lines = []
     for r in rows:
         time_str = r["time"] or ""
@@ -163,15 +156,29 @@ def generate_posts(blotter_id: int, sender_email: str = None) -> int:
         detail = r["details"] or ""
         incident_lines.append(f"- {time_str}  {itype}  |  {loc}  |  {detail}".strip(" |"))
 
-    post_data = _call_claude(
-        client=client,
-        county=county,
-        date=incident_date,
-        agency_type=agency_type,
-        agency_name=agency_name,
-        filename=blotter_filename,
-        incident_lines=incident_lines,
-    )
+    post_data = {}
+    if openai_api_key:
+        post_data = _call_openai(
+            api_key=openai_api_key,
+            model=openai_model,
+            county=county,
+            date=incident_date,
+            agency_type=agency_type,
+            agency_name=agency_name,
+            filename=blotter_filename,
+            incident_lines=incident_lines,
+        )
+
+    if not post_data and anthropic_client is not None:
+        post_data = _call_claude(
+            client=anthropic_client,
+            county=county,
+            date=incident_date,
+            agency_type=agency_type,
+            agency_name=agency_name,
+            filename=blotter_filename,
+            incident_lines=incident_lines,
+        )
 
     final_agency_type = post_data.get("agency_type") or agency_type
     final_agency_name = post_data.get("agency_name") or agency_name
@@ -207,18 +214,10 @@ def generate_posts(blotter_id: int, sender_email: str = None) -> int:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _call_claude(client, county, date, agency_type, agency_name, filename, incident_lines) -> dict:
-    """
-    Call Claude to produce a single daily digest post.
-    Returns dict with keys: title, summary, city, agency_type, agency_name.
-    """
-    if client is None:
-        return {}
-
+def _llm_user_prompt(county, date, agency_type, agency_name, filename, incident_lines) -> str:
     agency_label = agency_name or f"{county} County {'Sheriff' if agency_type == 'sheriff' else 'Police'}"
     incidents_block = "\n".join(incident_lines)
-
-    user_content = f"""Write a daily police activity report for publication.
+    return f"""Write a daily police activity report for publication.
 
 Agency: {agency_label}
 Agency type: {agency_type}
@@ -229,12 +228,12 @@ County: {county}
 Incidents (time | type | location | details):
 {incidents_block}
 
-Format the summary exactly like this example — a short intro sentence, then one bullet per notable incident with the time and a plain-English description:
+Format the summary exactly like this example - a short intro sentence, then one bullet per notable incident with the time and a plain-English description:
 
 "The [Agency Name] responded to a variety of incidents throughout the day. Below is a summary of notable events:
 
-[HH:MM AM/PM] – [Plain English description of incident and location.]
-[HH:MM AM/PM] – [Plain English description of incident and location.]
+[HH:MM AM/PM] - [Plain English description of incident and location.]
+[HH:MM AM/PM] - [Plain English description of incident and location.]
 ..."
 
 Skip purely administrative entries (voicemails, callbacks, no-answer checks).
@@ -243,12 +242,77 @@ Keep each bullet to one sentence.
 
 Return ONLY valid JSON with these keys:
 {{
-  "title": "Daily Police Activity Report – [Agency Name]",
+  "title": "Daily Police Activity Report - [Agency Name]",
   "summary": "[the full formatted report as described above]",
   "city": "primary city or town if determinable, else empty string",
   "agency_type": "sheriff or police or other",
   "agency_name": "full agency name"
 }}"""
+
+
+def _parse_json_block(raw: str) -> dict:
+    if not raw:
+        return {}
+    cleaned = raw.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        return {}
+
+
+def _call_openai(api_key, model, county, date, agency_type, agency_name, filename, incident_lines) -> dict:
+    user_content = _llm_user_prompt(county, date, agency_type, agency_name, filename, incident_lines)
+    try:
+        resp = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a journalist writing daily police activity summaries for a public news site. "
+                            "Write clearly and factually. Respond with valid JSON only."
+                        ),
+                    },
+                    {"role": "user", "content": user_content},
+                ],
+                "temperature": 0.2,
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        raw = (
+            payload.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+        )
+        parsed = _parse_json_block(raw)
+        if parsed:
+            return parsed
+        logger.warning("OpenAI response was not valid JSON – using fallback/provider fallback")
+        return {}
+    except Exception as e:
+        logger.warning(f"OpenAI API error: {e} – trying Anthropic or fallback digest")
+        return {}
+
+
+def _call_claude(client, county, date, agency_type, agency_name, filename, incident_lines) -> dict:
+    """
+    Call Claude to produce a single daily digest post.
+    Returns dict with keys: title, summary, city, agency_type, agency_name.
+    """
+    if client is None:
+        return {}
+
+    user_content = _llm_user_prompt(county, date, agency_type, agency_name, filename, incident_lines)
 
     try:
         message = client.messages.create(
@@ -261,9 +325,11 @@ Return ONLY valid JSON with these keys:
             messages=[{"role": "user", "content": user_content}],
         )
         raw = message.content[0].text.strip()
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-        return json.loads(raw)
+        parsed = _parse_json_block(raw)
+        if parsed:
+            return parsed
+        logger.warning("Claude response was not valid JSON – using fallback digest")
+        return {}
     except Exception as e:
         logger.warning(f"Claude API error: {e} – using fallback digest")
         return {}

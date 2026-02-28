@@ -218,6 +218,67 @@ def migrate():
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_emailed_agency ON emailed_agencies(agency_name)')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS source_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_type TEXT NOT NULL,
+            source_message_id TEXT,
+            source_sender TEXT,
+            source_subject TEXT,
+            source_received_at TEXT,
+            filename TEXT,
+            content_sha256 TEXT NOT NULL,
+            storage_path TEXT,
+            raw_text TEXT,
+            extraction_method TEXT,
+            extraction_warnings TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(source_type, content_sha256)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ingestion_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_document_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            retry_count INTEGER DEFAULT 0,
+            last_error TEXT,
+            started_at TEXT DEFAULT (datetime('now')),
+            finished_at TEXT,
+            FOREIGN KEY (source_document_id) REFERENCES source_documents(id) ON DELETE CASCADE,
+            UNIQUE(source_document_id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pipeline_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ingestion_job_id INTEGER NOT NULL,
+            stage TEXT NOT NULL,
+            status TEXT NOT NULL,
+            details_json TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (ingestion_job_id) REFERENCES ingestion_jobs(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_source_documents_sha ON source_documents(content_sha256)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status ON ingestion_jobs(status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_pipeline_events_job_stage ON pipeline_events(ingestion_job_id, stage)')
+
+    try:
+        cursor.execute('ALTER TABLE blotters ADD COLUMN source_document_id INTEGER')
+        print('✅ Added source_document_id column to blotters')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_blotters_source_document ON blotters(source_document_id)')
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_blotters_source_document_unique ON blotters(source_document_id) "
+        "WHERE source_document_id IS NOT NULL"
+    )
+
     conn.commit()
     conn.close()
     print("✅ Migration complete")

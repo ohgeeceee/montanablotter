@@ -13,6 +13,16 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import config
 from processor import process_new_blotter, process_text_blotter
+from pipeline_state import (
+    ensure_ingestion_job,
+    ensure_source_document,
+    get_ingestion_job_status,
+    increment_ingestion_retry,
+    log_pipeline_event,
+    set_ingestion_job_status,
+    sha256_bytes,
+    sha256_text,
+)
 
 # Setup logging
 logging.basicConfig(
@@ -78,7 +88,15 @@ class EmailWorker:
                                 continue
 
                             # Process attachments
-                            had_pdf, pdf_succeeded = self._process_attachments(msg)
+                            message_id = msg.get('Message-ID', '')
+                            msg_date = msg.get('Date', '')
+                            had_pdf, pdf_succeeded = self._process_attachments(
+                                msg,
+                                source_message_id=message_id,
+                                sender=sender,
+                                subject=subject,
+                                received_at=msg_date,
+                            )
 
                             if had_pdf:
                                 # Email had PDF(s) — mark processed regardless of parse errors
@@ -90,15 +108,57 @@ class EmailWorker:
                                     logging.error(f"PDF(s) found but all failed to process: {subject}")
                             else:
                                 # No PDF — try plain-text body as blotter
-                                body = self._extract_body_text(msg)
+                                body, body_method = self._extract_body_text(msg)
                                 if body and len(body.strip()) > 200:
+                                    body_hash = sha256_text(body)
+                                    source_document_id = ensure_source_document(
+                                        source_type='imap_text',
+                                        source_message_id=message_id,
+                                        source_sender=sender,
+                                        source_subject=subject,
+                                        source_received_at=msg_date,
+                                        filename=None,
+                                        content_sha256=body_hash,
+                                        storage_path=None,
+                                        raw_text=body,
+                                        extraction_method=body_method,
+                                        extraction_warnings=[],
+                                    )
+                                    ingestion_job_id = ensure_ingestion_job(source_document_id)
+                                    existing_status = get_ingestion_job_status(source_document_id)
+                                    if existing_status == 'published':
+                                        self._move_to_processed(mail, num)
+                                        processed_count += 1
+                                        logging.info('Skipped already-published text source document')
+                                        continue
+
+                                    set_ingestion_job_status(ingestion_job_id, 'extracted')
+                                    log_pipeline_event(
+                                        ingestion_job_id,
+                                        'extract',
+                                        'ok',
+                                        {'extraction_method': body_method, 'message': 'email-body-extracted'},
+                                    )
                                     try:
-                                        process_text_blotter(body, sender_email=sender)
+                                        process_text_blotter(
+                                            body,
+                                            sender_email=sender,
+                                            source_document_id=source_document_id,
+                                            ingestion_job_id=ingestion_job_id,
+                                        )
                                         self._move_to_processed(mail, num)
                                         processed_count += 1
                                         logging.info("Processed text-body blotter from email")
                                     except Exception as e:
                                         logging.error(f"Failed to process text blotter: {e}")
+                                        increment_ingestion_retry(ingestion_job_id, str(e))
+                                        set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
+                                        log_pipeline_event(
+                                            ingestion_job_id,
+                                            'publish',
+                                            'error',
+                                            {'error': str(e)},
+                                        )
                                 else:
                                     logging.info(f"No blotter content found in email: {subject} — skipping")
                 
@@ -119,7 +179,7 @@ class EmailWorker:
             logging.error(f"Email worker critical error: {str(e)}")
             return 0
     
-    def _process_attachments(self, msg) -> tuple[bool, bool]:
+    def _process_attachments(self, msg, source_message_id: str, sender: str, subject: str, received_at: str) -> tuple[bool, bool]:
         """
         Extract and process PDF attachments from email.
         Returns (had_pdf, any_succeeded):
@@ -138,24 +198,64 @@ class EmailWorker:
             filename = part.get_filename()
             if filename and filename.lower().endswith('.pdf'):
                 had_pdf = True
+                payload = part.get_payload(decode=True) or b''
+                file_hash = sha256_bytes(payload)
                 filepath = os.path.join(self.upload_dir, filename)
 
+                source_document_id = ensure_source_document(
+                    source_type='imap_pdf',
+                    source_message_id=source_message_id,
+                    source_sender=sender,
+                    source_subject=subject,
+                    source_received_at=received_at,
+                    filename=filename,
+                    content_sha256=file_hash,
+                    storage_path=filepath,
+                    raw_text=None,
+                    extraction_method='pdf_attachment',
+                    extraction_warnings=[],
+                )
+                ingestion_job_id = ensure_ingestion_job(source_document_id)
+                existing_status = get_ingestion_job_status(source_document_id)
+                if existing_status == 'published':
+                    logging.info(f"Skipping already published attachment: {filename}")
+                    any_succeeded = True
+                    continue
+
                 with open(filepath, 'wb') as f:
-                    f.write(part.get_payload(decode=True))
+                    f.write(payload)
 
                 logging.info(f"Saved PDF: {filename}")
+                set_ingestion_job_status(ingestion_job_id, 'extracted')
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'extract',
+                    'ok',
+                    {'filename': filename, 'storage_path': filepath},
+                )
 
                 try:
-                    batch_id = process_new_blotter(filepath)
+                    batch_id = process_new_blotter(
+                        filepath,
+                        source_document_id=source_document_id,
+                        ingestion_job_id=ingestion_job_id,
+                    )
                     logging.info(f"Processed PDF: {filename} -> Batch #{batch_id}")
                     any_succeeded = True
                 except Exception as e:
                     logging.error(f"Failed to process PDF {filename}: {str(e)}")
+                    increment_ingestion_retry(ingestion_job_id, str(e))
+                    set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
+                    log_pipeline_event(
+                        ingestion_job_id,
+                        'publish',
+                        'error',
+                        {'filename': filename, 'error': str(e)},
+                    )
 
         return had_pdf, any_succeeded
 
-    def _extract_body_text(self, msg) -> str:
-        """Extract plain text from email body. Prefers text/plain, falls back to stripped text/html."""
+    def _extract_body_text(self, msg) -> tuple[str, str]:
         plain = None
         html = None
 
@@ -176,7 +276,11 @@ class EmailWorker:
                     html = _re.sub(r'<[^>]+>', ' ', raw_html)
                     html = _re.sub(r'\s+', ' ', html).strip()
 
-        return plain if plain is not None else (html or "")
+        if plain is not None:
+            return plain, 'email_plain'
+        if html:
+            return html, 'email_html'
+        return "", 'none'
     
     def _move_to_processed(self, mail, email_num):
         """Move processed email to Processed folder"""

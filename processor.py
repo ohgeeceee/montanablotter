@@ -6,13 +6,29 @@ Replaces the old processor.py with actual parsing logic
 import sqlite3
 import os
 import logging
+from typing import Optional
 from pdf_parser import BlotterParser, parse_text_blotter
 import summarizer
+from pipeline_state import (
+    increment_ingestion_retry,
+    log_pipeline_event,
+    set_ingestion_job_status,
+)
 
 DB_PATH = '/root/montanablotter/blotter.db'
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def process_new_blotter(pdf_path: str, county: str = None) -> int:
+def _table_has_column(conn: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return any(r[1] == column_name for r in rows)
+
+
+def process_new_blotter(
+    pdf_path: str,
+    county: Optional[str] = None,
+    source_document_id: Optional[int] = None,
+    ingestion_job_id: Optional[int] = None,
+) -> int:
     """
     Process a new blotter PDF file
     
@@ -29,14 +45,28 @@ def process_new_blotter(pdf_path: str, county: str = None) -> int:
 
     filename = os.path.basename(pdf_path)
 
-    # Deduplicate — skip if this filename was already processed
     conn = sqlite3.connect(DB_PATH)
-    existing = conn.execute(
-        'SELECT id FROM blotters WHERE filename = ?', (filename,)
-    ).fetchone()
+    source_column_exists = _table_has_column(conn, 'blotters', 'source_document_id')
+    existing = None
+    if source_document_id is not None and source_column_exists:
+        existing = conn.execute(
+            'SELECT id FROM blotters WHERE source_document_id = ?', (source_document_id,)
+        ).fetchone()
+    if not existing:
+        existing = conn.execute(
+            'SELECT id FROM blotters WHERE filename = ?', (filename,)
+        ).fetchone()
     conn.close()
     if existing:
         logging.info(f"Skipping duplicate blotter: {filename} (already blotter #{existing[0]})")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'ingest',
+                'ok',
+                {'message': 'duplicate-skip', 'existing_blotter_id': existing[0]},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
         return existing[0]
 
     logging.info(f"Processing blotter: {pdf_path}")
@@ -45,8 +75,25 @@ def process_new_blotter(pdf_path: str, county: str = None) -> int:
     try:
         parser = BlotterParser(pdf_path)
         result = parser.parse()
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'parse',
+                'ok',
+                {'incident_count': result['total_count'], 'county': result['county']},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'parsed')
     except Exception as e:
         logging.error(f"Failed to parse PDF: {e}")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'parse',
+                'error',
+                {'error': str(e)},
+            )
+            increment_ingestion_retry(ingestion_job_id, str(e))
+            set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
         raise
     
     # Use detected county if not provided
@@ -61,11 +108,20 @@ def process_new_blotter(pdf_path: str, county: str = None) -> int:
     
     try:
         # Create the Batch Entry
-        cursor.execute(
-            'INSERT INTO blotters (filename, county, incident_count, file_path) VALUES (?, ?, ?, ?)',
-            (filename, county, result['total_count'], pdf_path)
-        )
-        batch_id = cursor.lastrowid
+        has_source_column = _table_has_column(conn, 'blotters', 'source_document_id')
+        if has_source_column:
+            cursor.execute(
+                'INSERT INTO blotters (filename, county, incident_count, file_path, source_document_id) VALUES (?, ?, ?, ?, ?)',
+                (filename, county, result['total_count'], pdf_path, source_document_id)
+            )
+        else:
+            cursor.execute(
+                'INSERT INTO blotters (filename, county, incident_count, file_path) VALUES (?, ?, ?, ?)',
+                (filename, county, result['total_count'], pdf_path)
+            )
+        if cursor.lastrowid is None:
+            raise RuntimeError('Failed to create blotter row')
+        batch_id = int(cursor.lastrowid)
         logging.info(f"Created blotter batch #{batch_id}")
         
         # Insert individual incidents
@@ -99,25 +155,71 @@ def process_new_blotter(pdf_path: str, county: str = None) -> int:
         
         conn.commit()
         logging.info(f"✅ Batch #{batch_id} complete: {result['total_count']} incidents indexed")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'normalize',
+                'ok',
+                {'blotter_id': batch_id, 'incident_count': result['total_count']},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'normalized')
 
         # Generate AI posts for all new records
         try:
             post_count = summarizer.generate_posts(batch_id)
             logging.info(f"Generated {post_count} posts for batch #{batch_id}")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'summarize',
+                    'ok',
+                    {'post_count': post_count},
+                )
         except Exception as e:
             logging.warning(f"Post generation failed for batch #{batch_id}: {e}")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'summarize',
+                    'warn',
+                    {'error': str(e)},
+                )
+
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'publish',
+                'ok',
+                {'blotter_id': batch_id},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
 
         return batch_id
 
     except Exception as e:
         conn.rollback()
         logging.error(f"Database error: {e}")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'normalize',
+                'error',
+                {'error': str(e)},
+            )
+            increment_ingestion_retry(ingestion_job_id, str(e))
+            set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
         raise
     finally:
         conn.close()
 
 
-def process_text_blotter(text: str, sender_email: str = None, county: str = None) -> int:
+def process_text_blotter(
+    text: str,
+    sender_email: Optional[str] = None,
+    county: Optional[str] = None,
+    source_document_id: Optional[int] = None,
+    ingestion_job_id: Optional[int] = None,
+) -> int:
     """
     Process a plain-text blotter from an email body.
 
@@ -131,7 +233,27 @@ def process_text_blotter(text: str, sender_email: str = None, county: str = None
     """
     logging.info("Processing text blotter from email body")
 
-    result = parse_text_blotter(text)
+    try:
+        result = parse_text_blotter(text)
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'parse',
+                'ok',
+                {'incident_count': result['total_count'], 'county': result['county']},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'parsed')
+    except Exception as e:
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'parse',
+                'error',
+                {'error': str(e)},
+            )
+            increment_ingestion_retry(ingestion_job_id, str(e))
+            set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
+        raise
 
     if not county:
         county = result['county']
@@ -142,11 +264,20 @@ def process_text_blotter(text: str, sender_email: str = None, county: str = None
     cursor = conn.cursor()
 
     try:
-        cursor.execute(
-            "INSERT INTO blotters (filename, county, incident_count, source_type) VALUES (?, ?, ?, ?)",
-            ("email-body", county, result['total_count'], "text"),
-        )
-        blotter_id = cursor.lastrowid
+        has_source_column = _table_has_column(conn, 'blotters', 'source_document_id')
+        if has_source_column:
+            cursor.execute(
+                "INSERT INTO blotters (filename, county, incident_count, source_type, source_document_id) VALUES (?, ?, ?, ?, ?)",
+                ("email-body", county, result['total_count'], "text", source_document_id),
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO blotters (filename, county, incident_count, source_type) VALUES (?, ?, ?, ?)",
+                ("email-body", county, result['total_count'], "text"),
+            )
+        if cursor.lastrowid is None:
+            raise RuntimeError('Failed to create text blotter row')
+        blotter_id = int(cursor.lastrowid)
         logging.info(f"Created text blotter batch #{blotter_id}")
 
         for incident in result['incidents']:
@@ -181,18 +312,58 @@ def process_text_blotter(text: str, sender_email: str = None, county: str = None
 
         conn.commit()
         logging.info(f"✅ Text blotter #{blotter_id} complete: {result['total_count']} incidents indexed")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'normalize',
+                'ok',
+                {'blotter_id': blotter_id, 'incident_count': result['total_count']},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'normalized')
 
         try:
             post_count = summarizer.generate_posts(blotter_id, sender_email=sender_email)
             logging.info(f"Generated {post_count} posts for text blotter #{blotter_id}")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'summarize',
+                    'ok',
+                    {'post_count': post_count},
+                )
         except Exception as e:
             logging.warning(f"Post generation failed for text blotter #{blotter_id}: {e}")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'summarize',
+                    'warn',
+                    {'error': str(e)},
+                )
+
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'publish',
+                'ok',
+                {'blotter_id': blotter_id},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
 
         return blotter_id
 
     except Exception as e:
         conn.rollback()
         logging.error(f"Database error processing text blotter: {e}")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'normalize',
+                'error',
+                {'error': str(e)},
+            )
+            increment_ingestion_retry(ingestion_job_id, str(e))
+            set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
         raise
     finally:
         conn.close()
