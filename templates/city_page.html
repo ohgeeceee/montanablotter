@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>{{ city.name }} Police Blotter &amp; Daily Activity Reports | Montana Blotter</title>
+    <meta name="description" content="Free {{ city.name }}, Montana police blotter and daily activity reports from the {{ city.pd_name }}. Public safety records, no account required.">
+    <link rel="canonical" href="https://montanablotter.com/city/{{ city.slug }}">
+    <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "{{ city.name }} Police Blotter & Daily Activity Reports",
+      "description": "Free {{ city.name }}, Montana police blotter from the {{ city.pd_name }}. Public safety records updated daily.",
+      "url": "https://montanablotter.com/city/{{ city.slug }}",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Montana Blotter",
+        "url": "https://montanablotter.com"
+      }
+    }
+    </script>
+</head>
+<body class="bg-slate-50 font-sans text-slate-900">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
+            <a href="/" class="flex items-center gap-3">
+                <div class="bg-slate-900 text-white p-2.5 rounded-xl">
+                    <i class="fas fa-mountain"></i>
+                </div>
+                <div>
+                    <p class="font-black uppercase italic tracking-tighter text-xl leading-none">Montana Blotter</p>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Free Public Records</p>
+                </div>
+            </a>
+            <div class="hidden md:flex items-center gap-6">
+                <a href="/arrests" class="text-xs text-slate-500 hover:text-red-600 font-bold uppercase tracking-widest"><i class="fas fa-handcuffs mr-1"></i>Arrests</a>
+                <a href="/blog" class="text-xs text-slate-500 hover:text-emerald-600 font-bold uppercase tracking-widest"><i class="fas fa-pen-nib mr-1"></i>Blog</a>
+                <a href="/jail-rosters" class="text-xs text-slate-500 hover:text-orange-600 font-bold uppercase tracking-widest"><i class="fas fa-bars mr-1"></i>Jail Rosters</a>
+                <a href="/laws" class="text-xs text-slate-500 hover:text-indigo-600 font-bold uppercase tracking-widest"><i class="fas fa-scale-balanced mr-1"></i>Laws</a>
+                <a href="/subscribe" class="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-widest"><i class="fas fa-envelope mr-1"></i>Subscribe</a>
+            </div>
+            <button id="mobile-menu-btn" class="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition" aria-label="Open menu">
+                <i class="fas fa-bars text-lg"></i>
+            </button>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
+            <a href="/arrests" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-red-600 uppercase tracking-widest transition"><i class="fas fa-handcuffs w-4 text-center"></i>Arrests</a>
+            <a href="/blog" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-emerald-600 uppercase tracking-widest transition"><i class="fas fa-pen-nib w-4 text-center"></i>Blog</a>
+            <a href="/jail-rosters" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-orange-600 uppercase tracking-widest transition"><i class="fas fa-bars w-4 text-center"></i>Jail Rosters</a>
+            <a href="/laws" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-indigo-600 uppercase tracking-widest transition"><i class="fas fa-scale-balanced w-4 text-center"></i>Laws</a>
+            <a href="/subscribe" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold text-blue-600 hover:bg-blue-50 uppercase tracking-widest transition"><i class="fas fa-envelope w-4 text-center"></i>Subscribe</a>
+        </div>
+    </nav>
+
+    <!-- Breadcrumb -->
+    <div class="bg-white border-b border-slate-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-xs text-slate-500">
+            <a href="/" class="hover:text-slate-700">Montana Blotter</a>
+            <span class="mx-2">/</span>
+            <a href="/county/{{ city.county_slug }}" class="hover:text-slate-700">{{ city.county }} County</a>
+            <span class="mx-2">/</span>
+            <span class="text-slate-900 font-semibold">{{ city.name }}</span>
+        </div>
+    </div>
+
+    <!-- Hero -->
+    <section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-10 px-4 sm:px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                <div>
+                    <span class="inline-block bg-blue-500/20 text-blue-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-3">
+                        {{ city.county }} County &bull; Montana
+                    </span>
+                    <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-2">
+                        {{ city.name }}
+                        <span class="text-blue-400 italic">Police Blotter</span>
+                    </h1>
+                    <p class="text-slate-300 text-sm max-w-xl">
+                        Daily activity reports from the {{ city.pd_name }} and {{ city.county }} County law enforcement agencies. Free, AI-summarized, no account required.
+                    </p>
+                </div>
+                <!-- Stats -->
+                <div class="flex gap-8 text-center flex-shrink-0">
+                    <div>
+                        <p class="text-2xl font-black">{{ post_count }}</p>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Reports</p>
+                    </div>
+                    <div class="border-l border-white/10 pl-8">
+                        <p class="text-2xl font-black">{{ record_count }}</p>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Incidents</p>
+                    </div>
+                    <div class="border-l border-white/10 pl-8">
+                        {% if last_report %}
+                        <p class="text-lg font-black">{{ last_report }}</p>
+                        {% else %}
+                        <p class="text-lg font-black text-slate-500">—</p>
+                        {% endif %}
+                        <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Last Report</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main layout -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col lg:flex-row gap-8 items-start">
+
+        <!-- Feed column -->
+        <main class="flex-1 min-w-0">
+
+            {% if posts %}
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-lg font-black text-slate-900">
+                    <i class="fas fa-newspaper text-blue-500 mr-2"></i>Recent Activity Reports
+                </h2>
+                <span class="text-xs text-slate-400 font-semibold uppercase tracking-widest">{{ post_count }} total</span>
+            </div>
+
+            <div class="space-y-4">
+                {% for post in posts %}
+                <article class="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition p-5">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2 mb-2">
+                                {% if post['agency_type'] == 'sheriff' %}
+                                <span class="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Sheriff</span>
+                                {% elif post['agency_type'] == 'police' %}
+                                <span class="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Police</span>
+                                {% else %}
+                                <span class="bg-slate-100 text-slate-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Report</span>
+                                {% endif %}
+                                {% if post['agency_name'] %}
+                                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">{{ post['agency_name'] }}</span>
+                                {% endif %}
+                            </div>
+                            <h3 class="font-black text-slate-900 text-base leading-snug mb-2">{{ post['title'] }}</h3>
+                            {% if post['summary'] %}
+                            <p class="text-slate-600 text-sm leading-relaxed line-clamp-3">{{ post['summary'] }}</p>
+                            {% endif %}
+                            <div class="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-400 font-semibold">
+                                {% if post['incident_date'] %}
+                                <span><i class="fas fa-calendar-alt mr-1"></i>{{ post['incident_date'] }}</span>
+                                {% endif %}
+                                {% if post['city'] %}
+                                <span><i class="fas fa-map-marker-alt mr-1"></i>{{ post['city'] }}</span>
+                                {% endif %}
+                                {% if post['county'] %}
+                                <span><i class="fas fa-map mr-1"></i>{{ post['county'] }} County</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <a href="/record/{{ post['id'] }}" class="text-xs font-bold text-blue-600 hover:text-blue-800 transition">
+                            View Full Report <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="flex items-center justify-center gap-2 mt-8">
+                {% if page > 1 %}
+                <a href="/city/{{ city.slug }}?page={{ page - 1 }}"
+                   class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+                    <i class="fas fa-chevron-left mr-1"></i> Prev
+                </a>
+                {% endif %}
+                <span class="text-sm text-slate-500 font-semibold">Page {{ page }} of {{ total_pages }}</span>
+                {% if page < total_pages %}
+                <a href="/city/{{ city.slug }}?page={{ page + 1 }}"
+                   class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+                    Next <i class="fas fa-chevron-right ml-1"></i>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            <!-- No data yet -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-10 text-center">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-slate-100 rounded-2xl mb-4">
+                    <i class="fas fa-satellite-dish text-slate-400 text-2xl"></i>
+                </div>
+                <h2 class="text-lg font-black text-slate-800 mb-2">Adding {{ city.name }} to Live Coverage</h2>
+                <p class="text-slate-500 text-sm max-w-md mx-auto mb-6">
+                    We're working with the {{ city.pd_name }} to bring daily activity reports to Montana Blotter. Subscribe to get notified when {{ city.name }} goes live.
+                </p>
+                <a href="/subscribe" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black px-5 py-2.5 rounded-xl text-sm uppercase tracking-wide transition">
+                    <i class="fas fa-envelope"></i> Get Notified
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- SEO content -->
+            <div class="mt-10 bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-8">
+
+                <div>
+                    <h2 class="text-xl font-black text-slate-900 mb-3">
+                        About the {{ city.pd_name }}
+                    </h2>
+                    <p class="text-slate-600 text-sm leading-relaxed">{{ city.description }}</p>
+                </div>
+
+                <div class="border-t border-slate-100 pt-6">
+                    <h2 class="text-xl font-black text-slate-900 mb-3">
+                        What Is the {{ city.name }} Police Blotter?
+                    </h2>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-3">
+                        A police blotter is the official daily log of calls for service, arrests, and incidents handled by a law enforcement agency. The {{ city.pd_name }} publishes a daily activity report — sometimes called a media log or call log — that records every significant incident officers responded to in {{ city.name }}.
+                    </p>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Montana Blotter receives these reports directly from participating agencies and uses AI to summarize them into plain-English entries that are easy to read and search. All records are public information under Montana's public records laws.
+                    </p>
+                </div>
+
+                <div class="border-t border-slate-100 pt-6">
+                    <h2 class="text-xl font-black text-slate-900 mb-3">
+                        How to Access {{ city.name }} Police Records
+                    </h2>
+                    <ol class="space-y-3">
+                        <li class="flex gap-3 text-sm text-slate-600">
+                            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-black text-xs">1</span>
+                            <span><strong class="text-slate-900">Montana Blotter (this site)</strong> — Free daily activity reports from {{ city.name }} law enforcement, AI-summarized and searchable. No account required.</span>
+                        </li>
+                        <li class="flex gap-3 text-sm text-slate-600">
+                            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-black text-xs">2</span>
+                            <span>
+                                <strong class="text-slate-900">{{ city.county }} County Jail Roster</strong> — The
+                                {% if city.county_roster_url %}
+                                <a href="{{ city.county_roster_url }}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">{{ city.county }} County Detention Center</a>
+                                {% else %}
+                                {{ city.county }} County Detention Center
+                                {% endif %}
+                                lists all current inmates, typically updated within hours of booking.
+                            </span>
+                        </li>
+                        <li class="flex gap-3 text-sm text-slate-600">
+                            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-black text-xs">3</span>
+                            <span><strong class="text-slate-900">Montana DOJ Criminal History Search</strong> — <a href="https://doj.egovmt.com/choprs/" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">CHOPRS</a> allows name-based felony and misdemeanor searches statewide for a $20 fee.</span>
+                        </li>
+                        <li class="flex gap-3 text-sm text-slate-600">
+                            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-black text-xs">4</span>
+                            <span><strong class="text-slate-900">Montana Courts Portal</strong> — <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">Montana's public court access portal</a> provides case-level criminal records from district and limited jurisdiction courts.</span>
+                        </li>
+                        {% if city.pd_records_url %}
+                        <li class="flex gap-3 text-sm text-slate-600">
+                            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-black text-xs">5</span>
+                            <span><strong class="text-slate-900">{{ city.pd_name }} Records</strong> — You can also <a href="{{ city.pd_records_url }}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">submit a public records request</a> directly to the {{ city.pd_name }}.</span>
+                        </li>
+                        {% endif %}
+                    </ol>
+                </div>
+
+                {% if city.warrant_url or city.municipal_court_url %}
+                <div class="border-t border-slate-100 pt-6">
+                    <h2 class="text-xl font-black text-slate-900 mb-3">
+                        Active Warrants in {{ city.name }}
+                    </h2>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        {% if city.warrant_url %}
+                        The <a href="{{ city.warrant_url }}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">{{ city.name }} warrant list</a> is publicly available online.
+                        {% endif %}
+                        {% if city.municipal_court_url %}
+                        You can also search the <a href="{{ city.municipal_court_url }}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">{{ city.name }} Municipal Court</a> for defendants in custody and active bench warrants.
+                        {% endif %}
+                        For county-level warrants, use the <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">Montana Judicial Branch Public Access Portal</a> and select "Warrants" from the defendant search menu.
+                    </p>
+                </div>
+                {% endif %}
+
+            </div>
+        </main>
+
+        <!-- Sidebar -->
+        <aside class="w-full lg:w-72 flex-shrink-0 space-y-5 lg:sticky top-24">
+
+            <!-- Quick access -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Quick Access</h3>
+                <div class="space-y-2">
+                    {% if city.county_roster_url %}
+                    <a href="{{ city.county_roster_url }}" target="_blank" rel="noopener"
+                       class="flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-100 hover:bg-orange-100 transition text-sm font-bold text-orange-800">
+                        <i class="fas fa-list-ul text-orange-500 w-4 text-center"></i>
+                        {{ city.county }} County Jail Roster
+                        <i class="fas fa-external-link-alt ml-auto text-orange-400 text-xs"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if city.warrant_url %}
+                    <a href="{{ city.warrant_url }}" target="_blank" rel="noopener"
+                       class="flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-100 hover:bg-red-100 transition text-sm font-bold text-red-800">
+                        <i class="fas fa-search text-red-500 w-4 text-center"></i>
+                        Active Warrants
+                        <i class="fas fa-external-link-alt ml-auto text-red-400 text-xs"></i>
+                    </a>
+                    {% endif %}
+
+                    {% if city.municipal_court_url %}
+                    <a href="{{ city.municipal_court_url }}" target="_blank" rel="noopener"
+                       class="flex items-center gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition text-sm font-bold text-indigo-800">
+                        <i class="fas fa-gavel text-indigo-500 w-4 text-center"></i>
+                        Municipal Court
+                        <i class="fas fa-external-link-alt ml-auto text-indigo-400 text-xs"></i>
+                    </a>
+                    {% endif %}
+
+                    <a href="https://offendersearch.mt.gov/conweb/" target="_blank" rel="noopener"
+                       class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
+                        <i class="fas fa-user-shield text-slate-500 w-4 text-center"></i>
+                        MT Offender Search
+                        <i class="fas fa-external-link-alt ml-auto text-slate-400 text-xs"></i>
+                    </a>
+
+                    <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener"
+                       class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
+                        <i class="fas fa-balance-scale text-slate-500 w-4 text-center"></i>
+                        MT Court Records
+                        <i class="fas fa-external-link-alt ml-auto text-slate-400 text-xs"></i>
+                    </a>
+
+                    <a href="https://vinelink.vineapps.com/state/mt" target="_blank" rel="noopener"
+                       class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
+                        <i class="fas fa-bell text-slate-500 w-4 text-center"></i>
+                        VINELink Notifications
+                        <i class="fas fa-external-link-alt ml-auto text-slate-400 text-xs"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Police Department -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Police Department</h3>
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-800 leading-tight">{{ city.pd_name }}</p>
+                        <a href="tel:{{ city.pd_phone }}" class="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold mt-1">
+                            <i class="fas fa-phone text-[10px]"></i>{{ city.pd_phone }}
+                        </a>
+                        {% if city.pd_url %}
+                        <a href="{{ city.pd_url }}" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 font-semibold mt-1">
+                            <i class="fas fa-globe text-[10px]"></i>Official website
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- County link -->
+            <a href="/county/{{ city.county_slug }}"
+               class="flex items-center gap-3 bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:border-slate-300 transition group">
+                <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 flex items-center justify-center flex-shrink-0 transition">
+                    <i class="fas fa-map"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-widest">See full county</p>
+                    <p class="text-sm font-black text-slate-800 group-hover:text-blue-700 transition">{{ city.county }} County →</p>
+                </div>
+            </a>
+
+            <!-- Nearby cities -->
+            {% if city.nearby %}
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Nearby Cities</h3>
+                <div class="flex flex-wrap gap-2">
+                    {% for nearby in city.nearby %}
+                    <a href="/city/{{ nearby.slug }}"
+                       class="inline-flex items-center gap-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-full transition">
+                        <i class="fas fa-map-pin text-[9px]"></i>{{ nearby.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Subscribe CTA -->
+            <div class="bg-slate-900 rounded-xl p-5 text-white">
+                <p class="text-sm font-black mb-1"><i class="fas fa-envelope text-blue-400 mr-2"></i>Daily Digest</p>
+                <p class="text-xs text-slate-400 mb-3">Get {{ city.name }} activity reports delivered every morning.</p>
+                <a href="/subscribe" class="block bg-blue-600 hover:bg-blue-500 text-white text-center font-black text-xs py-2.5 rounded-lg uppercase tracking-wide transition">
+                    Subscribe Free
+                </a>
+            </div>
+
+        </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-center text-xs py-6 mt-10">
+        <p>&copy; {{ current_year }} Montana Blotter &mdash; Public safety transparency for Montana communities.</p>
+        <div class="flex justify-center gap-6 mt-3">
+            <a href="/" class="hover:text-white transition">Feed</a>
+            <a href="/arrests" class="hover:text-white transition">Arrests</a>
+            <a href="/jail-rosters" class="hover:text-white transition">Jail Rosters</a>
+            <a href="/blog" class="hover:text-white transition">Blog</a>
+            <a href="/laws" class="hover:text-white transition">Laws</a>
+            <a href="/subscribe" class="hover:text-white transition">Subscribe</a>
+        </div>
+    </footer>
+
+    <script>
+    (function () {
+        var btn = document.getElementById('mobile-menu-btn');
+        var menu = document.getElementById('mobile-menu');
+        if (!btn || !menu) return;
+        btn.addEventListener('click', function () { menu.classList.toggle('hidden'); });
+    })();
+    </script>
+
+</body>
+</html>

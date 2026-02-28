@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Visitor Analytics | Admin Panel</title>
+</head>
+<body class="bg-slate-50 font-sans">
+
+    <nav class="bg-slate-900 text-white p-4 shadow-lg">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <a href="/admin" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div class="bg-teal-600 p-2 rounded-xl">
+                    <i class="fas fa-users"></i>
+                </div>
+                <span class="font-black uppercase italic">Visitor Analytics</span>
+            </div>
+            <div class="flex gap-4">
+                <a href="/" class="text-sm hover:text-blue-400 transition">View Site</a>
+                <a href="/admin/logout" class="text-sm text-red-400 hover:text-red-300 transition">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto p-6">
+
+        <h1 class="text-3xl font-black text-slate-900 mb-8">Visitor Analytics</h1>
+
+        <!-- Page View Summary -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-3xl font-black text-teal-600">{{ today }}</p>
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Views Today</p>
+                <p class="text-sm text-slate-400 mt-1">{{ unique_today }} unique</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-3xl font-black text-blue-600">{{ this_week }}</p>
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Last 7 Days</p>
+                <p class="text-sm text-slate-400 mt-1">{{ unique_week }} unique</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-3xl font-black text-purple-600">{{ this_month }}</p>
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">This Month</p>
+                <p class="text-sm text-slate-400 mt-1">{{ unique_month }} unique</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-3xl font-black text-slate-900">{{ all_time }}</p>
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">All Time</p>
+                <p class="text-sm text-slate-400 mt-1">total views</p>
+            </div>
+        </div>
+
+        <!-- Views per day chart -->
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+            <h2 class="font-black text-lg mb-4 flex items-center gap-2">
+                <i class="fas fa-chart-line text-teal-600"></i>
+                Page Views — Last 30 Days
+            </h2>
+            {% if daily_labels %}
+            <canvas id="dailyChart" height="70"></canvas>
+            {% else %}
+            <p class="text-slate-400 text-sm">No data yet. Views will appear here once visitors browse the site.</p>
+            {% endif %}
+        </div>
+
+        <!-- Top pages + Top referrers -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 bg-slate-50">
+                    <h2 class="font-black text-base flex items-center gap-2">
+                        <i class="fas fa-file-alt text-blue-500"></i>
+                        Top Pages (Last 30 Days)
+                    </h2>
+                </div>
+                <div class="divide-y divide-slate-50">
+                    {% if top_pages %}
+                        {% for row in top_pages %}
+                        <div class="flex justify-between items-center px-5 py-3 hover:bg-slate-50">
+                            <span class="text-sm font-mono text-slate-700 truncate max-w-xs">{{ row.path }}</span>
+                            <span class="text-sm font-black text-slate-900 ml-4 shrink-0">{{ row.cnt }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="px-5 py-4 text-sm text-slate-400">No data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 bg-slate-50">
+                    <h2 class="font-black text-base flex items-center gap-2">
+                        <i class="fas fa-external-link-alt text-purple-500"></i>
+                        Top Referrers (Last 30 Days)
+                    </h2>
+                </div>
+                <div class="divide-y divide-slate-50">
+                    {% if top_referrers %}
+                        {% for row in top_referrers %}
+                        <div class="flex justify-between items-center px-5 py-3 hover:bg-slate-50">
+                            <span class="text-sm text-slate-700 truncate max-w-xs">{{ row.referrer }}</span>
+                            <span class="text-sm font-black text-slate-900 ml-4 shrink-0">{{ row.cnt }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="px-5 py-4 text-sm text-slate-400">No referrer data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    {% if daily_labels %}
+    <script>
+        const dailyLabels = {{ daily_labels | tojson }};
+        const dailyCounts = {{ daily_counts | tojson }};
+
+        new Chart(document.getElementById('dailyChart'), {
+            type: 'line',
+            data: {
+                labels: dailyLabels,
+                datasets: [{
+                    label: 'Page Views',
+                    data: dailyCounts,
+                    borderColor: '#0d9488',
+                    backgroundColor: 'rgba(13,148,136,0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    </script>
+    {% endif %}
+
+</body>
+</html>
