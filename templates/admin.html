@@ -5,22 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+    .anav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
+    .anav-link:hover { color: #E8DFD0; }
+    .anav-logout { color: #C94A3A !important; }
+    .anav-logout:hover { color: #E07060 !important; }
+    </style>
     <title>Admin Command | Montana Blotter</title>
 </head>
 <body class="bg-slate-50 font-sans text-slate-900">
 
-    <nav class="bg-slate-900 text-white p-4 shadow-2xl flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-500/20">
-                <i class="fas fa-user-shield"></i>
+        <nav style="background:#0D0C0B; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4" style="height:54px;">
+            <div class="flex items-center gap-3">
+                <div style="width:32px; height:32px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <div>
+                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:0.9rem; color:#E8DFD0; line-height:1.1;">The Montana Blotter</div>
+                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.18em;">Admin Panel</div>
+                </div>
             </div>
-            <span class="font-black tracking-tighter text-xl italic uppercase">MT Blotter <span class="text-blue-400">Admin</span></span>
-        </div>
-        <div class="flex gap-4 items-center">
-            <a href="/dashboard" class="text-xs bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl transition font-bold border border-slate-700">
-                <i class="fas fa-desktop mr-1"></i> Dashboard
-            </a>
-            <a href="/logout" class="text-xs text-red-400 font-bold hover:text-red-300 transition px-2">Logout</a>
+            <div class="hidden md:flex items-center gap-0.5">
+                <a href="/admin" class="anav-link">Dashboard</a>
+                <a href="/admin/blotters" class="anav-link">Blotters</a>
+                <a href="/admin/upload" class="anav-link">Upload</a>
+                <a href="/admin/blog" class="anav-link">Blog</a>
+                <a href="/admin/emails" class="anav-link">Emails</a>
+                <a href="/admin/analytics" class="anav-link">Analytics</a>
+                <a href="/admin/visitors" class="anav-link">Visitors</a>
+                <a href="/" class="anav-link" style="margin-left:8px;">↗ Public</a>
+                <a href="/admin/logout" class="anav-link anav-logout" style="margin-left:4px;">Logout</a>
+            </div>
         </div>
     </nav>
 
