@@ -16,9 +16,9 @@
             --surface-2:    #1D1B18;
             --border:       #282420;
             --border-2:     #35302A;
-            --text:         #E8DFD0;
-            --text-muted:   #8A7F72;
-            --text-dim:     #504840;
+            --text:         #F0E8D8;
+            --text-muted:   #A89880;
+            --text-dim:     #6A5E52;
             --amber:        #D4892A;
             --amber-dim:    rgba(212, 137, 42, 0.12);
             --amber-border: rgba(212, 137, 42, 0.3);
@@ -135,9 +135,32 @@
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+
+        /* Live bar */
+        #live-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; height: 52px; display: flex; align-items: center; background: #0A0908; border-top: 1px solid #282420; }
+
+        @keyframes ticker-scroll {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        #ticker-track { animation: ticker-scroll 60s linear infinite; white-space: nowrap; display: inline-flex; align-items: center; }
+        #ticker-track:hover { animation-play-state: paused; }
+        #ticker-wrap { flex: 1; overflow: hidden; position: relative; }
+        #ticker-wrap::before {
+            content: '';
+            position: absolute; left: 0; top: 0; bottom: 0; width: 40px; z-index: 2;
+            background: linear-gradient(90deg, #0A0908, transparent);
+            pointer-events: none;
+        }
+        #ticker-wrap::after {
+            content: '';
+            position: absolute; right: 0; top: 0; bottom: 0; width: 40px; z-index: 2;
+            background: linear-gradient(270deg, #0A0908, transparent);
+            pointer-events: none;
+        }
     </style>
 </head>
-<body>
+<body style="padding-bottom: 52px;">
 
     <!-- ░░ OFFICIAL BANNER ░░ -->
     <div id="official-banner" style="background: #080C16; border-bottom: 1px solid #12192B;">
@@ -787,6 +810,83 @@
             });
         });
     });
+    </script>
+
+
+    <!-- ░░ LIVE FEED BAR ░░ -->
+    <div id="live-bar">
+
+        <!-- Scanner section -->
+        <div style="display:flex; align-items:center; gap:10px; padding:0 16px; border-right:1px solid #282420; flex-shrink:0; height:100%;">
+            <span class="beacon" style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#D4892A; box-shadow:0 0 5px rgba(212,137,42,0.5);"></span>
+            <div>
+                <div style="font-family:'IBM Plex Mono',monospace; font-size:0.55rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.14em; font-weight:600; line-height:1;">Montana Scanner</div>
+                <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#504840; text-transform:uppercase; letter-spacing:0.1em; line-height:1.4;">Yellowstone Co.</div>
+            </div>
+            <a href="https://www.broadcastify.com/listen/feed/39839" target="_blank" rel="noopener"
+               style="display:inline-flex; align-items:center; gap:5px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A; border-radius:3px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; text-decoration:none; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Listen
+            </a>
+        </div>
+
+        <!-- Live label -->
+        <div style="display:flex; align-items:center; gap:6px; padding:0 14px; border-right:1px solid #282420; flex-shrink:0;">
+            <span class="beacon" style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#C94A3A; box-shadow:0 0 4px rgba(201,74,58,0.6);"></span>
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:0.55rem; color:#C94A3A; text-transform:uppercase; letter-spacing:0.14em; font-weight:700;">Latest</span>
+        </div>
+
+        <!-- Scrolling ticker -->
+        <div id="ticker-wrap">
+            <span id="ticker-track">
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#504840; padding:0 24px;">Loading feed…</span>
+            </span>
+        </div>
+
+        <!-- Dismiss -->
+        <button onclick="document.getElementById('live-bar').style.display='none'; document.body.style.paddingBottom='0';"
+                style="padding:0 14px; color:#35302A; background:none; border:none; cursor:pointer; font-size:0.75rem; flex-shrink:0; font-family:'IBM Plex Mono',monospace; transition:color 0.15s;" onmouseover="this.style.color='#8A7F72'" onmouseout="this.style.color='#35302A'">✕</button>
+    </div>
+
+    <!-- ░░ TICKER SCRIPT ░░ -->
+    <script>
+    (function () {
+        function buildTickerHTML(posts) {
+            const items = posts.map(function (p) {
+                var title  = p.title || 'Activity Report';
+                var county = p.county ? p.county + ' Co.' : '';
+                var date   = p.incident_date || '';
+                var meta   = [county, date].filter(Boolean).join(' · ');
+                var url    = '/?agency=' + encodeURIComponent(p.agency_name || '') + (p.incident_date ? '&date=' + p.incident_date : '');
+                return '<a href="' + url + '" style="font-family:\'IBM Plex Mono\',monospace; font-size:0.65rem; color:#8A7F72; text-decoration:none; padding:0 32px; white-space:nowrap; display:inline-flex; align-items:center; gap:8px;" onmouseover="this.style.color=\'#E8DFD0\'" onmouseout="this.style.color=\'#8A7F72\'">'
+                    + '<span style="color:#D4892A; font-size:0.6rem;">◆</span>'
+                    + '<span>' + title + '</span>'
+                    + (meta ? '<span style="color:#504840;">— ' + meta + '</span>' : '')
+                    + '</a>';
+            });
+            // Duplicate for seamless infinite loop
+            var html = items.join('') + items.join('');
+            return html;
+        }
+
+        function loadTicker() {
+            fetch('/api/posts?per_page=10')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data.posts || !data.posts.length) return;
+                    var track = document.getElementById('ticker-track');
+                    track.innerHTML = buildTickerHTML(data.posts);
+                    // Reset animation
+                    track.style.animation = 'none';
+                    track.offsetHeight; // reflow
+                    track.style.animation = '';
+                })
+                .catch(function () { /* silently ignore */ });
+        }
+
+        loadTicker();
+        setInterval(loadTicker, 60000);
+    })();
     </script>
 
 </body>
