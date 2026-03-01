@@ -332,6 +332,8 @@ def normalise_incident(raw: dict, county: str, city: str) -> dict:
 def ingest_crimemapping(
     config_override: Optional[dict] = None,
     days_back: int = 1,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
 ) -> int:
     """
     Full pipeline: fetch → normalise → write to DB → summarise → audit.
@@ -340,6 +342,9 @@ def ingest_crimemapping(
     ----------
     config_override : Pass a dict to override BILLINGS_PD_CONFIG fields.
     days_back       : How many days back to pull (default 1 = yesterday).
+                      Ignored when start_date/end_date are provided.
+    start_date      : Explicit window start (UTC midnight).
+    end_date        : Explicit window end   (UTC midnight).
 
     Returns
     -------
@@ -347,9 +352,12 @@ def ingest_crimemapping(
     """
     cfg = {**BILLINGS_PD_CONFIG, **(config_override or {})}
 
-    now   = datetime.now(timezone.utc)
-    end   = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    start = end - timedelta(days=days_back)
+    now = datetime.now(timezone.utc)
+    if start_date and end_date:
+        start, end = start_date, end_date
+    else:
+        end   = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        start = end - timedelta(days=days_back)
 
     raw_incidents = fetch_incidents(
         org_id=cfg["org_id"],
@@ -476,31 +484,44 @@ if __name__ == "__main__":
         agencies = MONTANA_AGENCIES   # --all-montana is the default
 
     now = datetime.now(timezone.utc)
-    end = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    start = end - timedelta(days=args.days_back)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Build list of (start, end) day windows — one blotter per day
+    day_windows = [
+        (today - timedelta(days=d+1), today - timedelta(days=d))
+        for d in range(args.days_back)
+    ]  # most-recent day first
 
     if args.dry_run:
         for cfg in agencies:
-            print(f"\n{'='*60}")
-            print(f"DRY RUN: {cfg['agency_name']} (org_id={cfg['org_id']})")
-            print(f"{'='*60}")
-            raw = fetch_incidents(
-                org_id=cfg["org_id"],
-                cx=cfg["cx"], cy=cfg["cy"], radius_m=cfg["radius_m"],
-                start_date=start, end_date=end,
-            )
-            for inc in raw:
-                norm = normalise_incident(inc, cfg["county"], cfg["city"])
-                print(json.dumps(norm, indent=2, default=str))
-            print(f"--- {len(raw)} incidents from {cfg['agency_name']} ---")
+            for day_start, day_end in day_windows:
+                label = day_start.strftime("%Y-%m-%d")
+                print(f"\n{'='*60}")
+                print(f"DRY RUN: {cfg['agency_name']} | {label}")
+                print(f"{'='*60}")
+                raw = fetch_incidents(
+                    org_id=cfg["org_id"],
+                    cx=cfg["cx"], cy=cfg["cy"], radius_m=cfg["radius_m"],
+                    start_date=day_start, end_date=day_end,
+                )
+                for inc in raw:
+                    norm = normalise_incident(inc, cfg["county"], cfg["city"])
+                    print(json.dumps(norm, indent=2, default=str))
+                print(f"--- {len(raw)} incidents ---")
     else:
         total_blotters = 0
         for cfg in agencies:
             logger.info(f"--- Ingesting {cfg['agency_name']} ---")
-            bid = ingest_crimemapping(config_override=cfg, days_back=args.days_back)
-            if bid:
-                total_blotters += 1
-                print(f"  {cfg['agency_name']}: blotter_id={bid}")
-            else:
-                print(f"  {cfg['agency_name']}: no new incidents")
+            for day_start, day_end in day_windows:
+                label = day_start.strftime("%Y-%m-%d")
+                bid = ingest_crimemapping(
+                    config_override=cfg,
+                    start_date=day_start,
+                    end_date=day_end,
+                )
+                if bid:
+                    total_blotters += 1
+                    print(f"  {cfg['agency_name']} {label}: blotter_id={bid}")
+                else:
+                    print(f"  {cfg['agency_name']} {label}: no new incidents")
         print(f"\nDone — {total_blotters} blotter(s) created")
