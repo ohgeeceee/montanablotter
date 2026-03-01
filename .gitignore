@@ -1,6 +1,7 @@
 venv/
 *.db
 *.db.backup.*
+*.db.pre_reset_*
 __pycache__/
 *.pyc
 uploads/
@@ -10,3 +11,5 @@ config.py
 .claude/
 db_backups/
 backup.log
+.sisyphus/
+crime-extractor/
