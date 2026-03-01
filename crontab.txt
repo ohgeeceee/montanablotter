@@ -12,7 +12,7 @@
 # Daily DB backup at 2am
 0 2 * * * /root/montanablotter/backup_db.sh >> /root/montanablotter/backup.log 2>&1
 
-# CrimeMapping.com — pull all 8 Montana agencies daily at 6am
+# CrimeMapping.com — pull all 8 Montana agencies at 6am and 6pm daily
 # Agencies: Billings PD, Great Falls PD, Flathead Co Sheriff, MSU PD,
 #           Carbon Co Sheriff, Red Lodge PD, Bridger PD, Chouteau Co Sheriff
-0 6 * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/crimemapping_fetcher.py --all-montana >> /root/montanablotter/crimemapping.log 2>&1
+0 6,18 * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/crimemapping_fetcher.py --all-montana >> /root/montanablotter/crimemapping.log 2>&1
