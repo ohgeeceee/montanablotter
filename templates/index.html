@@ -344,64 +344,6 @@
                     {% endif %}
                 </div>
 
-                <!-- Filters -->
-                <div class="panel">
-                    <h3 class="mono uppercase tracking-widest mb-3" style="color: var(--amber); font-size: 0.6rem; font-weight: 600;">// Filters</h3>
-                    <form method="GET" action="/" class="space-y-2.5" id="filter-form">
-                        {% if date_filter %}<input type="hidden" name="date" value="{{ date_filter }}">{% endif %}
-                        {% if agency %}<input type="hidden" name="agency" value="{{ agency }}">{% endif %}
-
-                        <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color: var(--text-dim); font-size: 0.55rem; font-weight: 600;">Search</label>
-                            <input type="text" name="q" value="{{ q }}" placeholder="keyword..." class="field">
-                        </div>
-                        <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color: var(--text-dim); font-size: 0.55rem; font-weight: 600;">County</label>
-                            <select name="county" class="field">
-                                <option value="">All Counties</option>
-                                {% for c in counties %}
-                                <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color: var(--text-dim); font-size: 0.55rem; font-weight: 600;">City</label>
-                            <select name="city" class="field">
-                                <option value="">All Cities</option>
-                                {% for c in cities %}
-                                <option value="{{ c }}" {% if c == city %}selected{% endif %}>{{ c }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color: var(--text-dim); font-size: 0.55rem; font-weight: 600;">Agency Type</label>
-                            <select name="agency_type" class="field">
-                                <option value="">All</option>
-                                <option value="sheriff" {% if agency_type == 'sheriff' %}selected{% endif %}>Sheriff</option>
-                                <option value="police"  {% if agency_type == 'police'  %}selected{% endif %}>Police</option>
-                                <option value="other"   {% if agency_type == 'other'   %}selected{% endif %}>Other</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color: var(--text-dim); font-size: 0.55rem; font-weight: 600;">Case Status</label>
-                            <select name="status" class="field">
-                                <option value="">All Statuses</option>
-                                <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active Scene</option>
-                                <option value="pending"  {% if status_filter == 'pending'  %}selected{% endif %}>Pending</option>
-                                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="mono w-full py-1.5 rounded uppercase tracking-widest transition hover:opacity-90"
-                                style="background: var(--surface-2); border: 1px solid var(--border-2); color: var(--text-muted); font-size: 0.65rem; font-weight: 600;">
-                            Apply
-                        </button>
-                        {% if county or city or agency_type or agency or q or date_filter %}
-                        <a href="/" class="mono block text-center uppercase tracking-widest transition hover:opacity-100 opacity-50"
-                           style="color: var(--text-muted); font-size: 0.6rem;">✕ Clear all</a>
-                        {% endif %}
-                    </form>
-                </div>
-
                 <!-- Leaderboard -->
                 {% if leaderboard %}
                 <div class="panel">
@@ -466,6 +408,45 @@
 
         <!-- ══ FEED ══ -->
         <div style="flex:1; min-width:0;" class="space-y-3">
+
+            <!-- Horizontal filter bar -->
+            <form method="GET" action="/" id="filter-form" style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px 14px;">
+                {% if date_filter %}<input type="hidden" name="date" value="{{ date_filter }}">{% endif %}
+                {% if agency %}<input type="hidden" name="agency" value="{{ agency }}">{% endif %}
+                <div class="flex flex-wrap items-center gap-2">
+                    <select name="county" class="field" style="flex:1; min-width:110px; max-width:160px;">
+                        <option value="">All Counties</option>
+                        {% for c in counties %}
+                        <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="city" class="field" style="flex:1; min-width:100px; max-width:140px;">
+                        <option value="">All Cities</option>
+                        {% for c in cities %}
+                        <option value="{{ c }}" {% if c == city %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="agency_type" class="field" style="flex:1; min-width:90px; max-width:120px;">
+                        <option value="">All Types</option>
+                        <option value="sheriff" {% if agency_type == 'sheriff' %}selected{% endif %}>Sheriff</option>
+                        <option value="police"  {% if agency_type == 'police'  %}selected{% endif %}>Police</option>
+                        <option value="other"   {% if agency_type == 'other'   %}selected{% endif %}>Other</option>
+                    </select>
+                    <select name="status" class="field" style="flex:1; min-width:100px; max-width:130px;">
+                        <option value="">All Statuses</option>
+                        <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active</option>
+                        <option value="pending"  {% if status_filter == 'pending'  %}selected{% endif %}>Pending</option>
+                        <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                    </select>
+                    <input type="text" name="q" value="{{ q }}" placeholder="Search…" class="field" style="flex:1; min-width:120px;">
+                    <button type="submit" class="mono uppercase tracking-widest px-4 py-1.5 rounded transition hover:opacity-90"
+                            style="background:var(--amber); color:var(--bg); font-size:0.6rem; font-weight:700; flex-shrink:0;">Apply</button>
+                    {% if county or city or agency_type or agency or q or date_filter %}
+                    <a href="/" class="mono uppercase tracking-widest transition hover:opacity-100 opacity-60"
+                       style="color:var(--text-muted); font-size:0.6rem; flex-shrink:0;">✕ Clear</a>
+                    {% endif %}
+                </div>
+            </form>
 
             <!-- Active filter pills -->
             {% if date_filter or county or city or agency_type or agency or q or status_filter %}
