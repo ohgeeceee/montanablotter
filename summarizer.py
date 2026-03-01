@@ -228,17 +228,19 @@ County: {county}
 Incidents (time | type | location | details):
 {incidents_block}
 
-Format the summary exactly like this example - a short intro sentence, then one bullet per notable incident with the time and a plain-English description:
+Format the summary with a short intro sentence followed by EVERY incident on its own line — one line per incident, no grouping, no skipping:
 
-"The [Agency Name] responded to a variety of incidents throughout the day. Below is a summary of notable events:
+"The [Agency Name] responded to [N] incidents. Below is a full log:
 
-[HH:MM AM/PM] - [Plain English description of incident and location.]
-[HH:MM AM/PM] - [Plain English description of incident and location.]
+[HH:MM AM/PM] – [Incident type] at [location].
+[HH:MM AM/PM] – [Incident type] at [location].
 ..."
 
-Skip purely administrative entries (voicemails, callbacks, no-answer checks).
-Use natural times like "8:20 AM" not raw timestamps.
-Keep each bullet to one sentence.
+Rules:
+- Include EVERY incident — do not skip or omit any.
+- One line per incident, no combining or grouping.
+- Use natural times like "8:20 AM" not raw timestamps.
+- Keep each line concise: time – type at location.
 
 Return ONLY valid JSON with these keys:
 {{
