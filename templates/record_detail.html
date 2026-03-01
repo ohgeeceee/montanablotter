@@ -3,9 +3,38 @@
 <head>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <title>Incident Report #{{ record.id }} | MT Blotter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+    <title>Incident Report #{{ record.id }} | Montana Blotter</title>
+    <style>
+    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
+    .pnav-link:hover { color: #F0E8D8; }
+    </style>
 </head>
-<body class="bg-slate-50 font-sans p-6 md:p-12 print:bg-white print:p-0">
+<body class="print:bg-white print:p-0" style="background:#0D0C0B; color:#F0E8D8; font-family:'Spectral',Georgia,serif; min-height:100vh;">
+
+    <header class="print:hidden" style="background:#161513; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-6" style="height:56px;">
+            <a href="/" style="display:flex; align-items:center; gap:14px; text-decoration:none;">
+                <div style="width:36px; height:36px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <div>
+                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:1rem; color:#F0E8D8; line-height:1.1;">The Montana Blotter</div>
+                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Daily Public Safety Dispatch</div>
+                </div>
+            </a>
+            <nav class="hidden md:flex items-center gap-1">
+                <a href="/arrests"      class="pnav-link">Arrests</a>
+                <a href="/blog"         class="pnav-link">Blog</a>
+                <a href="/jail-rosters" class="pnav-link">Jail Rosters</a>
+                <a href="/laws"         class="pnav-link">Laws</a>
+                <a href="/subscribe"    class="pnav-link" style="background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A;">Subscribe</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="p-6 md:p-12">
 
     <div class="max-w-4xl mx-auto">
         <a href="/dashboard" class="inline-flex items-center gap-2 text-slate-400 hover:text-blue-600 transition mb-8 font-bold text-xs uppercase tracking-widest print:hidden">
@@ -65,5 +94,6 @@
             </div>
         </div>
     </div>
+    </div><!-- /.p-6 wrapper -->
 </body>
 </html>

@@ -3,15 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
     <title>Server Error | Montana Blotter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
+    .pnav-link:hover { color: #F0E8D8; }
+    </style>
 </head>
-<body class="bg-slate-50 font-sans flex items-center justify-center min-h-screen">
-    <div class="text-center">
-        <p class="text-8xl font-black text-slate-200 mb-4">500</p>
-        <h1 class="text-2xl font-black text-slate-800 mb-2">Server Error</h1>
-        <p class="text-slate-500 mb-6">Something went wrong on our end.</p>
-        <a href="/" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition">Go Home</a>
+<body style="background:#0D0C0B; color:#F0E8D8; font-family:'IBM Plex Mono',monospace; min-height:100vh; display:flex; flex-direction:column;">
+
+    <header style="background:#161513; border-bottom:1px solid #282420;">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-6" style="height:56px;">
+            <a href="/" style="display:flex; align-items:center; gap:14px; text-decoration:none;">
+                <div style="width:36px; height:36px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <div>
+                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:1rem; color:#F0E8D8; line-height:1.1;">The Montana Blotter</div>
+                    <div style="font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Daily Public Safety Dispatch</div>
+                </div>
+            </a>
+            <nav class="hidden md:flex items-center gap-1">
+                <a href="/arrests"      class="pnav-link">Arrests</a>
+                <a href="/blog"         class="pnav-link">Blog</a>
+                <a href="/jail-rosters" class="pnav-link">Jail Rosters</a>
+                <a href="/laws"         class="pnav-link">Laws</a>
+            </nav>
+        </div>
+    </header>
+
+    <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:64px 24px;">
+        <div class="text-center" style="max-width:400px;">
+            <div style="font-family:'Playfair Display',Georgia,serif; font-size:6rem; font-weight:900; color:#282420; line-height:1; margin-bottom:16px;">500</div>
+            <h1 style="font-family:'Playfair Display',Georgia,serif; font-size:1.5rem; font-weight:700; color:#F0E8D8; margin-bottom:12px;">Server Error</h1>
+            <p style="font-size:0.7rem; color:#6A5E52; text-transform:uppercase; letter-spacing:0.1em; line-height:1.8; margin-bottom:28px;">
+                Something went wrong on our end.<br>Please try again in a moment.
+            </p>
+            <a href="/" style="display:inline-block; font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#0D0C0B; background:#D4892A; padding:10px 24px; border-radius:4px; text-decoration:none;">
+                ← Go Home
+            </a>
+        </div>
     </div>
+
 </body>
 </html>
