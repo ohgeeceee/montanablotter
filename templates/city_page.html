@@ -5,6 +5,7 @@
 {% set canonical_url = "https://montanablotter.com/city/" ~ city.slug %}
 {% set og_title = city.name ~ " Police Blotter | Montana Blotter" %}
 {% set og_description = "Free " ~ city.name ~ ", Montana police blotter and daily activity reports from the " ~ city.pd_name ~ "." %}
+{% set active_nav = "cities" %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -43,6 +44,38 @@
       "position": 3,
       "name": "{{ city.name }}",
       "item": "https://montanablotter.com/city/{{ city.slug }}"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Where can I find {{ city.name }} police blotter updates?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Montana Blotter publishes recent {{ city.name }} police activity reports, linked incident records, and internal links to county jail and warrant resources."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I look up {{ city.name }} arrest records?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Start with Montana Blotter's {{ city.name }} and {{ city.county }} County coverage, then check the county jail roster and statewide Montana court records portal for case-level information."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are there warrant resources for {{ city.name }}?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "{% if city.warrant_url %}{{ city.name }} has an online warrant resource linked from this page.{% else %}Use Montana's statewide court portal to search warrants connected to {{ city.name }} and {{ city.county }} County.{% endif %}"
+      }
     }
   ]
 }
@@ -296,8 +329,53 @@
                         <a href="/arrests?county={{ city.county | urlencode }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
                             <i class="fas fa-handcuffs text-blue-500"></i>{{ city.county }} arrests
                         </a>
+                        <a href="/cities" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
+                            <i class="fas fa-city text-blue-500"></i>All Montana city pages
+                        </a>
                     </div>
                 </div>
+
+                {% if recent_records %}
+                <div class="border-t border-slate-100 pt-6">
+                    <h2 class="text-xl font-black text-slate-900 mb-3">
+                        Recent Incident Records In {{ city.name }}
+                    </h2>
+                    <div class="grid gap-3">
+                        {% for record in recent_records %}
+                        <article class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+                            <div class="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.18em] font-black text-slate-400 mb-2">
+                                <span>{{ record.date }}</span>
+                                {% if record.time %}<span>{{ record.time }}</span>{% endif %}
+                            </div>
+                            <h3 class="text-sm font-black text-slate-900">{{ record.incident_label }}</h3>
+                            <p class="mt-1 text-sm text-slate-600">{{ record.location or 'Location not listed' }}</p>
+                            <div class="mt-3 flex flex-wrap gap-3 text-xs font-bold">
+                                <a href="/record/{{ record.id }}" class="text-blue-600 hover:text-blue-800">View incident</a>
+                                {% if record.post_id %}
+                                <a href="/post/{{ record.post_id }}" class="text-slate-500 hover:text-slate-700">Source report</a>
+                                {% endif %}
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if agency_coverage %}
+                <div class="border-t border-slate-100 pt-6">
+                    <h2 class="text-xl font-black text-slate-900 mb-3">
+                        Agencies Showing Up In {{ city.name }} Coverage
+                    </h2>
+                    <div class="grid sm:grid-cols-2 gap-3">
+                        {% for agency in agency_coverage %}
+                        <a href="/?agency={{ agency.agency_name | urlencode }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 hover:bg-slate-100 transition">
+                            <span class="text-sm font-bold text-slate-800">{{ agency.agency_name }}</span>
+                            <span class="text-xs font-black uppercase tracking-widest text-slate-400">{{ agency.report_count }} reports</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
 
                 {% if city.warrant_url or city.municipal_court_url %}
                 <div class="border-t border-slate-100 pt-6">
@@ -410,11 +488,11 @@
             </a>
 
             <!-- Nearby cities -->
-            {% if city.nearby %}
+            {% if linked_nearby %}
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                 <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Nearby Cities</h3>
                 <div class="flex flex-wrap gap-2">
-                    {% for nearby in city.nearby %}
+                    {% for nearby in linked_nearby %}
                     <a href="/city/{{ nearby.slug }}"
                        class="inline-flex items-center gap-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-full transition">
                         <i class="fas fa-map-pin text-[9px]"></i>{{ nearby.name }}
@@ -441,6 +519,11 @@
                        class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
                         <i class="fas fa-handcuffs text-blue-500 w-4 text-center"></i>
                         {{ city.county }} arrests
+                    </a>
+                    <a href="/counties"
+                       class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
+                        <i class="fas fa-map text-blue-500 w-4 text-center"></i>
+                        Browse Montana counties
                     </a>
                 </div>
             </div>

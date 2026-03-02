@@ -85,11 +85,23 @@ def _iso_lastmod(value):
     return None
 
 
+def _build_like_clause(columns, terms):
+    clauses = []
+    params = []
+    for term in terms:
+        like_value = f'%{term}%'
+        clauses.append('(' + ' OR '.join(f'{column} LIKE ?' for column in columns) + ')')
+        params.extend([like_value] * len(columns))
+    return ' OR '.join(clauses), params
+
+
 @app.context_processor
 def inject_public_nav():
     public_nav_items = [
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
         {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
+        {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
+        {'id': 'cities', 'href': '/cities', 'label': 'Cities'},
         {'id': 'jail_rosters', 'href': '/jail-rosters', 'label': 'Jail Rosters'},
         {'id': 'laws', 'href': '/laws', 'label': 'Laws'},
         {'id': 'warrants', 'href': '/warrants', 'label': 'Warrants'},
@@ -98,6 +110,8 @@ def inject_public_nav():
         'public_nav_items': public_nav_items,
         'public_footer_items': [
             {'href': '/', 'label': 'Feed'},
+            {'href': '/counties', 'label': 'Counties'},
+            {'href': '/cities', 'label': 'Cities'},
             *public_nav_items,
             {'href': '/subscribe', 'label': 'Subscribe'},
         ],
@@ -373,6 +387,8 @@ def _render_urlset(urls):
 def _sitemap_static_urls():
     return [
         (f'{BASE_URL}/', None),
+        (f'{BASE_URL}/counties', None),
+        (f'{BASE_URL}/cities', None),
         (f'{BASE_URL}/posts', None),
         (f'{BASE_URL}/arrests', None),
         (f'{BASE_URL}/jail-rosters', None),
@@ -609,6 +625,57 @@ def render_markdown(text):
 @app.route('/jail-rosters')
 def jail_rosters():
     return render_template('jail_rosters.html', current_year=datetime.now().year)
+
+
+@app.route('/counties')
+def counties_directory():
+    conn = get_db()
+    post_stats = {
+        row['county']: row
+        for row in conn.execute(
+            '''
+            SELECT county, COUNT(*) AS post_count, MAX(incident_date) AS last_report
+            FROM posts
+            WHERE county IS NOT NULL AND county != ''
+            GROUP BY county
+            '''
+        ).fetchall()
+    }
+    record_stats = {
+        row['county']: row['record_count']
+        for row in conn.execute(
+            '''
+            SELECT county, COUNT(*) AS record_count
+            FROM records
+            WHERE county IS NOT NULL AND county != ''
+            GROUP BY county
+            '''
+        ).fetchall()
+    }
+    conn.close()
+
+    counties = []
+    for county in COUNTY_DATA.values():
+        county_cities = [
+            city for city in CITY_DATA.values()
+            if city.get('county_slug') == county['slug']
+        ]
+        stats = post_stats.get(county['name'])
+        counties.append({
+            **county,
+            'post_count': stats['post_count'] if stats else 0,
+            'record_count': record_stats.get(county['name'], 0),
+            'last_report': stats['last_report'] if stats else None,
+            'city_count': len(county_cities),
+            'county_cities': county_cities,
+        })
+
+    counties.sort(key=lambda county: (-county['post_count'], county['name']))
+    return render_template(
+        'counties.html',
+        counties=counties,
+        current_year=datetime.now().year,
+    )
 
 
 # ==========================================
@@ -861,6 +928,37 @@ def county_page(slug):
         (county['name'],)
     ).fetchall()
 
+    recent_records = conn.execute(
+        """
+        SELECT
+            records.id,
+            records.date,
+            records.time,
+            COALESCE(NULLIF(records.incident_type, ''), NULLIF(records.incident, ''), 'Incident') AS incident_label,
+            records.location,
+            posts.id AS post_id
+        FROM records
+        LEFT JOIN posts ON posts.blotter_id = records.blotter_id
+        WHERE records.county = ?
+        ORDER BY records.date DESC, records.time DESC, records.id DESC
+        LIMIT 8
+        """,
+        (county['name'],)
+    ).fetchall()
+
+    agency_coverage = conn.execute(
+        """
+        SELECT COALESCE(NULLIF(agency_name, ''), 'Unknown agency') AS agency_name,
+               COUNT(*) AS report_count
+        FROM posts
+        WHERE county = ?
+        GROUP BY COALESCE(NULLIF(agency_name, ''), 'Unknown agency')
+        ORDER BY report_count DESC, agency_name ASC
+        LIMIT 8
+        """,
+        (county['name'],)
+    ).fetchall()
+
     last_row = conn.execute(
         'SELECT incident_date FROM posts WHERE county = ? ORDER BY incident_date DESC LIMIT 1',
         (county['name'],)
@@ -873,6 +971,11 @@ def county_page(slug):
         city for city in CITY_DATA.values()
         if city.get('county_slug') == county['slug']
     ]
+    linked_neighbors = [
+        COUNTY_DATA[neighbor['slug']]
+        for neighbor in county.get('neighbors', [])
+        if neighbor.get('slug') in COUNTY_DATA
+    ]
 
     return render_template(
         'county_page.html',
@@ -881,7 +984,10 @@ def county_page(slug):
         post_count=post_count,
         record_count=record_count,
         top_incidents=top_incidents,
+        recent_records=recent_records,
+        agency_coverage=agency_coverage,
         county_cities=county_cities,
+        linked_neighbors=linked_neighbors,
         last_report=last_report,
         page=page,
         total_pages=total_pages,
@@ -1107,6 +1213,49 @@ CITY_DATA = {
 }
 
 
+@app.route('/cities')
+def cities_directory():
+    conn = get_db()
+    cities = []
+    for city in CITY_DATA.values():
+        where_sql, params = _build_like_clause(
+            ['posts.city', 'posts.agency_name'],
+            city['search_terms'],
+        )
+        rec_where_sql, rec_params = _build_like_clause(
+            ['records.location'],
+            city['search_terms'],
+        )
+
+        post_count = conn.execute(
+            f'SELECT COUNT(*) FROM posts WHERE {where_sql}',
+            params,
+        ).fetchone()[0]
+        last_row = conn.execute(
+            f'SELECT incident_date FROM posts WHERE {where_sql} ORDER BY incident_date DESC LIMIT 1',
+            params,
+        ).fetchone()
+        record_count = conn.execute(
+            f'SELECT COUNT(*) FROM records WHERE {rec_where_sql}',
+            rec_params,
+        ).fetchone()[0]
+
+        cities.append({
+            **city,
+            'post_count': post_count,
+            'record_count': record_count,
+            'last_report': last_row['incident_date'] if last_row else None,
+        })
+
+    conn.close()
+    cities.sort(key=lambda city: (-city['post_count'], city['name']))
+    return render_template(
+        'cities.html',
+        cities=cities,
+        current_year=datetime.now().year,
+    )
+
+
 @app.route('/city/<slug>')
 def city_page(slug):
     city = CITY_DATA.get(slug)
@@ -1116,15 +1265,11 @@ def city_page(slug):
     page = max(1, request.args.get('page', 1, type=int))
     per_page = 10
 
-    # Build a LIKE-based OR clause across city and agency_name for each search term
     terms = city['search_terms']
-    where_clauses = []
-    params_count = []
-    for term in terms:
-        where_clauses.append('(posts.city LIKE ? OR posts.agency_name LIKE ?)')
-        params_count.extend([f'%{term}%', f'%{term}%'])
-
-    where_sql = ' OR '.join(where_clauses)
+    where_sql, params_count = _build_like_clause(
+        ['posts.city', 'posts.agency_name'],
+        terms,
+    )
 
     conn = get_db()
 
@@ -1145,14 +1290,9 @@ def city_page(slug):
         params_fetch
     ).fetchall()
 
-    # Count incidents from records table using same city terms
-    rec_clauses = []
-    rec_params = []
-    for term in terms:
-        rec_clauses.append('location LIKE ?')
-        rec_params.append(f'%{term}%')
+    rec_where_sql, rec_params = _build_like_clause(['records.location'], terms)
     record_count = conn.execute(
-        f"SELECT COUNT(*) FROM records WHERE {' OR '.join(rec_clauses)}",
+        f'SELECT COUNT(*) FROM records WHERE {rec_where_sql}',
         rec_params
     ).fetchone()[0]
 
@@ -1161,12 +1301,43 @@ def city_page(slug):
         SELECT COALESCE(NULLIF(incident_type, ''), 'Other') AS incident_type,
                COUNT(*) AS count
         FROM records
-        WHERE {' OR '.join(rec_clauses)}
+        WHERE {rec_where_sql}
         GROUP BY COALESCE(NULLIF(incident_type, ''), 'Other')
         ORDER BY count DESC, incident_type ASC
         LIMIT 8
         """,
         rec_params
+    ).fetchall()
+
+    recent_records = conn.execute(
+        f"""
+        SELECT
+            records.id,
+            records.date,
+            records.time,
+            COALESCE(NULLIF(records.incident_type, ''), NULLIF(records.incident, ''), 'Incident') AS incident_label,
+            records.location,
+            posts.id AS post_id
+        FROM records
+        LEFT JOIN posts ON posts.blotter_id = records.blotter_id
+        WHERE {rec_where_sql}
+        ORDER BY records.date DESC, records.time DESC, records.id DESC
+        LIMIT 8
+        """,
+        rec_params
+    ).fetchall()
+
+    agency_coverage = conn.execute(
+        f"""
+        SELECT COALESCE(NULLIF(agency_name, ''), 'Unknown agency') AS agency_name,
+               COUNT(*) AS report_count
+        FROM posts
+        WHERE {where_sql}
+        GROUP BY COALESCE(NULLIF(agency_name, ''), 'Unknown agency')
+        ORDER BY report_count DESC, agency_name ASC
+        LIMIT 8
+        """,
+        params_count
     ).fetchall()
 
     last_row = conn.execute(
@@ -1177,6 +1348,12 @@ def city_page(slug):
 
     conn.close()
 
+    linked_nearby = [
+        CITY_DATA[nearby['slug']]
+        for nearby in city.get('nearby', [])
+        if nearby.get('slug') in CITY_DATA
+    ]
+
     return render_template(
         'city_page.html',
         city=city,
@@ -1184,6 +1361,9 @@ def city_page(slug):
         post_count=post_count,
         record_count=record_count,
         top_incidents=top_incidents,
+        recent_records=recent_records,
+        agency_coverage=agency_coverage,
+        linked_nearby=linked_nearby,
         last_report=last_report,
         page=page,
         total_pages=total_pages,

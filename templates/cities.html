@@ -1,0 +1,95 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana City Police Blotter Pages" %}
+{% set meta_description = "Browse Montana city police blotter pages with recent reports, linked incident records, and internal paths into county arrests, warrants, and jail roster resources." %}
+{% set canonical_url = "https://montanablotter.com/cities" %}
+{% set og_title = "Montana City Police Blotter Pages | Montana Blotter" %}
+{% set og_description = meta_description %}
+{% set active_nav = "cities" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana city police blotter pages",
+  "description": "Directory of city-level Montana Blotter pages with recent reports and internal record links.",
+  "url": "https://montanablotter.com/cities"
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Cities</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-10 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+        <span class="inline-block bg-blue-500/20 text-blue-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-3">
+            Montana Directory
+        </span>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">City Police Blotter Pages</h1>
+        <p class="text-slate-300 text-sm max-w-3xl">
+            City-focused public safety landing pages with recent activity reports, source-linked incidents, and county-level jail and court resources.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div class="grid lg:grid-cols-2 gap-5">
+        {% for city in cities %}
+        <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">{{ city.county }} County</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">
+                        <a href="/city/{{ city.slug }}" class="hover:text-blue-700 transition">{{ city.name }}</a>
+                    </h2>
+                    <p class="mt-2 text-sm text-slate-600">{{ city.pd_name }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-black text-slate-900">{{ city.post_count }}</p>
+                    <p class="text-[10px] uppercase tracking-[0.18em] font-black text-slate-400">Reports</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 mt-5">
+                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3">
+                    <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-400">Incidents</p>
+                    <p class="mt-1 text-sm font-black text-slate-900">{{ city.record_count }}</p>
+                </div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3">
+                    <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-400">County</p>
+                    <p class="mt-1 text-sm font-black text-slate-900">{{ city.county }}</p>
+                </div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3">
+                    <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-400">Last report</p>
+                    <p class="mt-1 text-sm font-black text-slate-900">{{ city.last_report or 'None yet' }}</p>
+                </div>
+            </div>
+
+            <p class="mt-5 text-sm leading-6 text-slate-600">{{ city.description }}</p>
+
+            <div class="mt-5 grid sm:grid-cols-2 gap-3 text-sm font-bold">
+                <a href="/city/{{ city.slug }}" class="flex items-center justify-between rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 transition">
+                    Open city page <i class="fas fa-arrow-right text-xs"></i>
+                </a>
+                <a href="/county/{{ city.county_slug }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 px-4 py-3 transition">
+                    {{ city.county }} County page <i class="fas fa-map text-xs text-blue-500"></i>
+                </a>
+                <a href="/posts?city={{ city.name | urlencode }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 px-4 py-3 transition">
+                    All {{ city.name }} reports <i class="fas fa-newspaper text-xs text-blue-500"></i>
+                </a>
+                <a href="/arrests?county={{ city.county | urlencode }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 px-4 py-3 transition">
+                    {{ city.county }} arrests <i class="fas fa-handcuffs text-xs text-blue-500"></i>
+                </a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
