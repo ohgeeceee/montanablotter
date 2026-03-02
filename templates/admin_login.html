@@ -5,68 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <title>Admin Login | Montana Blotter</title>
 </head>
-<body class="bg-slate-50 font-sans">
+<body style="background:#0D0C0B; color:#F0E8D8; font-family:'IBM Plex Mono',monospace; min-height:100vh; display:flex; align-items:center; justify-content:center;">
 
-    <div class="min-h-screen flex items-center justify-center p-6">
-        <div class="max-w-md w-full">
-            <div class="text-center mb-8">
-                <a href="/" class="inline-flex items-center gap-2 mb-6">
-                    <div class="bg-slate-900 text-white p-2 rounded-xl">
-                        <i class="fas fa-mountain"></i>
-                    </div>
-                    <span class="font-black uppercase italic tracking-tighter text-xl">MT Blotter</span>
-                </a>
-                <h2 class="text-2xl font-black text-slate-900">Admin Login</h2>
-                <p class="text-slate-500 mt-2">Enter your credentials to access the admin panel</p>
-            </div>
-
-            {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                {% for message in messages %}
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
-                    {{ message }}
+    <div style="width:100%; max-width:400px; padding:24px;">
+        <div style="text-align:center; margin-bottom:32px;">
+            <a href="/" style="display:inline-flex; align-items:center; gap:12px; text-decoration:none; margin-bottom:20px;">
+                <div style="width:36px; height:36px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#0D0C0B;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 </div>
-                {% endfor %}
-            {% endif %}
-            {% endwith %}
-
-            <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-100">
-                <form method="POST" class="space-y-6">
-                    <div>
-                        <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
-                            Username
-                        </label>
-                        <input type="text" 
-                               name="username" 
-                               required
-                               placeholder="admin"
-                               class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
-                            Password
-                        </label>
-                        <input type="password" 
-                               name="password" 
-                               required
-                               placeholder="••••••••"
-                               class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-
-                    <button type="submit" 
-                            class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-blue-600 transition">
-                        Sign In
-                    </button>
-                </form>
-            </div>
-
-            <p class="text-center mt-6 text-sm text-slate-500">
-                <a href="/" class="text-blue-600 hover:underline">← Back to public site</a>
-            </p>
+                <div style="text-align:left;">
+                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:1rem; color:#F0E8D8; line-height:1.1;">The Montana Blotter</div>
+                    <div style="font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Admin Panel</div>
+                </div>
+            </a>
+            <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.5rem; font-weight:700; color:#F0E8D8; margin:0 0 8px;">Admin Login</h2>
+            <p style="font-size:0.7rem; color:#6A5E52; text-transform:uppercase; letter-spacing:0.08em;">Enter your credentials to continue</p>
         </div>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+            <div style="background:rgba(201,74,58,0.12); border:1px solid rgba(201,74,58,0.3); color:#E07060; padding:10px 16px; border-radius:6px; margin-bottom:16px; font-size:0.75rem;">
+                <i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>{{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div style="background:#161513; border:1px solid #282420; border-radius:8px; padding:28px;">
+            <form method="POST" style="display:flex; flex-direction:column; gap:20px;">
+                <div>
+                    <label style="display:block; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#6A5E52; margin-bottom:8px;">Username</label>
+                    <input type="text" name="username" required placeholder="admin"
+                           style="width:100%; padding:10px 14px; background:#0D0C0B; border:1px solid #282420; border-radius:4px; color:#F0E8D8; font-family:'IBM Plex Mono',monospace; font-size:0.8rem; outline:none; box-sizing:border-box;"
+                           onfocus="this.style.borderColor='#D4892A'" onblur="this.style.borderColor='#282420'">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#6A5E52; margin-bottom:8px;">Password</label>
+                    <input type="password" name="password" required placeholder="••••••••"
+                           style="width:100%; padding:10px 14px; background:#0D0C0B; border:1px solid #282420; border-radius:4px; color:#F0E8D8; font-family:'IBM Plex Mono',monospace; font-size:0.8rem; outline:none; box-sizing:border-box;"
+                           onfocus="this.style.borderColor='#D4892A'" onblur="this.style.borderColor='#282420'">
+                </div>
+                <button type="submit"
+                        style="width:100%; padding:11px; background:#D4892A; color:#0D0C0B; border:none; border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; cursor:pointer; transition:opacity 0.15s;"
+                        onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    Sign In
+                </button>
+            </form>
+        </div>
+
+        <p style="text-align:center; margin-top:20px; font-size:0.65rem; color:#6A5E52;">
+            <a href="/" style="color:#8A7F72; text-decoration:none;" onmouseover="this.style.color='#F0E8D8'" onmouseout="this.style.color='#8A7F72'">← Back to public site</a>
+        </p>
     </div>
 
 </body>

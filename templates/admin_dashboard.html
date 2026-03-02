@@ -31,6 +31,7 @@
             <div class="hidden md:flex items-center gap-0.5">
                 <a href="/admin" class="anav-link">Dashboard</a>
                 <a href="/admin/blotters" class="anav-link">Blotters</a>
+                <a href="/admin/ingestion" class="anav-link">Ingestion</a>
                 <a href="/admin/upload" class="anav-link">Upload</a>
                 <a href="/admin/blog" class="anav-link">Blog</a>
                 <a href="/admin/emails" class="anav-link">Emails</a>
@@ -57,7 +58,7 @@
         <h1 class="text-3xl font-black text-slate-900 mb-8">Dashboard Overview</h1>
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <div class="flex items-center justify-between mb-3">
                     <i class="fas fa-database text-blue-500 text-3xl"></i>
@@ -81,6 +82,14 @@
                 <p class="text-3xl font-black text-slate-900">{{ total_counties }}</p>
                 <p class="text-sm text-slate-500 font-bold uppercase tracking-wider mt-1">Counties</p>
             </div>
+
+            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <i class="fas fa-triangle-exclamation text-amber-500 text-3xl"></i>
+                </div>
+                <p class="text-3xl font-black text-slate-900">{{ failed_ingestions }}</p>
+                <p class="text-sm text-slate-500 font-bold uppercase tracking-wider mt-1">Failed Ingestions</p>
+            </div>
         </div>
 
         <!-- Quick Actions -->
@@ -95,6 +104,12 @@
                 <i class="fas fa-folder-open text-2xl mb-3 block"></i>
                 <p class="font-black text-lg">Manage Blotters</p>
                 <p class="text-sm opacity-80 mt-1">View and delete blotters</p>
+            </a>
+
+            <a href="/admin/ingestion" class="bg-amber-500 text-white p-6 rounded-2xl hover:bg-amber-600 transition shadow-lg">
+                <i class="fas fa-heart-pulse text-2xl mb-3 block"></i>
+                <p class="font-black text-lg">Ingestion Health</p>
+                <p class="text-sm opacity-90 mt-1">Review failures and retry jobs</p>
             </a>
 
             <a href="/admin/emails" class="bg-purple-600 text-white p-6 rounded-2xl hover:bg-purple-700 transition shadow-lg">

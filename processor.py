@@ -11,8 +11,10 @@ from pdf_parser import BlotterParser, parse_text_blotter
 import summarizer
 import blotter_auditor
 from pipeline_state import (
+    ensure_source_document,
     increment_ingestion_retry,
     log_pipeline_event,
+    sha256_bytes,
     set_ingestion_job_status,
 )
 
@@ -22,6 +24,97 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def _table_has_column(conn: sqlite3.Connection, table_name: str, column_name: str) -> bool:
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return any(r[1] == column_name for r in rows)
+
+
+def _post_count_for_blotter(blotter_id: int) -> int:
+    conn = sqlite3.connect(DB_PATH)
+    count = conn.execute(
+        'SELECT COUNT(*) FROM posts WHERE blotter_id = ?',
+        (blotter_id,),
+    ).fetchone()[0]
+    conn.close()
+    return int(count)
+
+
+def _publish_blotter_outputs(
+    blotter_id: int,
+    sender_email: Optional[str] = None,
+    ingestion_job_id: Optional[int] = None,
+    label: str = 'blotter',
+) -> int:
+    post_count = 0
+
+    try:
+        post_count = summarizer.generate_posts(blotter_id, sender_email=sender_email)
+        logging.info(f"Generated {post_count} posts for {label} #{blotter_id}")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'summarize',
+                'ok',
+                {'post_count': post_count},
+            )
+    except Exception as e:
+        logging.warning(f"Post generation failed for {label} #{blotter_id}: {e}")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'summarize',
+                'warn',
+                {'error': str(e)},
+            )
+
+    try:
+        audit_results = blotter_auditor.audit_blotter_posts(blotter_id)
+        flagged = [r for r in audit_results if not r.audit_passed]
+        logging.info(
+            f"Blotter auditor: {len(audit_results)} post(s) audited, "
+            f"{len(flagged)} flagged for review"
+        )
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'audit',
+                'warn' if flagged else 'ok',
+                {'audited': len(audit_results), 'flagged': len(flagged)},
+            )
+    except Exception as e:
+        logging.warning(f"Blotter auditor failed for {label} #{blotter_id}: {e}")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'audit',
+                'warn',
+                {'error': str(e)},
+            )
+
+    visible_post_count = _post_count_for_blotter(blotter_id)
+    if ingestion_job_id is not None:
+        if visible_post_count > 0:
+            log_pipeline_event(
+                ingestion_job_id,
+                'publish',
+                'ok',
+                {'blotter_id': blotter_id, 'post_count': visible_post_count},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+        else:
+            error_message = f'No public post was created for this {label}'
+            log_pipeline_event(
+                ingestion_job_id,
+                'publish',
+                'error',
+                {'blotter_id': blotter_id, 'error': 'no-posts-created'},
+            )
+            increment_ingestion_retry(ingestion_job_id, error_message)
+            set_ingestion_job_status(
+                ingestion_job_id,
+                'failed',
+                last_error=error_message,
+                finished=True,
+            )
+
+    return visible_post_count
 
 
 def process_new_blotter(
@@ -45,6 +138,18 @@ def process_new_blotter(
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
     filename = os.path.basename(pdf_path)
+    if source_document_id is None:
+        with open(pdf_path, 'rb') as handle:
+            file_hash = sha256_bytes(handle.read())
+        source_document_id = ensure_source_document(
+            source_type='local_pdf',
+            filename=filename,
+            content_sha256=file_hash,
+            storage_path=pdf_path,
+            raw_text=None,
+            extraction_method='local_file',
+            extraction_warnings=[],
+        )
 
     conn = sqlite3.connect(DB_PATH)
     source_column_exists = _table_has_column(conn, 'blotters', 'source_document_id')
@@ -52,10 +157,6 @@ def process_new_blotter(
     if source_document_id is not None and source_column_exists:
         existing = conn.execute(
             'SELECT id FROM blotters WHERE source_document_id = ?', (source_document_id,)
-        ).fetchone()
-    if not existing:
-        existing = conn.execute(
-            'SELECT id FROM blotters WHERE filename = ?', (filename,)
         ).fetchone()
     conn.close()
     if existing:
@@ -67,7 +168,11 @@ def process_new_blotter(
                 'ok',
                 {'message': 'duplicate-skip', 'existing_blotter_id': existing[0]},
             )
-            set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+        _publish_blotter_outputs(
+            int(existing[0]),
+            ingestion_job_id=ingestion_job_id,
+            label='blotter',
+        )
         return existing[0]
 
     logging.info(f"Processing blotter: {pdf_path}")
@@ -165,60 +270,11 @@ def process_new_blotter(
             )
             set_ingestion_job_status(ingestion_job_id, 'normalized')
 
-        # Generate AI posts for all new records
-        try:
-            post_count = summarizer.generate_posts(batch_id)
-            logging.info(f"Generated {post_count} posts for batch #{batch_id}")
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'summarize',
-                    'ok',
-                    {'post_count': post_count},
-                )
-        except Exception as e:
-            logging.warning(f"Post generation failed for batch #{batch_id}: {e}")
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'summarize',
-                    'warn',
-                    {'error': str(e)},
-                )
-
-        # --- Legal / PII audit ---
-        try:
-            audit_results = blotter_auditor.audit_blotter_posts(batch_id)
-            flagged = [r for r in audit_results if not r.audit_passed]
-            logging.info(
-                f"Blotter auditor: {len(audit_results)} post(s) audited, "
-                f"{len(flagged)} flagged for review"
-            )
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'audit',
-                    'warn' if flagged else 'ok',
-                    {'audited': len(audit_results), 'flagged': len(flagged)},
-                )
-        except Exception as e:
-            logging.warning(f"Blotter auditor failed for batch #{batch_id}: {e}")
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'audit',
-                    'warn',
-                    {'error': str(e)},
-                )
-
-        if ingestion_job_id is not None:
-            log_pipeline_event(
-                ingestion_job_id,
-                'publish',
-                'ok',
-                {'blotter_id': batch_id},
-            )
-            set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+        _publish_blotter_outputs(
+            batch_id,
+            ingestion_job_id=ingestion_job_id,
+            label='blotter',
+        )
 
         return batch_id
 
@@ -290,7 +346,31 @@ def process_text_blotter(
     cursor = conn.cursor()
 
     try:
+        existing = None
         has_source_column = _table_has_column(conn, 'blotters', 'source_document_id')
+        if source_document_id is not None and has_source_column:
+            existing = conn.execute(
+                'SELECT id FROM blotters WHERE source_document_id = ?',
+                (source_document_id,),
+            ).fetchone()
+        if existing:
+            conn.close()
+            logging.info(f"Skipping duplicate text blotter (already blotter #{existing[0]})")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'ingest',
+                    'ok',
+                    {'message': 'duplicate-skip', 'existing_blotter_id': existing[0]},
+                )
+            _publish_blotter_outputs(
+                int(existing[0]),
+                sender_email=sender_email,
+                ingestion_job_id=ingestion_job_id,
+                label='text blotter',
+            )
+            return int(existing[0])
+
         if has_source_column:
             cursor.execute(
                 "INSERT INTO blotters (filename, county, incident_count, source_type, source_document_id) VALUES (?, ?, ?, ?, ?)",
@@ -347,59 +427,12 @@ def process_text_blotter(
             )
             set_ingestion_job_status(ingestion_job_id, 'normalized')
 
-        try:
-            post_count = summarizer.generate_posts(blotter_id, sender_email=sender_email)
-            logging.info(f"Generated {post_count} posts for text blotter #{blotter_id}")
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'summarize',
-                    'ok',
-                    {'post_count': post_count},
-                )
-        except Exception as e:
-            logging.warning(f"Post generation failed for text blotter #{blotter_id}: {e}")
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'summarize',
-                    'warn',
-                    {'error': str(e)},
-                )
-
-        # --- Legal / PII audit ---
-        try:
-            audit_results = blotter_auditor.audit_blotter_posts(blotter_id)
-            flagged = [r for r in audit_results if not r.audit_passed]
-            logging.info(
-                f"Blotter auditor: {len(audit_results)} post(s) audited, "
-                f"{len(flagged)} flagged"
-            )
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'audit',
-                    'warn' if flagged else 'ok',
-                    {'audited': len(audit_results), 'flagged': len(flagged)},
-                )
-        except Exception as e:
-            logging.warning(f"Blotter auditor failed for text blotter #{blotter_id}: {e}")
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'audit',
-                    'warn',
-                    {'error': str(e)},
-                )
-
-        if ingestion_job_id is not None:
-            log_pipeline_event(
-                ingestion_job_id,
-                'publish',
-                'ok',
-                {'blotter_id': blotter_id},
-            )
-            set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+        _publish_blotter_outputs(
+            blotter_id,
+            sender_email=sender_email,
+            ingestion_job_id=ingestion_job_id,
+            label='text blotter',
+        )
 
         return blotter_id
 

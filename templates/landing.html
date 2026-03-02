@@ -1,13 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <title>Montana Blotter | Public Safety Intelligence</title>
-</head>
-<body class="bg-slate-50 font-sans text-slate-900">
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Public Safety Intelligence" %}
+{% set meta_description = "Instant access to Montana law enforcement blotters and searchable public safety records." %}
+{% set canonical_url = "https://montanablotter.com/landing" %}
+{% set og_title = "Montana Blotter | Public Safety Intelligence" %}
+{% set og_description = meta_description %}
+
+{% block content %}
+<div class="bg-slate-50 font-sans text-slate-900">
 
     <nav class="max-w-7xl mx-auto p-6 flex justify-between items-center">
         <div class="flex items-center gap-2">
@@ -88,6 +88,5 @@
     <footer class="p-12 text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest">
         &copy; 2026 Montana Blotter Intelligence | <a href="/login" class="hover:text-slate-900">Admin Access</a>
     </footer>
-
-</body>
-</html>
+</div>
+{% endblock %}

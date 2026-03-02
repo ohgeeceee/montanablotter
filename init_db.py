@@ -9,19 +9,9 @@ from datetime import datetime
 
 DB_PATH = '/root/montanablotter/blotter.db'
 
-def init_database():
-    """Initialize the database with all required tables"""
-    
-    # Backup existing database if it exists
-    if os.path.exists(DB_PATH):
-        backup_path = f'{DB_PATH}.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}'
-        print(f"⚠️  Backing up existing database to: {backup_path}")
-        os.system(f'cp {DB_PATH} {backup_path}')
-    
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # --- USERS TABLE ---
+
+def _create_core_tables(cursor: sqlite3.Cursor) -> None:
+    """Create the baseline tables required before running additive migrations."""
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,8 +22,7 @@ def init_database():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
-    # --- BLOTTERS TABLE (Batch/File level) ---
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS blotters (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,8 +35,7 @@ def init_database():
             notes TEXT
         )
     ''')
-    
-    # --- RECORDS TABLE (Individual incidents) ---
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,6 +43,7 @@ def init_database():
             cfs_number TEXT,
             date TEXT NOT NULL,
             time TEXT,
+            incident TEXT NOT NULL DEFAULT '',
             incident_type TEXT,
             location TEXT,
             details TEXT,
@@ -64,8 +53,7 @@ def init_database():
             FOREIGN KEY (blotter_id) REFERENCES blotters(id) ON DELETE CASCADE
         )
     ''')
-    
-    # --- COMMAND LOGS TABLE (Detailed chronological entries for each incident) ---
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS command_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,13 +65,25 @@ def init_database():
             FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
         )
     ''')
-    
-    # --- Create indexes for better query performance ---
+
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_records_county ON records(county)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_records_date ON records(date)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_records_blotter ON records(blotter_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_blotters_county ON blotters(county)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_blotters_date ON blotters(upload_date)')
+
+def init_database():
+    """Initialize the database with all required tables"""
+    
+    # Backup existing database if it exists
+    if os.path.exists(DB_PATH):
+        backup_path = f'{DB_PATH}.backup.{datetime.now().strftime("%Y%m%d_%H%M%S")}'
+        print(f"⚠️  Backing up existing database to: {backup_path}")
+        os.system(f'cp {DB_PATH} {backup_path}')
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    _create_core_tables(cursor)
     
     conn.commit()
     conn.close()
@@ -100,6 +100,7 @@ def migrate():
     """Safely apply schema changes to an existing DB without data loss"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    _create_core_tables(cursor)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -117,6 +118,7 @@ def migrate():
 
     # Add missing columns to records (old schema used 'incident' instead of 'incident_type')
     for col, definition in [
+        ('incident',      "TEXT NOT NULL DEFAULT ''"),
         ('incident_type', 'TEXT'),
         ('cfs_number',    'TEXT'),
         ('time',          'TEXT'),

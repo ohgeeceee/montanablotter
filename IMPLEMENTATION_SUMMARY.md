@@ -220,7 +220,7 @@ python3 email_worker.py
 Current credentials (update these):
 ```python
 EMAIL_USER = "juan@fertherecerd.com"
-EMAIL_PASSWORD = "Lol123lol!!"
+EMAIL_PASSWORD = "your_app_password_here"
 ```
 
 ### Cron Job Setup
