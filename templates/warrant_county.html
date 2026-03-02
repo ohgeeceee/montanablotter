@@ -1,357 +1,277 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
-    <style>
-    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
-    .pnav-link:hover { color: #E8DFD0; }
-    .pnav-link.active { color: #D4892A !important; }
-    </style>
-    <title>{{ county.name }} County Warrants | Montana Blotter</title>
-    <meta name="description" content="How to search for active arrest and bench warrants in {{ county.name }} County, Montana. {% if county.warrant_url %}Direct link to the online warrant list.{% else %}Step-by-step guide and sheriff contact info.{% endif %}">
-    <link rel="canonical" href="https://montanablotter.com/warrants/{{ county.slug }}">
-    <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "How do I find active warrants in {{ county.name }} County, Montana?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "{% if county.warrant_url %}{{ county.name }} County publishes an active warrant list online at {{ county.warrant_url }}. You can also search the Montana Judicial Branch Public Access Portal at courts.mt.gov.{% else %}Search the Montana Judicial Branch Public Access Portal at courts.mt.gov and filter by Warrants, or call the {{ county.name }} County Sheriff's Office at {{ county.phone }}.{% endif %}"
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Do warrants expire in {{ county.name }} County?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "No. Arrest and bench warrants in Montana do not expire. They remain active until served, quashed by a judge, or the subject dies."
-          }
-        }
-      ]
-    }
-    </script>
-</head>
-<body style="background:#0D0C0B; color:#E8DFD0; font-family:'Spectral',Georgia,serif; min-height:100vh;">
+{% extends "public_page_base.html" %}
 
-    <!-- Navbar -->
-        <header style="background:#161513; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-6" style="height:56px;">
-            <a href="/" style="display:flex; align-items:center; gap:14px; text-decoration:none;">
-                <div style="width:36px; height:36px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+{% set page_title = county.name ~ " County Warrants" %}
+{% set meta_description = "How to search for active arrest and bench warrants in " ~ county.name ~ " County, Montana. " ~ ("Direct link to the online warrant list." if county.warrant_url else "Step-by-step guide and sheriff contact info.") %}
+{% set canonical_url = "https://montanablotter.com/warrants/" ~ county.slug %}
+{% set og_title = county.name ~ " County Warrants | Montana Blotter" %}
+{% set og_description = meta_description %}
+{% set active_nav = "warrants" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I find active warrants in {{ county.name }} County, Montana?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "{% if county.warrant_url %}{{ county.name }} County publishes an active warrant list online at {{ county.warrant_url }}. You can also search the Montana Judicial Branch Public Access Portal at courts.mt.gov.{% else %}Search the Montana Judicial Branch Public Access Portal at courts.mt.gov and filter by Warrants, or call the {{ county.name }} County Sheriff's Office at {{ county.phone }}.{% endif %}"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do warrants expire in {{ county.name }} County?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Arrest and bench warrants in Montana do not expire. They remain active until served, quashed by a judge, or the subject dies."
+      }
+    }
+  ]
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/warrants" class="hover:text-slate-700">Warrant Search</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ county.name }} County</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-10 px-4 sm:px-6">
+    <div class="max-w-4xl mx-auto">
+        <span class="inline-block bg-red-500/20 text-red-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-3">
+            {{ county.name }} County &bull; Montana
+        </span>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-2">
+            {{ county.name }} County
+            <span class="text-red-400 italic">Warrant Search</span>
+        </h1>
+        <p class="text-slate-300 text-sm max-w-2xl">
+            How to find active arrest warrants and bench warrants in {{ county.name }} County, Montana — including {{ county.seat }} and surrounding communities.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 flex flex-col lg:flex-row gap-8 items-start">
+
+    <div class="flex-1 space-y-8">
+        {% if county.warrant_url %}
+        <div class="bg-red-50 border border-red-200 rounded-2xl p-6">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-list-check"></i>
                 </div>
                 <div>
-                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:1rem; color:#E8DFD0; line-height:1.1; letter-spacing:-0.01em;">The Montana Blotter</div>
-                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Daily Public Safety Dispatch</div>
+                    <h2 class="text-lg font-black text-red-900 mb-1">{{ county.name }} County Warrant List — Online</h2>
+                    <p class="text-red-800 text-sm mb-4">
+                        {{ county.name }} County publishes its active warrant list online. This list is updated regularly by the court and includes arrest warrants and bench warrants currently outstanding in the county.
+                    </p>
+                    <a href="{{ county.warrant_url }}" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-black px-5 py-2.5 rounded-xl text-sm uppercase tracking-wide transition">
+                        <i class="fas fa-external-link-alt"></i> View {{ county.name }} County Warrants
+                    </a>
                 </div>
-            </a>
-            <nav class="hidden md:flex items-center gap-1">
-                <a href="/arrests"      class="pnav-link">Arrests</a>
-                <a href="/blog"         class="pnav-link">Blog</a>
-                <a href="/jail-rosters" class="pnav-link">Jail Rosters</a>
-                <a href="/laws"         class="pnav-link">Laws</a>
-                <a href="/subscribe"    class="pnav-link" style="margin-left:8px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A;">Subscribe</a>
-                <a href="/feed.xml"     class="pnav-link">RSS</a>
-            </nav>
-            <button id="pub-mobile-btn" class="md:hidden" style="background:none; border:none; color:#8A7F72; cursor:pointer; padding:4px;" aria-label="Open menu">
-                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="0" y1="4" x2="18" y2="4"/><line x1="0" y1="9" x2="18" y2="9"/><line x1="0" y1="14" x2="18" y2="14"/></svg>
-            </button>
+            </div>
         </div>
-        <div id="pub-mobile-menu" class="hidden md:hidden px-4 pb-3 space-y-0.5" style="border-top:1px solid #282420; background:#161513;">
-            <a href="/arrests"      class="pnav-link" style="display:block; padding:8px 12px;">Arrests</a>
-            <a href="/blog"         class="pnav-link" style="display:block; padding:8px 12px;">Blog</a>
-            <a href="/jail-rosters" class="pnav-link" style="display:block; padding:8px 12px;">Jail Rosters</a>
-            <a href="/laws"         class="pnav-link" style="display:block; padding:8px 12px;">Laws</a>
-            <a href="/subscribe"    class="pnav-link" style="display:block; padding:8px 12px; color:#D4892A;">Subscribe</a>
-            <a href="/feed.xml"     class="pnav-link" style="display:block; padding:8px 12px;">RSS</a>
-        </div>
-        <script>
-        (function(){var b=document.getElementById('pub-mobile-btn'),m=document.getElementById('pub-mobile-menu');if(b&&m)b.addEventListener('click',function(){m.classList.toggle('hidden');});})();
-        </script>
-    </header>
-
-    <!-- Breadcrumb -->
-    <div class="bg-white border-b border-slate-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-xs text-slate-500">
-            <a href="/" class="hover:text-slate-700">Montana Blotter</a>
-            <span class="mx-2">/</span>
-            <a href="/warrants" class="hover:text-slate-700">Warrant Search</a>
-            <span class="mx-2">/</span>
-            <span class="text-slate-900 font-semibold">{{ county.name }} County</span>
-        </div>
-    </div>
-
-    <!-- Hero -->
-    <section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-10 px-4 sm:px-6">
-        <div class="max-w-4xl mx-auto">
-            <span class="inline-block bg-red-500/20 text-red-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-3">
-                {{ county.name }} County &bull; Montana
-            </span>
-            <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-2">
-                {{ county.name }} County
-                <span class="text-red-400 italic">Warrant Search</span>
-            </h1>
-            <p class="text-slate-300 text-sm max-w-2xl">
-                How to find active arrest warrants and bench warrants in {{ county.name }} County, Montana — including {{ county.seat }} and surrounding communities.
-            </p>
-        </div>
-    </section>
-
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 flex flex-col lg:flex-row gap-8 items-start">
-
-        <!-- Main content -->
-        <div class="flex-1 space-y-8">
-
-            <!-- Primary action -->
-            {% if county.warrant_url %}
-            <div class="bg-red-50 border border-red-200 rounded-2xl p-6">
-                <div class="flex items-start gap-4">
-                    <div class="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-list-check"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-black text-red-900 mb-1">{{ county.name }} County Warrant List — Online</h2>
-                        <p class="text-red-800 text-sm mb-4">
-                            {{ county.name }} County publishes its active warrant list online. This list is updated regularly by the court and includes arrest warrants and bench warrants currently outstanding in the county.
-                        </p>
-                        <a href="{{ county.warrant_url }}" target="_blank" rel="noopener"
-                           class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-black px-5 py-2.5 rounded-xl text-sm uppercase tracking-wide transition">
-                            <i class="fas fa-external-link-alt"></i> View {{ county.name }} County Warrants
+        {% else %}
+        <div class="bg-slate-100 border border-slate-200 rounded-2xl p-6">
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 bg-slate-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-phone"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 mb-1">{{ county.name }} County — No Online Warrant List</h2>
+                    <p class="text-slate-600 text-sm mb-4">
+                        {{ county.name }} County does not currently publish an online warrant list. To check for active warrants, use the Montana Judicial Branch portal or contact the sheriff's office directly.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black px-4 py-2 rounded-xl text-sm uppercase tracking-wide transition">
+                            <i class="fas fa-gavel"></i> MT Court Portal
+                        </a>
+                        <a href="tel:{{ county.phone }}"
+                           class="inline-flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-black px-4 py-2 rounded-xl text-sm uppercase tracking-wide transition">
+                            <i class="fas fa-phone"></i> Call Sheriff: {{ county.phone }}
                         </a>
                     </div>
                 </div>
             </div>
-            {% else %}
-            <div class="bg-slate-100 border border-slate-200 rounded-2xl p-6">
-                <div class="flex items-start gap-4">
-                    <div class="w-10 h-10 bg-slate-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-phone"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-black text-slate-800 mb-1">{{ county.name }} County — No Online Warrant List</h2>
-                        <p class="text-slate-600 text-sm mb-4">
-                            {{ county.name }} County does not currently publish an online warrant list. To check for active warrants, use the Montana Judicial Branch portal or contact the sheriff's office directly.
-                        </p>
-                        <div class="flex flex-col sm:flex-row gap-3">
-                            <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener"
-                               class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black px-4 py-2 rounded-xl text-sm uppercase tracking-wide transition">
-                                <i class="fas fa-gavel"></i> MT Court Portal
-                            </a>
-                            <a href="tel:{{ county.phone }}"
-                               class="inline-flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-black px-4 py-2 rounded-xl text-sm uppercase tracking-wide transition">
-                                <i class="fas fa-phone"></i> Call Sheriff: {{ county.phone }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Step-by-step -->
-            <section>
-                <h2 class="text-xl font-black text-slate-900 mb-4">Step-by-Step: Finding Warrants in {{ county.name }} County</h2>
-                <div class="space-y-4">
-
-                    {% if county.warrant_url %}
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
-                        <div class="flex-shrink-0 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center font-black text-sm">1</div>
-                        <div>
-                            <h3 class="font-black text-slate-900 mb-1">Check the {{ county.name }} County Warrant List</h3>
-                            <p class="text-slate-600 text-sm leading-relaxed">
-                                Visit the <a href="{{ county.warrant_url }}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">{{ county.name }} County warrant list</a>. This is the fastest option for county-level warrants — no login required.
-                            </p>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
-                        <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '2' if county.warrant_url else '1' }}</div>
-                        <div>
-                            <h3 class="font-black text-slate-900 mb-1">Search the Montana Judicial Branch Portal</h3>
-                            <p class="text-slate-600 text-sm leading-relaxed">
-                                Go to <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">courts.mt.gov/Courts/portals</a>. Open the Limited Jurisdiction Courts or District Courts portal, search by full name, then choose <strong>Warrants</strong> from the Defendant filter. This covers all of {{ county.name }} County's courts.
-                            </p>
-                            <span class="inline-block mt-2 bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">Free &bull; No account needed</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
-                        <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '3' if county.warrant_url else '2' }}</div>
-                        <div>
-                            <h3 class="font-black text-slate-900 mb-1">Call the {{ county.name }} County Sheriff's Office</h3>
-                            <p class="text-slate-600 text-sm leading-relaxed">
-                                Call <a href="tel:{{ county.phone }}" class="text-blue-600 hover:text-blue-800 font-semibold">{{ county.phone }}</a> and ask for the records division. Provide the person's full name and date of birth. The records staff can typically confirm whether an active warrant exists.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
-                        <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '4' if county.warrant_url else '3' }}</div>
-                        <div>
-                            <h3 class="font-black text-slate-900 mb-1">DOJ Criminal History Search (Statewide)</h3>
-                            <p class="text-slate-600 text-sm leading-relaxed">
-                                For a formal background check that includes felony arrests, use the <a href="https://doj.egovmt.com/choprs/" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">Montana DOJ CHOPRS portal</a>. Costs $20 and requires full name and date of birth.
-                            </p>
-                        </div>
-                    </div>
-
-                </div>
-            </section>
-
-            <!-- What to do if you have a warrant -->
-            <section class="bg-amber-50 border border-amber-200 rounded-xl p-6">
-                <h2 class="text-xl font-black text-amber-900 mb-3">
-                    <i class="fas fa-triangle-exclamation mr-2 text-amber-500"></i>If You Have a Warrant
-                </h2>
-                <p class="text-amber-800 text-sm leading-relaxed mb-4">
-                    If you discover you have an active warrant in {{ county.name }} County, do not ignore it. Warrants do not expire and can result in arrest at any time — including during routine traffic stops.
-                </p>
-                <ol class="space-y-2 text-sm text-amber-800">
-                    <li class="flex gap-2"><span class="font-black flex-shrink-0">1.</span><span><strong>Consult a criminal defense attorney first.</strong> A lawyer can verify the warrant, negotiate a voluntary surrender with the court, and represent you at any required appearance. Acting through an attorney typically results in better outcomes than turning yourself in unrepresented.</span></li>
-                    <li class="flex gap-2"><span class="font-black flex-shrink-0">2.</span><span><strong>Do not try to resolve a warrant by calling the sheriff directly</strong> without legal counsel — anything you say can be used against you.</span></li>
-                    <li class="flex gap-2"><span class="font-black flex-shrink-0">3.</span><span><strong>For minor bench warrants</strong> (missed court date, unpaid fine), the court may recall the warrant if you contact the clerk's office and schedule a new appearance. An attorney can often handle this with minimal disruption.</span></li>
-                </ol>
-            </section>
-
-            <!-- FAQ -->
-            <section>
-                <h2 class="text-xl font-black text-slate-900 mb-4">{{ county.name }} County Warrant — FAQ</h2>
-                <div class="space-y-3">
-                    {% set faqs = [
-                        ("Do warrants expire in " ~ county.name ~ " County?",
-                         "No. Arrest and bench warrants in Montana do not have an expiration date. They remain active indefinitely until served, quashed by a judge, or the subject dies."),
-                        ("Can I be arrested in another state on a " ~ county.name ~ " County warrant?",
-                         "Yes, if the warrant is entered into the National Crime Information Center (NCIC) — which is standard for all felony warrants and many misdemeanor warrants. Law enforcement in any state can see the warrant and detain you, after which Montana may seek extradition."),
-                        ("How do I get a warrant quashed in " ~ county.name ~ " County?",
-                         "You must appear before the judge who issued the warrant, or have your attorney appear on your behalf. The judge will decide whether to quash (cancel) the warrant or set new conditions. For bench warrants related to missed court dates, scheduling a new appearance is usually the first step."),
-                        ("Are all warrants public record in Montana?",
-                         "Arrest warrants and bench warrants are generally public records under Montana law. Search warrants may be sealed by the court during an active investigation but are typically made public once the related case is filed."),
-                    ] %}
-                    {% for q, a in faqs %}
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                        <h3 class="font-black text-slate-900 mb-2 flex items-start gap-2">
-                            <i class="fas fa-circle-question text-blue-400 mt-0.5 flex-shrink-0"></i>{{ q }}
-                        </h3>
-                        <p class="text-slate-600 text-sm leading-relaxed pl-6">{{ a }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </section>
-
         </div>
+        {% endif %}
 
-        <!-- Sidebar -->
-        <aside class="w-full lg:w-64 flex-shrink-0 space-y-4 lg:sticky top-24">
+        <section>
+            <h2 class="text-xl font-black text-slate-900 mb-4">Step-by-Step: Finding Warrants in {{ county.name }} County</h2>
+            <div class="space-y-4">
 
-            <!-- Other warrant search options -->
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Warrant Resources</h3>
-                <div class="space-y-2">
-                    {% if county.warrant_url %}
-                    <a href="{{ county.warrant_url }}" target="_blank" rel="noopener"
-                       class="flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-100 hover:bg-red-100 transition text-sm font-bold text-red-800">
-                        <i class="fas fa-list-check text-red-500 w-4 text-center"></i>
-                        {{ county.name }} Warrant List
-                        <i class="fas fa-external-link-alt ml-auto text-red-400 text-xs"></i>
-                    </a>
-                    {% endif %}
-                    <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener"
-                       class="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100 hover:bg-blue-100 transition text-sm font-bold text-blue-800">
-                        <i class="fas fa-gavel text-blue-500 w-4 text-center"></i>
-                        MT Court Portal
-                        <i class="fas fa-external-link-alt ml-auto text-blue-400 text-xs"></i>
-                    </a>
-                    <a href="https://doj.egovmt.com/choprs/" target="_blank" rel="noopener"
-                       class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
-                        <i class="fas fa-fingerprint text-slate-500 w-4 text-center"></i>
-                        DOJ CHOPRS ($20)
-                        <i class="fas fa-external-link-alt ml-auto text-slate-400 text-xs"></i>
-                    </a>
-                    <a href="https://offendersearch.mt.gov/conweb/" target="_blank" rel="noopener"
-                       class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
-                        <i class="fas fa-user-shield text-slate-500 w-4 text-center"></i>
-                        MT Offender Search
-                        <i class="fas fa-external-link-alt ml-auto text-slate-400 text-xs"></i>
-                    </a>
+                {% if county.warrant_url %}
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center font-black text-sm">1</div>
+                    <div>
+                        <h3 class="font-black text-slate-900 mb-1">Check the {{ county.name }} County Warrant List</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            Visit the <a href="{{ county.warrant_url }}" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">{{ county.name }} County warrant list</a>. This is the fastest option for county-level warrants — no login required.
+                        </p>
+                    </div>
                 </div>
-            </div>
-
-            <!-- Sheriff contact -->
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Sheriff's Office</h3>
-                <p class="text-sm font-bold text-slate-800 mb-1">{{ county.name }} County Sheriff</p>
-                <a href="tel:{{ county.phone }}" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
-                    <i class="fas fa-phone text-xs"></i>{{ county.phone }}
-                </a>
-            </div>
-
-            <!-- Related county pages -->
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-2">
-                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Related Pages</h3>
-                <a href="/county/{{ county.slug }}" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
-                    <i class="fas fa-map w-4 text-center text-slate-400"></i>{{ county.name }} County Blotter
-                </a>
-                {% if county.roster_url %}
-                <a href="{{ county.roster_url }}" target="_blank" rel="noopener" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
-                    <i class="fas fa-list-ul w-4 text-center text-slate-400"></i>{{ county.name }} Jail Roster
-                    <i class="fas fa-external-link-alt text-[10px] ml-auto text-slate-400"></i>
-                </a>
                 {% endif %}
-                <a href="/warrants" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
-                    <i class="fas fa-arrow-left w-4 text-center text-slate-400"></i>All Counties
-                </a>
-            </div>
 
-            <!-- Other counties -->
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Other Counties</h3>
-                <div class="space-y-1">
-                    {% for other in all_counties %}
-                    {% if other.slug != county.slug %}
-                    <a href="/warrants/{{ other.slug }}"
-                       class="flex items-center justify-between py-1.5 text-sm text-slate-600 hover:text-blue-700 font-semibold transition">
-                        <span>{{ other.name }}</span>
-                        {% if other.warrant_url %}
-                        <span class="text-[9px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full uppercase">Online</span>
-                        {% endif %}
-                    </a>
-                    {% endif %}
-                    {% endfor %}
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '2' if county.warrant_url else '1' }}</div>
+                    <div>
+                        <h3 class="font-black text-slate-900 mb-1">Search the Montana Judicial Branch Portal</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            Go to <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">courts.mt.gov/Courts/portals</a>. Open the Limited Jurisdiction Courts or District Courts portal, search by full name, then choose <strong>Warrants</strong> from the Defendant filter. This covers all of {{ county.name }} County's courts.
+                        </p>
+                        <span class="inline-block mt-2 bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">Free &bull; No account needed</span>
+                    </div>
                 </div>
-            </div>
 
-        </aside>
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '3' if county.warrant_url else '2' }}</div>
+                    <div>
+                        <h3 class="font-black text-slate-900 mb-1">Call the {{ county.name }} County Sheriff's Office</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            Call <a href="tel:{{ county.phone }}" class="text-blue-600 hover:text-blue-800 font-semibold">{{ county.phone }}</a> and ask for the records division. Provide the person's full name and date of birth. The records staff can typically confirm whether an active warrant exists.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '4' if county.warrant_url else '3' }}</div>
+                    <div>
+                        <h3 class="font-black text-slate-900 mb-1">DOJ Criminal History Search (Statewide)</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">
+                            For a formal background check that includes felony arrests, use the <a href="https://doj.egovmt.com/choprs/" target="_blank" rel="noopener" class="text-blue-600 hover:text-blue-800 underline">Montana DOJ CHOPRS portal</a>. Costs $20 and requires full name and date of birth.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="bg-amber-50 border border-amber-200 rounded-xl p-6">
+            <h2 class="text-xl font-black text-amber-900 mb-3">
+                <i class="fas fa-triangle-exclamation mr-2 text-amber-500"></i>If You Have a Warrant
+            </h2>
+            <p class="text-amber-800 text-sm leading-relaxed mb-4">
+                If you discover you have an active warrant in {{ county.name }} County, do not ignore it. Warrants do not expire and can result in arrest at any time — including during routine traffic stops.
+            </p>
+            <ol class="space-y-2 text-sm text-amber-800">
+                <li class="flex gap-2"><span class="font-black flex-shrink-0">1.</span><span><strong>Consult a criminal defense attorney first.</strong> A lawyer can verify the warrant, negotiate a voluntary surrender with the court, and represent you at any required appearance. Acting through an attorney typically results in better outcomes than turning yourself in unrepresented.</span></li>
+                <li class="flex gap-2"><span class="font-black flex-shrink-0">2.</span><span><strong>Do not try to resolve a warrant by calling the sheriff directly</strong> without legal counsel — anything you say can be used against you.</span></li>
+                <li class="flex gap-2"><span class="font-black flex-shrink-0">3.</span><span><strong>For minor bench warrants</strong> (missed court date, unpaid fine), the court may recall the warrant if you contact the clerk's office and schedule a new appearance. An attorney can often handle this with minimal disruption.</span></li>
+            </ol>
+        </section>
+
+        <section>
+            <h2 class="text-xl font-black text-slate-900 mb-4">{{ county.name }} County Warrant — FAQ</h2>
+            <div class="space-y-3">
+                {% set faqs = [
+                    ("Do warrants expire in " ~ county.name ~ " County?",
+                     "No. Arrest and bench warrants in Montana do not have an expiration date. They remain active indefinitely until served, quashed by a judge, or the subject dies."),
+                    ("Can I be arrested in another state on a " ~ county.name ~ " County warrant?",
+                     "Yes, if the warrant is entered into the National Crime Information Center (NCIC) — which is standard for all felony warrants and many misdemeanor warrants. Law enforcement in any state can see the warrant and detain you, after which Montana may seek extradition."),
+                    ("How do I get a warrant quashed in " ~ county.name ~ " County?",
+                     "You must appear before the judge who issued the warrant, or have your attorney appear on your behalf. The judge will decide whether to quash (cancel) the warrant or set new conditions. For bench warrants related to missed court dates, scheduling a new appearance is usually the first step."),
+                    ("Are all warrants public record in Montana?",
+                     "Arrest warrants and bench warrants are generally public records under Montana law. Search warrants may be sealed by the court during an active investigation but are typically made public once the related case is filed."),
+                ] %}
+                {% for q, a in faqs %}
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <h3 class="font-black text-slate-900 mb-2 flex items-start gap-2">
+                        <i class="fas fa-circle-question text-blue-400 mt-0.5 flex-shrink-0"></i>{{ q }}
+                    </h3>
+                    <p class="text-slate-600 text-sm leading-relaxed pl-6">{{ a }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
 
     </div>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 text-slate-400 text-center text-xs py-6 mt-10">
-        <p>&copy; {{ current_year }} Montana Blotter &mdash; Public safety transparency for Montana communities.</p>
-        <div class="flex justify-center gap-6 mt-3">
-            <a href="/" class="hover:text-white transition">Feed</a>
-            <a href="/arrests" class="hover:text-white transition">Arrests</a>
-            <a href="/jail-rosters" class="hover:text-white transition">Jail Rosters</a>
-            <a href="/blog" class="hover:text-white transition">Blog</a>
-            <a href="/laws" class="hover:text-white transition">Laws</a>
-            <a href="/subscribe" class="hover:text-white transition">Subscribe</a>
-        </div>
-    </footer>
+    <aside class="w-full lg:w-64 flex-shrink-0 space-y-4 lg:sticky top-24">
 
-    <script>
-    (function(){
-        var btn=document.getElementById('mobile-menu-btn'),menu=document.getElementById('mobile-menu');
-        if(btn&&menu) btn.addEventListener('click',function(){menu.classList.toggle('hidden');});
-    })();
-    </script>
-</body>
-</html>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Warrant Resources</h3>
+            <div class="space-y-2">
+                {% if county.warrant_url %}
+                <a href="{{ county.warrant_url }}" target="_blank" rel="noopener"
+                   class="flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-100 hover:bg-red-100 transition text-sm font-bold text-red-800">
+                    <i class="fas fa-list-check text-red-500 w-4 text-center"></i>
+                    {{ county.name }} Warrant List
+                    <i class="fas fa-external-link-alt ml-auto text-red-400 text-xs"></i>
+                </a>
+                {% endif %}
+                <a href="https://courts.mt.gov/Courts/portals" target="_blank" rel="noopener"
+                   class="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100 hover:bg-blue-100 transition text-sm font-bold text-blue-800">
+                    <i class="fas fa-gavel text-blue-500 w-4 text-center"></i>
+                    MT Court Portal
+                    <i class="fas fa-external-link-alt ml-auto text-blue-400 text-xs"></i>
+                </a>
+                <a href="https://doj.egovmt.com/choprs/" target="_blank" rel="noopener"
+                   class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
+                    <i class="fas fa-fingerprint text-slate-500 w-4 text-center"></i>
+                    DOJ CHOPRS ($20)
+                    <i class="fas fa-external-link-alt ml-auto text-slate-400 text-xs"></i>
+                </a>
+                <a href="https://offendersearch.mt.gov/conweb/" target="_blank" rel="noopener"
+                   class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
+                    <i class="fas fa-user-shield text-slate-500 w-4 text-center"></i>
+                    MT Offender Search
+                    <i class="fas fa-external-link-alt ml-auto text-slate-400 text-xs"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Sheriff's Office</h3>
+            <p class="text-sm font-bold text-slate-800 mb-1">{{ county.name }} County Sheriff</p>
+            <a href="tel:{{ county.phone }}" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                <i class="fas fa-phone text-xs"></i>{{ county.phone }}
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-2">
+            <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Related Pages</h3>
+            <a href="/county/{{ county.slug }}" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                <i class="fas fa-map w-4 text-center text-slate-400"></i>{{ county.name }} County Blotter
+            </a>
+            {% if county.roster_url %}
+            <a href="{{ county.roster_url }}" target="_blank" rel="noopener" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                <i class="fas fa-list-ul w-4 text-center text-slate-400"></i>{{ county.name }} Jail Roster
+                <i class="fas fa-external-link-alt text-[10px] ml-auto text-slate-400"></i>
+            </a>
+            {% endif %}
+            <a href="/warrants" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                <i class="fas fa-arrow-left w-4 text-center text-slate-400"></i>All Counties
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Other Counties</h3>
+            <div class="space-y-1">
+                {% for other in all_counties %}
+                {% if other.slug != county.slug %}
+                <a href="/warrants/{{ other.slug }}"
+                   class="flex items-center justify-between py-1.5 text-sm text-slate-600 hover:text-blue-700 font-semibold transition">
+                    <span>{{ other.name }}</span>
+                    {% if other.warrant_url %}
+                    <span class="text-[9px] font-black bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full uppercase">Online</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+    </aside>
+
+</div>
+{% endblock %}

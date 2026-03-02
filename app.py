@@ -6,7 +6,9 @@ Public browse + Admin panel only (no memberships)
 import os
 import sqlite3
 import hashlib
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+import json
+from html import escape
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
@@ -15,6 +17,7 @@ import config
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
+BASE_URL = 'https://montanablotter.com'
 
 # Apply DB migrations at startup
 from init_db import migrate as _migrate
@@ -42,8 +45,64 @@ def to_iso_date(date_str):
 
 def get_db():
     conn = sqlite3.connect(config.DB_PATH)
+    conn.execute('PRAGMA foreign_keys = ON')
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _county_slug_for_name(name):
+    if not name:
+        return None
+    target = name.strip().lower()
+    for slug, county in COUNTY_DATA.items():
+        if county['name'].strip().lower() == target:
+            return slug
+    return None
+
+
+def _city_slug_for_name(name):
+    if not name:
+        return None
+    target = name.strip().lower()
+    for slug, city in CITY_DATA.items():
+        if city['name'].strip().lower() == target:
+            return slug
+    return None
+
+
+def _summary_lines(summary):
+    return [line.strip() for line in (summary or '').split('\n') if line.strip()]
+
+
+def _iso_lastmod(value):
+    if not value:
+        return None
+    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%m/%d/%y'):
+        try:
+            return datetime.strptime(value[:19], fmt).strftime('%Y-%m-%d')
+        except (ValueError, TypeError):
+            continue
+    return None
+
+
+@app.context_processor
+def inject_public_nav():
+    public_nav_items = [
+        {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
+        {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
+        {'id': 'jail_rosters', 'href': '/jail-rosters', 'label': 'Jail Rosters'},
+        {'id': 'laws', 'href': '/laws', 'label': 'Laws'},
+        {'id': 'warrants', 'href': '/warrants', 'label': 'Warrants'},
+    ]
+    return {
+        'public_nav_items': public_nav_items,
+        'public_footer_items': [
+            {'href': '/', 'label': 'Feed'},
+            *public_nav_items,
+            {'href': '/subscribe', 'label': 'Subscribe'},
+        ],
+        'current_year': datetime.now().year,
+    }
 
 class User(UserMixin):
     def __init__(self, id, username):
@@ -68,7 +127,16 @@ def track_page_view():
     """Log public page views for visitor analytics (admin routes and static files excluded)."""
     if request.path.startswith('/admin') or request.path.startswith('/static'):
         return
-    if request.path in ('/favicon.ico',):
+    if request.path in (
+        '/favicon.ico',
+        '/feed.xml',
+        '/robots.txt',
+        '/sitemap.xml',
+        '/sitemap-static.xml',
+        '/sitemap-locations.xml',
+        '/sitemap-posts.xml',
+        '/sitemap-blog.xml',
+    ):
         return
     ip_hash = hashlib.sha256((request.remote_addr or '').encode()).hexdigest()[:16]
     referrer = (request.referrer or '')[:500]
@@ -143,8 +211,7 @@ def index():
         sql += " AND COALESCE(posts.case_status, 'pending') = ?"
         params.append(status_filter)
 
-    count_sql = sql.replace(
-        "SELECT posts.*, blotters.county AS blotter_county", "SELECT COUNT(*)")
+    count_sql = f"SELECT COUNT(*) FROM ({sql}) AS post_listing"
     total = conn.execute(count_sql, params).fetchone()[0]
     total_pages = max(1, (total + per_page - 1) // per_page)
 
@@ -224,7 +291,8 @@ def index():
                            status_filter=status_filter,
                            dates_with_posts=dates_with_posts,
                            total_records=total_records,
-                           leaderboard=leaderboard)
+                           leaderboard=leaderboard,
+                           current_year=datetime.now().year)
 
 
 @app.route('/feed.xml')
@@ -259,7 +327,7 @@ def rss_feed():
         summary_snippet = (p['summary'] or '')[:300].replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         title = (p['title'] or 'Daily Activity Report').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         agency = (p['agency_name'] or 'Montana Blotter').replace('&', '&amp;')
-        link = f"https://montanablotters.com/?date={pub[:10]}&amp;agency={agency}"
+        link = f"{BASE_URL}/post/{p['id']}"
         items.append(f"""  <entry>
     <title>{title}</title>
     <link href="{link}"/>
@@ -274,15 +342,130 @@ def rss_feed():
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Montana Blotter — Daily Activity Reports</title>
   <subtitle>AI-summarized police blotters from Montana law enforcement agencies</subtitle>
-  <link href="https://montanablotters.com/feed.xml" rel="self"/>
-  <link href="https://montanablotters.com/"/>
-  <id>https://montanablotters.com/feed.xml</id>
+  <link href="{BASE_URL}/feed.xml" rel="self"/>
+  <link href="{BASE_URL}/"/>
+  <id>{BASE_URL}/feed.xml</id>
   <updated>{updated}</updated>
 {chr(10).join(items)}
 </feed>"""
 
-    from flask import Response
     return Response(xml, mimetype='application/atom+xml')
+
+
+def _render_urlset(urls):
+    xml_items = []
+    for loc, lastmod in urls:
+        if lastmod:
+            xml_items.append(
+                f"<url><loc>{escape(loc)}</loc><lastmod>{lastmod}</lastmod></url>"
+            )
+        else:
+            xml_items.append(f"<url><loc>{escape(loc)}</loc></url>")
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        + ''.join(xml_items) +
+        '</urlset>'
+    )
+    return Response(xml, mimetype='application/xml')
+
+
+def _sitemap_static_urls():
+    return [
+        (f'{BASE_URL}/', None),
+        (f'{BASE_URL}/posts', None),
+        (f'{BASE_URL}/arrests', None),
+        (f'{BASE_URL}/jail-rosters', None),
+        (f'{BASE_URL}/subscribe', None),
+        (f'{BASE_URL}/laws', None),
+        (f'{BASE_URL}/blog', None),
+        (f'{BASE_URL}/warrants', None),
+        (f'{BASE_URL}/feed.xml', None),
+    ]
+
+
+@app.route('/robots.txt')
+def robots_txt():
+    body = "\n".join([
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin/",
+        f"Sitemap: {BASE_URL}/sitemap.xml",
+        "",
+    ])
+    return Response(body, mimetype='text/plain')
+
+
+@app.route('/sitemap.xml')
+def sitemap_index():
+    """Sitemap index for public archive sections."""
+    conn = get_db()
+    post_lastmod_row = conn.execute(
+        'SELECT MAX(created_at) AS lastmod FROM posts'
+    ).fetchone()
+    blog_lastmod_row = conn.execute(
+        'SELECT MAX(COALESCE(updated_at, created_at)) AS lastmod FROM blog_posts WHERE published = 1'
+    ).fetchone()
+    conn.close()
+
+    sections = [
+        ('static', None),
+        ('locations', None),
+        ('posts', _iso_lastmod(post_lastmod_row['lastmod']) if post_lastmod_row else None),
+        ('blog', _iso_lastmod(blog_lastmod_row['lastmod']) if blog_lastmod_row else None),
+    ]
+    items = []
+    for name, lastmod in sections:
+        loc = f'{BASE_URL}/sitemap-{name}.xml'
+        if lastmod:
+            items.append(f"<sitemap><loc>{escape(loc)}</loc><lastmod>{lastmod}</lastmod></sitemap>")
+        else:
+            items.append(f"<sitemap><loc>{escape(loc)}</loc></sitemap>")
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        + ''.join(items) +
+        '</sitemapindex>'
+    )
+    return Response(xml, mimetype='application/xml')
+
+
+@app.route('/sitemap-static.xml')
+def sitemap_static():
+    return _render_urlset(_sitemap_static_urls())
+
+
+@app.route('/sitemap-locations.xml')
+def sitemap_locations():
+    urls = []
+    for county in COUNTY_DATA.values():
+        urls.append((f"{BASE_URL}/county/{county['slug']}", None))
+    for city in CITY_DATA.values():
+        urls.append((f"{BASE_URL}/city/{city['slug']}", None))
+    return _render_urlset(urls)
+
+
+@app.route('/sitemap-posts.xml')
+def sitemap_posts():
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT id, created_at FROM posts ORDER BY created_at DESC'
+    ).fetchall()
+    conn.close()
+    urls = [(f"{BASE_URL}/post/{row['id']}", _iso_lastmod(row['created_at'])) for row in rows]
+    return _render_urlset(urls)
+
+
+@app.route('/sitemap-blog.xml')
+def sitemap_blog():
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT slug, COALESCE(updated_at, created_at) AS updated_at FROM blog_posts WHERE published = 1 ORDER BY COALESCE(updated_at, created_at) DESC'
+    ).fetchall()
+    conn.close()
+    urls = [(f"{BASE_URL}/blog/{row['slug']}", _iso_lastmod(row['updated_at'])) for row in rows]
+    return _render_urlset(urls)
 
 
 @app.route('/arrests')
@@ -335,7 +518,8 @@ def arrests():
                            records=records, total=total,
                            total_pages=total_pages, page=page,
                            counties=counties, county=county,
-                           q=search_query)
+                           q=search_query,
+                           current_year=datetime.now().year)
 
 
 @app.route('/subscribe', methods=['GET', 'POST'])
@@ -354,7 +538,8 @@ def subscribe():
         if not email or '@' not in email:
             conn.close()
             return render_template('subscribe.html', counties=all_counties,
-                                   error='Please enter a valid email address.')
+                                   error='Please enter a valid email address.',
+                                   current_year=datetime.now().year)
 
         token = secrets.token_urlsafe(32)
         counties_str = ','.join(selected)
@@ -366,7 +551,8 @@ def subscribe():
             conn.commit()
             conn.close()
             return render_template('subscribe.html', counties=all_counties,
-                                   success=True, email=email)
+                                   success=True, email=email,
+                                   current_year=datetime.now().year)
         except Exception:
             # Email already subscribed — update preferences
             conn.execute(
@@ -375,10 +561,12 @@ def subscribe():
             conn.commit()
             conn.close()
             return render_template('subscribe.html', counties=all_counties,
-                                   success=True, email=email, updated=True)
+                                   success=True, email=email, updated=True,
+                                   current_year=datetime.now().year)
 
     conn.close()
-    return render_template('subscribe.html', counties=all_counties)
+    return render_template('subscribe.html', counties=all_counties,
+                           current_year=datetime.now().year)
 
 
 @app.route('/unsubscribe')
@@ -392,9 +580,12 @@ def unsubscribe():
         conn.commit()
         email = row['email']
         conn.close()
-        return render_template('subscribe.html', counties=[], unsubscribed=True, email=email)
+        return render_template('subscribe.html', counties=[], unsubscribed=True, email=email,
+                               current_year=datetime.now().year)
     conn.close()
-    return render_template('subscribe.html', counties=[], error='Invalid or expired unsubscribe link.')
+    return render_template('subscribe.html', counties=[],
+                           error='Invalid or expired unsubscribe link.',
+                           current_year=datetime.now().year)
 
 
 # ==========================================
@@ -417,7 +608,7 @@ def render_markdown(text):
 
 @app.route('/jail-rosters')
 def jail_rosters():
-    return render_template('jail_rosters.html')
+    return render_template('jail_rosters.html', current_year=datetime.now().year)
 
 
 # ==========================================
@@ -657,6 +848,19 @@ def county_page(slug):
         'SELECT COUNT(*) FROM records WHERE county = ?', (county['name'],)
     ).fetchone()[0]
 
+    top_incidents = conn.execute(
+        """
+        SELECT COALESCE(NULLIF(incident_type, ''), 'Other') AS incident_type,
+               COUNT(*) AS count
+        FROM records
+        WHERE county = ?
+        GROUP BY COALESCE(NULLIF(incident_type, ''), 'Other')
+        ORDER BY count DESC, incident_type ASC
+        LIMIT 8
+        """,
+        (county['name'],)
+    ).fetchall()
+
     last_row = conn.execute(
         'SELECT incident_date FROM posts WHERE county = ? ORDER BY incident_date DESC LIMIT 1',
         (county['name'],)
@@ -665,12 +869,19 @@ def county_page(slug):
 
     conn.close()
 
+    county_cities = [
+        city for city in CITY_DATA.values()
+        if city.get('county_slug') == county['slug']
+    ]
+
     return render_template(
         'county_page.html',
         county=county,
         posts=posts,
         post_count=post_count,
         record_count=record_count,
+        top_incidents=top_incidents,
+        county_cities=county_cities,
         last_report=last_report,
         page=page,
         total_pages=total_pages,
@@ -945,6 +1156,19 @@ def city_page(slug):
         rec_params
     ).fetchone()[0]
 
+    top_incidents = conn.execute(
+        f"""
+        SELECT COALESCE(NULLIF(incident_type, ''), 'Other') AS incident_type,
+               COUNT(*) AS count
+        FROM records
+        WHERE {' OR '.join(rec_clauses)}
+        GROUP BY COALESCE(NULLIF(incident_type, ''), 'Other')
+        ORDER BY count DESC, incident_type ASC
+        LIMIT 8
+        """,
+        rec_params
+    ).fetchall()
+
     last_row = conn.execute(
         f'SELECT incident_date FROM posts WHERE {where_sql} ORDER BY incident_date DESC LIMIT 1',
         params_count
@@ -959,6 +1183,7 @@ def city_page(slug):
         posts=posts,
         post_count=post_count,
         record_count=record_count,
+        top_incidents=top_incidents,
         last_report=last_report,
         page=page,
         total_pages=total_pages,
@@ -1003,7 +1228,7 @@ def warrant_county(slug):
 
 @app.route('/laws')
 def montana_laws():
-    return render_template('laws.html')
+    return render_template('laws.html', current_year=datetime.now().year)
 
 
 @app.route('/blog')
@@ -1019,7 +1244,8 @@ def blog():
         (per_page, (page - 1) * per_page)).fetchall()
     conn.close()
     return render_template('blog.html', posts=posts, total=total,
-                           page=page, total_pages=total_pages)
+                           page=page, total_pages=total_pages,
+                           current_year=datetime.now().year)
 
 
 @app.route('/blog/<slug>')
@@ -1030,7 +1256,8 @@ def blog_post(slug):
     conn.close()
     if not post:
         return render_template('404.html'), 404
-    return render_template('blog_post.html', post=post)
+    return render_template('blog_post.html', post=post,
+                           current_year=datetime.now().year)
 
 
 # ==========================================
@@ -1121,9 +1348,24 @@ def view_record(record_id):
     conn = get_db()
     
     record = conn.execute('''
-        SELECT records.*, blotters.filename
+        SELECT records.*,
+               blotters.filename AS blotter_filename,
+               blotters.file_path,
+               blotters.upload_date,
+               blotters.source_document_id,
+               posts.id AS post_id,
+               posts.title AS post_title,
+               posts.agency_name,
+               posts.incident_date,
+               source_documents.source_type,
+               source_documents.source_sender,
+               source_documents.source_subject,
+               source_documents.source_received_at,
+               source_documents.filename AS source_filename
         FROM records
         LEFT JOIN blotters ON records.blotter_id = blotters.id
+        LEFT JOIN posts ON posts.blotter_id = records.blotter_id
+        LEFT JOIN source_documents ON source_documents.id = blotters.source_document_id
         WHERE records.id = ?
     ''', (record_id,)).fetchone()
     
@@ -1138,10 +1380,105 @@ def view_record(record_id):
         WHERE record_id = ?
         ORDER BY timestamp
     ''', (record_id,)).fetchall()
+
+    sibling_records = conn.execute(
+        '''
+        SELECT id, time, incident_type, location
+        FROM records
+        WHERE blotter_id = ? AND id != ?
+        ORDER BY date, time, id
+        LIMIT 6
+        ''',
+        (record['blotter_id'], record_id)
+    ).fetchall()
     
     conn.close()
-    
-    return render_template('record_detail.html', record=record, logs=logs)
+
+    source_pdf_name = None
+    if record['file_path']:
+        source_pdf_name = os.path.basename(record['file_path'])
+
+    return render_template(
+        'record_detail.html',
+        record=record,
+        logs=logs,
+        sibling_records=sibling_records,
+        county_slug=_county_slug_for_name(record['county']),
+        source_pdf_name=source_pdf_name,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/post/<int:post_id>')
+def view_post(post_id):
+    """Public view of a generated daily activity post with source traceability."""
+    conn = get_db()
+    post = conn.execute(
+        '''
+        SELECT posts.*,
+               blotters.filename AS blotter_filename,
+               blotters.file_path,
+               blotters.upload_date,
+               blotters.incident_count,
+               blotters.source_document_id,
+               source_documents.source_type,
+               source_documents.source_sender,
+               source_documents.source_subject,
+               source_documents.source_received_at,
+               source_documents.filename AS source_filename
+        FROM posts
+        JOIN blotters ON posts.blotter_id = blotters.id
+        LEFT JOIN source_documents ON source_documents.id = blotters.source_document_id
+        WHERE posts.id = ?
+        ''',
+        (post_id,),
+    ).fetchone()
+
+    if not post:
+        conn.close()
+        return render_template('404.html'), 404
+
+    records = conn.execute(
+        '''
+        SELECT id, cfs_number, date, time, incident_type, location, details, officer
+        FROM records
+        WHERE blotter_id = ?
+        ORDER BY date, time, id
+        ''',
+        (post['blotter_id'],),
+    ).fetchall()
+
+    related_posts = conn.execute(
+        '''
+        SELECT id, title, incident_date, agency_name
+        FROM posts
+        WHERE county = ? AND id != ?
+        ORDER BY incident_date DESC, created_at DESC
+        LIMIT 4
+        ''',
+        (post['county'], post_id),
+    ).fetchall()
+    conn.close()
+
+    county_slug = _county_slug_for_name(post['county'])
+    city_slug = _city_slug_for_name(post['city'])
+    source_pdf_name = None
+    if post['file_path']:
+        source_pdf_name = os.path.basename(post['file_path'])
+    total_incident_count = max(len(records), post['incident_count'] or 0)
+
+    return render_template(
+        'post_detail.html',
+        post=post,
+        records=records,
+        total_incident_count=total_incident_count,
+        related_posts=related_posts,
+        summary_lines=_summary_lines(post['summary']),
+        county_slug=county_slug,
+        city_slug=city_slug,
+        source_pdf_name=source_pdf_name,
+        current_year=datetime.now().year,
+    )
 
 @app.route('/posts')
 def posts():
@@ -1251,6 +1588,9 @@ def admin_dashboard():
     total_records = conn.execute('SELECT COUNT(*) FROM records').fetchone()[0]
     total_blotters = conn.execute('SELECT COUNT(*) FROM blotters').fetchone()[0]
     total_counties = conn.execute('SELECT COUNT(DISTINCT county) FROM records').fetchone()[0]
+    failed_ingestions = conn.execute(
+        "SELECT COUNT(*) FROM ingestion_jobs WHERE status = 'failed'"
+    ).fetchone()[0]
     
     # Get recent blotters
     recent_blotters = conn.execute('''
@@ -1273,8 +1613,177 @@ def admin_dashboard():
                          total_records=total_records,
                          total_blotters=total_blotters,
                          total_counties=total_counties,
+                         failed_ingestions=failed_ingestions,
                          recent_blotters=recent_blotters,
                          county_stats=county_stats)
+
+
+@app.route('/admin/ingestion')
+@login_required
+def admin_ingestion():
+    """Inspect failed and recent ingestion jobs."""
+    status_filter = request.args.get('status', 'failed')
+    if status_filter not in ('failed', 'published', 'all'):
+        status_filter = 'failed'
+
+    conn = get_db()
+    where_clause = ''
+    params = []
+    if status_filter != 'all':
+        where_clause = 'WHERE ij.status = ?'
+        params.append(status_filter)
+
+    jobs = conn.execute(
+        f'''
+        SELECT
+            ij.id,
+            ij.status,
+            ij.retry_count,
+            ij.last_error,
+            ij.started_at,
+            ij.finished_at,
+            sd.id AS source_document_id,
+            sd.source_type,
+            sd.source_sender,
+            sd.source_subject,
+            sd.source_received_at,
+            sd.filename AS source_filename,
+            sd.storage_path,
+            sd.raw_text,
+            b.id AS blotter_id,
+            b.filename AS blotter_filename,
+            b.county AS blotter_county,
+            EXISTS(SELECT 1 FROM posts p WHERE p.blotter_id = b.id) AS has_post,
+            (
+                SELECT pe.stage
+                FROM pipeline_events pe
+                WHERE pe.ingestion_job_id = ij.id
+                ORDER BY pe.id DESC
+                LIMIT 1
+            ) AS latest_stage,
+            (
+                SELECT pe.status
+                FROM pipeline_events pe
+                WHERE pe.ingestion_job_id = ij.id
+                ORDER BY pe.id DESC
+                LIMIT 1
+            ) AS latest_stage_status,
+            (
+                SELECT pe.details_json
+                FROM pipeline_events pe
+                WHERE pe.ingestion_job_id = ij.id
+                ORDER BY pe.id DESC
+                LIMIT 1
+            ) AS latest_details_json
+        FROM ingestion_jobs ij
+        JOIN source_documents sd ON sd.id = ij.source_document_id
+        LEFT JOIN blotters b ON b.source_document_id = sd.id
+        {where_clause}
+        ORDER BY
+            CASE ij.status WHEN 'failed' THEN 0 WHEN 'received' THEN 1 WHEN 'published' THEN 2 ELSE 3 END,
+            COALESCE(ij.finished_at, ij.started_at) DESC
+        LIMIT 100
+        ''',
+        params,
+    ).fetchall()
+
+    counts = conn.execute(
+        """
+        SELECT
+            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
+            SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published_count,
+            COUNT(*) AS total_count
+        FROM ingestion_jobs
+        """
+    ).fetchone()
+    conn.close()
+
+    parsed_jobs = []
+    for job in jobs:
+        details = {}
+        if job['latest_details_json']:
+            try:
+                details = json.loads(job['latest_details_json'])
+            except json.JSONDecodeError:
+                details = {'raw': job['latest_details_json']}
+        job_dict = dict(job)
+        job_dict['latest_details'] = details
+        job_dict['source_excerpt'] = ((job['raw_text'] or '')[:180] + '...') if job['raw_text'] and len(job['raw_text']) > 180 else (job['raw_text'] or '')
+        parsed_jobs.append(job_dict)
+
+    return render_template(
+        'admin_ingestion.html',
+        jobs=parsed_jobs,
+        status_filter=status_filter,
+        failed_count=counts['failed_count'] or 0,
+        published_count=counts['published_count'] or 0,
+        total_count=counts['total_count'] or 0,
+    )
+
+
+@app.route('/admin/ingestion/<int:job_id>/retry', methods=['POST'])
+@login_required
+def admin_retry_ingestion(job_id):
+    """Retry a failed ingestion job from its stored source document."""
+    conn = get_db()
+    job = conn.execute(
+        '''
+        SELECT
+            ij.id,
+            ij.source_document_id,
+            ij.status,
+            sd.source_type,
+            sd.source_sender,
+            sd.storage_path,
+            sd.raw_text
+        FROM ingestion_jobs ij
+        JOIN source_documents sd ON sd.id = ij.source_document_id
+        WHERE ij.id = ?
+        ''',
+        (job_id,),
+    ).fetchone()
+    conn.close()
+
+    if not job:
+        flash('Ingestion job not found.')
+        return redirect(url_for('admin_ingestion'))
+
+    from pipeline_state import log_pipeline_event, set_ingestion_job_status
+    from processor import process_new_blotter, process_text_blotter
+
+    try:
+        set_ingestion_job_status(job_id, 'received', last_error=None, finished=False)
+        log_pipeline_event(job_id, 'retry', 'ok', {'message': 'manual-retry-started'})
+
+        if job['source_type'] in ('imap_pdf', 'local_pdf'):
+            storage_path = job['storage_path']
+            if not storage_path or not os.path.exists(storage_path):
+                raise FileNotFoundError('Stored PDF file is no longer available')
+            blotter_id = process_new_blotter(
+                storage_path,
+                source_document_id=job['source_document_id'],
+                ingestion_job_id=job_id,
+            )
+        elif job['source_type'] == 'imap_text':
+            raw_text = job['raw_text']
+            if not raw_text:
+                raise ValueError('Stored email body is empty')
+            blotter_id = process_text_blotter(
+                raw_text,
+                sender_email=job['source_sender'],
+                source_document_id=job['source_document_id'],
+                ingestion_job_id=job_id,
+            )
+        else:
+            raise ValueError(f"Unsupported source type: {job['source_type']}")
+
+        flash(f'Retried ingestion job #{job_id}. Blotter #{blotter_id} processed.')
+    except Exception as e:
+        log_pipeline_event(job_id, 'retry', 'error', {'error': str(e)})
+        set_ingestion_job_status(job_id, 'failed', last_error=str(e), finished=True)
+        flash(f'Retry failed for job #{job_id}: {e}')
+
+    return redirect(url_for('admin_ingestion'))
 
 @app.route('/admin/upload', methods=['GET', 'POST'])
 @login_required
@@ -1334,10 +1843,10 @@ def admin_delete_blotter(blotter_id):
     """Delete a blotter and its records"""
     conn = get_db()
     
-    # Delete associated command logs first (via CASCADE this happens automatically)
-    # Delete records (CASCADE will handle command_logs)
+    # Foreign-key cascades are enabled on this connection, but delete posts explicitly
+    # to clean up legacy databases that may have been created without enforcement.
+    conn.execute('DELETE FROM posts WHERE blotter_id = ?', (blotter_id,))
     conn.execute('DELETE FROM records WHERE blotter_id = ?', (blotter_id,))
-    # Delete blotter
     conn.execute('DELETE FROM blotters WHERE id = ?', (blotter_id,))
     
     conn.commit()

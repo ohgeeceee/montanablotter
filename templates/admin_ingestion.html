@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        {% for message in messages %}
+        <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-xl mb-6">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-3xl font-black text-slate-900">Ingestion Health</h1>
+            <p class="text-sm text-slate-500 mt-2">Inspect failed jobs, see why publication stopped, and retry from stored source data.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/admin/ingestion?status=failed" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'failed' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Failed {{ failed_count }}</a>
+            <a href="/admin/ingestion?status=published" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'published' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Published {{ published_count }}</a>
+            <a href="/admin/ingestion?status=all" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'all' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">All {{ total_count }}</a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-100 bg-slate-50">
+            <h2 class="font-black text-lg">Recent Jobs</h2>
+        </div>
+
+        {% if jobs %}
+        <div class="divide-y divide-slate-100">
+            {% for job in jobs %}
+            <div class="p-6">
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+                    <div class="space-y-3 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-xs font-bold px-2 py-1 rounded-full {% if job.status == 'failed' %}bg-red-100 text-red-700{% elif job.status == 'published' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-700{% endif %}">
+                                {{ job.status }}
+                            </span>
+                            <span class="text-xs font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-600">{{ job.source_type }}</span>
+                            {% if job.has_post %}
+                            <span class="text-xs font-bold px-2 py-1 rounded-full bg-blue-100 text-blue-700">public post exists</span>
+                            {% else %}
+                            <span class="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700">no public post</span>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <p class="text-sm text-slate-500">Job #{{ job.id }}{% if job.blotter_id %} · Blotter #{{ job.blotter_id }}{% endif %}</p>
+                            <p class="text-lg font-black text-slate-900 break-words">{{ job.source_filename or job.blotter_filename or job.source_subject or 'Untitled source document' }}</p>
+                            <p class="text-sm text-slate-600 mt-1">{{ job.blotter_county or 'Unknown county' }}{% if job.source_sender %} · {{ job.source_sender }}{% endif %}</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                            <div class="bg-slate-50 rounded-xl p-3">
+                                <p class="text-slate-400 uppercase tracking-wide text-xs font-bold">Latest Stage</p>
+                                <p class="font-bold text-slate-900 mt-1">{{ job.latest_stage or 'unknown' }}{% if job.latest_stage_status %} · {{ job.latest_stage_status }}{% endif %}</p>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-3">
+                                <p class="text-slate-400 uppercase tracking-wide text-xs font-bold">Retries</p>
+                                <p class="font-bold text-slate-900 mt-1">{{ job.retry_count }}</p>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-3">
+                                <p class="text-slate-400 uppercase tracking-wide text-xs font-bold">Finished</p>
+                                <p class="font-bold text-slate-900 mt-1">{{ job.finished_at or 'still running / reset' }}</p>
+                            </div>
+                        </div>
+
+                        {% if job.last_error %}
+                        <div class="bg-red-50 border border-red-100 rounded-xl p-4">
+                            <p class="text-xs font-bold uppercase tracking-wide text-red-500">Last Error</p>
+                            <p class="text-sm text-red-700 mt-1 break-words">{{ job.last_error }}</p>
+                        </div>
+                        {% endif %}
+
+                        {% if job.latest_details %}
+                        <div class="bg-slate-50 rounded-xl p-4">
+                            <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Latest Event Details</p>
+                            <pre class="text-xs text-slate-700 mt-2 whitespace-pre-wrap break-words">{{ job.latest_details | tojson(indent=2) }}</pre>
+                        </div>
+                        {% endif %}
+
+                        {% if job.source_excerpt %}
+                        <div class="bg-white border border-slate-200 rounded-xl p-4">
+                            <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Stored Text Excerpt</p>
+                            <p class="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{{ job.source_excerpt }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex lg:flex-col gap-3 lg:items-stretch">
+                        <form action="/admin/ingestion/{{ job.id }}/retry" method="POST">
+                            <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition">
+                                Retry Job
+                            </button>
+                        </form>
+                        {% if job.blotter_id %}
+                        <a href="/admin/blotters" class="w-full text-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold transition">
+                            View Blotter List
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-12 text-center text-slate-400">
+            <p class="font-bold text-lg">No ingestion jobs found for this filter.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

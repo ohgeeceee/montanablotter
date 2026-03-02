@@ -1,14 +1,13 @@
 import imaplib
 import email
 import os
+import config
 
-# --- CONFIGURATION ---
-EMAIL_USER = "juan@fertherecerd.om"
-EMAIL_PASS = "Lol123lol!!"  # Use the 16-character App Password
-IMAP_SERVER = "imap.ionos.com"
-
-# Save directly to your app's records folder
-SAVE_DIR = "/root/montanablotter/records"
+# Deprecated helper: keep config-driven values so secrets are not stored in source.
+EMAIL_USER = config.EMAIL_USER
+EMAIL_PASS = config.EMAIL_PASSWORD
+IMAP_SERVER = config.IMAP_SERVER
+SAVE_DIR = config.UPLOAD_DIR
 
 def fetch_attachments():
     try:

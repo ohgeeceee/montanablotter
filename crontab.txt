@@ -9,6 +9,9 @@
 # Morning briefing daily at 7am
 0 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/morning_briefing.py >> /root/montanablotter/briefing.log 2>&1
 
+# Daily Montana crime/police roundup blog at 7:15am
+15 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/daily_blog_worker.py >> /root/montanablotter/daily_blog.log 2>&1
+
 # Daily DB backup at 2am
 0 2 * * * /root/montanablotter/backup_db.sh >> /root/montanablotter/backup.log 2>&1
 

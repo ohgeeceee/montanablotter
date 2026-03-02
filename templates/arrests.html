@@ -1,204 +1,160 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
-    <style>
-    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
-    .pnav-link:hover { color: #E8DFD0; }
-    .pnav-link.active { color: #D4892A !important; }
-    </style>
-    <title>Arrest Log | Montana Blotter</title>
-</head>
-<body style="background:#0D0C0B; color:#E8DFD0; font-family:'Spectral',Georgia,serif; min-height:100vh;">
+{% extends "public_page_base.html" %}
 
-    <!-- Navbar -->
-        <header style="background:#161513; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-6" style="height:56px;">
-            <a href="/" style="display:flex; align-items:center; gap:14px; text-decoration:none;">
-                <div style="width:36px; height:36px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+{% set page_title = "Arrest Log" %}
+{% set meta_description = "Live Montana arrest records filtered from police blotter and incident data across Montana counties." %}
+{% set canonical_url = "https://montanablotter.com/arrests" %}
+{% set og_title = "Arrest Log | Montana Blotter" %}
+{% set og_description = meta_description %}
+{% set active_nav = "arrests" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana Arrest Log",
+  "description": "Live Montana arrest records filtered from police blotter and incident data across Montana counties.",
+  "url": "https://montanablotter.com/arrests"
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Arrest Log</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-red-950 to-slate-900 text-white py-10 px-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex items-center gap-3 mb-2">
+            <span class="w-8 h-8 flex items-center justify-center bg-red-500 rounded-lg text-sm">
+                <i class="fas fa-handcuffs"></i>
+            </span>
+            <h2 class="text-3xl font-black tracking-tight">Arrest Log</h2>
+        </div>
+        <p class="text-slate-300 text-sm">
+            Records where an arrest was made &mdash; {{ total }} total
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-6 py-8 flex flex-col lg:flex-row gap-8 items-start">
+    <aside class="w-full lg:w-56 flex-shrink-0 lg:sticky top-24">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Filter</h3>
+            <form method="GET" action="/arrests" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Search</label>
+                    <input type="text" name="q" value="{{ q }}"
+                           placeholder="name, location..."
+                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
                 </div>
                 <div>
-                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:1rem; color:#E8DFD0; line-height:1.1; letter-spacing:-0.01em;">The Montana Blotter</div>
-                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Daily Public Safety Dispatch</div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">County</label>
+                    <select name="county" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <option value="">All Counties</option>
+                        {% for c in counties %}
+                        <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit"
+                        class="w-full bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-2 rounded-lg transition">
+                    Filter
+                </button>
+                {% if county or q %}
+                <a href="/arrests" class="block text-center text-xs text-slate-400 hover:text-slate-700">Clear filters</a>
+                {% endif %}
+            </form>
+        </div>
+    </aside>
+
+    <div class="flex-1 min-w-0">
+        {% if county or q %}
+        <div class="flex flex-wrap items-center gap-2 text-xs mb-4">
+            <span class="text-slate-500 font-semibold">Filtered by:</span>
+            {% if county %}
+            <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-medium">{{ county }} County</span>
+            {% endif %}
+            {% if q %}
+            <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-medium">&ldquo;{{ q }}&rdquo;</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if records %}
+        <div class="space-y-3">
+            {% for record in records %}
+            <a href="/record/{{ record.id }}"
+               class="block bg-white rounded-xl border border-slate-100 shadow-sm p-5 hover:shadow-md hover:border-red-200 transition group">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-black uppercase tracking-wide">
+                                <i class="fas fa-handcuffs text-[9px]"></i> Arrest
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">
+                                {{ record.date }}{% if record.time %} &bull; {{ record.time }}{% endif %}
+                            </span>
+                            {% if record.county %}
+                            <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold">
+                                {{ record.county }}
+                            </span>
+                            {% endif %}
+                            {% if record.cfs_number %}
+                            <span class="text-[10px] font-mono text-slate-300">{{ record.cfs_number }}</span>
+                            {% endif %}
+                        </div>
+                        <h3 class="font-bold text-slate-800 mb-1">
+                            {{ record.incident_type or record.incident or 'Arrest' }}
+                        </h3>
+                        {% if record.location %}
+                        <p class="text-xs text-slate-500 mb-1.5">
+                            <i class="fas fa-map-marker-alt text-slate-300 mr-1"></i>{{ record.location }}
+                        </p>
+                        {% endif %}
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            {{ (record.details or '')[:250] }}{% if record.details and record.details|length > 250 %}...{% endif %}
+                        </p>
+                    </div>
+                    <div class="text-slate-300 group-hover:text-red-500 transition flex-shrink-0 mt-1">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
                 </div>
             </a>
-            <nav class="hidden md:flex items-center gap-1">
-                <a href="/arrests"      class="pnav-link">Arrests</a>
-                <a href="/blog"         class="pnav-link">Blog</a>
-                <a href="/jail-rosters" class="pnav-link">Jail Rosters</a>
-                <a href="/laws"         class="pnav-link">Laws</a>
-                <a href="/subscribe"    class="pnav-link" style="margin-left:8px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A;">Subscribe</a>
-                <a href="/feed.xml"     class="pnav-link">RSS</a>
-            </nav>
-            <button id="pub-mobile-btn" class="md:hidden" style="background:none; border:none; color:#8A7F72; cursor:pointer; padding:4px;" aria-label="Open menu">
-                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="0" y1="4" x2="18" y2="4"/><line x1="0" y1="9" x2="18" y2="9"/><line x1="0" y1="14" x2="18" y2="14"/></svg>
-            </button>
+            {% endfor %}
         </div>
-        <div id="pub-mobile-menu" class="hidden md:hidden px-4 pb-3 space-y-0.5" style="border-top:1px solid #282420; background:#161513;">
-            <a href="/arrests"      class="pnav-link" style="display:block; padding:8px 12px;">Arrests</a>
-            <a href="/blog"         class="pnav-link" style="display:block; padding:8px 12px;">Blog</a>
-            <a href="/jail-rosters" class="pnav-link" style="display:block; padding:8px 12px;">Jail Rosters</a>
-            <a href="/laws"         class="pnav-link" style="display:block; padding:8px 12px;">Laws</a>
-            <a href="/subscribe"    class="pnav-link" style="display:block; padding:8px 12px; color:#D4892A;">Subscribe</a>
-            <a href="/feed.xml"     class="pnav-link" style="display:block; padding:8px 12px;">RSS</a>
-        </div>
-        <script>
-        (function(){var b=document.getElementById('pub-mobile-btn'),m=document.getElementById('pub-mobile-menu');if(b&&m)b.addEventListener('click',function(){m.classList.toggle('hidden');});})();
-        </script>
-    </header>
 
-    <!-- Header -->
-    <section class="bg-gradient-to-br from-slate-900 via-red-950 to-slate-900 text-white py-10 px-6">
-        <div class="max-w-7xl mx-auto">
-            <div class="flex items-center gap-3 mb-2">
-                <span class="w-8 h-8 flex items-center justify-center bg-red-500 rounded-lg text-sm">
-                    <i class="fas fa-handcuffs"></i>
-                </span>
-                <h2 class="text-3xl font-black tracking-tight">Arrest Log</h2>
+        {% if total_pages > 1 %}
+        <nav class="flex items-center justify-between pt-6 pb-8">
+            <p class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }} &mdash; {{ total }} arrests</p>
+            <div class="flex gap-2">
+                {% if page > 1 %}
+                <a href="?county={{ county }}&q={{ q }}&page={{ page - 1 }}"
+                   class="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 font-medium">&larr; Prev</a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a href="?county={{ county }}&q={{ q }}&page={{ page + 1 }}"
+                   class="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 font-medium">Next &rarr;</a>
+                {% endif %}
             </div>
-            <p class="text-slate-300 text-sm">
-                Records where an arrest was made &mdash; {{ total }} total
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="bg-white rounded-2xl border border-slate-100 p-16 text-center">
+            <i class="fas fa-handcuffs text-slate-200 text-5xl mb-4 block"></i>
+            <h3 class="text-xl font-black text-slate-700 mb-2">No arrests found</h3>
+            <p class="text-slate-400 text-sm">
+                {% if county or q %}Try adjusting your filters.{% else %}No arrest records have been indexed yet.{% endif %}
             </p>
-        </div>
-    </section>
-
-    <!-- Main layout -->
-    <div class="max-w-7xl mx-auto px-6 py-8 flex gap-8 items-start">
-
-        <!-- Sidebar -->
-        <aside class="w-56 flex-shrink-0 sticky top-24">
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Filter</h3>
-                <form method="GET" action="/arrests" class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Search</label>
-                        <input type="text" name="q" value="{{ q }}"
-                               placeholder="name, location..."
-                               class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">County</label>
-                        <select name="county" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
-                            <option value="">All Counties</option>
-                            {% for c in counties %}
-                            <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="submit"
-                            class="w-full bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-2 rounded-lg transition">
-                        Filter
-                    </button>
-                    {% if county or q %}
-                    <a href="/arrests" class="block text-center text-xs text-slate-400 hover:text-slate-700">Clear filters</a>
-                    {% endif %}
-                </form>
-            </div>
-        </aside>
-
-        <!-- Records list -->
-        <div class="flex-1 min-w-0">
-
             {% if county or q %}
-            <div class="flex flex-wrap items-center gap-2 text-xs mb-4">
-                <span class="text-slate-500 font-semibold">Filtered by:</span>
-                {% if county %}
-                <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-medium">{{ county }} County</span>
-                {% endif %}
-                {% if q %}
-                <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-medium">&ldquo;{{ q }}&rdquo;</span>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            {% if records %}
-            <div class="space-y-3">
-                {% for record in records %}
-                <a href="/record/{{ record.id }}"
-                   class="block bg-white rounded-xl border border-slate-100 shadow-sm p-5 hover:shadow-md hover:border-red-200 transition group">
-                    <div class="flex items-start justify-between gap-4">
-                        <div class="flex-1 min-w-0">
-                            <div class="flex flex-wrap items-center gap-2 mb-1.5">
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-black uppercase tracking-wide">
-                                    <i class="fas fa-handcuffs text-[9px]"></i> Arrest
-                                </span>
-                                <span class="text-[10px] font-mono text-slate-400">
-                                    {{ record.date }}{% if record.time %} &bull; {{ record.time }}{% endif %}
-                                </span>
-                                {% if record.county %}
-                                <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold">
-                                    {{ record.county }}
-                                </span>
-                                {% endif %}
-                                {% if record.cfs_number %}
-                                <span class="text-[10px] font-mono text-slate-300">{{ record.cfs_number }}</span>
-                                {% endif %}
-                            </div>
-                            <h3 class="font-bold text-slate-800 mb-1">
-                                {{ record.incident_type or record.incident or 'Arrest' }}
-                            </h3>
-                            {% if record.location %}
-                            <p class="text-xs text-slate-500 mb-1.5">
-                                <i class="fas fa-map-marker-alt text-slate-300 mr-1"></i>{{ record.location }}
-                            </p>
-                            {% endif %}
-                            <p class="text-sm text-slate-600 leading-relaxed">
-                                {{ (record.details or '')[:250] }}{% if record.details and record.details|length > 250 %}...{% endif %}
-                            </p>
-                        </div>
-                        <div class="text-slate-300 group-hover:text-red-500 transition flex-shrink-0 mt-1">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
-
-            <!-- Pagination -->
-            {% if total_pages > 1 %}
-            <nav class="flex items-center justify-between pt-6 pb-8">
-                <p class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }} &mdash; {{ total }} arrests</p>
-                <div class="flex gap-2">
-                    {% if page > 1 %}
-                    <a href="?county={{ county }}&q={{ q }}&page={{ page - 1 }}"
-                       class="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 font-medium">&larr; Prev</a>
-                    {% endif %}
-                    {% if page < total_pages %}
-                    <a href="?county={{ county }}&q={{ q }}&page={{ page + 1 }}"
-                       class="px-4 py-2 border border-slate-300 rounded-lg text-sm hover:bg-slate-50 font-medium">Next &rarr;</a>
-                    {% endif %}
-                </div>
-            </nav>
-            {% endif %}
-
-            {% else %}
-            <div class="bg-white rounded-2xl border border-slate-100 p-16 text-center">
-                <i class="fas fa-handcuffs text-slate-200 text-5xl mb-4 block"></i>
-                <h3 class="text-xl font-black text-slate-700 mb-2">No arrests found</h3>
-                <p class="text-slate-400 text-sm">
-                    {% if county or q %}Try adjusting your filters.{% else %}No arrest records have been indexed yet.{% endif %}
-                </p>
-                {% if county or q %}
-                <a href="/arrests" class="inline-block mt-4 bg-slate-900 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-red-600 transition">Clear filters</a>
-                {% endif %}
-            </div>
+            <a href="/arrests" class="inline-block mt-4 bg-slate-900 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-red-600 transition">Clear filters</a>
             {% endif %}
         </div>
+        {% endif %}
     </div>
-
-    <footer class="bg-slate-900 text-white py-8 mt-4">
-        <div class="max-w-7xl mx-auto px-6 text-center">
-            <p class="text-slate-500 text-xs uppercase tracking-widest font-bold">
-                &copy; 2026 Montana Blotter &bull; Free Public Records
-            </p>
-        </div>
-    </footer>
-
-</body>
-</html>
+</div>
+{% endblock %}

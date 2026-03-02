@@ -1,10 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-</head>
-<body class="bg-slate-50 py-20 px-4">
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Plans" %}
+{% set meta_description = "Choose your Montana Blotter access level and compare standard versus pro features." %}
+{% set canonical_url = "https://montanablotter.com/plans" %}
+{% set og_title = "Plans | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block content %}
+<div class="bg-slate-50 py-20 px-4">
     <div class="max-w-4xl mx-auto text-center">
         <h1 class="text-4xl font-extrabold text-slate-900 mb-4">Choose Your Access Level</h1>
         <p class="text-slate-600 mb-12">Monitor Montana public records with professional-grade tools.</p>
@@ -35,5 +38,5 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

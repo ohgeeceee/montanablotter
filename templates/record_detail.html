@@ -1,99 +1,139 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
-    <title>Incident Report #{{ record.id }} | Montana Blotter</title>
-    <style>
-    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
-    .pnav-link:hover { color: #F0E8D8; }
-    </style>
-</head>
-<body class="print:bg-white print:p-0" style="background:#0D0C0B; color:#F0E8D8; font-family:'Spectral',Georgia,serif; min-height:100vh;">
+{% extends "public_page_base.html" %}
 
-    <header class="print:hidden" style="background:#161513; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-6" style="height:56px;">
-            <a href="/" style="display:flex; align-items:center; gap:14px; text-decoration:none;">
-                <div style="width:36px; height:36px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div>
-                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:1rem; color:#F0E8D8; line-height:1.1;">The Montana Blotter</div>
-                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Daily Public Safety Dispatch</div>
-                </div>
-            </a>
-            <nav class="hidden md:flex items-center gap-1">
-                <a href="/arrests"      class="pnav-link">Arrests</a>
-                <a href="/blog"         class="pnav-link">Blog</a>
-                <a href="/jail-rosters" class="pnav-link">Jail Rosters</a>
-                <a href="/laws"         class="pnav-link">Laws</a>
-                <a href="/subscribe"    class="pnav-link" style="background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A;">Subscribe</a>
-            </nav>
-        </div>
-    </header>
+{% set record_title = record.incident_type or record.incident or 'Incident Record' %}
+{% set page_title = record_title %}
+{% set meta_description = "Public incident record for " ~ record.county ~ " County, Montana. View source context, related blotter report, and command log entries on Montana Blotter." %}
+{% set canonical_url = "https://montanablotter.com/record/" ~ record.id %}
+{% set og_title = record_title ~ " | Montana Blotter" %}
+{% set og_description = meta_description %}
 
-    <div class="p-6 md:p-12">
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+{% if county_slug %}
+<a href="/county/{{ county_slug }}" class="hover:text-slate-700">{{ record.county }} County</a>
+<span class="mx-2">/</span>
+{% endif %}
+<span class="text-slate-900 font-semibold">{{ record_title }}</span>
+{% endblock %}
 
-    <div class="max-w-4xl mx-auto">
-        <a href="/dashboard" class="inline-flex items-center gap-2 text-slate-400 hover:text-blue-600 transition mb-8 font-bold text-xs uppercase tracking-widest print:hidden">
-            <i class="fas fa-arrow-left"></i> Back to Archive
-        </a>
-
-        <div class="bg-white rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden print:shadow-none print:border-slate-200">
-            
-            <div class="p-8 md:p-12 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                    <span class="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2 block">Official Public Safety Record</span>
-                    <h1 class="text-3xl font-black tracking-tighter uppercase italic">{{ record.incident }}</h1>
-                </div>
-                <div class="text-right">
-                    <p class="text-slate-400 text-[10px] font-bold uppercase">Incident ID</p>
-                    <p class="text-xl font-mono font-black text-blue-400">#MB-{{ "%05d" | format(record.id) }}</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 border-b border-slate-100 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-                <div class="p-8">
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Occurred On</p>
-                    <p class="font-bold text-slate-900">{{ record.date }}</p>
-                </div>
-                <div class="p-8">
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Jurisdiction</p>
-                    <p class="font-bold text-slate-900 uppercase">{{ record.county }} County, MT</p>
-                </div>
-                <div class="p-8 flex justify-between items-center">
+{% block content %}
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid lg:grid-cols-[minmax(0,1fr)_320px] gap-8">
+    <section class="space-y-6">
+        <div class="rounded-[28px] overflow-hidden border" style="background:#F7F3EB; border-color:#E7DECF; color:#1E1B18;">
+            <div class="px-6 sm:px-8 py-6" style="background:#13110F; color:#F0E8D8;">
+                <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Status</p>
-                        <span class="text-xs font-black text-green-600 bg-green-50 px-3 py-1 rounded-full uppercase italic">Logged</span>
+                        <p class="text-[10px] uppercase tracking-[0.22em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Incident Record</p>
+                        <h1 class="mt-2 text-3xl sm:text-4xl font-black leading-tight" style="font-family:'Playfair Display',Georgia,serif;">
+                            {{ record_title }}
+                        </h1>
                     </div>
-                    <button onclick="window.print()" class="text-slate-300 hover:text-blue-600 transition print:hidden">
-                        <i class="fas fa-print"></i>
-                    </button>
+                    <div class="text-right">
+                        <p class="text-[10px] uppercase tracking-[0.2em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Record ID</p>
+                        <p class="text-xl font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">#{{ record.id }}</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="p-8 md:p-12 space-y-8">
-                <div>
-                    <h3 class="text-xs font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span class="w-8 h-px bg-blue-600"></span> Incident Narrative
-                    </h3>
-                    <div class="text-slate-600 leading-relaxed text-lg font-medium space-y-4">
-                        {{ record.details | replace('\n', '<br>') | safe }}
-                    </div>
+            <div class="grid sm:grid-cols-3 border-b" style="border-color:#E7DECF;">
+                <div class="p-6">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Date</p>
+                    <p class="mt-2 text-base font-bold text-slate-900">{{ record.date }}</p>
+                </div>
+                <div class="p-6 border-t sm:border-t-0 sm:border-l" style="border-color:#E7DECF;">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Time</p>
+                    <p class="mt-2 text-base font-bold text-slate-900">{{ record.time or 'Not listed' }}</p>
+                </div>
+                <div class="p-6 border-t sm:border-t-0 sm:border-l" style="border-color:#E7DECF;">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Location</p>
+                    <p class="mt-2 text-base font-bold text-slate-900">{{ record.location or 'Not listed' }}</p>
+                </div>
+            </div>
+
+            <div class="p-6 sm:p-8">
+                <div class="flex flex-wrap items-center gap-2 mb-5">
+                    <span class="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest bg-slate-100 text-slate-700">{{ record.county }} County</span>
+                    {% if record.cfs_number %}
+                    <span class="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest bg-blue-100 text-blue-700">CFS {{ record.cfs_number }}</span>
+                    {% endif %}
+                    {% if record.officer %}
+                    <span class="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest bg-amber-100 text-amber-700">{{ record.officer }}</span>
+                    {% endif %}
                 </div>
 
-                <div class="pt-12 border-t border-slate-50 flex justify-between items-end">
-                    <div class="opacity-30 flex items-center gap-2">
-                        <div class="bg-slate-900 text-white p-2 rounded-lg scale-75"><i class="fas fa-mountain"></i></div>
-                        <span class="font-black tracking-tighter text-sm uppercase">MT Blotter Verified</span>
-                    </div>
-                    <p class="text-[10px] text-slate-300 font-mono italic">Retrieved: 2026-02-13 | Source: Official Sheriff's Log</p>
+                <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400 mb-3">Narrative</h2>
+                <div class="text-slate-700 leading-7 text-[1.02rem] space-y-4">
+                    {{ (record.details or 'No narrative was included in the source blotter.') | replace('\n', '<br>') | safe }}
                 </div>
             </div>
         </div>
-    </div>
-    </div><!-- /.p-6 wrapper -->
-</body>
-</html>
+
+        {% if logs %}
+        <section class="rounded-[24px] border p-6 sm:p-8" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-lg font-black mb-5" style="font-family:'Playfair Display',Georgia,serif;">Command Log</h2>
+            <div class="space-y-3">
+                {% for log in logs %}
+                <div class="rounded-xl border px-4 py-3" style="border-color:#282420; background:#1A1815;">
+                    <div class="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">
+                        <span>{{ log.timestamp or 'Time unknown' }}</span>
+                        {% if log.officer %}
+                        <span style="color:#D4892A;">{{ log.officer }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="mt-2 text-sm leading-6" style="color:#E6DCCB;">{{ log.entry }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </section>
+
+    <aside class="space-y-5">
+        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-xs font-black uppercase tracking-[0.18em] mb-4" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Source Trace</h2>
+            <div class="space-y-3 text-sm">
+                <div class="rounded-xl p-4" style="background:#1A1815;">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Blotter Batch</p>
+                    <p class="mt-2 font-semibold">{{ record.blotter_filename or 'Unknown source batch' }}</p>
+                    <p class="mt-1 text-xs" style="color:#A89880;">Uploaded {{ record.upload_date or 'Unknown' }}</p>
+                </div>
+                <div class="rounded-xl p-4" style="background:#1A1815;">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Source Type</p>
+                    <p class="mt-2 font-semibold">{{ record.source_type or 'Imported blotter' }}</p>
+                    {% if record.source_subject %}
+                    <p class="mt-1 text-xs" style="color:#A89880;">{{ record.source_subject }}</p>
+                    {% endif %}
+                    {% if record.source_sender %}
+                    <p class="mt-1 text-xs" style="color:#A89880;">{{ record.source_sender }}</p>
+                    {% endif %}
+                </div>
+                {% if source_pdf_name %}
+                <a href="/uploads/{{ source_pdf_name }}" target="_blank" rel="noopener" class="block rounded-xl px-4 py-3 font-bold text-sm transition" style="background:#D4892A; color:#0D0C0B;">
+                    <i class="fas fa-file-pdf mr-2"></i>Open Source PDF
+                </a>
+                {% endif %}
+                {% if record.post_id %}
+                <a href="/post/{{ record.post_id }}" class="block rounded-xl px-4 py-3 font-bold text-sm transition border" style="border-color:#35302A; color:#F0E8D8;">
+                    <i class="fas fa-newspaper mr-2" style="color:#D4892A;"></i>View Full Daily Report
+                </a>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if sibling_records %}
+        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-xs font-black uppercase tracking-[0.18em] mb-4" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Other Incidents In This Report</h2>
+            <div class="space-y-2">
+                {% for sibling in sibling_records %}
+                <a href="/record/{{ sibling.id }}" class="block rounded-xl px-4 py-3 transition" style="background:#1A1815;">
+                    <p class="text-xs uppercase tracking-widest font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">{{ sibling.time or 'No time listed' }}</p>
+                    <p class="mt-1 text-sm font-semibold" style="color:#F0E8D8;">{{ sibling.incident_type or 'Incident' }}</p>
+                    <p class="mt-1 text-xs" style="color:#A89880;">{{ sibling.location or 'Location not listed' }}</p>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </aside>
+</main>
+{% endblock %}

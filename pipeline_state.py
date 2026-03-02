@@ -143,7 +143,7 @@ def set_ingestion_job_status(job_id: int, status: str, last_error: Optional[str]
         cursor.execute(
             """
             UPDATE ingestion_jobs
-            SET status = ?, last_error = ?
+            SET status = ?, last_error = ?, finished_at = NULL
             WHERE id = ?
             """,
             (status, last_error, job_id),
