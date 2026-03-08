@@ -8,9 +8,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
     <style>
-    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
-    .pnav-link:hover { color: #E8DFD0; }
+    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 6px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s, background 0.15s; }
+    .pnav-link:hover { color: #E8DFD0; background: rgba(255,255,255,0.03); }
     .pnav-link.active { color: #D4892A !important; }
+    .pnav-secondary-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.52rem; color: #A89880; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 0; font-weight: 600; text-decoration: none; transition: color 0.15s; }
+    .pnav-secondary-link:hover { color: #E8DFD0; }
+    .pnav-secondary-link.active { color: #D4892A !important; }
+    .pnav-divider { color: #5F564C; user-select: none; }
     </style>
     <title>{{ page_title }} | Montana Blotter</title>
     <meta name="description" content="{{ meta_description }}">
@@ -37,23 +41,47 @@
                     <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Daily Public Safety Dispatch</div>
                 </div>
             </a>
-            <nav class="hidden md:flex items-center gap-1">
-                {% for item in public_nav_items %}
-                <a href="{{ item.href }}" class="pnav-link {% if active_nav == item.id %}active{% endif %}">{{ item.label }}</a>
+            <nav class="hidden md:flex items-center gap-0.5">
+                {% for item in public_primary_nav_items %}
+                {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
+                <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}">{{ item.label }}</a>
+                {% if not loop.last %}
+                <span class="pnav-divider pnav-link" style="padding-left:2px; padding-right:2px; background:none;">//</span>
+                {% endif %}
                 {% endfor %}
                 <a href="/subscribe" class="pnav-link" style="margin-left:8px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A;">Subscribe</a>
-                <a href="/feed.xml" class="pnav-link">RSS</a>
             </nav>
             <button id="pub-mobile-btn" class="md:hidden" style="background:none; border:none; color:#8A7F72; cursor:pointer; padding:4px;" aria-label="Open menu">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="0" y1="4" x2="18" y2="4"/><line x1="0" y1="9" x2="18" y2="9"/><line x1="0" y1="14" x2="18" y2="14"/></svg>
             </button>
         </div>
+        {% if public_secondary_nav_items %}
+        <div class="hidden md:block" style="border-top:1px solid #282420;">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-end gap-4">
+                {% for item in public_secondary_nav_items %}
+                {% set is_active = active_nav == item.id %}
+                <a href="{{ item.href }}" class="pnav-secondary-link {% if is_active %}active{% endif %}">{{ item.label }}</a>
+                {% if not loop.last %}
+                <span class="pnav-divider pnav-secondary-link" style="padding:0;">&gt;&gt;</span>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         <div id="pub-mobile-menu" class="hidden md:hidden px-4 pb-3 space-y-0.5" style="border-top:1px solid #282420; background:#161513;">
-            {% for item in public_nav_items %}
-            <a href="{{ item.href }}" class="pnav-link {% if active_nav == item.id %}active{% endif %}" style="display:block; padding:8px 12px;">{{ item.label }}</a>
+            <p class="pnav-link" style="display:block; padding:10px 12px 6px; color:#D4892A;">Main</p>
+            {% for item in public_primary_nav_items %}
+            {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
+            <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}" style="display:block; padding:8px 12px;">{{ item.label }}</a>
             {% endfor %}
             <a href="/subscribe" class="pnav-link" style="display:block; padding:8px 12px; color:#D4892A;">Subscribe</a>
-            <a href="/feed.xml" class="pnav-link" style="display:block; padding:8px 12px;">RSS</a>
+            {% if public_secondary_nav_items %}
+            <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Explore</p>
+            {% for item in public_secondary_nav_items %}
+            {% set is_active = active_nav == item.id %}
+            <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}" style="display:block; padding:8px 12px;">{{ item.label }}</a>
+            {% endfor %}
+            {% endif %}
         </div>
     </header>
 
@@ -64,21 +92,122 @@
         </div>
     </div>
 
+    {% set show_conversion_cta = (
+        request.path == '/trends'
+        or request.path == '/blog'
+        or request.path.startswith('/blog/')
+        or request.path.startswith('/post/')
+        or request.path.startswith('/county/')
+        or request.path.startswith('/city/')
+    ) %}
+
     {% block hero %}{% endblock %}
+
+    {% if show_conversion_cta %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+        {% set source_tag = 'inline_' ~ request.path.strip('/').replace('/', '_') %}
+        {% include "includes/subscribe_conversion_block.html" %}
+    </div>
+
+    <aside id="scroll-subscribe-prompt" class="hidden fixed right-4 bottom-4 z-40 w-[320px] rounded-2xl border border-slate-300 bg-white p-4 shadow-2xl">
+        <button type="button" id="scroll-subscribe-close" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600">
+            <i class="fas fa-times text-xs"></i>
+        </button>
+        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Still Following?</p>
+        <h3 class="mt-2 text-base font-black text-slate-900">Get Daily Montana Blotter Alerts</h3>
+        <p class="mt-1 text-xs text-slate-600">Free morning email. No spam. Unsubscribe anytime.</p>
+        <a href="/subscribe?source=scroll_prompt"
+           class="subscribe-cta-track mt-3 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-white hover:bg-blue-700 transition"
+           data-subscribe-source="scroll_prompt">
+            Open Signup
+        </a>
+    </aside>
+
+    <div class="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur">
+        <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Daily Alerts</p>
+                <p class="text-xs text-slate-600">Free, no spam</p>
+            </div>
+            <a href="/subscribe?source=mobile_sticky"
+               class="subscribe-cta-track inline-flex items-center rounded-xl bg-blue-600 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-white"
+               data-subscribe-source="mobile_sticky">
+                Subscribe
+            </a>
+        </div>
+    </div>
+    {% endif %}
 
     {% block content %}{% endblock %}
 
     <footer class="bg-slate-900 text-slate-400 text-center text-xs py-6 mt-10">
+        <div class="max-w-6xl mx-auto px-4">
+            {% if footer_featured_city_items %}
+            <div class="mb-5">
+                <p class="text-[10px] font-black uppercase tracking-[0.22em] text-blue-300 mb-3">New City Pages</p>
+                <div class="flex flex-wrap justify-center gap-2.5">
+                    {% for item in footer_featured_city_items %}
+                    <a href="{{ item.href }}" class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 hover:border-blue-400 hover:text-white transition">
+                        <span>{{ item.label }}</span>
+                        <span class="text-slate-500">{{ item.county }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         <p>&copy; {{ current_year }} Montana Blotter &mdash; Public safety transparency for Montana communities.</p>
-        <div class="flex justify-center gap-6 mt-3">
+        <div class="flex justify-center gap-6 mt-3 flex-wrap">
             {% for item in public_footer_items %}
             <a href="{{ item.href }}" class="hover:text-white transition">{{ item.label }}</a>
             {% endfor %}
+        </div>
         </div>
     </footer>
 
     <script>
     (function(){
+        function sendSubscribeEvent(eventType, source) {
+            try {
+                var payload = JSON.stringify({
+                    event_type: eventType,
+                    source: source || '',
+                    page_path: window.location.pathname
+                });
+                if (navigator.sendBeacon) {
+                    var blob = new Blob([payload], {type: 'application/json'});
+                    navigator.sendBeacon('/api/subscribe-event', blob);
+                } else {
+                    fetch('/api/subscribe-event', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: payload,
+                        keepalive: true
+                    });
+                }
+            } catch (e) {}
+        }
+
+        function sendDonateEvent(eventType, source) {
+            try {
+                var payload = JSON.stringify({
+                    event_type: eventType,
+                    source: source || '',
+                    page_path: window.location.pathname
+                });
+                if (navigator.sendBeacon) {
+                    var blob = new Blob([payload], {type: 'application/json'});
+                    navigator.sendBeacon('/api/donate-event', blob);
+                } else {
+                    fetch('/api/donate-event', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: payload,
+                        keepalive: true
+                    });
+                }
+            } catch (e) {}
+        }
+
         var bannerBtn = document.getElementById('banner-expand-btn');
         var bannerDetail = document.getElementById('banner-detail');
         var bannerChevron = document.getElementById('banner-chevron');
@@ -94,6 +223,82 @@
         var menu = document.getElementById('pub-mobile-menu');
         if (menuBtn && menu) {
             menuBtn.addEventListener('click', function(){ menu.classList.toggle('hidden'); });
+        }
+
+        document.addEventListener('click', function (event) {
+            var link = event.target.closest('a[href*="/subscribe"]');
+            if (!link) return;
+            var source = link.getAttribute('data-subscribe-source') || '';
+            if (!source) {
+                var href = link.getAttribute('href') || '';
+                if (href.indexOf('source=') !== -1) {
+                    try {
+                        source = new URL(href, window.location.origin).searchParams.get('source') || '';
+                    } catch (e) {}
+                }
+            }
+            sendSubscribeEvent('cta_click', source || 'subscribe_link');
+        });
+
+        document.addEventListener('click', function (event) {
+            var link = event.target.closest('a[href*="/donate"]');
+            if (!link) return;
+            var source = link.getAttribute('data-donate-source') || '';
+            if (!source) {
+                var href = link.getAttribute('href') || '';
+                if (href.indexOf('source=') !== -1) {
+                    try {
+                        source = new URL(href, window.location.origin).searchParams.get('source') || '';
+                    } catch (e) {}
+                }
+            }
+            sendDonateEvent('cta_click', source || 'donate_link');
+        });
+
+        document.querySelectorAll('form[action="/subscribe"]').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                var sourceInput = form.querySelector('input[name="source"]');
+                var source = (form.getAttribute('data-subscribe-source') || (sourceInput && sourceInput.value) || 'subscribe_form');
+                sendSubscribeEvent('form_submit', source);
+            });
+        });
+
+        var prompt = document.getElementById('scroll-subscribe-prompt');
+        var promptClose = document.getElementById('scroll-subscribe-close');
+        var promptStorageKey = 'montanablotter:subscribe-prompt:closed';
+        var mobileSubscribeBar = document.querySelector('.subscribe-cta-track[data-subscribe-source="mobile_sticky"]');
+        if (mobileSubscribeBar && window.matchMedia && window.matchMedia('(max-width: 767px)').matches) {
+            document.body.style.paddingBottom = '74px';
+        }
+        if (prompt && window.matchMedia && window.matchMedia('(min-width: 768px)').matches) {
+            var closed = false;
+            try {
+                closed = sessionStorage.getItem(promptStorageKey) === '1';
+            } catch (e) {}
+
+            if (!closed) {
+                var shown = false;
+                var onScroll = function () {
+                    if (shown) return;
+                    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+                    if (maxScroll < 600) return;
+                    var ratio = window.scrollY / maxScroll;
+                    if (ratio >= 0.55) {
+                        prompt.classList.remove('hidden');
+                        shown = true;
+                    }
+                };
+                window.addEventListener('scroll', onScroll, {passive: true});
+                onScroll();
+            }
+            if (promptClose) {
+                promptClose.addEventListener('click', function () {
+                    prompt.classList.add('hidden');
+                    try {
+                        sessionStorage.setItem(promptStorageKey, '1');
+                    } catch (e) {}
+                });
+            }
         }
     })();
     </script>

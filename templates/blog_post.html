@@ -9,21 +9,22 @@
 
 {% block extra_head %}
 <style>
+    .prose h1, .prose h2, .prose h3, .prose h4 { color: #f4ecde; }
     .prose h1 { font-size: 1.75rem; font-weight: 800; margin: 1.5rem 0 0.75rem; }
     .prose h2 { font-size: 1.35rem; font-weight: 700; margin: 1.4rem 0 0.6rem; }
     .prose h3 { font-size: 1.1rem; font-weight: 700; margin: 1.2rem 0 0.5rem; }
     .prose p  { margin-bottom: 1rem; line-height: 1.75; }
     .prose ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
     .prose ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
-    .prose li { margin-bottom: 0.35rem; line-height: 1.65; }
-    .prose a  { color: #059669; text-decoration: underline; }
-    .prose a:hover { color: #047857; }
-    .prose blockquote { border-left: 4px solid #e2e8f0; padding-left: 1rem; color: #64748b; margin: 1rem 0; font-style: italic; }
-    .prose code { background: #f1f5f9; padding: 0.1em 0.4em; border-radius: 3px; font-size: 0.875em; font-family: monospace; }
+    .prose li { margin-bottom: 0.35rem; line-height: 1.65; color: #d9cfbf; }
+    .prose a  { color: #d8a24d; text-decoration: underline; }
+    .prose a:hover { color: #edbb6a; }
+    .prose blockquote { border-left: 4px solid #3b352f; padding-left: 1rem; color: #c7baa6; margin: 1rem 0; font-style: italic; }
+    .prose code { background: #1e1b18; color: #f5e9cf; padding: 0.1em 0.4em; border-radius: 3px; font-size: 0.875em; font-family: monospace; }
     .prose pre { background: #1e293b; color: #e2e8f0; padding: 1rem 1.25rem; border-radius: 8px; overflow-x: auto; margin-bottom: 1rem; }
     .prose pre code { background: none; padding: 0; font-size: 0.85em; }
-    .prose hr { border: none; border-top: 1px solid #e2e8f0; margin: 2rem 0; }
-    .prose strong { font-weight: 700; }
+    .prose hr { border: none; border-top: 1px solid #322b25; margin: 2rem 0; }
+    .prose strong { font-weight: 700; color: #fff7eb; }
 </style>
 {% endblock %}
 
@@ -39,34 +40,34 @@
     <article>
         <div class="flex items-center gap-2 mb-4">
             <span class="inline-block bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Blog</span>
-            <span class="text-slate-300">·</span>
-            <span class="text-xs text-slate-400 font-medium">
+            <span class="text-stone-700">·</span>
+            <span class="text-xs text-stone-400 font-medium">
                 <i class="fas fa-calendar-alt mr-1"></i>{{ post.created_at[:10] if post.created_at else '' }}
             </span>
             {% if post.author %}
-            <span class="text-slate-300">·</span>
-            <span class="text-xs text-slate-400 font-medium">{{ post.author }}</span>
+            <span class="text-stone-700">·</span>
+            <span class="text-xs text-stone-400 font-medium">{{ post.author }}</span>
             {% endif %}
         </div>
 
-        <h1 class="text-3xl font-black text-slate-900 leading-tight mb-4">{{ post.title }}</h1>
+        <h1 class="text-3xl font-black text-[#f4ecde] leading-tight mb-4">{{ post.title }}</h1>
 
         {% if post.excerpt %}
-        <p class="text-lg text-slate-500 leading-relaxed mb-8 border-l-4 border-emerald-400 pl-4">{{ post.excerpt }}</p>
+        <p class="text-lg text-stone-300 leading-relaxed mb-8 border-l-4 border-emerald-400 pl-4">{{ post.excerpt }}</p>
         {% endif %}
 
-        <hr class="border-slate-200 mb-8">
+        <hr class="border-stone-800 mb-8">
 
-        <div class="prose text-slate-700 text-[15px]">
+        <div class="prose text-[#d9cfbf] text-[15px]">
             {{ post.body | markdown | safe }}
         </div>
 
-        <hr class="border-slate-200 mt-10 mb-6">
+        <hr class="border-stone-800 mt-10 mb-6">
 
         {% set share_url = 'https://montanablotter.com/blog/' ~ post.slug %}
         {% set share_text = post.title ~ ' — Montana Blotter Blog' %}
         <div class="flex flex-wrap items-center gap-3">
-            <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Share:</span>
+            <span class="text-xs text-stone-400 font-bold uppercase tracking-wider">Share:</span>
             <a href="https://twitter.com/intent/tweet?text={{ share_text | urlencode }}&url={{ share_url | urlencode }}"
                target="_blank" rel="noopener"
                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black hover:bg-gray-700 text-white rounded-lg text-xs font-bold transition">
@@ -78,13 +79,13 @@
                 <i class="fab fa-facebook-f"></i> Facebook
             </a>
             <button onclick="navigator.clipboard.writeText('{{ share_url }}'); this.innerHTML='<i class=\'fas fa-check\'></i> Copied!'; setTimeout(()=>this.innerHTML='<i class=\'fas fa-link\'></i> Copy link',2000)"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition">
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition border border-amber-700/50 bg-amber-900/10 hover:bg-amber-900/20 text-amber-200">
                 <i class="fas fa-link"></i> Copy link
             </button>
         </div>
 
         <div class="mt-8">
-            <a href="/blog" class="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 font-semibold transition">
+            <a href="/blog" class="inline-flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-100 font-semibold transition">
                 <i class="fas fa-arrow-left text-xs"></i> Back to Blog
             </a>
         </div>

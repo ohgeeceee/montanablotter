@@ -26,29 +26,14 @@ echo "[3/7] Setting up Python environment..."
 python3 -m venv venv
 venv/bin/pip install -q -r requirements.txt
 
-# 4. Config check
-if [ ! -f "config.py" ]; then
+# 4. Environment config check
+if [ ! -f ".env" ]; then
     echo ""
-    echo "ERROR: config.py not found."
-    echo "Create it with your credentials before continuing:"
+    echo "ERROR: .env not found."
+    echo "Create it from .env.example before continuing:"
     echo ""
-    echo "  DB_PATH = '/root/montanablotter/blotter.db'"
-    echo "  SECRET_KEY = 'change-me-to-a-random-string'"
-    echo "  EMAIL_USER = 'records@montanablotter.com'"
-    echo "  EMAIL_PASSWORD = 'your-email-password-here'""
-    echo "  IMAP_SERVER = 'imap.ionos.com'"
-    echo "  IMAP_PORT = 993"
-    echo "  SMTP_SERVER = 'smtp.ionos.com'"
-    echo "  SMTP_PORT = 587"
-    echo "  UPLOAD_DIR = '/root/montanablotter/uploads'"
-    echo "  RECORDS_DIR = '/root/montanablotter/records'"
-    echo "  LOG_FILE = '/root/montanablotter/worker.log'"
-    echo "  PROCESSED_FOLDER = 'Processed'"
-    echo "  BLOTTER_SUBJECT_KEYWORD = 'Blotter'"
-    echo "  ANTHROPIC_API_KEY = 'sk-ant-...'"
-    echo "  MONTANA_COUNTIES = [...]"
-    echo "  LOG_LEVEL = 'INFO'"
-    echo "  LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'"
+    echo "  cp .env.example .env"
+    echo "  nano .env"
     echo ""
     echo "Then re-run: bash deploy.sh"
     exit 1
@@ -63,7 +48,8 @@ venv/bin/python init_db.py
 USER_COUNT=$(venv/bin/python -c "import sqlite3, config; conn = sqlite3.connect(config.DB_PATH); print(conn.execute('SELECT COUNT(*) FROM users').fetchone()[0])")
 if [ "$USER_COUNT" -eq "0" ]; then
     echo "[6/7] Seeding admin user..."
-    venv/bin/python seed_admin.py
+    echo "Set MB_ADMIN_BOOTSTRAP_PASSWORD, or run seed_admin.py interactively."
+    venv/bin/python seed_admin.py admin
 else
     echo "[6/7] Admin user already exists, skipping seed."
 fi

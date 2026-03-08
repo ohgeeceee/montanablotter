@@ -1,0 +1,96 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Bail Ads Onboarding" %}
+{% set meta_description = "Submit creative assets for your Montana Blotter bail bonds advertising campaign." %}
+{% set canonical_url = "https://montanablotter.com/advertise/bail-bonds/onboarding" %}
+{% set og_title = "Bail Ads Onboarding" %}
+{% set og_description = meta_description %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/bail-bonds" class="hover:text-slate-700">Advertise</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Onboarding</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <h1 class="text-2xl font-black text-slate-900">Creative Onboarding</h1>
+        <p class="text-sm text-slate-600 mt-2">Order for <span class="font-semibold">{{ order.business_name }}</span> · Package <span class="font-semibold">{{ order.package_name }}</span> · {{ order.billing_cycle }}</p>
+        <p class="text-xs text-slate-500 mt-1">Status: {{ order.status }}</p>
+    </div>
+
+    {% if submitted %}
+    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+        Creative submission received. Our team will review and approve placement.
+    </div>
+    {% endif %}
+
+    {% if form_errors %}
+    <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <ul class="list-disc list-inside space-y-1">
+            {% for error in form_errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <section class="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+            <form method="post" enctype="multipart/form-data" class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Headline *</label>
+                    <input type="text" name="headline" required value="{{ form_data.headline or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Body Copy *</label>
+                    <textarea name="body_copy" rows="5" required class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">{{ form_data.body_copy or '' }}</textarea>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">CTA Text</label>
+                        <input type="text" name="cta_text" value="{{ form_data.cta_text or '' }}" placeholder="Call Now" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Target URL *</label>
+                        <input type="url" name="target_url" required value="{{ form_data.target_url or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Logo / Creative Image</label>
+                    <input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.webp,.gif" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm bg-white">
+                </div>
+                <button type="submit"
+                        class="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black py-3 text-sm uppercase tracking-[0.12em]">
+                    Submit Creative for Review
+                </button>
+            </form>
+        </section>
+
+        <aside class="lg:col-span-2 space-y-4">
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h2 class="text-lg font-black text-slate-900">Review Standards</h2>
+                <ul class="mt-3 space-y-2 text-sm text-slate-600 list-disc list-inside">
+                    <li>No misleading legal or outcome claims.</li>
+                    <li>No deceptive urgency or fake discounts.</li>
+                    <li>Content must align with county-level public safety context.</li>
+                </ul>
+            </div>
+            {% if creative %}
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h2 class="text-lg font-black text-slate-900">Current Submission</h2>
+                <p class="text-sm text-slate-600 mt-2">Status: <span class="font-semibold">{{ creative.status }}</span></p>
+                {% if creative.review_notes %}
+                <p class="text-sm text-slate-600 mt-2">Review notes: {{ creative.review_notes }}</p>
+                {% endif %}
+                {% if creative.logo_path %}
+                <img src="{{ creative.logo_path }}" alt="Current ad creative" class="mt-3 rounded-lg border border-slate-200 max-h-48 object-contain bg-slate-50">
+                {% endif %}
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -77,6 +78,7 @@
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                 <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Manual PDF Ingestion</h3>
                 <form action="/admin/upload" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="relative group border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-blue-400 transition cursor-pointer">
                         <input type="file" name="file" accept=".pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required>
                         <i class="fas fa-file-pdf text-slate-300 text-3xl mb-2 group-hover:text-red-500 transition"></i>
@@ -91,6 +93,7 @@
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-red-50">
                 <h3 class="text-xs font-bold text-red-600 uppercase tracking-widest mb-4">System Status</h3>
                 <form action="/admin" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="toggle_maintenance">
                     <select name="status" onchange="this.form.submit()" class="w-full text-xs font-bold border-none bg-slate-50 rounded-xl p-3 focus:ring-2 focus:ring-red-500 outline-none cursor-pointer">
                         <option value="0">🟢 SITE: LIVE</option>
@@ -132,6 +135,7 @@
                             </td>
                             <td class="px-6 py-4">
                                 <form action="/admin" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="update_user">
                                     <input type="hidden" name="user_id" value="{{ user.id }}">
                                     <select name="membership" onchange="this.form.submit()" class="text-[10px] font-black border-none bg-slate-100 rounded-lg p-2 focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer">
@@ -143,6 +147,7 @@
                             <td class="px-6 py-4 text-right">
                                 {% if user.username != 'admin' %}
                                 <form action="/admin" method="POST" onsubmit="return confirm('WARNING: Permanently delete this user?');" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="delete_user">
                                     <input type="hidden" name="user_id" value="{{ user.id }}">
                                     <button class="text-slate-300 hover:text-red-500 transition text-sm px-2">
@@ -204,6 +209,7 @@
         <div class="bg-white p-6 rounded-3xl border border-red-100 shadow-sm max-w-sm">
             <h3 class="text-xs font-black text-red-600 uppercase tracking-widest mb-4">Security: Update Admin Pass</h3>
             <form action="/admin" method="POST" class="space-y-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="change_password">
                 <input type="password" name="new_password" placeholder="New Strong Password" required 
                        class="w-full p-3 bg-slate-50 border-none rounded-2xl text-xs focus:ring-2 focus:ring-red-500 outline-none">
@@ -213,6 +219,22 @@
             </form>
         </div>
     </div>
+    <script>
+    (function () {
+        var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        if (!tokenMeta) return;
+        var token = tokenMeta.getAttribute('content');
+        if (!token) return;
+        document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function (form) {
+            if (form.querySelector('input[name="csrf_token"]')) return;
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = token;
+            form.appendChild(input);
+        });
+    })();
+    </script>
 
 </body>
 </html>

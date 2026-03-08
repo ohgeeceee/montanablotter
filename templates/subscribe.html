@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-lg mx-auto px-6 py-16">
+<div class="max-w-lg mx-auto px-6 py-14">
 
     {% if unsubscribed %}
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
@@ -40,20 +40,27 @@
             Daily briefings will be sent to <strong>{{ email }}</strong> each morning at 7am MT.
         </p>
         <p class="text-slate-400 text-xs mb-6">Unsubscribe any time via the link in each email.</p>
-        <a href="/" class="inline-block bg-slate-900 hover:bg-blue-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition">
-            Back to Reports
-        </a>
+        <div class="flex items-center justify-center gap-2 flex-wrap">
+            <a href="/" class="inline-block bg-slate-900 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition">
+                View Latest Reports
+            </a>
+            <a href="/trends" class="inline-block bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition">
+                Open Trends
+            </a>
+            <a href="/donate?source=subscribe_success" class="inline-block bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition">
+                Support With Donation
+            </a>
+        </div>
     </div>
 
     {% else %}
-    <div class="text-center mb-8">
+    <div class="text-center mb-7">
         <div class="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <i class="fas fa-envelope text-blue-600 text-xl"></i>
         </div>
-        <h1 class="text-3xl font-black text-slate-900 mb-2">Daily Digest</h1>
+        <h1 class="text-3xl font-black text-slate-900 mb-2">Get Daily Montana Blotter Alerts</h1>
         <p class="text-slate-500 text-sm">
-            Get AI-summarized Montana police blotters delivered to your inbox every morning.
-            Free, no account required.
+            One quick signup. No account required.
         </p>
     </div>
 
@@ -64,7 +71,8 @@
     {% endif %}
 
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-        <form method="POST" action="/subscribe" class="space-y-6">
+        <form method="POST" action="/subscribe" class="space-y-5 subscribe-form-track" data-subscribe-source="{{ source or 'subscribe_page' }}">
+            <input type="hidden" name="source" value="{{ source or 'subscribe_page' }}">
 
             <div>
                 <label class="block text-sm font-bold text-slate-700 mb-2">
@@ -75,37 +83,27 @@
                        class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
             </div>
 
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">
-                    Counties to Follow
-                </label>
-                <p class="text-xs text-slate-400 mb-3">
-                    Leave all unchecked to receive reports from every county.
-                </p>
-
-                {% if counties %}
-                <div class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                    {% for county in counties %}
-                    <label class="flex items-center gap-2 cursor-pointer group">
-                        <input type="checkbox" name="counties" value="{{ county }}"
-                               class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                        <span class="text-sm text-slate-600 group-hover:text-slate-900">{{ county }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-sm text-slate-400 italic">No county data available yet.</p>
-                {% endif %}
-            </div>
-
             <button type="submit"
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl text-sm uppercase tracking-wide transition">
+                    class="subscribe-cta-track w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl text-sm uppercase tracking-wide transition"
+                    data-subscribe-source="{{ source or 'subscribe_page' }}">
                 <i class="fas fa-envelope mr-2"></i>Subscribe — It's Free
             </button>
-
-            <p class="text-center text-xs text-slate-400">
-                No spam, ever. Unsubscribe with one click.
+            <p class="text-xs text-slate-500">
+                By subscribing, you agree to our
+                <a class="underline hover:text-slate-700" href="/terms-of-use">Terms of Use</a>
+                and
+                <a class="underline hover:text-slate-700" href="/privacy">Privacy Policy</a>.
             </p>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+                <p class="font-black uppercase tracking-[0.14em] text-slate-500 mb-2">What You Get</p>
+                <p>Daily digest, top county highlights, and weekly Montana trend summaries.</p>
+                <p class="mt-2 text-slate-400">Free. No spam. Unsubscribe anytime.</p>
+                <p class="mt-2">
+                    Prefer one-time support?
+                    <a class="underline hover:text-slate-700" href="/donate?source=subscribe_page">Donate</a>.
+                </p>
+            </div>
         </form>
     </div>
     {% endif %}

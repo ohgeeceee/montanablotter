@@ -1,15 +1,55 @@
 import hashlib
 import json
 import sqlite3
+import time
 from typing import List, Optional
 
 import config
 
+DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
+DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
+DB_WRITE_RETRIES = int(getattr(config, "DB_WRITE_RETRIES", 3))
+DB_RETRY_DELAY_SECONDS = float(getattr(config, "DB_RETRY_DELAY_SECONDS", 0.35))
+
 
 def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, timeout=DB_TIMEOUT_SECONDS)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute(f"PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS}")
     return conn
+
+
+def _execute_write(
+    query: str,
+    params: tuple,
+    *,
+    suppress_locked: bool = False,
+) -> None:
+    last_error: Optional[Exception] = None
+
+    for attempt in range(DB_WRITE_RETRIES):
+        conn = _connect()
+        try:
+            conn.execute(query, params)
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError as exc:
+            conn.close()
+            last_error = exc
+            if "database is locked" in str(exc).lower() and attempt + 1 < DB_WRITE_RETRIES:
+                time.sleep(DB_RETRY_DELAY_SECONDS * (attempt + 1))
+                continue
+            if suppress_locked and "database is locked" in str(exc).lower():
+                return
+            raise
+
+    if suppress_locked and isinstance(last_error, sqlite3.OperationalError):
+        if "database is locked" in str(last_error).lower():
+            return
+    if last_error is not None:
+        raise last_error
 
 
 def sha256_bytes(content: bytes) -> str:
@@ -128,10 +168,8 @@ def get_ingestion_job_status(source_document_id: int) -> Optional[str]:
 
 
 def set_ingestion_job_status(job_id: int, status: str, last_error: Optional[str] = None, finished: bool = False) -> None:
-    conn = _connect()
-    cursor = conn.cursor()
     if finished:
-        cursor.execute(
+        _execute_write(
             """
             UPDATE ingestion_jobs
             SET status = ?, last_error = ?, finished_at = datetime('now')
@@ -140,7 +178,7 @@ def set_ingestion_job_status(job_id: int, status: str, last_error: Optional[str]
             (status, last_error, job_id),
         )
     else:
-        cursor.execute(
+        _execute_write(
             """
             UPDATE ingestion_jobs
             SET status = ?, last_error = ?, finished_at = NULL
@@ -148,13 +186,10 @@ def set_ingestion_job_status(job_id: int, status: str, last_error: Optional[str]
             """,
             (status, last_error, job_id),
         )
-    conn.commit()
-    conn.close()
 
 
 def increment_ingestion_retry(job_id: int, last_error: str) -> None:
-    conn = _connect()
-    conn.execute(
+    _execute_write(
         """
         UPDATE ingestion_jobs
         SET retry_count = retry_count + 1,
@@ -164,18 +199,14 @@ def increment_ingestion_retry(job_id: int, last_error: str) -> None:
         """,
         (last_error, job_id),
     )
-    conn.commit()
-    conn.close()
 
 
 def log_pipeline_event(job_id: int, stage: str, status: str, details: Optional[dict] = None) -> None:
-    conn = _connect()
-    conn.execute(
+    _execute_write(
         """
         INSERT INTO pipeline_events (ingestion_job_id, stage, status, details_json)
         VALUES (?, ?, ?, ?)
         """,
         (job_id, stage, status, json.dumps(details or {})),
+        suppress_locked=True,
     )
-    conn.commit()
-    conn.close()

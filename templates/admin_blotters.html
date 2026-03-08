@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,6 +35,7 @@
                 <a href="/admin/ingestion" class="anav-link">Ingestion</a>
                 <a href="/admin/upload" class="anav-link">Upload</a>
                 <a href="/admin/blog" class="anav-link">Blog</a>
+                <a href="/admin/facebook" class="anav-link">Facebook</a>
                 <a href="/admin/emails" class="anav-link">Emails</a>
                 <a href="/admin/analytics" class="anav-link">Analytics</a>
                 <a href="/admin/visitors" class="anav-link">Visitors</a>
@@ -127,6 +129,27 @@
                         <td class="px-6 py-4 text-right">
                             <div class="flex items-center justify-end gap-1">
                                 {% if post_info %}
+                                {% set fb_status = post_info.fb_status %}
+                                {% if fb_status == 'posted' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold">
+                                    <i class="fab fa-facebook-f text-[10px]"></i> Posted
+                                </span>
+                                {% elif fb_status == 'queued' or fb_status == 'processing' %}
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-xs font-bold">
+                                    <i class="fab fa-facebook-f text-[10px]"></i> Queued
+                                </span>
+                                {% else %}
+                                <form action="/admin/facebook" method="POST" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="queue_post">
+                                    <input type="hidden" name="post_id" value="{{ post_info.id }}">
+                                    <input type="hidden" name="next" value="/admin/blotters">
+                                    <button type="submit"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold transition">
+                                        <i class="fab fa-facebook-f text-[10px]"></i> Queue FB
+                                    </button>
+                                </form>
+                                {% endif %}
                                 <a href="/admin/post/{{ post_info.id }}/redact"
                                    title="PII Redaction Editor"
                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition">
@@ -135,6 +158,7 @@
                                 {% endif %}
                                 <form action="/admin/blotter/{{ blotter.id }}/delete" method="POST"
                                       onsubmit="return confirm('Delete this blotter and all its records?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit"
                                             class="text-slate-400 hover:text-red-500 transition text-sm px-2 py-1.5 rounded hover:bg-red-50">
                                         <i class="fas fa-trash-alt"></i>
@@ -189,10 +213,14 @@ document.querySelectorAll('.status-cycle-btn').forEach(function (btn) {
         var postId  = btn.dataset.postId;
         var current = btn.dataset.current;
         var next    = STATUS_CYCLE[current] || 'pending';
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         fetch('/admin/post/' + postId + '/status', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+            },
             body: JSON.stringify({ status: next }),
         })
         .then(function (r) { return r.json(); })

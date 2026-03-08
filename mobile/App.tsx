@@ -11,11 +11,27 @@ import LawsScreen from './src/screens/LawsScreen';
 import LawsDetailScreen from './src/screens/LawsDetailScreen';
 import BlogScreen from './src/screens/BlogScreen';
 import BlogPostScreen from './src/screens/BlogPostScreen';
+import { LawCategory } from './src/types';
+
+type FeedStackParamList = {
+  FeedHome: undefined;
+  PostDetail: { postId: number };
+};
+
+type LawsStackParamList = {
+  LawsHome: undefined;
+  LawsDetail: { category: LawCategory };
+};
+
+type BlogStackParamList = {
+  BlogHome: undefined;
+  BlogPost: { slug: string };
+};
 
 const Tab = createBottomTabNavigator();
-const FeedStack = createNativeStackNavigator();
-const LawsStack = createNativeStackNavigator();
-const BlogStack = createNativeStackNavigator();
+const FeedStack = createNativeStackNavigator<FeedStackParamList>();
+const LawsStack = createNativeStackNavigator<LawsStackParamList>();
+const BlogStack = createNativeStackNavigator<BlogStackParamList>();
 
 function FeedStackNavigator() {
   return (

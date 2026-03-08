@@ -15,10 +15,10 @@
             --surface:      #161513;
             --surface-2:    #1D1B18;
             --border:       #282420;
-            --border-2:     #35302A;
+            --border-2:     #4A433C;
             --text:         #F0E8D8;
-            --text-muted:   #A89880;
-            --text-dim:     #6A5E52;
+            --text-muted:   #D3C5B2;
+            --text-dim:     #B1A28E;
             --amber:        #D4892A;
             --amber-dim:    rgba(212, 137, 42, 0.12);
             --amber-border: rgba(212, 137, 42, 0.3);
@@ -110,7 +110,7 @@
             appearance: none;
         }
         .field:focus { border-color: var(--amber); }
-        select.field { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23504840'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
+        select.field { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239B8D79'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
 
         /* Calendar */
         .cal-day { display: flex; align-items: center; justify-content: center; height: 26px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--text-dim); cursor: default; }
@@ -158,6 +158,50 @@
             background: linear-gradient(270deg, #0A0908, transparent);
             pointer-events: none;
         }
+
+        /* Homepage feed/sidebar layout and filter toggle should not depend on Tailwind runtime */
+        .home-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            align-items: flex-start;
+        }
+        .home-sidebar {
+            width: 100%;
+            flex-shrink: 0;
+        }
+        .home-feed {
+            width: 100%;
+            flex: 1;
+            min-width: 0;
+        }
+        #sidebar-toggle {
+            display: flex;
+            width: 100%;
+        }
+        #sidebar-content {
+            display: none;
+            width: 100%;
+        }
+        #sidebar-content.is-open {
+            display: block;
+        }
+        @media (min-width: 768px) {
+            .home-layout {
+                flex-direction: row;
+            }
+            .home-sidebar {
+                width: 14rem;
+                position: sticky;
+                top: 5rem;
+            }
+            #sidebar-toggle {
+                display: none;
+            }
+            #sidebar-content {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body style="padding-bottom: 52px;">
@@ -166,37 +210,250 @@
 
     {% include "includes/homepage_masthead.html" %}
 
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Daily Email Alerts</p>
+                    <h1 class="serif" style="font-size: 1.35rem; line-height: 1.2; margin-top: 0.35rem;">Get Daily Montana Blotter Alerts</h1>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem;">One email each morning with top county updates and trend highlights.</p>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">Free</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">No Spam</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">Unsubscribe Anytime</span>
+                    </div>
+                </div>
+
+                <div class="w-full lg:w-auto">
+                    <form method="POST" action="/subscribe" class="subscribe-form-track w-full flex flex-col sm:flex-row gap-2" data-subscribe-source="homepage_top">
+                        <input type="hidden" name="source" value="homepage_top">
+                        <input type="email" name="email" required placeholder="you@example.com"
+                               class="field" style="background:#0D0C0B; min-width:260px; font-size:0.68rem; padding:0.65rem 0.75rem;">
+                        <button type="submit"
+                                class="subscribe-cta-track mono uppercase tracking-widest px-4 py-2 rounded transition hover:opacity-90"
+                                style="background: var(--amber); color: var(--bg); font-size: 0.62rem; font-weight: 700;"
+                                data-subscribe-source="homepage_top">
+                            Get Daily Alerts
+                        </button>
+                    </form>
+                    <p style="color: var(--text-dim); font-size: 0.58rem; margin-top: 0.55rem;">
+                        By subscribing, you agree to our
+                        <a href="/terms-of-use" style="color: var(--text-muted); text-decoration: underline;">Terms of Use</a>
+                        and
+                        <a href="/privacy" style="color: var(--text-muted); text-decoration: underline;">Privacy Policy</a>.
+                    </p>
+                    <p style="color: var(--text-dim); font-size: 0.58rem; margin-top: 0.35rem;">
+                        Prefer one-time support?
+                        <a href="/donate?source=homepage_top" style="color: var(--amber); text-decoration: underline;">Donate here</a>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% if top_counties %}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Top County Pages</p>
+                    <h2 class="serif" style="font-size: 1.45rem; line-height: 1.1; margin-top: 0.35rem;">Start with the counties driving the most recent coverage.</h2>
+                </div>
+                <a href="/counties" class="mono uppercase tracking-widest px-3 py-2 rounded transition hover:opacity-90"
+                   style="background: var(--amber); color: var(--bg); font-size: 0.62rem; font-weight: 700; text-decoration: none;">
+                    Browse all counties
+                </a>
+            </div>
+
+            <div class="grid md:grid-cols-5 gap-3 mt-4">
+                {% for county_page in top_counties %}
+                <article class="panel" style="padding: 0.9rem;">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">County page</p>
+                            <h3 style="font-size: 1.05rem; font-weight: 700; margin-top: 0.25rem;">
+                                <a href="/county/{{ county_page.slug }}" style="color: var(--text); text-decoration: none;">{{ county_page.name }}</a>
+                            </h3>
+                        </div>
+                        <span class="mono" style="color: var(--amber); font-size: 0.72rem; font-weight: 700;">{{ county_page.record_count }}</span>
+                    </div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem; margin-top: 0.55rem;">Seat: {{ county_page.seat }}</p>
+                    <p style="color: var(--text-muted); font-size: 0.86rem; line-height: 1.45; margin-top: 0.55rem;">
+                        {{ county_page.post_count }} report{{ 's' if county_page.post_count != 1 else '' }}
+                        {% if county_page.last_report %}
+                        · last report {{ county_page.last_report }}
+                        {% endif %}
+                    </p>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <a href="/county/{{ county_page.slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                           style="background: var(--amber-dim); border: 1px solid var(--amber-border); color: var(--amber); text-decoration: none; font-size: 0.55rem; font-weight: 700;">County page</a>
+                        <a href="/arrests?county={{ county_page.name | urlencode }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">Arrests</a>
+                        <a href="/warrants/{{ county_page.slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">Warrants</a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if featured_new_cities %}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">New City Pages</p>
+                    <h2 class="serif" style="font-size: 1.35rem; line-height: 1.15; margin-top: 0.35rem;">Fresh city-level landing pages built for narrower Montana searches.</h2>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-top: 0.6rem; max-width: 56rem;">
+                        These newer city pages create direct internal paths into local reports, county arrests, and detention resources for searchers who do not start at the county level.
+                    </p>
+                </div>
+                <a href="/cities#new-city-pages" class="mono uppercase tracking-widest px-3 py-2 rounded transition hover:opacity-90"
+                   style="background: var(--amber); color: var(--bg); font-size: 0.62rem; font-weight: 700; text-decoration: none;">
+                    Browse new city pages
+                </a>
+            </div>
+
+            <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-3 mt-4">
+                {% for city_page in featured_new_cities %}
+                <article class="panel" style="padding: 0.95rem;">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">{{ city_page.county }} County</p>
+                            <h3 style="font-size: 1.05rem; font-weight: 700; margin-top: 0.25rem;">
+                                <a href="/city/{{ city_page.slug }}" style="color: var(--text); text-decoration: none;">{{ city_page.name }}</a>
+                            </h3>
+                        </div>
+                        <span class="mono" style="color: var(--amber); font-size: 0.72rem; font-weight: 700;">{{ city_page.record_count }}</span>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.84rem; line-height: 1.5; margin-top: 0.6rem;">
+                        {{ city_page.post_count }} report{{ 's' if city_page.post_count != 1 else '' }}
+                        {% if city_page.last_report %}
+                        · last report {{ city_page.last_report }}
+                        {% endif %}
+                    </p>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <a href="/city/{{ city_page.slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                           style="background: var(--amber-dim); border: 1px solid var(--amber-border); color: var(--amber); text-decoration: none; font-size: 0.55rem; font-weight: 700;">Open city page</a>
+                        <a href="/posts?city={{ city_page.name | urlencode }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">City reports</a>
+                        <a href="/county/{{ city_page.county_slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">County page</a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if latest_weekly_digest %}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div class="dispatch-card" style="padding: 1.1rem 1.15rem;">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Latest Weekly Digest</p>
+                    <h2 class="serif" style="font-size: 1.35rem; line-height: 1.15; margin-top: 0.35rem;">
+                        <a href="/blog/{{ latest_weekly_digest.slug }}" style="color: var(--text); text-decoration: none;">{{ latest_weekly_digest.title }}</a>
+                    </h2>
+                    {% if latest_weekly_digest.excerpt %}
+                    <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.55; margin-top: 0.65rem; max-width: 60rem;">
+                        {{ latest_weekly_digest.excerpt }}
+                    </p>
+                    {% endif %}
+                </div>
+                <a href="/blog/{{ latest_weekly_digest.slug }}" class="mono uppercase tracking-widest px-3 py-2 rounded transition hover:opacity-90"
+                   style="background: var(--amber); color: var(--bg); font-size: 0.62rem; font-weight: 700; text-decoration: none;">
+                    Read weekly digest
+                </a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if weekly_snapshot %}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Trending This Week</p>
+                    <h2 class="serif" style="font-size: 1.3rem; line-height: 1.15; margin-top: 0.35rem;">
+                        {{ weekly_snapshot.total_records }} records from {{ weekly_snapshot.start_date }} to {{ weekly_snapshot.end_date }}
+                    </h2>
+                </div>
+                <a href="/trends" class="mono uppercase tracking-widest px-3 py-2 rounded transition hover:opacity-90"
+                   style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.62rem; font-weight: 700; text-decoration: none;">
+                    Open trends page
+                </a>
+            </div>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+                <div class="panel" style="padding: 0.95rem;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem; margin-bottom: 0.8rem;">Top Counties</p>
+                    <div class="space-y-2.5">
+                        {% for item in weekly_snapshot.top_counties %}
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                {% if item.slug %}
+                                <a href="/county/{{ item.slug }}" style="color: var(--text); text-decoration: none; font-weight: 700;">{{ item.name }}</a>
+                                {% else %}
+                                <span style="color: var(--text); font-weight: 700;">{{ item.name }}</span>
+                                {% endif %}
+                            </div>
+                            <span class="mono" style="color: var(--amber); font-size: 0.7rem; font-weight: 700;">{{ item.count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="panel" style="padding: 0.95rem;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem; margin-bottom: 0.8rem;">Top Incident Types</p>
+                    <div class="space-y-2.5">
+                        {% for item in weekly_snapshot.top_incidents %}
+                        <div class="flex items-center justify-between gap-3">
+                            <span style="color: var(--text); font-weight: 700;">{{ item.name }}</span>
+                            <span class="mono" style="color: var(--amber); font-size: 0.7rem; font-weight: 700;">{{ item.count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
     <!-- ░░ MAIN LAYOUT ░░ -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col md:flex-row gap-5 items-start">
+    <div class="home-layout max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col md:flex-row gap-5 items-start">
 
         <!-- ══ SIDEBAR ══ -->
-        <aside style="width:100%;" class="md:w-64 flex-shrink-0 space-y-3 md:sticky md:top-20">
+        <aside class="home-sidebar md:w-56 lg:w-52 flex-shrink-0 space-y-3 md:sticky md:top-20">
 
             <!-- Mobile toggle -->
             <button id="sidebar-toggle" class="md:hidden w-full flex items-center justify-between px-4 py-2 rounded"
+                    aria-expanded="false" aria-controls="sidebar-content"
                     style="background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);">
-                <span class="mono uppercase tracking-widest" style="font-size: 0.65rem; font-weight: 600;">Filters &amp; Calendar</span>
+                <span class="mono uppercase tracking-widest" style="font-size: 0.58rem; font-weight: 600;">Sidebar Filters</span>
                 <svg id="sidebar-toggle-icon" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="transition: transform 0.2s;">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
                 </svg>
             </button>
 
-            <div id="sidebar-content" class="hidden md:block space-y-3">
+            <div id="sidebar-content" class="space-y-3" aria-hidden="true">
 
                 <!-- Calendar -->
-                <div class="panel">
-                    <h3 class="mono uppercase tracking-widest mb-3" style="color:var(--amber); font-size:0.6rem; font-weight:600;">// Filters</h3>
-                    <form method="GET" action="/" id="filter-form" class="space-y-2.5">
+                <div class="panel" style="padding: 0.8rem 0.8rem 0.85rem;">
+                    <h3 class="mono uppercase tracking-widest mb-2.5" style="color:var(--amber); font-size:0.54rem; font-weight:700;">// Filters</h3>
+                    <form method="GET" action="/" id="filter-form" class="space-y-2">
                         {% if date_filter %}<input type="hidden" name="date" value="{{ date_filter }}">{% endif %}
                         {% if agency %}<input type="hidden" name="agency" value="{{ agency }}">{% endif %}
 
                         <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.55rem; font-weight:600;">Search</label>
-                            <input type="text" name="q" value="{{ q }}" placeholder="keyword…" class="field" autofocus>
+                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.5rem; font-weight:600;">Search</label>
+                            <input type="text" name="q" value="{{ q }}" placeholder="keyword…" class="field" style="font-size:0.62rem; padding:0.35rem 0.55rem;" autofocus>
                         </div>
                         <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.55rem; font-weight:600;">County</label>
-                            <select name="county" class="field">
+                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.5rem; font-weight:600;">County</label>
+                            <select name="county" class="field" style="font-size:0.62rem; padding:0.35rem 0.55rem;">
                                 <option value="">All Counties</option>
                                 {% for c in counties %}
                                 <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
@@ -204,8 +461,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.55rem; font-weight:600;">City</label>
-                            <select name="city" class="field">
+                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.5rem; font-weight:600;">City</label>
+                            <select name="city" class="field" style="font-size:0.62rem; padding:0.35rem 0.55rem;">
                                 <option value="">All Cities</option>
                                 {% for c in cities %}
                                 <option value="{{ c }}" {% if c == city %}selected{% endif %}>{{ c }}</option>
@@ -213,8 +470,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.55rem; font-weight:600;">Agency Type</label>
-                            <select name="agency_type" class="field">
+                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.5rem; font-weight:600;">Agency Type</label>
+                            <select name="agency_type" class="field" style="font-size:0.62rem; padding:0.35rem 0.55rem;">
                                 <option value="">All</option>
                                 <option value="sheriff" {% if agency_type == 'sheriff' %}selected{% endif %}>Sheriff</option>
                                 <option value="police"  {% if agency_type == 'police'  %}selected{% endif %}>Police</option>
@@ -222,8 +479,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.55rem; font-weight:600;">Status</label>
-                            <select name="status" class="field">
+                            <label class="mono block uppercase tracking-widest mb-1" style="color:var(--text-dim); font-size:0.5rem; font-weight:600;">Status</label>
+                            <select name="status" class="field" style="font-size:0.62rem; padding:0.35rem 0.55rem;">
                                 <option value="">All</option>
                                 <option value="active"   {% if status_filter == 'active'   %}selected{% endif %}>Active</option>
                                 <option value="pending"  {% if status_filter == 'pending'  %}selected{% endif %}>Pending</option>
@@ -231,20 +488,20 @@
                             </select>
                         </div>
                         <button type="submit" class="mono w-full py-1.5 rounded uppercase tracking-widest transition hover:opacity-90"
-                                style="background:var(--amber); color:var(--bg); font-size:0.6rem; font-weight:700;">Apply</button>
+                                style="background:var(--amber); color:var(--bg); font-size:0.54rem; font-weight:700;">Apply</button>
                         {% if county or city or agency_type or agency or q or date_filter %}
-                        <a href="/" class="mono block text-center uppercase tracking-widest transition hover:opacity-100 opacity-50"
-                           style="color:var(--text-muted); font-size:0.6rem;">✕ Clear all</a>
+                        <a href="/" class="mono block text-center uppercase tracking-widest transition hover:opacity-100"
+                           style="color:var(--text-muted); font-size:0.54rem;">✕ Clear all</a>
                         {% endif %}
                     </form>
                 </div>
 
-                <div class="panel">
+                <div class="panel" style="padding: 0.8rem;">
                     <div class="flex items-center justify-between mb-3">
                         <button id="cal-prev" class="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition" style="color: var(--text-dim);">
                             <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></svg>
                         </button>
-                        <span id="cal-title" class="mono uppercase tracking-widest" style="color: var(--text-muted); font-size: 0.6rem; font-weight: 600;"></span>
+                        <span id="cal-title" class="mono uppercase tracking-widest" style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600;"></span>
                         <button id="cal-next" class="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition" style="color: var(--text-dim);">
                             <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6"/></svg>
                         </button>
@@ -257,15 +514,15 @@
                     <div id="cal-grid" class="grid grid-cols-7 gap-y-0.5"></div>
                     {% if date_filter %}
                     <a href="/?county={{ county }}&city={{ city }}&agency_type={{ agency_type }}&q={{ q }}"
-                       class="mono block text-center mt-2.5 uppercase tracking-widest transition hover:opacity-100 opacity-50"
+                       class="mono block text-center mt-2.5 uppercase tracking-widest transition hover:opacity-100"
                        style="color: var(--text-muted); font-size: 0.6rem;">✕ Clear date</a>
                     {% endif %}
                 </div>
 
                 <!-- Leaderboard -->
                 {% if leaderboard %}
-                <div class="panel">
-                    <h3 class="mono uppercase tracking-widest mb-3" style="color: var(--amber); font-size: 0.6rem; font-weight: 600;">// Hot Sheet — 7 Days</h3>
+                <div class="panel" style="padding: 0.8rem;">
+                    <h3 class="mono uppercase tracking-widest mb-3" style="color: var(--amber); font-size: 0.54rem; font-weight: 600;">// Hot Sheet — 7 Days</h3>
                     <div class="space-y-3">
                         {% for item in leaderboard %}
                         <a href="/?county={{ item.county }}" class="block" style="text-decoration:none;">
@@ -293,8 +550,8 @@
 
                 <!-- Agency Directory -->
                 {% if agencies %}
-                <div class="panel">
-                    <h3 class="mono uppercase tracking-widest mb-2.5" style="color: var(--amber); font-size: 0.6rem; font-weight: 600;">// Agencies</h3>
+                <div class="panel" style="padding: 0.8rem;">
+                    <h3 class="mono uppercase tracking-widest mb-2.5" style="color: var(--amber); font-size: 0.54rem; font-weight: 600;">// Agencies</h3>
                     <div class="space-y-0.5">
                         {% for ag in agencies %}
                         <a href="/?agency={{ ag.agency_name | urlencode }}"
@@ -315,7 +572,7 @@
                         {% endfor %}
                     </div>
                     {% if agency %}
-                    <a href="/" class="mono block text-center mt-2.5 uppercase tracking-widest transition hover:opacity-100 opacity-50"
+                    <a href="/" class="mono block text-center mt-2.5 uppercase tracking-widest transition hover:opacity-100"
                        style="color: var(--text-muted); font-size: 0.6rem;">✕ All agencies</a>
                     {% endif %}
                 </div>
@@ -325,7 +582,7 @@
         </aside>
 
         <!-- ══ FEED ══ -->
-        <div style="flex:1; min-width:0;" class="space-y-3">
+        <div class="home-feed space-y-3">
 
             <!-- Active filter pills -->
             {% if date_filter or county or city or agency_type or agency or q or status_filter %}
@@ -362,10 +619,96 @@
                     <span class="w-1.5 h-1.5 rounded-full light-resolved inline-block"></span>Resolved
                 </span>
                 {% endif %}
+                <button id="confidence-legend-show" type="button"
+                        class="mono uppercase tracking-widest"
+                        style="background:none; border:none; color: var(--text-muted); font-size: 0.6rem; font-weight: 700; cursor:pointer; text-decoration: underline; text-underline-offset: 2px;">
+                    Show confidence key
+                </button>
+            </div>
+            {% else %}
+            <div class="flex flex-wrap items-center gap-1.5">
+                <button id="confidence-legend-show" type="button"
+                        class="mono uppercase tracking-widest"
+                        style="background:none; border:none; color: var(--text-muted); font-size: 0.6rem; font-weight: 700; cursor:pointer; text-decoration: underline; text-underline-offset: 2px;">
+                    Show confidence key
+                </button>
             </div>
             {% endif %}
 
             {% if posts %}
+            <div id="confidence-legend" class="dispatch-card" style="padding: 0.9rem 1rem;">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <span class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.58rem; font-weight: 700;">Confidence Key</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded bg-emerald-100 text-emerald-700"
+                              style="font-size: 0.55rem; font-weight: 700;">High confidence</span>
+                        <span class="mono" style="color: var(--text-muted); font-size: 0.78rem;">clean source data, strong provenance, low duplicate risk</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded bg-amber-100 text-amber-700"
+                              style="font-size: 0.55rem; font-weight: 700;">Medium confidence</span>
+                        <span class="mono" style="color: var(--text-muted); font-size: 0.78rem;">some gaps, but still structurally reliable</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded bg-rose-100 text-rose-700"
+                              style="font-size: 0.55rem; font-weight: 700;">Limited confidence</span>
+                        <span class="mono" style="color: var(--text-muted); font-size: 0.78rem;">thin parsing or uncertain source quality</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded"
+                              style="background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.55rem; font-weight: 700;">Source tag</span>
+                        <span class="mono" style="color: var(--text-muted); font-size: 0.78rem;">where the record came from</span>
+                    </div>
+                    <button id="confidence-legend-dismiss" type="button"
+                            class="mono uppercase tracking-widest flex-shrink-0"
+                            style="background:none; border:none; color: var(--text-dim); font-size: 0.65rem; font-weight: 700; cursor:pointer;"
+                            aria-label="Dismiss confidence legend">
+                        Hide
+                    </button>
+                </div>
+            </div>
+            {% if top_pattern_pages %}
+            <section class="dispatch-card" style="padding: 1rem 1rem 1.1rem;">
+                <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+                    <div>
+                        <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.58rem; font-weight: 700;">Pattern Pages</p>
+                        <h2 class="serif font-bold" style="font-size: 1.25rem; color: var(--text);">Highest-Volume Pattern Pages Right Now</h2>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; max-width: 42rem;">These links point straight into the county pattern pages pulling the most indexed record activity right now.</p>
+                    </div>
+                    <a href="/patterns"
+                       class="mono uppercase tracking-widest px-3 py-1.5 rounded transition hover:opacity-80"
+                       style="border: 1px solid var(--border-2); color: var(--text-muted); font-size: 0.6rem; font-weight: 700;">
+                        Browse All Patterns
+                    </a>
+                </div>
+                <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {% for pattern_page in top_pattern_pages %}
+                    <a href="{{ pattern_page.href }}"
+                       class="block pattern-click-track rounded"
+                       data-pattern-placement="homepage_pattern_promos"
+                       data-pattern-slug="{{ pattern_page.pattern_slug }}"
+                       data-county-slug="{{ pattern_page.county_slug }}"
+                       data-target-path="{{ pattern_page.href }}"
+                       style="background: var(--surface-2); border: 1px solid var(--border); padding: 0.95rem 1rem;">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="mono uppercase tracking-widest px-2 py-1 rounded"
+                                  style="background: var(--amber-dim); border: 1px solid var(--amber-border); color: var(--amber); font-size: 0.55rem; font-weight: 700;">
+                                {{ pattern_page.pattern_short_label }}
+                            </span>
+                            <span class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.55rem; font-weight: 700;">
+                                {{ pattern_page.record_count }} records
+                            </span>
+                        </div>
+                        <h3 class="serif font-bold" style="font-size: 1.05rem; color: var(--text); margin-top: 0.75rem;">
+                            {{ pattern_page.pattern_label }} in {{ pattern_page.county }} County
+                        </h3>
+                        <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.55; margin-top: 0.45rem;">
+                            Jump directly into the county archive behind this pattern cluster.
+                        </p>
+                        {% if pattern_page.last_seen %}
+                        <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.55rem; margin-top: 0.75rem;">
+                            Last seen {{ pattern_page.last_seen }}
+                        </p>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
             <div class="space-y-3">
             {% for post in posts %}
             <article class="dispatch-card" style="animation-delay: {{ loop.index0 * 0.04 }}s;">
@@ -400,6 +743,19 @@
                         <span class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.6rem;">◆ Police</span>
                         {% else %}
                         <span class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.6rem;">▪ Agency</span>
+                        {% endif %}
+
+                        {% if post.confidence_badge %}
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded {{ post.confidence_badge.bg_class }} {{ post.confidence_badge.text_class }}"
+                              style="font-size: 0.55rem; font-weight: 700;"
+                              title="{{ post.confidence_badge.label }} · {{ post.confidence_badge.score }}/100">
+                            {{ post.confidence_badge.label }}
+                        </span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded"
+                              style="background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.55rem; font-weight: 700;"
+                              title="{{ post.confidence_badge.source_label }}">
+                            {{ post.confidence_badge.source_label }}
+                        </span>
                         {% endif %}
                     </div>
 
@@ -542,15 +898,29 @@
                 <p style="color: var(--text-dim); font-size: 0.8rem; line-height: 1.6; max-width: 280px;">
                     Free, open-source aggregation of Montana law enforcement blotters. Public safety information for everyone.
                 </p>
+                {% if footer_featured_city_items %}
+                <div style="margin-top: 16px;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.55rem; font-weight: 700; margin-bottom: 10px;">New City Pages</p>
+                    <div class="flex flex-wrap gap-2">
+                        {% for item in footer_featured_city_items %}
+                        <a href="{{ item.href }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded transition hover:opacity-100"
+                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.52rem; text-decoration: none;">
+                            {{ item.label }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
             <div class="flex flex-col gap-3 items-start md:items-end">
                 <div class="flex flex-wrap gap-4">
-                    <a href="/arrests"      class="mono uppercase tracking-widest hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); font-size: 0.6rem;">Arrests</a>
-                    <a href="/blog"         class="mono uppercase tracking-widest hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); font-size: 0.6rem;">Blog</a>
-                    <a href="/jail-rosters" class="mono uppercase tracking-widest hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); font-size: 0.6rem;">Jail Rosters</a>
-                    <a href="/laws"         class="mono uppercase tracking-widest hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); font-size: 0.6rem;">Laws</a>
-                    <a href="/subscribe"    class="mono uppercase tracking-widest hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); font-size: 0.6rem;">Subscribe</a>
-                    <a href="/feed.xml"     class="mono uppercase tracking-widest hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); font-size: 0.6rem;">RSS</a>
+                    <a href="/arrests"      class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Arrests</a>
+                    <a href="/counties"     class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Counties</a>
+                    <a href="/jail-rosters" class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Jail Rosters</a>
+                    <a href="/advertise/bail-bonds" class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Advertise</a>
+                    <a href="/subscribe"    class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Subscribe</a>
+                    <a href="/terms-of-use" class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Terms</a>
+                    <a href="/privacy"      class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Privacy</a>
                 </div>
                 <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.55rem;">
                     © 2026 Montana Blotter · Free Public Records
@@ -646,6 +1016,48 @@
 
     <!-- ░░ UI SCRIPTS ░░ -->
     <script>
+    function sendSubscribeEvent(eventType, source) {
+        try {
+            var payload = JSON.stringify({
+                event_type: eventType,
+                source: source || '',
+                page_path: window.location.pathname
+            });
+            if (navigator.sendBeacon) {
+                var blob = new Blob([payload], {type: 'application/json'});
+                navigator.sendBeacon('/api/subscribe-event', blob);
+            } else {
+                fetch('/api/subscribe-event', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: payload,
+                    keepalive: true
+                });
+            }
+        } catch (e) {}
+    }
+
+    function sendDonateEvent(eventType, source) {
+        try {
+            var payload = JSON.stringify({
+                event_type: eventType,
+                source: source || '',
+                page_path: window.location.pathname
+            });
+            if (navigator.sendBeacon) {
+                var blob = new Blob([payload], {type: 'application/json'});
+                navigator.sendBeacon('/api/donate-event', blob);
+            } else {
+                fetch('/api/donate-event', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: payload,
+                    keepalive: true
+                });
+            }
+        } catch (e) {}
+    }
+
     // Official banner
     (function () {
         var btn    = document.getElementById('banner-expand-btn');
@@ -676,11 +1088,78 @@
         var toggle  = document.getElementById('sidebar-toggle');
         var content = document.getElementById('sidebar-content');
         var icon    = document.getElementById('sidebar-toggle-icon');
-        if (!toggle || !content) return;
-        toggle.addEventListener('click', function () {
-            var hidden = content.classList.toggle('hidden');
-            if (icon) icon.style.transform = hidden ? '' : 'rotate(180deg)';
+        if (!content) return;
+
+        var desktopQuery = window.matchMedia('(min-width: 768px)');
+
+        function syncSidebarState() {
+            var isDesktop = desktopQuery.matches;
+            if (isDesktop) {
+                content.classList.add('is-open');
+                content.setAttribute('aria-hidden', 'false');
+                if (toggle) toggle.setAttribute('aria-expanded', 'true');
+                if (icon) icon.style.transform = '';
+                return;
+            }
+
+            content.classList.remove('is-open');
+            content.setAttribute('aria-hidden', 'true');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+            if (icon) icon.style.transform = '';
+        }
+
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                if (desktopQuery.matches) return;
+                var isOpen = content.classList.toggle('is-open');
+                content.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                if (icon) icon.style.transform = isOpen ? 'rotate(180deg)' : '';
+            });
+        }
+
+        if (desktopQuery.addEventListener) {
+            desktopQuery.addEventListener('change', syncSidebarState);
+        } else if (desktopQuery.addListener) {
+            desktopQuery.addListener(syncSidebarState);
+        }
+
+        syncSidebarState();
+    })();
+
+    // Confidence legend preference
+    (function () {
+        var legend = document.getElementById('confidence-legend');
+        var dismiss = document.getElementById('confidence-legend-dismiss');
+        var show = document.getElementById('confidence-legend-show');
+        var storageKey = 'montanablotter:confidence-legend:hidden';
+        if (!legend || !dismiss) return;
+
+        try {
+            if (window.localStorage && localStorage.getItem(storageKey) === '1') {
+                legend.style.display = 'none';
+            }
+        } catch (e) {}
+
+        dismiss.addEventListener('click', function () {
+            legend.style.display = 'none';
+            try {
+                if (window.localStorage) {
+                    localStorage.setItem(storageKey, '1');
+                }
+            } catch (e) {}
         });
+
+        if (show) {
+            show.addEventListener('click', function () {
+                legend.style.display = '';
+                try {
+                    if (window.localStorage) {
+                        localStorage.removeItem(storageKey);
+                    }
+                } catch (e) {}
+            });
+        }
     })();
 
     // Share buttons
@@ -700,6 +1179,63 @@
             });
         });
     });
+
+    // Subscribe CTA tracking
+    document.addEventListener('click', function (event) {
+        var link = event.target.closest('a[href*="/subscribe"], .subscribe-cta-track');
+        if (!link) return;
+        var source = link.getAttribute('data-subscribe-source') || 'subscribe_link';
+        sendSubscribeEvent('cta_click', source);
+    });
+
+    document.querySelectorAll('form[action="/subscribe"]').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            var sourceInput = form.querySelector('input[name="source"]');
+            var source = form.getAttribute('data-subscribe-source') || (sourceInput && sourceInput.value) || 'subscribe_form';
+            sendSubscribeEvent('form_submit', source);
+        });
+    });
+
+    document.addEventListener('click', function (event) {
+        var link = event.target.closest('a[href*="/donate"]');
+        if (!link) return;
+        var source = link.getAttribute('data-donate-source') || '';
+        if (!source) {
+            var href = link.getAttribute('href') || '';
+            if (href.indexOf('source=') !== -1) {
+                try {
+                    source = new URL(href, window.location.origin).searchParams.get('source') || '';
+                } catch (e) {}
+            }
+        }
+        sendDonateEvent('cta_click', source || 'donate_link');
+    });
+
+    // Pattern promo click tracking
+    document.querySelectorAll('.pattern-click-track').forEach(function (link) {
+        link.addEventListener('click', function () {
+            var payload = {
+                placement: link.getAttribute('data-pattern-placement') || '',
+                pattern_slug: link.getAttribute('data-pattern-slug') || '',
+                county_slug: link.getAttribute('data-county-slug') || '',
+                target_path: link.getAttribute('data-target-path') || link.getAttribute('href') || '',
+                source_path: window.location.pathname
+            };
+            try {
+                if (navigator.sendBeacon) {
+                    var blob = new Blob([JSON.stringify(payload)], {type: 'application/json'});
+                    navigator.sendBeacon('/api/pattern-click', blob);
+                } else {
+                    fetch('/api/pattern-click', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload),
+                        keepalive: true
+                    });
+                }
+            } catch (e) {}
+        });
+    });
     </script>
 
 
@@ -711,7 +1247,7 @@
             <span class="beacon" style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#D4892A; box-shadow:0 0 5px rgba(212,137,42,0.5);"></span>
             <div>
                 <div style="font-family:'IBM Plex Mono',monospace; font-size:0.55rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.14em; font-weight:600; line-height:1;">Montana Scanner</div>
-                <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#504840; text-transform:uppercase; letter-spacing:0.1em; line-height:1.4;">Yellowstone Co.</div>
+                <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#B8AA96; text-transform:uppercase; letter-spacing:0.1em; line-height:1.4;">Yellowstone Co.</div>
             </div>
             <a href="https://www.broadcastify.com/listen/feed/39839" target="_blank" rel="noopener"
                style="display:inline-flex; align-items:center; gap:5px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A; border-radius:3px; padding:4px 10px; font-family:'IBM Plex Mono',monospace; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; text-decoration:none; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
@@ -729,34 +1265,59 @@
         <!-- Scrolling ticker -->
         <div id="ticker-wrap">
             <span id="ticker-track">
-                <span style="font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#504840; padding:0 24px;">Loading feed…</span>
+                <span style="font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#B8AA96; padding:0 24px;">Loading feed…</span>
             </span>
         </div>
 
         <!-- Dismiss -->
         <button onclick="document.getElementById('live-bar').style.display='none'; document.body.style.paddingBottom='0';"
-                style="padding:0 14px; color:#35302A; background:none; border:none; cursor:pointer; font-size:0.75rem; flex-shrink:0; font-family:'IBM Plex Mono',monospace; transition:color 0.15s;" onmouseover="this.style.color='#8A7F72'" onmouseout="this.style.color='#35302A'">✕</button>
+                style="padding:0 14px; color:#A39581; background:none; border:none; cursor:pointer; font-size:0.75rem; flex-shrink:0; font-family:'IBM Plex Mono',monospace; transition:color 0.15s;" onmouseover="this.style.color='#F0E8D8'" onmouseout="this.style.color='#A39581'">✕</button>
     </div>
 
     <!-- ░░ TICKER SCRIPT ░░ -->
     <script>
     (function () {
-        function buildTickerHTML(posts) {
-            const items = posts.map(function (p) {
-                var title  = p.title || 'Activity Report';
-                var county = p.county ? p.county + ' Co.' : '';
-                var date   = p.incident_date || '';
-                var meta   = [county, date].filter(Boolean).join(' · ');
-                var url    = '/?agency=' + encodeURIComponent(p.agency_name || '') + (p.incident_date ? '&date=' + p.incident_date : '');
-                return '<a href="' + url + '" style="font-family:\'IBM Plex Mono\',monospace; font-size:0.65rem; color:#8A7F72; text-decoration:none; padding:0 32px; white-space:nowrap; display:inline-flex; align-items:center; gap:8px;" onmouseover="this.style.color=\'#E8DFD0\'" onmouseout="this.style.color=\'#8A7F72\'">'
-                    + '<span style="color:#D4892A; font-size:0.6rem;">◆</span>'
-                    + '<span>' + title + '</span>'
-                    + (meta ? '<span style="color:#504840;">— ' + meta + '</span>' : '')
-                    + '</a>';
+        function createTickerItem(post) {
+            var title = post.title || 'Activity Report';
+            var county = post.county ? post.county + ' Co.' : '';
+            var date = post.incident_date || '';
+            var meta = [county, date].filter(Boolean).join(' · ');
+            var url = '/?agency=' + encodeURIComponent(post.agency_name || '') + (post.incident_date ? '&date=' + post.incident_date : '');
+
+            var link = document.createElement('a');
+            link.href = url;
+            link.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:0.65rem;color:#D7CAB6;text-decoration:none;padding:0 32px;white-space:nowrap;display:inline-flex;align-items:center;gap:8px;";
+            link.addEventListener('mouseover', function () { link.style.color = '#F0E8D8'; });
+            link.addEventListener('mouseout', function () { link.style.color = '#D7CAB6'; });
+
+            var marker = document.createElement('span');
+            marker.style.cssText = 'color:#D4892A;font-size:0.6rem;';
+            marker.textContent = '◆';
+            link.appendChild(marker);
+
+            var titleSpan = document.createElement('span');
+            titleSpan.textContent = title;
+            link.appendChild(titleSpan);
+
+            if (meta) {
+                var metaSpan = document.createElement('span');
+                metaSpan.style.color = '#B8AA96';
+                metaSpan.textContent = '— ' + meta;
+                link.appendChild(metaSpan);
+            }
+
+            return link;
+        }
+
+        function renderTicker(track, posts) {
+            var fragment = document.createDocumentFragment();
+            posts.forEach(function (post) {
+                fragment.appendChild(createTickerItem(post));
             });
-            // Duplicate for seamless infinite loop
-            var html = items.join('') + items.join('');
-            return html;
+            posts.forEach(function (post) {
+                fragment.appendChild(createTickerItem(post));
+            });
+            track.replaceChildren(fragment);
         }
 
         function loadTicker() {
@@ -765,7 +1326,7 @@
                 .then(function (data) {
                     if (!data.posts || !data.posts.length) return;
                     var track = document.getElementById('ticker-track');
-                    track.innerHTML = buildTickerHTML(data.posts);
+                    renderTicker(track, data.posts);
                     // Reset animation
                     track.style.animation = 'none';
                     track.offsetHeight; // reflow

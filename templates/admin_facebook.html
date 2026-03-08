@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+    .anav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
+    .anav-link:hover { color: #E8DFD0; }
+    .anav-link.active { color: #D4892A; }
+    .anav-logout { color: #C94A3A !important; }
+    .anav-logout:hover { color: #E07060 !important; }
+    </style>
+    <title>Facebook Publisher | Montana Blotter Admin</title>
+</head>
+<body class="bg-slate-50 font-sans">
+    <nav style="background:#0D0C0B; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4" style="height:54px;">
+            <div class="flex items-center gap-3">
+                <div style="width:32px; height:32px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <div>
+                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:0.9rem; color:#E8DFD0; line-height:1.1;">The Montana Blotter</div>
+                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.18em;">Admin Panel</div>
+                </div>
+            </div>
+            <div class="hidden md:flex items-center gap-0.5">
+                <a href="/admin" class="anav-link">Dashboard</a>
+                <a href="/admin/blotters" class="anav-link">Blotters</a>
+                <a href="/admin/ingestion" class="anav-link">Ingestion</a>
+                <a href="/admin/upload" class="anav-link">Upload</a>
+                <a href="/admin/blog" class="anav-link">Blog</a>
+                <a href="/admin/facebook" class="anav-link active">Facebook</a>
+                <a href="/admin/emails" class="anav-link">Emails</a>
+                <a href="/admin/analytics" class="anav-link">Analytics</a>
+                <a href="/admin/visitors" class="anav-link">Visitors</a>
+                <a href="/" class="anav-link" style="margin-left:8px;">↗ Public</a>
+                <a href="/admin/logout" class="anav-link anav-logout" style="margin-left:4px;">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto p-6 space-y-6">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+            <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-xl flex items-center gap-2">
+                <i class="fas fa-circle-info"></i> {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+                <h1 class="text-3xl font-black text-slate-900">Facebook Publisher</h1>
+                <p class="text-sm text-slate-500 mt-1">Queue blotter posts, publish manually, or let cron auto-publish.</p>
+            </div>
+            <a href="/admin/blotters" class="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition text-sm font-bold">
+                <i class="fas fa-arrow-left"></i> Back to Blotters
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <section class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <h2 class="text-lg font-black text-slate-900 mb-1">Facebook Settings</h2>
+                <p class="text-xs text-slate-500 mb-5">Use a Facebook Page access token with permissions to publish to your page.</p>
+                <form method="POST" action="/admin/facebook" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="save_settings">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                            <input type="checkbox" name="enabled" class="rounded border-slate-300" {% if settings.enabled %}checked{% endif %}>
+                            Facebook publishing enabled
+                        </label>
+                        <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                            <input type="checkbox" name="auto_enqueue_enabled" class="rounded border-slate-300" {% if settings.auto_enqueue_enabled %}checked{% endif %}>
+                            Auto-queue new posts
+                        </label>
+                        <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                            <input type="checkbox" name="auto_publish_enabled" class="rounded border-slate-300" {% if settings.auto_publish_enabled %}checked{% endif %}>
+                            Auto-publish queued posts
+                        </label>
+                        <label class="text-sm text-slate-700">
+                            <span class="block font-semibold mb-1">Max posts per run</span>
+                            <input type="number" min="1" max="25" name="max_per_run" value="{{ settings.max_per_run }}"
+                                   class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                        </label>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <label class="text-sm text-slate-700">
+                            <span class="block font-semibold mb-1">Facebook Page ID</span>
+                            <input type="text" name="page_id" value="{{ settings.page_id }}" placeholder="123456789012345"
+                                   class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono">
+                        </label>
+                        <label class="text-sm text-slate-700">
+                            <span class="block font-semibold mb-1">Base URL for links</span>
+                            <input type="text" name="base_url" value="{{ settings.base_url }}" placeholder="https://montanablotter.com"
+                                   class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono">
+                        </label>
+                    </div>
+                    <label class="text-sm text-slate-700 block">
+                        <span class="block font-semibold mb-1">Page access token</span>
+                        <input type="text" name="access_token" value="{{ settings.access_token }}"
+                               class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono"
+                               placeholder="EAAB...">
+                        <span class="text-xs text-slate-500 mt-1 block">Current token preview: {{ token_preview or 'not set' }}</span>
+                    </label>
+                    <label class="text-sm text-slate-700 block">
+                        <span class="block font-semibold mb-1">Message template</span>
+                        <textarea name="template" rows="6" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono">{{ settings.template }}</textarea>
+                        <span class="text-xs text-slate-500 mt-1 block">Available placeholders: <code>{title}</code>, <code>{summary_snippet}</code>, <code>{post_url}</code>, <code>{county}</code>, <code>{incident_date}</code>.</span>
+                    </label>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-700 transition">
+                        <i class="fas fa-save mr-1"></i> Save Settings
+                    </button>
+                </form>
+            </section>
+
+            <section class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+                <h2 class="text-lg font-black text-slate-900">Queue Actions</h2>
+
+                <form method="POST" action="/admin/facebook" class="space-y-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="queue_post">
+                    <label class="text-sm font-semibold text-slate-700">Queue post by ID</label>
+                    <div class="flex gap-2">
+                        <input type="number" name="post_id" min="1" required class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                        <button type="submit" class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition">Queue</button>
+                    </div>
+                </form>
+
+                <form method="POST" action="/admin/facebook" class="space-y-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="queue_recent">
+                    <label class="text-sm font-semibold text-slate-700">Queue latest posts</label>
+                    <div class="flex gap-2">
+                        <input type="number" name="limit" min="1" max="100" value="10" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                        <button type="submit" class="bg-amber-500 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-amber-600 transition">Queue Recent</button>
+                    </div>
+                </form>
+
+                <form method="POST" action="/admin/facebook" class="space-y-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="run_publisher">
+                    <label class="text-sm font-semibold text-slate-700">Publish now</label>
+                    <div class="flex gap-2">
+                        <input type="number" name="max_items" min="1" max="100" value="{{ settings.max_per_run }}" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                        <button type="submit" class="bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition">Run</button>
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <section class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-slate-100 bg-slate-50">
+                <h2 class="font-black text-slate-900">Recent Posts (Quick Queue)</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-xs uppercase text-slate-500 bg-slate-50 border-b border-slate-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Post</th>
+                            <th class="px-4 py-3 text-left">County</th>
+                            <th class="px-4 py-3 text-left">Date</th>
+                            <th class="px-4 py-3 text-center">Queue Status</th>
+                            <th class="px-4 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for post in recent_posts %}
+                        <tr>
+                            <td class="px-4 py-3">
+                                <a href="/post/{{ post.id }}" class="font-bold text-slate-800 hover:text-blue-700">{{ post.title }}</a>
+                            </td>
+                            <td class="px-4 py-3 text-slate-600">{{ post.county or '—' }}</td>
+                            <td class="px-4 py-3 text-slate-600">{{ post.incident_date or '—' }}</td>
+                            <td class="px-4 py-3 text-center">
+                                {% set qs = post.queue_status %}
+                                {% if qs == 'posted' %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-emerald-100 text-emerald-700 font-bold">Posted</span>
+                                {% elif qs == 'queued' %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-amber-100 text-amber-700 font-bold">Queued</span>
+                                {% elif qs == 'processing' %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-indigo-100 text-indigo-700 font-bold">Processing</span>
+                                {% elif qs == 'failed' %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-red-100 text-red-700 font-bold">Failed</span>
+                                {% else %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-slate-100 text-slate-500 font-bold">Not queued</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <form method="POST" action="/admin/facebook" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="queue_post">
+                                    <input type="hidden" name="post_id" value="{{ post.id }}">
+                                    <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition">
+                                        Queue
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-slate-100 bg-slate-50">
+                <h2 class="font-black text-slate-900">Facebook Queue</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-xs uppercase text-slate-500 bg-slate-50 border-b border-slate-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Queue</th>
+                            <th class="px-4 py-3 text-left">Post</th>
+                            <th class="px-4 py-3 text-center">Status</th>
+                            <th class="px-4 py-3 text-left">Attempts</th>
+                            <th class="px-4 py-3 text-left">Result</th>
+                            <th class="px-4 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for row in queue_rows %}
+                        <tr>
+                            <td class="px-4 py-3 text-slate-600 text-xs">
+                                <div class="font-mono">#{{ row.id }}</div>
+                                <div class="text-slate-400">{{ row.created_at }}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                {% if row.post_id %}
+                                <a href="/post/{{ row.post_id }}" class="font-bold text-slate-800 hover:text-blue-700">{{ row.title or ('Post #' ~ row.post_id) }}</a>
+                                <div class="text-xs text-slate-500">{{ row.county or '—' }} · {{ row.incident_date or '—' }}</div>
+                                {% else %}
+                                <span class="text-slate-400 italic">Post missing</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                {% if row.status == 'posted' %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-emerald-100 text-emerald-700 font-bold">Posted</span>
+                                {% elif row.status == 'queued' %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-amber-100 text-amber-700 font-bold">Queued</span>
+                                {% elif row.status == 'processing' %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-indigo-100 text-indigo-700 font-bold">Processing</span>
+                                {% elif row.status == 'failed' %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-red-100 text-red-700 font-bold">Failed</span>
+                                {% else %}
+                                <span class="px-2 py-1 text-[11px] rounded-full bg-slate-100 text-slate-600 font-bold">{{ row.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-slate-600 text-xs">{{ row.attempts }} / {{ row.max_attempts }}</td>
+                            <td class="px-4 py-3 text-xs text-slate-600">
+                                {% if row.facebook_post_id %}
+                                <div class="font-mono text-emerald-700">{{ row.facebook_post_id }}</div>
+                                {% elif row.last_error %}
+                                <div class="text-red-600">{{ row.last_error }}</div>
+                                {% else %}
+                                <span class="text-slate-400">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                {% if row.status == 'queued' %}
+                                <form method="POST" action="/admin/facebook" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="publish_queue_item">
+                                    <input type="hidden" name="queue_id" value="{{ row.id }}">
+                                    <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">
+                                        Post now
+                                    </button>
+                                </form>
+                                {% elif row.status == 'failed' or row.status == 'skipped' %}
+                                <form method="POST" action="/admin/facebook" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="retry_queue_item">
+                                    <input type="hidden" name="queue_id" value="{{ row.id }}">
+                                    <button type="submit" class="px-3 py-1.5 text-xs font-bold rounded-lg border border-red-200 text-red-700 hover:bg-red-50 transition">
+                                        Retry
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-slate-300 text-xs">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="px-4 py-8 text-center text-slate-400">Queue is empty.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+    <script>
+    (function () {
+        var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        if (!tokenMeta) return;
+        var token = tokenMeta.getAttribute('content');
+        if (!token) return;
+        document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function (form) {
+            if (form.querySelector('input[name="csrf_token"]')) return;
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = token;
+            form.appendChild(input);
+        });
+    })();
+    </script>
+</body>
+</html>

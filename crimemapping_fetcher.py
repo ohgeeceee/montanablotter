@@ -31,8 +31,45 @@ from typing import Optional
 
 import requests
 import config
+from dedupe import incident_key_set, incident_keys
 
 logger = logging.getLogger(__name__)
+
+
+def _load_existing_incident_keys(
+    conn: sqlite3.Connection,
+    county: str,
+    rows: list[dict],
+) -> set[str]:
+    raw_dates = sorted({(row.get("date") or "").strip() for row in rows if row.get("date")})
+    cfs_numbers = sorted({(row.get("cfs_number") or "").strip() for row in rows if row.get("cfs_number")})
+
+    clauses = []
+    params: list[str] = []
+    if raw_dates:
+        placeholders = ",".join("?" for _ in raw_dates)
+        clauses.append(f"(county = ? AND date IN ({placeholders}))")
+        params.extend([county, *raw_dates])
+    if cfs_numbers:
+        placeholders = ",".join("?" for _ in cfs_numbers)
+        clauses.append(f"(cfs_number IN ({placeholders}))")
+        params.extend(cfs_numbers)
+    if not clauses:
+        return set()
+
+    existing_rows = conn.execute(
+        f"""
+        SELECT cfs_number, date, time,
+               COALESCE(incident_type, incident, '') AS incident_type,
+               COALESCE(location, '') AS location,
+               COALESCE(details, '') AS details,
+               county
+        FROM records
+        WHERE {' OR '.join(clauses)}
+        """,
+        params,
+    ).fetchall()
+    return incident_key_set(existing_rows)
 
 # ---------------------------------------------------------------------------
 # All Montana agencies on CrimeMapping (as of 2026-02)
@@ -369,23 +406,21 @@ def ingest_crimemapping(
         logger.info("No CrimeMapping incidents returned — nothing to ingest.")
         return 0
 
-    # Deduplicate by CFS / record GUID against existing records
+    # Deduplicate by record GUID and a cross-source incident signature
     conn = sqlite3.connect(config.DB_PATH)
     conn.row_factory = sqlite3.Row
-    existing_cfs = {
-        r["cfs_number"]
-        for r in conn.execute(
-            "SELECT cfs_number FROM records WHERE county = ? AND cfs_number != ''",
-            (cfg["county"],),
-        ).fetchall()
-    }
+    existing_keys = _load_existing_incident_keys(conn, cfg["county"], [
+        normalise_incident(raw, cfg["county"], cfg["city"]) for raw in raw_incidents
+    ])
 
     rows = []
     for raw in raw_incidents:
         rec = normalise_incident(raw, cfg["county"], cfg["city"])
-        if rec["cfs_number"] and rec["cfs_number"] in existing_cfs:
-            continue    # already in DB
+        rec_keys = incident_keys(rec, county=cfg["county"])
+        if rec_keys and rec_keys & existing_keys:
+            continue
         rows.append(rec)
+        existing_keys.update(rec_keys)
 
     if not rows:
         logger.info("All CrimeMapping incidents already exist in DB — skipping.")

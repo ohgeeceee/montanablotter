@@ -112,8 +112,9 @@ pip3 install -r requirements.txt
 python3 setup.py
 
 # 4. Configure your credentials
-nano config.py
-# Update EMAIL_USER, EMAIL_PASSWORD, SECRET_KEY
+cp .env.example .env
+nano .env
+# Set MB_SECRET_KEY, MB_EMAIL_PASSWORD, MB_SMTP_PASSWORD, API keys
 
 # 5. Test the system
 python3 pdf_parser.py uploads/your_file.pdf
@@ -126,21 +127,14 @@ See `DEPLOYMENT_GUIDE.py` for detailed step-by-step instructions.
 
 ## 🔧 Configuration
 
-Edit `config.py` to customize:
+Edit environment variables (recommended via `.env`) to customize:
 
 ```python
-# Email Settings
-EMAIL_USER = "juan@fertherecerd.com"
-EMAIL_PASSWORD = "your_password"
-IMAP_SERVER = "imap.ionos.com"
-
-# Database
-DB_PATH = '/root/montanablotter/blotter.db'
-
-# Flask
-SECRET_KEY = 'change_this_to_random_string'
-HOST = '0.0.0.0'
-PORT = 80
+MB_EMAIL_USER=records@montanablotter.com
+MB_EMAIL_PASSWORD=your_password
+MB_SMTP_PASSWORD=your_smtp_password
+MB_SECRET_KEY=change_this_to_random_string
+MB_BASE_URL=https://montanablotter.com
 ```
 
 ## 📧 Email Processing
@@ -191,7 +185,9 @@ python3 email_worker.py
 
 ### Create Admin User
 ```bash
-python3 seed_admin.py myusername mypassword
+MB_ADMIN_BOOTSTRAP_PASSWORD='strong-random-password' python3 seed_admin.py myusername
+# or run interactively:
+python3 seed_admin.py myusername
 ```
 
 ### Query Database
@@ -245,7 +241,7 @@ tail -f worker.log
 ### Can't Login
 ```bash
 # Reset admin password
-python3 seed_admin.py admin NewPassword123
+MB_ADMIN_BOOTSTRAP_PASSWORD='new-strong-password' python3 seed_admin.py admin
 ```
 
 ## 📂 File Structure
@@ -253,7 +249,7 @@ python3 seed_admin.py admin NewPassword123
 ```
 /root/montanablotter/
 ├── app.py                  # Flask application
-├── config.py               # Configuration
+├── config.py               # Env-based configuration loader
 ├── init_db.py             # Database initialization
 ├── pdf_parser.py          # PDF parsing logic
 ├── processor.py           # Processing pipeline
@@ -271,12 +267,14 @@ python3 seed_admin.py admin NewPassword123
 
 ## 🔐 Security Recommendations
 
-1. **Change SECRET_KEY** in config.py
+1. **Set `MB_SECRET_KEY`** in `.env` (or environment)
 2. **Use environment variables** for credentials
-3. **Set file permissions**: `chmod 600 config.py`
-4. **Use HTTPS** (Let's Encrypt)
-5. **Regular backups** of database
-6. **Update dependencies** regularly
+3. **Set file permissions**: `chmod 600 .env`
+4. **Enable login throttling** with `MB_ADMIN_LOGIN_*` settings
+5. **Set security headers** (`MB_CONTENT_SECURITY_POLICY`, `MB_REFERRER_POLICY`)
+6. **Use HTTPS** (Let's Encrypt)
+7. **Regular backups** of database
+8. **Update dependencies** regularly
 
 ## 📊 Monitoring & Logs
 

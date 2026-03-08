@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Advertising CRM</p>
+                <h1 class="text-3xl font-black text-slate-900 mt-2">Bail Agency CMS</h1>
+                <p class="text-sm text-slate-600 mt-2">Track outreach by agency and manage pre-formatted templates/scripts in one place.</p>
+            </div>
+            <a href="/admin/bail-ads"
+               class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                Back to Bail Ads
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border
+            {% if category == 'error' %}
+                bg-rose-50 border-rose-200 text-rose-700
+            {% elif category == 'warning' %}
+                bg-amber-50 border-amber-200 text-amber-800
+            {% else %}
+                bg-emerald-50 border-emerald-200 text-emerald-700
+            {% endif %}
+        ">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
+        <article class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Total</p>
+            <p class="text-2xl font-black text-slate-900 mt-1">{{ total_count or 0 }}</p>
+        </article>
+        {% for key in outreach_statuses %}
+        <article class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">{{ key|replace('_', ' ')|title }}</p>
+            <p class="text-2xl font-black text-slate-900 mt-1">{{ status_counts.get(key) or 0 }}</p>
+        </article>
+        {% endfor %}
+    </div>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+        <h2 class="text-lg font-black text-slate-900">Add Agency</h2>
+        <form method="post" action="/admin/bail-ads/agencies/create" class="mt-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="agency_name" required placeholder="Agency name *" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <input type="text" name="contact_name" placeholder="Contact name" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <input type="email" name="email" placeholder="Email" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <input type="text" name="phone" placeholder="Phone" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <input type="text" name="counties" placeholder="Counties served" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">Save Agency</button>
+        </form>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
+        <h2 class="text-lg font-black text-slate-900">Search</h2>
+        <form method="get" action="/admin/bail-ads/agencies" class="mt-3 grid grid-cols-1 md:grid-cols-5 gap-3">
+            <input type="text" name="q" value="{{ q or '' }}" placeholder="Search agency, contact, email, phone, counties, notes" class="md:col-span-3 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <select name="status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All statuses</option>
+                {% for key in outreach_statuses %}
+                <option value="{{ key }}" {% if status_filter == key %}selected{% endif %}>{{ key|replace('_', ' ')|title }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">Apply</button>
+        </form>
+    </section>
+
+    <section class="space-y-4">
+        {% for agency in agencies %}
+        <details class="bg-white border border-slate-200 rounded-xl shadow-sm" {% if loop.index0 < 2 %}open{% endif %}>
+            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-lg font-black text-slate-900">{{ agency.agency_name }}</p>
+                    <p class="text-xs text-slate-500 mt-1">
+                        {{ agency.contact_name or 'No contact name' }} · {{ agency.email or 'No email' }} · {{ agency.phone or 'No phone' }}
+                    </p>
+                    <p class="text-xs text-slate-500 mt-1">{{ agency.counties or 'No counties set' }}</p>
+                </div>
+                <div class="text-right">
+                    <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-700 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em]">{{ agency.outreach_status }}</span>
+                    <p class="text-xs text-slate-500 mt-2">Follow-up: {{ agency.next_follow_up_at or '-' }}</p>
+                    <p class="text-xs text-slate-500">Last contact: {{ agency.last_contacted_at or '-' }}</p>
+                </div>
+            </summary>
+            <div class="border-t border-slate-200 px-5 py-4 space-y-4">
+                <form method="post" action="/admin/bail-ads/agencies/{{ agency.id }}/update" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Agency Name
+                            <input type="text" name="agency_name" value="{{ agency.agency_name }}" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Contact Name
+                            <input type="text" name="contact_name" value="{{ agency.contact_name or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Owner
+                            <input type="text" name="owner" value="{{ agency.owner or '' }}" placeholder="Assigned rep" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Email
+                            <input type="email" name="email" value="{{ agency.email or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Phone
+                            <input type="text" name="phone" value="{{ agency.phone or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Status
+                            <select name="outreach_status" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                                {% for key in outreach_statuses %}
+                                <option value="{{ key }}" {% if agency.outreach_status == key %}selected{% endif %}>{{ key|replace('_', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Source
+                            <input type="text" name="source" value="{{ agency.source or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600 md:col-span-2">
+                            Counties
+                            <input type="text" name="counties" value="{{ agency.counties or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Next Follow-Up
+                            <input type="text" name="next_follow_up_at" value="{{ agency.next_follow_up_at or '' }}" placeholder="YYYY-MM-DD" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Last Contacted
+                            <input type="text" name="last_contacted_at" value="{{ agency.last_contacted_at or '' }}" placeholder="YYYY-MM-DD HH:MM:SS" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Notes
+                            <textarea name="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">{{ agency.notes or '' }}</textarea>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="space-y-3">
+                            <label class="block text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                                Email Subject Template
+                                <input type="text" name="email_subject_template" value="{{ agency.subject_template }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                            </label>
+                            <label class="block text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                                Email Body Template
+                                <textarea name="email_body_template" rows="8" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">{{ agency.email_template }}</textarea>
+                            </label>
+                            <label class="block text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                                Call Script Template
+                                <textarea name="call_script_template" rows="6" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">{{ agency.script_template }}</textarea>
+                            </label>
+                        </div>
+                        <div class="space-y-3">
+                            <p class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">Rendered Preview</p>
+                            <p class="text-xs text-slate-500">Available tokens: <code>{{ "{{agency_name}}" }}</code>, <code>{{ "{{contact_name}}" }}</code>, <code>{{ "{{contact_name_or_team}}" }}</code>, <code>{{ "{{counties}}" }}</code>, <code>{{ "{{sender_name}}" }}</code>, <code>{{ "{{today_iso}}" }}</code></p>
+                            <label class="block text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                                Subject Preview
+                                <textarea id="subject-preview-{{ agency.id }}" rows="2" readonly class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{{ agency.subject_preview }}</textarea>
+                            </label>
+                            <button type="button" data-copy-target="subject-preview-{{ agency.id }}" class="copy-template inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Copy Subject</button>
+                            <label class="block text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                                Email Preview
+                                <textarea id="email-preview-{{ agency.id }}" rows="8" readonly class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{{ agency.email_preview }}</textarea>
+                            </label>
+                            <button type="button" data-copy-target="email-preview-{{ agency.id }}" class="copy-template inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Copy Email</button>
+                            <label class="block text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                                Call Script Preview
+                                <textarea id="script-preview-{{ agency.id }}" rows="6" readonly class="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">{{ agency.script_preview }}</textarea>
+                            </label>
+                            <button type="button" data-copy-target="script-preview-{{ agency.id }}" class="copy-template inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Copy Script</button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
+                            Test Recipient
+                            <input type="email" name="test_email" value="{{ default_test_email or '' }}" placeholder="test@yourdomain.com" class="mt-1 w-64 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        </label>
+                        <button type="submit" name="action" value="save" class="inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">Save Record</button>
+                        <button type="submit" name="action" value="contacted_now" class="inline-flex items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">Mark Contacted Now</button>
+                        <button type="submit" name="action" value="send_email"
+                                {% if not agency.email %}disabled{% endif %}
+                                onclick="return confirm('Send outreach email to {{ agency.email or 'this agency' }} now?');"
+                                class="inline-flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed text-blue-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                            Send Email Now
+                        </button>
+                        <button type="submit" name="action" value="send_test_email"
+                                onclick="return confirm('Send test email preview now?');"
+                                class="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                            Send Test Email
+                        </button>
+                        <span class="text-xs text-slate-500">Updated: {{ agency.updated_at or '-' }}</span>
+                    </div>
+                </form>
+            </div>
+        </details>
+        {% else %}
+        <div class="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500">
+            No agency records match this filter yet.
+        </div>
+        {% endfor %}
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-black text-slate-900">Recent Email Send Log</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                    <tr>
+                        <th class="text-left px-4 py-3">Time (UTC)</th>
+                        <th class="text-left px-4 py-3">Agency</th>
+                        <th class="text-left px-4 py-3">Recipient</th>
+                        <th class="text-left px-4 py-3">Type</th>
+                        <th class="text-left px-4 py-3">Status</th>
+                        <th class="text-left px-4 py-3">Sent By</th>
+                        <th class="text-left px-4 py-3">Subject</th>
+                        <th class="text-left px-4 py-3">Error</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in email_logs %}
+                    <tr>
+                        <td class="px-4 py-3 text-slate-600">{{ row.created_at }}</td>
+                        <td class="px-4 py-3 text-slate-900 font-semibold">{{ row.agency_name }}</td>
+                        <td class="px-4 py-3 text-slate-700">{{ row.recipient_email or '-' }}</td>
+                        <td class="px-4 py-3 text-slate-700 uppercase">{{ row.email_kind or '-' }}</td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em]
+                                {% if row.send_status == 'sent' %}
+                                bg-emerald-100 text-emerald-700
+                                {% elif row.send_status == 'failed' %}
+                                bg-rose-100 text-rose-700
+                                {% else %}
+                                bg-amber-100 text-amber-700
+                                {% endif %}
+                            ">{{ row.send_status }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-slate-700">{{ row.sent_by or '-' }}</td>
+                        <td class="px-4 py-3 text-slate-700 max-w-sm truncate">{{ row.subject or '-' }}</td>
+                        <td class="px-4 py-3 text-slate-500">{{ row.error_message or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-slate-500">No email logs yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script>
+(function () {
+    document.querySelectorAll('.copy-template').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var targetId = button.getAttribute('data-copy-target');
+            var target = targetId ? document.getElementById(targetId) : null;
+            if (!target) return;
+            var value = target.value || target.textContent || '';
+            if (!value) return;
+            navigator.clipboard.writeText(value).then(function () {
+                var original = button.textContent;
+                button.textContent = 'Copied';
+                setTimeout(function () { button.textContent = original; }, 900);
+            }).catch(function () {});
+        });
+    });
+})();
+</script>
+{% endblock %}

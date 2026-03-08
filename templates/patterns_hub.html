@@ -1,0 +1,110 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana Pattern Pages" %}
+{% set meta_description = "Browse Montana pattern pages for DUI activity, warrant-related arrests, and domestic disturbance records with county-level SEO landing pages." %}
+{% set canonical_url = "https://montanablotter.com/patterns" %}
+{% set og_title = "Montana Pattern Pages | Montana Blotter" %}
+{% set og_description = meta_description %}
+{% set active_nav = "patterns" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana pattern pages",
+  "description": "Directory of SEO landing pages for recurring Montana public safety patterns.",
+  "url": "https://montanablotter.com/patterns"
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Patterns</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-10 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+        <span class="inline-block bg-blue-500/20 text-blue-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-3">
+            SEO Pattern Pages
+        </span>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Montana Public Safety Pattern Pages</h1>
+        <p class="text-slate-300 text-sm max-w-3xl">
+            Dedicated landing pages for recurring search intent like DUI activity, warrant-related arrests, and domestic disturbance records across Montana counties.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div class="grid lg:grid-cols-[1.35fr,0.9fr] gap-6 items-start">
+        <section class="grid gap-5">
+            {% for pattern in pattern_cards %}
+            <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">{{ pattern.hero_label }}</p>
+                        <h2 class="mt-2 text-2xl font-black text-slate-900">
+                            <a href="/patterns/{{ pattern.slug }}" class="hover:text-blue-700 transition">{{ pattern.label }}</a>
+                        </h2>
+                        <p class="mt-3 text-sm text-slate-600 leading-6">{{ pattern.description }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-black text-slate-900">{{ pattern.total_records }}</p>
+                        <p class="text-[10px] uppercase tracking-[0.18em] font-black text-slate-400">Records</p>
+                    </div>
+                </div>
+
+                {% if pattern.top_counties %}
+                <div class="grid sm:grid-cols-2 gap-3 mt-5">
+                    {% for county in pattern.top_counties %}
+                    <a href="/patterns/{{ pattern.slug }}/{{ county.slug }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 hover:bg-slate-100 transition">
+                        <span class="text-sm font-bold text-slate-800">{{ county.name }} County</span>
+                        <span class="text-xs font-black uppercase tracking-widest text-slate-400">{{ county.count }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="mt-5 flex flex-wrap gap-3 text-sm font-bold">
+                    <a href="/patterns/{{ pattern.slug }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 transition">
+                        Open statewide page <i class="fas fa-arrow-right text-xs"></i>
+                    </a>
+                    {% if pattern.top_counties %}
+                    <a href="/patterns/{{ pattern.slug }}/{{ pattern.top_counties[0].slug }}" class="inline-flex items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 px-4 py-3 transition">
+                        Top county page <i class="fas fa-map text-xs text-blue-500"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </section>
+
+        <aside class="space-y-5">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <h2 class="text-sm font-black uppercase tracking-[0.18em] text-slate-500 mb-4">Why These Pages Matter</h2>
+                <ul class="space-y-3 text-sm text-slate-600">
+                    <li><strong class="text-slate-900">They match real search intent.</strong> Many readers search by incident pattern first, not just by county or city.</li>
+                    <li><strong class="text-slate-900">They reduce archive noise.</strong> Pattern pages let users skip broad feeds and focus on one type of public-safety activity.</li>
+                    <li><strong class="text-slate-900">They link back into local pages.</strong> Every pattern page creates more internal paths into county, city, arrest, and record detail pages.</li>
+                </ul>
+            </div>
+
+            {% if latest_weekly_digest %}
+            <div class="bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm p-5">
+                <p class="text-[11px] uppercase tracking-[0.18em] font-black text-emerald-700">Latest Weekly Digest</p>
+                <h2 class="mt-2 text-xl font-black text-slate-900 leading-tight">
+                    <a href="/blog/{{ latest_weekly_digest.slug }}" class="hover:text-emerald-700 transition">{{ latest_weekly_digest.title }}</a>
+                </h2>
+                {% if latest_weekly_digest.excerpt %}
+                <p class="mt-3 text-sm leading-relaxed text-slate-600">{{ latest_weekly_digest.excerpt }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}

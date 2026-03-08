@@ -38,6 +38,15 @@ import config
 # ---------------------------------------------------------------------------
 
 logger = logging.getLogger(__name__)
+DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
+DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
+
+
+def _connect_db(db_path: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path, timeout=DB_TIMEOUT_SECONDS)
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute(f"PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS}")
+    return conn
 
 # ---------------------------------------------------------------------------
 # ANSI color codes for CLI output
@@ -542,7 +551,7 @@ def audit_post(
 def audit_post_by_id(post_id: int, db_path: Optional[str] = None) -> AuditResult:
     """Audit a single post by its DB id and save results back to the DB."""
     db_path = db_path or config.DB_PATH
-    conn = sqlite3.connect(db_path)
+    conn = _connect_db(db_path)
     _ensure_audit_columns(conn)
 
     post = _fetch_post(conn, post_id)
@@ -580,7 +589,7 @@ def audit_blotter_posts(blotter_id: int, db_path: Optional[str] = None) -> list[
     Called automatically from the ingestion pipeline.
     """
     db_path = db_path or config.DB_PATH
-    conn = sqlite3.connect(db_path)
+    conn = _connect_db(db_path)
     _ensure_audit_columns(conn)
 
     posts = _fetch_posts_for_blotter(conn, blotter_id)
@@ -619,7 +628,7 @@ def audit_blotter_posts(blotter_id: int, db_path: Optional[str] = None) -> list[
 def audit_all_pending(db_path: Optional[str] = None) -> list[AuditResult]:
     """Audit every post currently in 'pending' audit_status."""
     db_path = db_path or config.DB_PATH
-    conn = sqlite3.connect(db_path)
+    conn = _connect_db(db_path)
     _ensure_audit_columns(conn)
     posts = _fetch_pending_posts(conn)
     conn.close()

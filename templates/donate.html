@@ -1,0 +1,258 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Donate" %}
+{% set meta_description = "Support Montana Blotter with a secure one-time or monthly donation." %}
+{% set canonical_url = "https://montanablotter.com/donate" %}
+{% set og_title = "Donate | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Donate</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-5xl mx-auto">
+        <div class="inline-flex items-center bg-blue-500/20 text-blue-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+            Support
+        </div>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Support Independent Montana Public Safety Coverage</h1>
+        <p class="text-slate-300 text-sm max-w-3xl">
+            Your donation helps keep Montana Blotter free, searchable, and available to the public every day.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <section class="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
+            <h2 class="text-2xl font-black text-slate-900">Make a Donation</h2>
+            <p class="text-sm text-slate-600 mt-2">Choose an amount and frequency. Checkout is handled on a secure payment page.</p>
+
+            {% if not donations_enabled %}
+            <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                Donations are temporarily disabled.
+            </div>
+            {% elif not stripe_ready %}
+            <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                Secure checkout is not configured yet. Please check back soon.
+            </div>
+            {% endif %}
+
+            <div class="mt-6">
+                <p class="text-xs uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Frequency</p>
+                <div class="inline-flex rounded-xl border border-slate-200 p-1 bg-slate-50" role="tablist" aria-label="Donation frequency">
+                    <button type="button" id="freq-once" class="rounded-lg px-4 py-2 text-sm font-black text-white bg-blue-600">One-time</button>
+                    <button type="button" id="freq-monthly" class="rounded-lg px-4 py-2 text-sm font-black text-slate-700">Monthly</button>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <p class="text-xs uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Amount</p>
+                <div id="amount-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+                <div class="mt-4">
+                    <label for="custom-amount" class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Custom Amount (USD)</label>
+                    <input id="custom-amount" type="number" min="{{ (donation_min_cents / 100)|int }}" max="{{ (donation_max_cents / 100)|int }}" step="1"
+                           class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="Enter amount in dollars">
+                    <p class="text-xs text-slate-500 mt-2">Minimum ${{ '%.2f'|format(donation_min_cents / 100) }}, maximum ${{ '%.2f'|format(donation_max_cents / 100) }}.</p>
+                </div>
+            </div>
+
+            <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label for="donor-name" class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Name (optional)</label>
+                    <input id="donor-name" type="text"
+                           class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="Jane Doe">
+                </div>
+                <div>
+                    <label for="donor-email" class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Email (optional)</label>
+                    <input id="donor-email" type="email"
+                           class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="you@example.com">
+                </div>
+            </div>
+
+            <div class="mt-7">
+                <button id="donate-submit" type="button"
+                        class="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black py-3 text-sm uppercase tracking-[0.12em] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                        {% if not donations_enabled or not stripe_ready %}disabled{% endif %}>
+                    Continue to Secure Checkout
+                </button>
+                <p id="donate-error" class="hidden mt-3 text-sm text-red-600"></p>
+            </div>
+
+            <p class="text-xs text-slate-500 mt-4">
+                By donating, you agree to our
+                <a class="underline hover:text-slate-700" href="/terms-of-use">Terms of Use</a>
+                and
+                <a class="underline hover:text-slate-700" href="/privacy">Privacy Policy</a>.
+            </p>
+        </section>
+
+        <aside class="lg:col-span-2 space-y-4">
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h3 class="text-lg font-black text-slate-900">What Your Support Funds</h3>
+                <ul class="mt-3 space-y-2 text-sm text-slate-600">
+                    <li>Daily data ingestion and archive maintenance</li>
+                    <li>Public search and county-level reporting pages</li>
+                    <li>Reliability, hosting, and operations costs</li>
+                </ul>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h3 class="text-lg font-black text-slate-900">Trust & Security</h3>
+                <ul class="mt-3 space-y-2 text-sm text-slate-600">
+                    <li>Checkout runs on Stripe-hosted secure pages.</li>
+                    <li>No card numbers are stored by Montana Blotter.</li>
+                    <li>Monthly support can be canceled through Stripe billing tools.</li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+(function () {
+    var suggested = {{ suggested_amounts_cents | tojson }};
+    var minCents = {{ donation_min_cents }};
+    var maxCents = {{ donation_max_cents }};
+    var donateSource = {{ donate_source | tojson }};
+    var selectedMode = 'one_time';
+    var selectedAmountCents = suggested.length ? suggested[0] : minCents;
+
+    var amountGrid = document.getElementById('amount-grid');
+    var customAmountInput = document.getElementById('custom-amount');
+    var onceBtn = document.getElementById('freq-once');
+    var monthlyBtn = document.getElementById('freq-monthly');
+    var submitBtn = document.getElementById('donate-submit');
+    var errorEl = document.getElementById('donate-error');
+    var donorNameInput = document.getElementById('donor-name');
+    var donorEmailInput = document.getElementById('donor-email');
+
+    function setMode(mode) {
+        selectedMode = mode;
+        var onceActive = mode === 'one_time';
+        onceBtn.className = onceActive
+            ? 'rounded-lg px-4 py-2 text-sm font-black text-white bg-blue-600'
+            : 'rounded-lg px-4 py-2 text-sm font-black text-slate-700';
+        monthlyBtn.className = !onceActive
+            ? 'rounded-lg px-4 py-2 text-sm font-black text-white bg-blue-600'
+            : 'rounded-lg px-4 py-2 text-sm font-black text-slate-700';
+    }
+
+    function setSelectedAmount(cents) {
+        selectedAmountCents = cents;
+        var buttons = amountGrid.querySelectorAll('button[data-amount]');
+        buttons.forEach(function (button) {
+            var active = Number(button.getAttribute('data-amount')) === cents;
+            button.className = active
+                ? 'rounded-xl border border-blue-600 bg-blue-600 text-white px-3 py-2 text-sm font-black'
+                : 'rounded-xl border border-slate-300 bg-white text-slate-700 px-3 py-2 text-sm font-black hover:border-slate-400';
+        });
+    }
+
+    function showError(message) {
+        if (!message) {
+            errorEl.textContent = '';
+            errorEl.classList.add('hidden');
+            return;
+        }
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+    }
+
+    function sendDonateEvent(eventType, amountCents) {
+        try {
+            var payload = JSON.stringify({
+                event_type: eventType,
+                source: donateSource || 'donate_page',
+                page_path: window.location.pathname,
+                amount_cents: amountCents || null
+            });
+            if (navigator.sendBeacon) {
+                var blob = new Blob([payload], {type: 'application/json'});
+                navigator.sendBeacon('/api/donate-event', blob);
+            } else {
+                fetch('/api/donate-event', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: payload,
+                    keepalive: true
+                });
+            }
+        } catch (e) {}
+    }
+
+    suggested.forEach(function (cents) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('data-amount', String(cents));
+        btn.textContent = '$' + (cents / 100).toFixed(0);
+        btn.addEventListener('click', function () {
+            customAmountInput.value = '';
+            setSelectedAmount(cents);
+            showError('');
+        });
+        amountGrid.appendChild(btn);
+    });
+    setSelectedAmount(selectedAmountCents);
+    sendDonateEvent('donate_view', selectedAmountCents);
+
+    onceBtn.addEventListener('click', function () { setMode('one_time'); });
+    monthlyBtn.addEventListener('click', function () { setMode('monthly'); });
+
+    customAmountInput.addEventListener('input', function () {
+        var dollars = Number(customAmountInput.value || 0);
+        var cents = Math.round(dollars * 100);
+        if (!cents) {
+            setSelectedAmount(suggested.length ? suggested[0] : minCents);
+            return;
+        }
+        setSelectedAmount(cents);
+    });
+
+    submitBtn.addEventListener('click', async function () {
+        showError('');
+        if (!selectedAmountCents || selectedAmountCents < minCents || selectedAmountCents > maxCents) {
+            showError('Please choose a valid donation amount.');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Preparing Secure Checkout...';
+
+        try {
+            var response = await fetch('/api/donate/create-checkout-session', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mode: selectedMode,
+                    amount_cents: selectedAmountCents,
+                    source: donateSource || 'donate_page',
+                    name: donorNameInput.value || '',
+                    email: donorEmailInput.value || ''
+                })
+            });
+            var data = await response.json().catch(function () { return {}; });
+            if (!response.ok || !data.checkout_url) {
+                showError(data.error || 'Unable to start checkout right now. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Continue to Secure Checkout';
+                return;
+            }
+
+            sendDonateEvent('checkout_start', selectedAmountCents);
+            window.location.href = data.checkout_url;
+        } catch (err) {
+            showError('Unable to start checkout right now. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Continue to Secure Checkout';
+        }
+    });
+})();
+</script>
+{% endblock %}

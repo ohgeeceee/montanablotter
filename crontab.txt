@@ -6,11 +6,20 @@
 # Fetch and process blotter emails every 15 minutes
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py >> /root/montanablotter/mail.log 2>&1
 
+# Facebook autopost worker every 15 minutes (only publishes when auto-publish is enabled in admin settings)
+5,20,35,50 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/facebook_worker.py >> /root/montanablotter/facebook_worker.log 2>&1
+
 # Morning briefing daily at 7am
 0 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/morning_briefing.py >> /root/montanablotter/briefing.log 2>&1
 
 # Daily Montana crime/police roundup blog at 7:15am
 15 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/daily_blog_worker.py >> /root/montanablotter/daily_blog.log 2>&1
+
+# Weekly county digest every Monday at 7:25am
+25 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/weekly_county_digest.py >> /root/montanablotter/weekly_county_digest.log 2>&1
+
+# Daily pattern conversion report at 7:35am
+35 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/pattern_conversion_report.py >> /root/montanablotter/cron.log 2>&1
 
 # Daily DB backup at 2am
 0 2 * * * /root/montanablotter/backup_db.sh >> /root/montanablotter/backup.log 2>&1
