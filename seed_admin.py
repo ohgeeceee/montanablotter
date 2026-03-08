@@ -4,6 +4,9 @@ Creates or updates the admin user with proper bcrypt hashing
 """
 
 import sqlite3
+import sys
+import getpass
+import os
 from flask_bcrypt import Bcrypt
 from flask import Flask
 import config
@@ -12,9 +15,34 @@ import config
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
-def seed_admin(username='admin', password='Blotter2026!'):
+def _resolve_password(cli_password):
+    if cli_password:
+        return cli_password
+
+    env_password = os.getenv('MB_ADMIN_BOOTSTRAP_PASSWORD', '').strip()
+    if env_password:
+        return env_password
+
+    if sys.stdin.isatty():
+        first = getpass.getpass('Enter admin password: ')
+        second = getpass.getpass('Confirm admin password: ')
+        if first != second:
+            raise ValueError('Password confirmation does not match')
+        if len(first) < 12:
+            raise ValueError('Password must be at least 12 characters')
+        return first
+
+    raise ValueError(
+        'Admin password required. Pass it as argv[2] or set MB_ADMIN_BOOTSTRAP_PASSWORD.'
+    )
+
+
+def seed_admin(username='admin', password=''):
     """Create or update admin user"""
-    
+    if not username:
+        raise ValueError('Username is required')
+    password = _resolve_password(password)
+
     # Generate hashed password
     hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
     
@@ -43,21 +71,20 @@ def seed_admin(username='admin', password='Blotter2026!'):
         
         conn.commit()
         conn.close()
-        
-        print(f"\nLogin credentials:")
-        print(f"  Username: {username}")
-        print(f"  Password: {password}")
-        print(f"  Membership: pro")
+        print(f"🔐 Admin user '{username}' is ready (membership: pro)")
         
     except Exception as e:
         print(f"❌ Error: {e}")
 
 
 if __name__ == "__main__":
-    import sys
-    
+    username = 'admin'
+    password = ''
+
     if len(sys.argv) >= 3:
-        seed_admin(sys.argv[1], sys.argv[2])
-    else:
-        seed_admin()
-        print("\nTo create custom admin: python seed_admin.py <username> <password>")
+        username = sys.argv[1]
+        password = sys.argv[2]
+    elif len(sys.argv) == 2:
+        username = sys.argv[1]
+
+    seed_admin(username, password)

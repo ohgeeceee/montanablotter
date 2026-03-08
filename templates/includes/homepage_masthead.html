@@ -2,22 +2,22 @@
 
     <div style="border-bottom: 1px solid var(--border);">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-1 flex items-center justify-between gap-4 flex-wrap">
-            <div class="mono flex items-center gap-4" style="color: var(--text-dim); font-size: 0.6rem;">
+            <div class="mono flex items-center gap-4" style="color: var(--text-muted); font-size: 0.6rem;">
                 <span class="uppercase tracking-widest">Free Public Records</span>
-                <span style="color: var(--border-2);">·</span>
+                <span style="color: var(--text-dim);">·</span>
                 <span>{{ total_records }} Records</span>
-                <span style="color: var(--border-2);">·</span>
+                <span style="color: var(--text-dim);">·</span>
                 <span>{{ counties|length }} Counties</span>
-                <span style="color: var(--border-2);">·</span>
+                <span style="color: var(--text-dim);">·</span>
                 <span>{{ agencies|length }} Agencies</span>
             </div>
-            <div class="mono flex items-center gap-2" style="color: var(--text-dim); font-size: 0.6rem;">
+            <div class="mono flex items-center gap-2" style="color: var(--text-muted); font-size: 0.6rem;">
                 <span class="beacon inline-block w-1.5 h-1.5 rounded-full light-active"></span>
                 <span class="uppercase tracking-widest">Live</span>
-                <span style="color: var(--border-2);">·</span>
-                <a href="/feed.xml" class="uppercase tracking-widest transition hover:opacity-100 opacity-70" style="color: var(--text-dim);">RSS</a>
-                <span style="color: var(--border-2);">·</span>
-                <a href="/admin/login" class="uppercase tracking-widest transition hover:opacity-100 opacity-70" style="color: var(--text-dim);">Admin</a>
+                <span style="color: var(--text-dim);">·</span>
+                <a href="/feed.xml" class="uppercase tracking-widest transition hover:opacity-100" style="color: var(--text-muted);">RSS</a>
+                <span style="color: var(--text-dim);">·</span>
+                <a href="/admin/login" class="uppercase tracking-widest transition hover:opacity-100" style="color: var(--text-muted);">Admin</a>
             </div>
         </div>
     </div>
@@ -39,12 +39,19 @@
             </div>
         </div>
 
-        <nav class="hidden md:flex items-center gap-1">
-            {% for item in public_nav_items %}
-            <a href="{{ item.href }}" class="mono uppercase tracking-widest px-3 py-1.5 rounded transition hover:bg-white/5" style="color: var(--text-muted); font-size: 0.65rem; font-weight: 600;">{{ item.label }}</a>
+        <nav class="hidden md:flex items-center gap-0.5">
+            {% for item in public_primary_nav_items %}
+            {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
+            <a href="{{ item.href }}" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
+               style="color: {{ 'var(--amber)' if is_active else 'var(--text-muted)' }}; font-size: 0.56rem; font-weight: 600;">{{ item.label }}</a>
+            {% if not loop.last %}
+            <span class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.46rem; padding: 0 0.1rem;">//</span>
+            {% endif %}
             {% endfor %}
-            <a href="/subscribe" class="mono uppercase tracking-widest px-4 py-1.5 rounded ml-2 transition hover:opacity-90"
-               style="background: var(--amber); color: var(--bg); font-size: 0.65rem; font-weight: 700;">Subscribe</a>
+            <a href="/subscribe" class="mono uppercase tracking-widest px-3 py-1.5 rounded ml-2 transition hover:opacity-90"
+               style="background: var(--amber); color: var(--bg); font-size: 0.58rem; font-weight: 700;">Subscribe</a>
+            <a href="/terms-of-use" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
+               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600;">Terms</a>
         </nav>
 
         <button id="mobile-menu-btn" class="md:hidden p-2 rounded transition hover:bg-white/5"
@@ -57,11 +64,34 @@
         </button>
     </div>
 
+    <div class="hidden md:block" style="border-top: 1px solid var(--border);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-end gap-4">
+            {% for item in public_secondary_nav_items %}
+            {% set is_active = active_nav == item.id %}
+            <a href="{{ item.href }}" class="mono uppercase tracking-widest transition hover:opacity-100"
+               style="color: {{ 'var(--amber)' if is_active else 'var(--text-dim)' }}; font-size: 0.5rem; font-weight: 600; text-decoration: none;">{{ item.label }}</a>
+            {% if not loop.last %}
+            <span class="mono uppercase tracking-widest" style="color: var(--border-2); font-size: 0.44rem;">&gt;&gt;</span>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
     <div id="mobile-menu" class="hidden md:hidden px-4 pb-3 space-y-0.5" style="border-top: 1px solid var(--border);">
-        {% for item in public_nav_items %}
-        <a href="{{ item.href }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.7rem;">{{ item.label }}</a>
+        <p class="mono uppercase tracking-widest px-3 pt-3 pb-1" style="color: var(--amber); font-size: 0.56rem; font-weight: 700;">Main</p>
+        {% for item in public_primary_nav_items %}
+        {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
+        <a href="{{ item.href }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition"
+           style="color: {{ 'var(--amber)' if is_active else 'var(--text-muted)' }}; font-size: 0.66rem;">{{ item.label }}</a>
         {% endfor %}
-        <a href="/subscribe" class="mono flex gap-2 px-3 py-2 rounded uppercase tracking-widest font-bold" style="color: var(--amber); font-size: 0.7rem;">Subscribe</a>
-        <a href="/admin/login" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-dim); font-size: 0.7rem;">Admin</a>
+        <a href="/subscribe" class="mono flex gap-2 px-3 py-2 rounded uppercase tracking-widest font-bold" style="color: var(--amber); font-size: 0.66rem;">Subscribe</a>
+        <a href="/terms-of-use" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Terms</a>
+        <p class="mono uppercase tracking-widest px-3 pt-3 pb-1" style="color: var(--text-dim); font-size: 0.56rem; font-weight: 700;">Explore</p>
+        {% for item in public_secondary_nav_items %}
+        {% set is_active = active_nav == item.id %}
+        <a href="{{ item.href }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition"
+           style="color: {{ 'var(--amber)' if is_active else 'var(--text-muted)' }}; font-size: 0.66rem;">{{ item.label }}</a>
+        {% endfor %}
+        <a href="/admin/login" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Admin</a>
     </div>
 </header>

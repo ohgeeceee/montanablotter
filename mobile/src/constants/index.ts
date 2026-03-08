@@ -1,4 +1,5 @@
-export const API_BASE_URL = 'https://montanablotter.com';
+const rawApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+export const API_BASE_URL = (rawApiBaseUrl && rawApiBaseUrl.trim()) || 'https://montanablotter.com';
 
 export const COLORS = {
   primary: '#0f172a',

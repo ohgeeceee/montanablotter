@@ -52,7 +52,7 @@
             <span class="text-red-400 italic">Warrant Search</span>
         </h1>
         <p class="text-slate-300 text-sm max-w-2xl">
-            How to find active arrest warrants and bench warrants in {{ county.name }} County, Montana — including {{ county.seat }} and surrounding communities.
+            How to find active arrest warrants and bench warrants in {{ county.name }} County, Montana{% if county.seat %} — including {{ county.seat }} and surrounding communities{% else %} using county-level court and sheriff resources{% endif %}.
         </p>
     </div>
 </section>

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>PII Redaction — Post #{{ post.id }} | Montana Blotter Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -431,6 +432,7 @@
             <div class="flex items-center gap-2">
                 <!-- Save draft -->
                 <form method="POST" id="form-save-draft" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="redacted_summary" id="input-draft">
                     <input type="hidden" name="mark_clean" value="0">
                     <button type="submit" id="btn-save-draft"
@@ -440,6 +442,7 @@
                 </form>
                 <!-- Save + mark clean -->
                 <form method="POST" id="form-save-clean" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="redacted_summary" id="input-clean">
                     <input type="hidden" name="mark_clean" value="1">
                     <button type="submit" id="btn-save-clean"

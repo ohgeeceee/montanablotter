@@ -95,10 +95,8 @@ def main():
     
     # Step 5: Create admin user
     print_step(5, "Creating admin user...")
-    if run_command("python3 seed_admin.py", "Admin user creation"):
-        print("\n  Default credentials:")
-        print("  Username: admin")
-        print("  Password: Blotter2026!")
+    print("Provide admin password via prompt, or set MB_ADMIN_BOOTSTRAP_PASSWORD.")
+    run_command("python3 seed_admin.py admin", "Admin user creation")
     
     # Step 6: Test PDF parser
     print_step(6, "Testing PDF parser...")
@@ -112,7 +110,7 @@ def main():
     print_step(7, "Setup complete!")
     
     print(f"\n{Colors.BOLD}NEXT STEPS:{Colors.END}")
-    print("1. Update config.py with your email credentials")
+    print("1. Create .env from .env.example and set credentials")
     print("2. Test the Flask app: python3 app.py")
     print("3. Set up gunicorn systemd service (see DEPLOYMENT_GUIDE.py)")
     print("4. Configure nginx")

@@ -47,6 +47,10 @@ class BlotterParser:
             self.incidents = self._parse_gcso_format(full_text)
         elif re.search(r'Helena Police|HPD Officers responded|helenamt\.gov', full_text, re.IGNORECASE):
             self.incidents = self._parse_helena_format(full_text)
+        elif re.search(r'Daily Incidents', full_text, re.IGNORECASE) and (
+            re.search(r'\bWF\b', full_text) or re.search(r'Whitefish', full_text, re.IGNORECASE)
+        ):
+            self.incidents = self._parse_whitefish_format(full_text)
         elif re.search(r'HAVRE POLICE|For Jurisdiction:\s*HAVRE', full_text, re.IGNORECASE):
             self.incidents = self._parse_havre_format(full_text)
         else:
@@ -68,6 +72,12 @@ class BlotterParser:
         # Helena Police Department is in Lewis and Clark County
         if re.search(r'Helena Police|helenamt\.gov|Helena Police Department', text, re.IGNORECASE):
             return "Lewis and Clark"
+
+        # Whitefish Police Department is in Flathead County
+        if re.search(r'Daily Incidents', text, re.IGNORECASE) and (
+            re.search(r'\bWF\b', text) or re.search(r'Whitefish', text, re.IGNORECASE)
+        ):
+            return "Flathead"
 
         # Havre Police Department is in Hill County
         if re.search(r'HAVRE POLICE|For Jurisdiction:\s*HAVRE', text, re.IGNORECASE):
@@ -418,6 +428,99 @@ class BlotterParser:
             })
 
         return incidents
+
+    def _parse_whitefish_format(self, text: str) -> List[Dict]:
+        """Parse Whitefish PD Daily Incidents PDF format."""
+        incidents = []
+        clean_text = text.replace('\r', '')
+        starts = [m.start() for m in re.finditer(r'(?m)^\d{4}-\s+\d{2}/\d{2}/\d{4}\b', clean_text)]
+        if not starts:
+            return incidents
+
+        starts.append(len(clean_text))
+        for idx in range(len(starts) - 1):
+            block = clean_text[starts[idx]:starts[idx + 1]].strip()
+            if not block:
+                continue
+
+            date_match = re.search(r'\b(\d{2}/\d{2}/\d{4})\b', block)
+            cfs_match = re.search(r'\b(\d{8})\s+(\d{2}:\d{2}:\d{2})\b', block)
+            if not date_match or not cfs_match:
+                continue
+
+            raw_date = date_match.group(1)
+            try:
+                date_value = datetime.strptime(raw_date, '%m/%d/%Y').strftime('%m/%d/%y')
+            except ValueError:
+                date_value = raw_date
+
+            incident_type = self._extract_whitefish_incident_type(block)
+            location = self._extract_whitefish_location(block, incident_type)
+            details = self._clean_whitefish_details(block, cfs_match.group(0))
+
+            incidents.append({
+                'cfs_number': cfs_match.group(1),
+                'date': date_value,
+                'time': cfs_match.group(2),
+                'location': location,
+                'incident_type': incident_type,
+                'details': details,
+                'officer': None,
+                'command_logs': [],
+            })
+
+        return incidents
+
+    @staticmethod
+    def _extract_whitefish_incident_type(block: str) -> str:
+        via_number_line = re.search(
+            r'\b\d{8}\s+\d{2}:\d{2}:\d{2}\s+([A-Za-z][A-Za-z /&-]{1,40}?);',
+            block,
+        )
+        if via_number_line:
+            incident_type = via_number_line.group(1).strip()
+            return incident_type.title() if incident_type.isupper() else incident_type
+
+        first_line = block.splitlines()[0] if block.splitlines() else block
+        via_header = re.search(r'\d{2}/\d{2}/\d{4}\s+([A-Za-z][A-Za-z /&-]{1,30})', first_line)
+        if via_header:
+            incident_type = via_header.group(1).strip()
+            return incident_type.title() if incident_type.isupper() else incident_type
+        return 'Police Incident'
+
+    @staticmethod
+    def _extract_whitefish_location(block: str, incident_type: str) -> str:
+        lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+        for line in lines:
+            normalized = ' '.join(line.split())
+            if re.search(r'^\d{8}\s+\d{2}:\d{2}:\d{2}\b', normalized):
+                continue
+            if re.search(r'^\d{4}-\s+\d{2}/\d{2}/\d{4}\b', normalized):
+                normalized = re.sub(r'^\d{4}-\s+\d{2}/\d{2}/\d{4}\s*', '', normalized)
+                type_prefix = re.escape(incident_type or '')
+                if type_prefix:
+                    normalized = re.sub(rf'^{type_prefix}\b', '', normalized, flags=re.IGNORECASE).strip()
+            normalized = re.sub(r'\bW\d{2}\b;?', '', normalized).strip(' -;')
+            if ' - ' in normalized:
+                normalized = normalized.split(' - ', 1)[0].strip()
+            if ';' in normalized and len(normalized.split(';', 1)[0]) < 90:
+                normalized = normalized.split(';', 1)[0].strip()
+            if re.search(
+                r'\b(AVE|ST|RD|DR|LN|PKWY|HWY|HIGHWAY|WAY|BLVD|TRAIL|TR|CT|PL|BEACH|DISTRICT|POST|PUMP)\b',
+                normalized,
+                re.IGNORECASE,
+            ):
+                return normalized[:160]
+        return 'Whitefish, MT'
+
+    @staticmethod
+    def _clean_whitefish_details(block: str, cfs_time_marker: str) -> str:
+        details = ' '.join(ln.strip() for ln in block.splitlines() if ln.strip())
+        details = re.sub(r'^\d{4}-\s+\d{2}/\d{2}/\d{4}\s*', '', details)
+        details = details.replace(cfs_time_marker, ' ')
+        details = re.sub(r'\bW\d{2}\b;?', ' ', details)
+        details = re.sub(r'\s{2,}', ' ', details).strip(' ;')
+        return details
 
     def _parse_generic_format(self, text: str) -> List[Dict]:
         """Fallback parser for non-GCSO formats"""

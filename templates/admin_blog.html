@@ -61,6 +61,7 @@
                             </a>
                             <form method="POST" action="/admin/blog/{{ post.id }}/delete"
                                   onsubmit="return confirm('Delete this post permanently?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit"
                                         class="text-xs font-semibold text-red-500 hover:text-red-700 px-3 py-1 rounded border border-red-200 hover:bg-red-50 transition">
                                     Delete

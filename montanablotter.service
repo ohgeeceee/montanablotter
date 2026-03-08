@@ -3,13 +3,19 @@ Description=Montana Blotter Flask App
 After=network.target
 
 [Service]
-User=root
-WorkingDirectory=/root/montanablotter
-ExecStart=/root/montanablotter/venv/bin/gunicorn -w 3 --bind unix:/tmp/montanablotter.sock -m 000 app:app
+User=montanablotter
+Group=montanablotter
+WorkingDirectory=/opt/montanablotter
+EnvironmentFile=/opt/montanablotter/.env
+ExecStart=/opt/montanablotter/venv/bin/gunicorn -w 3 --bind unix:/tmp/montanablotter.sock -m 000 app:app
 Restart=always
 RestartSec=5
-StandardOutput=append:/root/montanablotter/gunicorn.log
-StandardError=append:/root/montanablotter/gunicorn.log
+StandardOutput=append:/opt/montanablotter/gunicorn.log
+StandardError=append:/opt/montanablotter/gunicorn.log
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target

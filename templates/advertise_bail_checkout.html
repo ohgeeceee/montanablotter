@@ -1,0 +1,187 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Bail Bonds Advertising Checkout" %}
+{% set meta_description = "Secure checkout for Montana Blotter bail bonds advertising bundles and in-feed add-ons." %}
+{% set canonical_url = "https://montanablotter.com/advertise/bail-bonds/checkout" %}
+{% set og_title = "Bail Bonds Advertising Checkout" %}
+{% set og_description = meta_description %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/bail-bonds" class="hover:text-slate-700">Advertise</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Checkout</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <h1 class="text-2xl font-black text-slate-900">Reserve Your Advertising Package</h1>
+        <p class="text-sm text-slate-600 mt-2">Choose your plan, optional add-ons, and billing cycle, then continue to secure checkout.</p>
+    </div>
+
+    {% if form_errors %}
+    <div id="checkout-errors" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        <ul class="list-disc list-inside space-y-1">
+            {% for error in form_errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <section class="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+            <form method="post" action="/advertise/bail-bonds/checkout" class="space-y-4">
+                <input type="hidden" name="source" value="{{ form_data.source or 'bail_ad_checkout' }}">
+                <input type="text" name="fax_number" tabindex="-1" autocomplete="off" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Business Name *</label>
+                        <input type="text" name="business_name" required value="{{ form_data.business_name or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Contact Name *</label>
+                        <input type="text" name="contact_name" required value="{{ form_data.contact_name or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Optional Add-Ons</label>
+                    <div class="space-y-2">
+                        {% for addon in addon_options %}
+                        <label class="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                            <input type="checkbox" name="add_on_ids" value="{{ addon.id }}" class="mt-1"
+                                   {% if addon.id in (form_data.add_on_ids or []) %}checked{% endif %}>
+                            <span>
+                                <span class="block font-semibold text-slate-900">{{ addon.name }}</span>
+                                <span class="block text-xs text-slate-500">{{ addon.description }}</span>
+                                <span class="block text-xs text-slate-600 mt-1">${{ '%.0f'|format(addon.price_monthly_cents / 100) }}/mo · ${{ '%.0f'|format(addon.price_annual_cents / 100) }}/year</span>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Email *</label>
+                        <input type="email" name="email" required value="{{ form_data.email or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Phone *</label>
+                        <input type="text" name="phone" required value="{{ form_data.phone or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">License Number *</label>
+                        <input type="text" name="license_number" required value="{{ form_data.license_number or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Website URL</label>
+                        <input type="url" name="website_url" value="{{ form_data.website_url or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">County Targets</label>
+                    <input type="text" name="county_targets" value="{{ form_data.county_targets or '' }}" placeholder="e.g., Yellowstone (Exclusive County requires 1, Gold Bond Bundle requires 2)" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Package *</label>
+                        <select name="package_id" required class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                            <option value="">Select package</option>
+                            {% for pkg in package_options %}
+                            <option value="{{ pkg.id }}" {% if (form_data.package_id or '') == pkg.id %}selected{% endif %}>{{ pkg.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Billing Cycle *</label>
+                        <select name="billing_cycle" required class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                            <option value="monthly" {% if (form_data.billing_cycle or 'monthly') == 'monthly' %}selected{% endif %}>Monthly</option>
+                            <option value="annual" {% if (form_data.billing_cycle or '') == 'annual' %}selected{% endif %}>Annual</option>
+                        </select>
+                    </div>
+                </div>
+
+                {% if form_errors %}
+                <div class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                    <p class="font-semibold mb-1">Please fix before continuing:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        {% for error in form_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <label class="flex items-start gap-2 text-sm text-slate-700">
+                    <input type="checkbox" name="policy_ack" value="yes" class="mt-1" required>
+                    <span>I confirm this business is properly licensed and ad claims will comply with policy.</span>
+                </label>
+                <label class="flex items-start gap-2 text-sm text-slate-700">
+                    <input type="checkbox" name="terms_ack" value="yes" class="mt-1" required>
+                    <span>I agree to recurring billing for the selected package until canceled.</span>
+                </label>
+
+                <button type="submit" {% if not checkout_ready %}disabled{% endif %}
+                        class="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black py-3 text-sm uppercase tracking-[0.12em] disabled:opacity-60">
+                    Continue to Secure Checkout
+                </button>
+            </form>
+        </section>
+
+        <aside class="lg:col-span-2 space-y-4">
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h2 class="text-lg font-black text-slate-900">Bundle Pricing</h2>
+                <p class="text-sm text-slate-600 mt-2">Bundle rates are built for high-intent county traffic and recurring placement.</p>
+                {% if selected_package %}
+                <div class="mt-3 rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm">
+                    <p class="font-semibold text-slate-900">{{ selected_package.name }}</p>
+                    {% if selected_package.price_label_monthly %}
+                    <p class="text-slate-600 mt-1">{{ selected_package.price_label_monthly }} or ${{ '%.0f'|format(selected_package.price_annual_cents / 100) }}/year</p>
+                    {% else %}
+                    <p class="text-slate-600 mt-1">${{ '%.0f'|format(selected_package.price_monthly_cents / 100) }}/month or ${{ '%.0f'|format(selected_package.price_annual_cents / 100) }}/year</p>
+                    {% endif %}
+                    {% if selected_package.all_counties %}
+                    <p class="text-xs text-slate-500 mt-1">Includes statewide county coverage.</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if form_data.add_on_ids %}
+                <div class="mt-3 rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm">
+                    <p class="font-semibold text-slate-900">Selected Add-Ons</p>
+                    <ul class="mt-2 list-disc list-inside text-slate-600">
+                        {% for addon_id in form_data.add_on_ids %}
+                        {% if addon_lookup and addon_lookup.get(addon_id) %}
+                        <li>{{ addon_lookup[addon_id].name }}</li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 text-sm text-slate-600">
+                Checkout is processed by Stripe. After payment, you will be directed to submit creative assets for approval.
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (function () {
+        var errorBox = document.getElementById('checkout-errors');
+        if (errorBox) {
+            errorBox.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+    })();
+</script>
+{% endblock %}

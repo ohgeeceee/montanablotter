@@ -8,11 +8,13 @@ import email
 import os
 import logging
 import smtplib
+import re
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import config
 from processor import process_new_blotter, process_text_blotter
+from pdf_parser import parse_text_blotter
 from pipeline_state import (
     ensure_ingestion_job,
     ensure_source_document,
@@ -44,6 +46,53 @@ class EmailWorker:
         
         # Ensure upload directory exists
         os.makedirs(self.upload_dir, exist_ok=True)
+
+    def _looks_like_blotter_email(self, subject: str, sender: str, body: str) -> bool:
+        text = " ".join([subject or "", sender or "", body[:4000] or ""]).lower()
+        negative_markers = (
+            'unsubscribe',
+            'manage preferences',
+            'view in browser',
+            'privacy policy',
+            'marketing',
+            'promotion',
+            'promo',
+            'webinar',
+            'newsletter',
+            'product update',
+            'release notes',
+            'free trial',
+            'pricing',
+            'invoice',
+            'receipt',
+        )
+        if any(marker in text for marker in negative_markers):
+            return False
+
+        positive_markers = (
+            'blotter',
+            'media log',
+            'daily activity',
+            'daily log',
+            'calls for service',
+            'call log',
+            'dispatch',
+            'incident',
+            'arrest',
+            'cad',
+            'press:',
+            'police',
+            'sheriff',
+        )
+        if any(marker in text for marker in positive_markers):
+            return True
+
+        sender_match = re.search(r'[\w.+-]+@([\w.-]+)', sender or '', re.I)
+        if not sender_match:
+            return False
+
+        domain = sender_match.group(1).lower()
+        return any(marker in domain for marker in ('mt.gov', 'county', 'sheriff', 'police', 'cityof', 'ci.'))
     
     def fetch_and_process_emails(self):
         """Main method - fetch emails and process PDFs"""
@@ -110,6 +159,24 @@ class EmailWorker:
                                 # No PDF — try plain-text body as blotter
                                 body, body_method = self._extract_body_text(msg)
                                 if body and len(body.strip()) > 200:
+                                    if not self._looks_like_blotter_email(subject, sender, body):
+                                        logging.info(f"Skipping non-blotter text email: {subject}")
+                                        self._move_to_processed(mail, num)
+                                        continue
+
+                                    try:
+                                        preview = parse_text_blotter(body)
+                                    except Exception as e:
+                                        logging.warning(f"Text-body preview parse failed for {subject}: {e}")
+                                        preview = {'total_count': 0}
+
+                                    if preview.get('total_count', 0) <= 0:
+                                        logging.info(
+                                            f"Skipping text email with no extractable incidents: {subject}"
+                                        )
+                                        self._move_to_processed(mail, num)
+                                        continue
+
                                     body_hash = sha256_text(body)
                                     source_document_id = ensure_source_document(
                                         source_type='imap_text',
@@ -240,7 +307,10 @@ class EmailWorker:
                         source_document_id=source_document_id,
                         ingestion_job_id=ingestion_job_id,
                     )
-                    logging.info(f"Processed PDF: {filename} -> Batch #{batch_id}")
+                    if batch_id:
+                        logging.info(f"Processed PDF: {filename} -> Batch #{batch_id}")
+                    else:
+                        logging.info(f"Processed PDF: {filename} -> duplicate-only, no new batch created")
                     any_succeeded = True
                 except Exception as e:
                     logging.error(f"Failed to process PDF {filename}: {str(e)}")

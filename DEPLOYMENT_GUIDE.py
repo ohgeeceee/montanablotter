@@ -35,14 +35,10 @@ This will:
 
 STEP 4: CREATE ADMIN USER
 --------------------------
-python3 seed_admin.py
-
-Default credentials:
-  Username: admin
-  Password: Blotter2026!
-
-Or create custom admin:
-  python3 seed_admin.py myusername mypassword
+Create using an explicit password (interactive or env):
+  MB_ADMIN_BOOTSTRAP_PASSWORD='strong-random-password' python3 seed_admin.py admin
+or:
+  python3 seed_admin.py admin
 
 
 STEP 5: TEST PDF PARSING
@@ -103,10 +99,16 @@ Description=Montana Blotter Flask App
 After=network.target
 
 [Service]
-User=root
-WorkingDirectory=/root/montanablotter
-ExecStart=/usr/bin/python3 -m gunicorn -w 4 -b 127.0.0.1:5000 app:app
+User=montanablotter
+Group=montanablotter
+WorkingDirectory=/opt/montanablotter
+EnvironmentFile=/opt/montanablotter/.env
+ExecStart=/opt/montanablotter/venv/bin/gunicorn -w 4 -b 127.0.0.1:5000 app:app
 Restart=always
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target
@@ -134,18 +136,11 @@ Or run manually:
 
 STEP 10: SECURITY HARDENING
 ----------------------------
-1. Change the SECRET_KEY in config.py to a random string
-2. Move credentials to environment variables (optional):
-
-   # In ~/.bashrc
-   export MB_EMAIL_PASSWORD="your_password_here"
-   
-   # In config.py
-   EMAIL_PASSWORD = os.getenv('MB_EMAIL_PASSWORD', 'fallback')
-
+1. Set MB_SECRET_KEY and credentials in .env (not config.py)
+2. Run service as unprivileged user (example above)
 3. Set proper file permissions:
-   chmod 600 config.py
-   chmod 700 /root/montanablotter
+   chmod 600 /opt/montanablotter/.env
+   chown -R montanablotter:montanablotter /opt/montanablotter
 
 
 VERIFICATION CHECKLIST
@@ -174,12 +169,12 @@ Solution: Check the PDF format
   python3 pdf_parser.py path/to/pdf.pdf
   
 Problem: Email worker not fetching emails
-Solution: Check IONOS credentials in config.py
+Solution: Check IONOS credentials in .env
   Test manually: python3 email_worker.py
 
 Problem: Can't login to dashboard
 Solution: Reset admin password
-  python3 seed_admin.py admin NewPassword123
+  MB_ADMIN_BOOTSTRAP_PASSWORD='new-strong-password' python3 seed_admin.py admin
 
 Problem: Nginx 502 Bad Gateway
 Solution: Check if gunicorn is running

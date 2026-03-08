@@ -49,7 +49,9 @@
                     <h2 class="mt-2 text-2xl font-black text-slate-900">
                         <a href="/county/{{ county.slug }}" class="hover:text-blue-700 transition">{{ county.name }} County</a>
                     </h2>
-                    <p class="mt-2 text-sm text-slate-600">Serving {{ county.seat }}, Montana.</p>
+                    <p class="mt-2 text-sm text-slate-600">
+                        {% if county.seat %}Serving {{ county.seat }}, Montana.{% else %}County-level Montana public safety hub.{% endif %}
+                    </p>
                 </div>
                 <div class="text-right">
                     <p class="text-sm font-black text-slate-900">{{ county.post_count }}</p>

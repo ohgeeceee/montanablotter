@@ -1,0 +1,59 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Donation Canceled" %}
+{% set meta_description = "Your donation checkout was canceled." %}
+{% set canonical_url = "https://montanablotter.com/donate/cancel" %}
+{% set og_title = "Donation Canceled | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/donate" class="hover:text-slate-700">Donate</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Canceled</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 text-center">
+        <div class="w-16 h-16 mx-auto rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+            <i class="fas fa-times text-2xl"></i>
+        </div>
+        <h1 class="text-3xl font-black text-slate-900 mt-4">Checkout Canceled</h1>
+        <p class="text-slate-600 text-sm mt-3">
+            No donation was processed. If this was accidental, you can restart securely at any time.
+        </p>
+        <div class="mt-7 flex items-center justify-center gap-3 flex-wrap">
+            <a href="/donate" class="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">
+                Return to Donate
+            </a>
+            <a href="/" class="inline-flex items-center justify-center rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">
+                Back to Reports
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    try {
+        var payload = JSON.stringify({
+            event_type: 'checkout_cancel',
+            source: 'donate_cancel',
+            page_path: window.location.pathname
+        });
+        if (navigator.sendBeacon) {
+            var blob = new Blob([payload], {type: 'application/json'});
+            navigator.sendBeacon('/api/donate-event', blob);
+        } else {
+            fetch('/api/donate-event', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: payload,
+                keepalive: true
+            });
+        }
+    } catch (e) {}
+})();
+</script>
+{% endblock %}

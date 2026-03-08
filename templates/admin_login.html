@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,6 +39,7 @@
 
         <div style="background:#161513; border:1px solid #282420; border-radius:8px; padding:28px;">
             <form method="POST" style="display:flex; flex-direction:column; gap:20px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label style="display:block; font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#6A5E52; margin-bottom:8px;">Username</label>
                     <input type="text" name="username" required placeholder="admin"

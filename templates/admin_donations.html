@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+                <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Donations</p>
+                <h1 class="text-3xl font-black text-slate-900 mt-2">Donations Dashboard</h1>
+                <p class="text-sm text-slate-600 mt-2">Revenue, conversion funnel, webhook health, and launch readiness controls.</p>
+            </div>
+            <div class="text-sm">
+                <div class="flex items-center gap-2">
+                    <span class="font-semibold text-slate-700">Feature flag:</span>
+                    {% if donations_enabled %}
+                    <span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em]">Enabled</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em]">Disabled</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="font-semibold text-slate-700">Checkout keys:</span>
+                    {% if stripe_checkout_ready %}
+                    <span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em]">Configured</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full bg-slate-200 text-slate-600 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em]">Not set</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="font-semibold text-slate-700">Webhook secret:</span>
+                    {% if stripe_webhook_ready %}
+                    <span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em]">Configured</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em]">Missing</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border
+            {% if category == 'error' %}
+                bg-rose-50 border-rose-200 text-rose-700
+            {% elif category == 'warning' %}
+                bg-amber-50 border-amber-200 text-amber-800
+            {% else %}
+                bg-emerald-50 border-emerald-200 text-emerald-700
+            {% endif %}
+        ">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-black text-slate-900">Operations Actions</h2>
+            <p class="text-xs text-slate-500 mt-1">Accounting export and webhook recovery tooling.</p>
+        </div>
+        <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a href="/admin/donations/export.csv"
+               class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em]">
+                Export Donations CSV
+            </a>
+            <form method="post" action="/admin/donations/reconcile" class="flex items-center gap-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="number" min="1" max="500" name="limit" value="100"
+                       class="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                <button type="submit"
+                        class="flex-1 inline-flex items-center justify-center rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em]">
+                    Reconcile Unprocessed Webhooks
+                </button>
+            </form>
+        </div>
+    </section>
+
+    {% if not schema_ready %}
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+        Donation tables were not found yet. Run migrations (`python3 init_db.py` or app startup migration) before using this panel.
+    </div>
+    {% endif %}
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <h2 class="text-lg font-black text-slate-900">Go-Live Readiness</h2>
+                <p class="text-xs text-slate-500 mt-1">Operational gates for enabling public donations in production.</p>
+            </div>
+            {% if launch_snapshot.launch_ready %}
+            <span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-[0.12em]">Ready</span>
+            {% else %}
+            <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 px-3 py-1 text-xs font-black uppercase tracking-[0.12em]">Blocked</span>
+            {% endif %}
+        </div>
+        <div class="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
+            <div class="rounded-lg border border-slate-200 p-3">
+                <p class="text-xs uppercase tracking-[0.12em] font-black text-slate-500">Schema</p>
+                <p class="mt-1 font-semibold text-slate-900">{% if launch_snapshot.schema_ready %}Ready{% else %}Missing{% endif %}</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-3">
+                <p class="text-xs uppercase tracking-[0.12em] font-black text-slate-500">Feature Flag</p>
+                <p class="mt-1 font-semibold text-slate-900">{% if launch_snapshot.donations_enabled %}Enabled{% else %}Disabled{% endif %}</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-3">
+                <p class="text-xs uppercase tracking-[0.12em] font-black text-slate-500">Checkout Keys</p>
+                <p class="mt-1 font-semibold text-slate-900">{% if launch_snapshot.stripe_checkout_ready %}Configured{% else %}Missing{% endif %}</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-3">
+                <p class="text-xs uppercase tracking-[0.12em] font-black text-slate-500">Webhook Secret</p>
+                <p class="mt-1 font-semibold text-slate-900">{% if launch_snapshot.stripe_webhook_ready %}Configured{% else %}Missing{% endif %}</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-3">
+                <p class="text-xs uppercase tracking-[0.12em] font-black text-slate-500">Stale Webhooks</p>
+                <p class="mt-1 font-semibold text-slate-900">{{ launch_snapshot.stale_webhook_events_10m or 0 }}</p>
+            </div>
+        </div>
+        <div class="px-5 pb-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 text-xs text-slate-600">
+            <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                Events (24h): <span class="font-semibold text-slate-800">{{ launch_snapshot.webhook_events_24h or 0 }}</span>
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                Errors (24h): <span class="font-semibold text-slate-800">{{ launch_snapshot.webhook_errors_24h or 0 }}</span>
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                Last received: <span class="font-semibold text-slate-800">{{ launch_snapshot.last_webhook_received_at or '-' }}</span>
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                Last processed: <span class="font-semibold text-slate-800">{{ launch_snapshot.last_webhook_processed_at or '-' }}</span>
+            </div>
+        </div>
+        <div class="px-5 pb-5 text-xs">
+            <a href="/admin/donations/preflight" class="text-blue-700 hover:text-blue-800 font-semibold">Open JSON preflight snapshot</a>
+        </div>
+    </section>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">All-Time Gross</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">${{ '%.2f'|format((totals_all_time.gross_cents or 0) / 100) }}</p>
+            <p class="text-xs text-slate-500 mt-1">{{ totals_all_time.success_count or 0 }} successful donations</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">MTD Gross</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">${{ '%.2f'|format((totals_mtd.gross_cents or 0) / 100) }}</p>
+            <p class="text-xs text-slate-500 mt-1">{{ totals_mtd.success_count or 0 }} successful donations this month</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">YTD Gross</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">${{ '%.2f'|format((totals_ytd.gross_cents or 0) / 100) }}</p>
+            <p class="text-xs text-slate-500 mt-1">{{ totals_ytd.success_count or 0 }} successful donations this year</p>
+        </article>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Average Donation</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">${{ '%.2f'|format((totals_all_time.avg_cents or 0) / 100) }}</p>
+            <p class="text-xs text-slate-500 mt-1">All-time successful donations</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Monthly Successes</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ recurring_stats.monthly_success_count or 0 }}</p>
+            <p class="text-xs text-slate-500 mt-1">Successful monthly donations</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Active Subscriptions</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ recurring_stats.active_subscriptions or 0 }}</p>
+            <p class="text-xs text-slate-500 mt-1">Distinct Stripe subscription IDs</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Webhook Errors (7d)</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ webhook_7d.error_count or 0 }}</p>
+            <p class="text-xs text-slate-500 mt-1">{{ webhook_7d.processed or 0 }} processed / {{ webhook_7d.total or 0 }} total</p>
+        </article>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden xl:col-span-1">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h2 class="text-lg font-black text-slate-900">30-Day Funnel</h2>
+            </div>
+            <div class="p-5 text-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-600">Donate page views</span>
+                    <span class="font-black text-slate-900">{{ funnel_30d.donate_view or 0 }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-600">Checkout starts</span>
+                    <span class="font-black text-slate-900">{{ funnel_30d.checkout_start or 0 }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-600">Checkout successes</span>
+                    <span class="font-black text-slate-900">{{ funnel_30d.checkout_success or 0 }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-600">Checkout cancels</span>
+                    <span class="font-black text-slate-900">{{ funnel_30d.checkout_cancel or 0 }}</span>
+                </div>
+                <hr>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-600">View → Start rate</span>
+                    <span class="font-black text-slate-900">{{ '%.1f'|format(funnel_30d.start_rate_pct or 0) }}%</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-600">Start → Success rate</span>
+                    <span class="font-black text-slate-900">{{ '%.1f'|format(funnel_30d.completion_rate_pct or 0) }}%</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden xl:col-span-2">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h2 class="text-lg font-black text-slate-900">Recent Donations</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                        <tr>
+                            <th class="text-left px-4 py-3">Created</th>
+                            <th class="text-left px-4 py-3">Provider</th>
+                            <th class="text-left px-4 py-3">Mode</th>
+                            <th class="text-left px-4 py-3">Status</th>
+                            <th class="text-left px-4 py-3">Donor</th>
+                            <th class="text-left px-4 py-3">Source</th>
+                            <th class="text-right px-4 py-3">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for item in recent_donations %}
+                        <tr>
+                            <td class="px-4 py-3 text-slate-700">{{ item.created_at }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ item.provider }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ item.mode }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ item.status }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ item.donor_name or '-' }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ item.source or '-' }}</td>
+                            <td class="px-4 py-3 text-right text-slate-900 font-semibold">
+                                ${{ '%.2f'|format((item.amount_cents or 0) / 100) }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="px-4 py-6 text-center text-slate-500">No donation rows yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h2 class="text-lg font-black text-slate-900">Recent Donation Events</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                        <tr>
+                            <th class="text-left px-4 py-3">Created</th>
+                            <th class="text-left px-4 py-3">Type</th>
+                            <th class="text-left px-4 py-3">Source</th>
+                            <th class="text-right px-4 py-3">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for item in recent_events %}
+                        <tr>
+                            <td class="px-4 py-3 text-slate-700">{{ item.created_at }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ item.event_type }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ item.source or '-' }}</td>
+                            <td class="px-4 py-3 text-right text-slate-900 font-semibold">
+                                {% if item.amount_cents %}
+                                ${{ '%.2f'|format((item.amount_cents or 0) / 100) }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="px-4 py-6 text-center text-slate-500">No donation events yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h2 class="text-lg font-black text-slate-900">Webhook Errors</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                        <tr>
+                            <th class="text-left px-4 py-3">Created</th>
+                            <th class="text-left px-4 py-3">Event</th>
+                            <th class="text-left px-4 py-3">Error</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for item in recent_webhook_errors %}
+                        <tr>
+                            <td class="px-4 py-3 text-slate-700">{{ item.created_at }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ item.event_type }}</td>
+                            <td class="px-4 py-3 text-slate-700 break-words">{{ item.error }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="px-4 py-6 text-center text-slate-500">No webhook errors recorded.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-black text-slate-900">Top Donation Sources (30d)</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                    <tr>
+                        <th class="text-left px-4 py-3">Source</th>
+                        <th class="text-right px-4 py-3">Donations</th>
+                        <th class="text-right px-4 py-3">Gross</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in top_sources_30d %}
+                    <tr>
+                        <td class="px-4 py-3 text-slate-700">{{ item.source }}</td>
+                        <td class="px-4 py-3 text-right text-slate-700">{{ item.donation_count or 0 }}</td>
+                        <td class="px-4 py-3 text-right text-slate-900 font-semibold">${{ '%.2f'|format((item.gross_cents or 0) / 100) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="px-4 py-6 text-center text-slate-500">No successful donation sources yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

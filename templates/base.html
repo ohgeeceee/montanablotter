@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Montana Blotter | Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -35,6 +36,9 @@
                 <a href="/admin/upload" class="anav-link">Upload</a>
                 <a href="/admin/blog" class="anav-link">Blog</a>
                 <a href="/admin/emails" class="anav-link">Emails</a>
+                <a href="/admin/bail-ads" class="anav-link">Bail Ads</a>
+                <a href="/admin/bail-ads/agencies" class="anav-link">Agency CMS</a>
+                <a href="/admin/donations" class="anav-link">Donations</a>
                 <a href="/admin/analytics" class="anav-link">Analytics</a>
                 <a href="/admin/visitors" class="anav-link">Visitors</a>
                 <a href="/" class="anav-link" style="margin-left:8px;">↗ Public</a>
@@ -46,5 +50,22 @@
     <div class="p-8">
         {% block content %}{% endblock %}
     </div>
+    <script>
+    (function () {
+        var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        if (!tokenMeta) return;
+        var token = tokenMeta.getAttribute('content');
+        if (!token) return;
+
+        document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function (form) {
+            if (form.querySelector('input[name="csrf_token"]')) return;
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = token;
+            form.appendChild(input);
+        });
+    })();
+    </script>
 </body>
 </html>

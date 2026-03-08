@@ -7,9 +7,11 @@ import sqlite3
 import os
 import logging
 from typing import Optional
+import config
 from pdf_parser import BlotterParser, parse_text_blotter
 import summarizer
 import blotter_auditor
+from dedupe import incident_key_set, incident_keys
 from pipeline_state import (
     ensure_source_document,
     increment_ingestion_retry,
@@ -18,8 +20,17 @@ from pipeline_state import (
     set_ingestion_job_status,
 )
 
-DB_PATH = '/root/montanablotter/blotter.db'
+DB_PATH = config.DB_PATH
+DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
+DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+def _connect_db() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT_SECONDS)
+    conn.execute('PRAGMA foreign_keys = ON')
+    conn.execute(f'PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS}')
+    return conn
 
 def _table_has_column(conn: sqlite3.Connection, table_name: str, column_name: str) -> bool:
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
@@ -27,13 +38,73 @@ def _table_has_column(conn: sqlite3.Connection, table_name: str, column_name: st
 
 
 def _post_count_for_blotter(blotter_id: int) -> int:
-    conn = sqlite3.connect(DB_PATH)
+    conn = _connect_db()
     count = conn.execute(
         'SELECT COUNT(*) FROM posts WHERE blotter_id = ?',
         (blotter_id,),
     ).fetchone()[0]
     conn.close()
     return int(count)
+
+
+def _load_existing_incident_keys(
+    conn: sqlite3.Connection,
+    county: Optional[str],
+    incidents: list[dict],
+) -> set[str]:
+    existing_keys = set()
+    raw_dates = sorted({(incident.get('date') or '').strip() for incident in incidents if incident.get('date')})
+    cfs_numbers = sorted({(incident.get('cfs_number') or '').strip() for incident in incidents if incident.get('cfs_number')})
+
+    clauses = []
+    params: list[str] = []
+
+    if county and county.strip().lower() != 'unknown' and raw_dates:
+        placeholders = ','.join('?' for _ in raw_dates)
+        clauses.append(f"(county = ? AND date IN ({placeholders}))")
+        params.extend([county, *raw_dates])
+
+    if cfs_numbers:
+        placeholders = ','.join('?' for _ in cfs_numbers)
+        clauses.append(f"(cfs_number IN ({placeholders}))")
+        params.extend(cfs_numbers)
+
+    if not clauses:
+        return existing_keys
+
+    rows = conn.execute(
+        f"""
+        SELECT cfs_number, date, time,
+               COALESCE(incident_type, incident, '') AS incident_type,
+               COALESCE(location, '') AS location,
+               COALESCE(details, '') AS details,
+               county
+        FROM records
+        WHERE {' OR '.join(clauses)}
+        """,
+        params,
+    ).fetchall()
+    return incident_key_set(rows)
+
+
+def _filter_duplicate_incidents(
+    conn: sqlite3.Connection,
+    incidents: list[dict],
+    county: Optional[str],
+) -> tuple[list[dict], int]:
+    existing_keys = _load_existing_incident_keys(conn, county, incidents)
+    kept: list[dict] = []
+    skipped = 0
+
+    for incident in incidents:
+        keys = incident_keys(incident, county=county or incident.get('county'))
+        if keys and keys & existing_keys:
+            skipped += 1
+            continue
+        kept.append(incident)
+        existing_keys.update(keys)
+
+    return kept, skipped
 
 
 def _publish_blotter_outputs(
@@ -45,7 +116,11 @@ def _publish_blotter_outputs(
     post_count = 0
 
     try:
-        post_count = summarizer.generate_posts(blotter_id, sender_email=sender_email)
+        post_count = summarizer.generate_posts(
+            blotter_id,
+            sender_email=sender_email,
+            ingestion_job_id=ingestion_job_id,
+        )
         logging.info(f"Generated {post_count} posts for {label} #{blotter_id}")
         if ingestion_job_id is not None:
             log_pipeline_event(
@@ -151,7 +226,7 @@ def process_new_blotter(
             extraction_warnings=[],
         )
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = _connect_db()
     source_column_exists = _table_has_column(conn, 'blotters', 'source_document_id')
     existing = None
     if source_document_id is not None and source_column_exists:
@@ -209,21 +284,43 @@ def process_new_blotter(
     logging.info(f"Detected county: {county}, Found {result['total_count']} incidents")
     
     # Step 2: Insert into database
-    conn = sqlite3.connect(DB_PATH)
+    conn = _connect_db()
     cursor = conn.cursor()
     
     try:
+        incidents, skipped_duplicates = _filter_duplicate_incidents(
+            conn,
+            result['incidents'],
+            county,
+        )
+        if skipped_duplicates:
+            logging.info(
+                f"Skipped {skipped_duplicates} duplicate incident(s) before insert for {filename}"
+            )
+        if not incidents:
+            logging.info(f"All incidents already exist for {filename} — skipping batch creation")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'ingest',
+                    'ok',
+                    {'message': 'duplicate-skip-all-incidents', 'source_filename': filename},
+                )
+                set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+            conn.close()
+            return 0
+
         # Create the Batch Entry
         has_source_column = _table_has_column(conn, 'blotters', 'source_document_id')
         if has_source_column:
             cursor.execute(
                 'INSERT INTO blotters (filename, county, incident_count, file_path, source_document_id) VALUES (?, ?, ?, ?, ?)',
-                (filename, county, result['total_count'], pdf_path, source_document_id)
+                (filename, county, len(incidents), pdf_path, source_document_id)
             )
         else:
             cursor.execute(
                 'INSERT INTO blotters (filename, county, incident_count, file_path) VALUES (?, ?, ?, ?)',
-                (filename, county, result['total_count'], pdf_path)
+                (filename, county, len(incidents), pdf_path)
             )
         if cursor.lastrowid is None:
             raise RuntimeError('Failed to create blotter row')
@@ -231,7 +328,7 @@ def process_new_blotter(
         logging.info(f"Created blotter batch #{batch_id}")
         
         # Insert individual incidents
-        for incident in result['incidents']:
+        for incident in incidents:
             incident_type_val = incident.get('incident_type') or ''
             cursor.execute('''
                 INSERT INTO records (
@@ -260,15 +357,22 @@ def process_new_blotter(
                 ''', (record_id, log.get('timestamp'), log.get('officer'), log.get('entry')))
         
         conn.commit()
-        logging.info(f"✅ Batch #{batch_id} complete: {result['total_count']} incidents indexed")
+        logging.info(f"✅ Batch #{batch_id} complete: {len(incidents)} incidents indexed")
         if ingestion_job_id is not None:
             log_pipeline_event(
                 ingestion_job_id,
                 'normalize',
                 'ok',
-                {'blotter_id': batch_id, 'incident_count': result['total_count']},
+                {
+                    'blotter_id': batch_id,
+                    'incident_count': len(incidents),
+                    'duplicate_incidents_skipped': skipped_duplicates,
+                },
             )
             set_ingestion_job_status(ingestion_job_id, 'normalized')
+        # Release writer connection before downstream summary/audit writes.
+        conn.close()
+        conn = None
 
         _publish_blotter_outputs(
             batch_id,
@@ -279,7 +383,8 @@ def process_new_blotter(
         return batch_id
 
     except Exception as e:
-        conn.rollback()
+        if conn is not None:
+            conn.rollback()
         logging.error(f"Database error: {e}")
         if ingestion_job_id is not None:
             log_pipeline_event(
@@ -292,7 +397,8 @@ def process_new_blotter(
             set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
         raise
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
 
 
 def process_text_blotter(
@@ -342,7 +448,7 @@ def process_text_blotter(
 
     logging.info(f"Text blotter: county={county}, incidents={result['total_count']}")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = _connect_db()
     cursor = conn.cursor()
 
     try:
@@ -355,6 +461,7 @@ def process_text_blotter(
             ).fetchone()
         if existing:
             conn.close()
+            conn = None
             logging.info(f"Skipping duplicate text blotter (already blotter #{existing[0]})")
             if ingestion_job_id is not None:
                 log_pipeline_event(
@@ -371,22 +478,44 @@ def process_text_blotter(
             )
             return int(existing[0])
 
+        incidents, skipped_duplicates = _filter_duplicate_incidents(
+            conn,
+            result['incidents'],
+            county,
+        )
+        if skipped_duplicates:
+            logging.info(
+                f"Skipped {skipped_duplicates} duplicate incident(s) before insert for text blotter"
+            )
+        if not incidents:
+            logging.info("All text-body incidents already exist — skipping batch creation")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'ingest',
+                    'ok',
+                    {'message': 'duplicate-skip-all-incidents'},
+                )
+                set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+            conn.close()
+            return 0
+
         if has_source_column:
             cursor.execute(
                 "INSERT INTO blotters (filename, county, incident_count, source_type, source_document_id) VALUES (?, ?, ?, ?, ?)",
-                ("email-body", county, result['total_count'], "text", source_document_id),
+                ("email-body", county, len(incidents), "text", source_document_id),
             )
         else:
             cursor.execute(
                 "INSERT INTO blotters (filename, county, incident_count, source_type) VALUES (?, ?, ?, ?)",
-                ("email-body", county, result['total_count'], "text"),
+                ("email-body", county, len(incidents), "text"),
             )
         if cursor.lastrowid is None:
             raise RuntimeError('Failed to create text blotter row')
         blotter_id = int(cursor.lastrowid)
         logging.info(f"Created text blotter batch #{blotter_id}")
 
-        for incident in result['incidents']:
+        for incident in incidents:
             incident_type_val = incident.get('incident_type') or ''
             cursor.execute(
                 """
@@ -417,15 +546,22 @@ def process_text_blotter(
                 )
 
         conn.commit()
-        logging.info(f"✅ Text blotter #{blotter_id} complete: {result['total_count']} incidents indexed")
+        logging.info(f"✅ Text blotter #{blotter_id} complete: {len(incidents)} incidents indexed")
         if ingestion_job_id is not None:
             log_pipeline_event(
                 ingestion_job_id,
                 'normalize',
                 'ok',
-                {'blotter_id': blotter_id, 'incident_count': result['total_count']},
+                {
+                    'blotter_id': blotter_id,
+                    'incident_count': len(incidents),
+                    'duplicate_incidents_skipped': skipped_duplicates,
+                },
             )
             set_ingestion_job_status(ingestion_job_id, 'normalized')
+        # Release writer connection before downstream summary/audit writes.
+        conn.close()
+        conn = None
 
         _publish_blotter_outputs(
             blotter_id,
@@ -437,7 +573,8 @@ def process_text_blotter(
         return blotter_id
 
     except Exception as e:
-        conn.rollback()
+        if conn is not None:
+            conn.rollback()
         logging.error(f"Database error processing text blotter: {e}")
         if ingestion_job_id is not None:
             log_pipeline_event(
@@ -450,7 +587,8 @@ def process_text_blotter(
             set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
         raise
     finally:
-        conn.close()
+        if conn is not None:
+            conn.close()
 
 
 def update_web_data(pdf_path: str):

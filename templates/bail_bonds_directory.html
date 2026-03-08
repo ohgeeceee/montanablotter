@@ -1,0 +1,345 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = page_title or "Bail Bonds Directory" %}
+{% set meta_description = meta_description or "County-level bail bonds directory for Montana Blotter partner advertisers." %}
+{% set canonical_url = canonical_url or "https://montanablotter.com/bail-bonds" %}
+{% set og_title = og_title or (page_title ~ " | Montana Blotter") %}
+{% set og_description = og_description or meta_description %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Bail Bonds</span>
+{% if selected_county %}
+<span class="mx-2">/</span>
+<span class="text-slate-700">{{ selected_county }}</span>
+{% endif %}
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+        <div class="inline-flex items-center bg-amber-500/20 text-amber-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+            Advertiser Directory
+        </div>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">
+            {% if selected_county %}
+            {{ selected_county }} County Bail Bonds
+            {% else %}
+            Montana Bail Bonds Directory
+            {% endif %}
+        </h1>
+        <p class="text-slate-300 text-sm max-w-3xl">
+            Paid placements from licensed providers with click-to-call, text, and rapid callback routing.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+    <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        Advertiser disclosure: Montana Blotter receives payment for listings on this page.
+    </div>
+
+    {% if lead_submitted %}
+    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+        Thanks. Your request was sent to available advertisers for {{ selected_county or "your selected county" }}.
+    </div>
+    {% endif %}
+
+    {% if lead_error %}
+    <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+        {% if lead_error == 'missing_required' %}
+        Name, phone, and county are required to route your request.
+        {% elif lead_error == 'schema' %}
+        Lead intake is temporarily unavailable. Please call directly.
+        {% else %}
+        We could not process that request. Please try again or call directly.
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <section class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <article class="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm p-5 sm:p-6">
+            <p class="text-[11px] uppercase tracking-[0.16em] font-black text-blue-600">Fast Intake</p>
+            <h2 class="text-2xl font-black text-slate-900 mt-2">Need Bail Help Right Now?</h2>
+            <p class="text-sm text-slate-600 mt-2">Submit this short form and we route it to active advertisers covering your county.</p>
+            <form method="post" action="/bail-bonds/intake" class="mt-5 space-y-3">
+                <input type="hidden" name="source" value="{{ lead_form.source or 'directory' }}">
+                <input type="hidden" name="return_path" value="{{ request.path }}">
+                <input type="text" name="fax_number" tabindex="-1" autocomplete="off" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" name="full_name" required placeholder="Your full name" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    <input type="text" name="phone" required placeholder="Best phone number" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="email" name="email" placeholder="Email (optional)" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    <select name="county" required class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                        <option value="">Select county *</option>
+                        {% for item in county_links %}
+                        <option value="{{ item.name }}" {% if lead_form.county == item.name %}selected{% endif %}>{{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" name="jail_facility" placeholder="Jail facility (optional)" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    <select name="callback_preference" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                        <option value="call_now" selected>Call now</option>
+                        <option value="text_me">Text me</option>
+                        <option value="email_me">Email me</option>
+                        <option value="call_later">Call later</option>
+                    </select>
+                </div>
+                <textarea name="notes" rows="2" placeholder="Case details (optional)" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm"></textarea>
+                <button type="submit" class="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 text-xs font-black uppercase tracking-[0.14em]">
+                    Request Callback
+                </button>
+            </form>
+        </article>
+
+        <aside class="lg:col-span-2 space-y-4">
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                <p class="text-[11px] uppercase tracking-[0.16em] font-black text-emerald-700">24/7 Response</p>
+                <h3 class="text-lg font-black text-emerald-900 mt-1">Immediate Help Available</h3>
+                <p class="text-sm text-emerald-800 mt-2">Most advertisers in this directory are structured for urgent after-hours response.</p>
+                {% if help_contact.tel_href %}
+                <a href="{{ help_contact.tel_href }}" class="bail-help-call mt-3 inline-flex rounded-lg bg-emerald-700 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">Call Now</a>
+                {% endif %}
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h3 class="text-lg font-black text-slate-900">Trust Signals</h3>
+                <ul class="mt-3 space-y-2 text-sm text-slate-600 list-disc list-inside">
+                    <li>Listings are paid, approved, and reviewed for policy compliance.</li>
+                    <li>County-specific placement limits over-saturation and improves response speed.</li>
+                    <li>Every listing supports direct call intent and lead routing analytics.</li>
+                </ul>
+                <ol class="mt-4 text-sm text-slate-700 space-y-1 list-decimal list-inside">
+                    <li>Choose your county and provider.</li>
+                    <li>Call or submit callback details.</li>
+                    <li>Get connected quickly for next-step guidance.</li>
+                </ol>
+            </div>
+        </aside>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-lg font-black text-slate-900">County Landing Pages</h2>
+            {% if selected_county %}
+            <a href="/bail-bonds" class="text-xs font-black uppercase tracking-[0.12em] text-blue-700 underline">View All Counties</a>
+            {% endif %}
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+            {% for item in county_links %}
+            <a href="/bail-bonds/{{ item.slug }}"
+               class="rounded-full border px-3 py-1.5 text-xs font-semibold transition {% if selected_county_slug == item.slug %}bg-blue-600 border-blue-600 text-white{% else %}bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100{% endif %}">
+                {{ item.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if not listings %}
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 text-center">
+        <h2 class="text-xl font-black text-slate-900">No active listings yet</h2>
+        <p class="text-sm text-slate-600 mt-2">Interested providers can apply at <a class="underline text-blue-700" href="/advertise/bail-bonds">/advertise/bail-bonds</a>.</p>
+    </div>
+    {% endif %}
+
+    {% for section in county_sections %}
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <h2 class="text-xl font-black text-slate-900">{{ section.county }}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {% for item in section.listings %}
+            <article class="rounded-xl border border-slate-200 p-4 bg-slate-50" data-ad-order-id="{{ item.id }}" data-ad-county="{{ section.county }}">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs uppercase tracking-[0.12em] font-black text-amber-700">Sponsored</p>
+                        <h3 class="text-lg font-black text-slate-900 mt-1">{{ item.headline }}</h3>
+                        <p class="text-sm text-slate-600 mt-2">{{ item.body_copy }}</p>
+                    </div>
+                    {% if item.logo_path %}
+                    <img src="{{ item.logo_path }}" loading="lazy" alt="{{ item.business_name }} logo" class="w-16 h-16 object-contain rounded-lg border border-slate-200 bg-white">
+                    {% endif %}
+                </div>
+                <div class="mt-3 text-sm text-slate-700 space-y-1">
+                    <p class="font-semibold">{{ item.business_name }}</p>
+                    {% if item.phone_href %}
+                    <p><a href="{{ item.phone_href }}" class="bail-ad-call text-blue-700 underline" data-order-id="{{ item.id }}" data-county="{{ section.county }}">{{ item.phone }}</a></p>
+                    {% endif %}
+                    {% if item.sms_href %}
+                    <p><a href="{{ item.sms_href }}" class="bail-ad-text text-blue-700 underline" data-order-id="{{ item.id }}" data-county="{{ section.county }}">Text this agency</a></p>
+                    {% endif %}
+                    {% if item.email %}
+                    <p><a href="mailto:{{ item.email }}" class="bail-ad-email text-blue-700 underline" data-order-id="{{ item.id }}" data-county="{{ section.county }}">{{ item.email }}</a></p>
+                    {% endif %}
+                </div>
+                <div class="mt-4 flex items-center gap-3 flex-wrap">
+                    {% if item.target_url %}
+                    <a href="{{ item.target_url }}" target="_blank" rel="noopener noreferrer"
+                       class="bail-ad-click inline-flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]"
+                       data-order-id="{{ item.id }}" data-county="{{ section.county }}">
+                        {{ item.cta_text }}
+                    </a>
+                    {% endif %}
+                    {% if item.website_url %}
+                    <a href="{{ item.website_url }}" target="_blank" rel="noopener noreferrer" class="text-xs text-slate-600 underline">Website</a>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <h2 class="text-xl font-black text-slate-900">Frequently Asked Questions</h2>
+        <div class="mt-4 space-y-4 text-sm text-slate-700">
+            <article>
+                <p class="font-semibold text-slate-900">How fast will I hear back?</p>
+                <p class="mt-1 text-slate-600">Most inquiries are routed immediately to active advertisers and reviewed throughout the day.</p>
+            </article>
+            <article>
+                <p class="font-semibold text-slate-900">Do I have to pay to submit a request?</p>
+                <p class="mt-1 text-slate-600">No. Request forms and direct calls from this directory are free for users.</p>
+            </article>
+            <article>
+                <p class="font-semibold text-slate-900">Are listings vetted?</p>
+                <p class="mt-1 text-slate-600">Listings are paid advertiser placements and must meet Montana Blotter ad review standards.</p>
+            </article>
+        </div>
+    </section>
+</div>
+
+{% if help_contact.tel_href or help_contact.sms_href %}
+<div class="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur">
+    <div class="mx-auto max-w-6xl px-4 py-3 flex items-center gap-2">
+        {% if help_contact.tel_href %}
+        <a href="{{ help_contact.tel_href }}" class="bail-help-call flex-1 inline-flex items-center justify-center rounded-xl bg-blue-600 text-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em]">Call Now</a>
+        {% endif %}
+        {% if help_contact.sms_href %}
+        <a href="{{ help_contact.sms_href }}" class="bail-help-text flex-1 inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em]">Text</a>
+        {% endif %}
+    </div>
+</div>
+
+<aside class="hidden md:flex fixed right-4 bottom-4 z-40 flex-col gap-2">
+    {% if help_contact.tel_href %}
+    <a href="{{ help_contact.tel_href }}" class="bail-help-call inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em] shadow-lg">Call Now</a>
+    {% endif %}
+    {% if help_contact.sms_href %}
+    <a href="{{ help_contact.sms_href }}" class="bail-help-text inline-flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] shadow-lg">Text Us</a>
+    {% endif %}
+    {% if help_contact.chat_url %}
+    <a href="{{ help_contact.chat_url }}" target="_blank" rel="noopener noreferrer" class="bail-help-chat inline-flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em] shadow-lg">Live Chat</a>
+    {% endif %}
+</aside>
+{% endif %}
+
+<script>
+(function () {
+    function sendJson(url, payload) {
+        try {
+            var raw = JSON.stringify(payload || {});
+            if (navigator.sendBeacon) {
+                var blob = new Blob([raw], {type: 'application/json'});
+                navigator.sendBeacon(url, blob);
+                return;
+            }
+            fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: raw,
+                keepalive: true
+            });
+        } catch (e) {}
+    }
+
+    function sendAdEvent(eventType, orderId, county, source) {
+        sendJson('/api/bail-ads/event', {
+            event_type: eventType,
+            order_id: orderId || null,
+            county: county || '',
+            source: source || 'bail_bonds_directory'
+        });
+    }
+
+    function sendLeadEvent(eventType, county, source) {
+        sendJson('/api/bail-leads/event', {
+            event_type: eventType,
+            county: county || '',
+            source: source || 'bail_bonds_directory'
+        });
+    }
+
+    var selectedCounty = "{{ selected_county or '' }}";
+    sendLeadEvent('directory_view', selectedCounty, 'directory_page');
+
+    document.querySelectorAll('[data-ad-order-id]').forEach(function (card) {
+        var orderId = Number(card.getAttribute('data-ad-order-id') || 0);
+        var county = card.getAttribute('data-ad-county') || '';
+        if (orderId) sendAdEvent('impression', orderId, county, 'directory_card');
+    });
+
+    document.querySelectorAll('.bail-ad-click').forEach(function (link) {
+        link.addEventListener('click', function () {
+            var orderId = Number(link.getAttribute('data-order-id') || 0);
+            var county = link.getAttribute('data-county') || '';
+            if (orderId) sendAdEvent('click', orderId, county, 'directory_card');
+        });
+    });
+
+    document.querySelectorAll('.bail-ad-call').forEach(function (link) {
+        link.addEventListener('click', function () {
+            var orderId = Number(link.getAttribute('data-order-id') || 0);
+            var county = link.getAttribute('data-county') || '';
+            if (orderId) sendAdEvent('call', orderId, county, 'directory_card');
+            sendLeadEvent('call_click', county, 'directory_card');
+        });
+    });
+
+    document.querySelectorAll('.bail-ad-text').forEach(function (link) {
+        link.addEventListener('click', function () {
+            var orderId = Number(link.getAttribute('data-order-id') || 0);
+            var county = link.getAttribute('data-county') || '';
+            if (orderId) sendAdEvent('text', orderId, county, 'directory_card');
+            sendLeadEvent('text_click', county, 'directory_card');
+        });
+    });
+
+    document.querySelectorAll('.bail-ad-email').forEach(function (link) {
+        link.addEventListener('click', function () {
+            var orderId = Number(link.getAttribute('data-order-id') || 0);
+            var county = link.getAttribute('data-county') || '';
+            if (orderId) sendAdEvent('lead', orderId, county, 'directory_card');
+        });
+    });
+
+    document.querySelectorAll('.bail-help-call').forEach(function (link) {
+        link.addEventListener('click', function () {
+            sendLeadEvent('call_click', selectedCounty, 'help_widget');
+        });
+    });
+    document.querySelectorAll('.bail-help-text').forEach(function (link) {
+        link.addEventListener('click', function () {
+            sendLeadEvent('text_click', selectedCounty, 'help_widget');
+        });
+    });
+    document.querySelectorAll('.bail-help-chat').forEach(function (link) {
+        link.addEventListener('click', function () {
+            sendLeadEvent('chat_click', selectedCounty, 'help_widget');
+        });
+    });
+
+    var leadForm = document.querySelector('form[action="/bail-bonds/intake"]');
+    if (leadForm) {
+        sendLeadEvent('form_view', selectedCounty, 'directory_form');
+        leadForm.addEventListener('submit', function () {
+            var countyInput = leadForm.querySelector('select[name="county"]');
+            var countyValue = countyInput ? countyInput.value : selectedCounty;
+            sendLeadEvent('form_submit', countyValue, 'directory_form');
+        });
+    }
+})();
+</script>
+{% endblock %}

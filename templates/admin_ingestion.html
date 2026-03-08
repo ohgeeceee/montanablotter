@@ -92,6 +92,7 @@
 
                     <div class="flex lg:flex-col gap-3 lg:items-stretch">
                         <form action="/admin/ingestion/{{ job.id }}/retry" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition">
                                 Retry Job
                             </button>

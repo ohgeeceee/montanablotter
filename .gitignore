@@ -8,6 +8,8 @@ uploads/
 records/
 *.log
 config.py
+.env
+.env.local
 .claude/
 db_backups/
 backup.log

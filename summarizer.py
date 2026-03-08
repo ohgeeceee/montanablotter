@@ -8,9 +8,21 @@ from typing import Optional
 import requests
 
 import config
+from dedupe import incident_key_set
+from pipeline_state import log_pipeline_event
 
 DB_PATH = config.DB_PATH
+DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
+DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
 logger = logging.getLogger(__name__)
+
+
+def _connect_db() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT_SECONDS)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute(f"PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS}")
+    return conn
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +89,11 @@ def _detect_agency(content: str, sender_email: Optional[str] = None,
 # Core public function
 # ---------------------------------------------------------------------------
 
-def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
+def generate_posts(
+    blotter_id: int,
+    sender_email: Optional[str] = None,
+    ingestion_job_id: Optional[int] = None,
+) -> int:
     openai_api_key = os.getenv("OPENAI_API_KEY") or getattr(config, "OPENAI_API_KEY", None)
     openai_model = os.getenv("OPENAI_MODEL") or getattr(config, "OPENAI_MODEL", "gpt-4o-mini")
 
@@ -92,8 +108,7 @@ def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
     if not openai_api_key and anthropic_client is None:
         logger.warning("No LLM API key configured (OPENAI_API_KEY/ANTHROPIC_API_KEY) – using fallback digest")
 
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = _connect_db()
     cursor = conn.cursor()
 
     # Skip if a post already exists for this blotter
@@ -101,6 +116,13 @@ def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
         "SELECT id FROM posts WHERE blotter_id = ?", (blotter_id,)
     ).fetchone()
     if existing:
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'summary_method',
+                'ok',
+                {'method': 'existing_post', 'generated': False, 'post_id': int(existing['id'])},
+            )
         conn.close()
         logger.info(f"Post already exists for blotter {blotter_id} – skipping")
         return 0
@@ -139,6 +161,59 @@ def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
     # Determine county and date from first record
     county = rows[0]["county"] or blotter_county
     incident_date = rows[0]["date"] or blotter_date
+    current_keys = incident_key_set(rows, county=county)
+
+    if current_keys:
+        candidate_posts = cursor.execute(
+            """
+            SELECT id, blotter_id
+            FROM posts
+            WHERE county = ?
+              AND incident_date = ?
+              AND blotter_id != ?
+            ORDER BY created_at DESC
+            """,
+            (county, incident_date, blotter_id),
+        ).fetchall()
+        for candidate in candidate_posts:
+            sibling_rows = cursor.execute(
+                """
+                SELECT
+                    COALESCE(r.incident_type, r.incident, '') AS incident_type,
+                    r.location,
+                    r.date,
+                    COALESCE(r.time, '') AS time,
+                    r.county,
+                    COALESCE(r.details, r.summary, '') AS details,
+                    COALESCE(r.cfs_number, '') AS cfs_number
+                FROM records r
+                WHERE r.blotter_id = ?
+                """,
+                (candidate["blotter_id"],),
+            ).fetchall()
+            sibling_keys = incident_key_set(sibling_rows, county=county)
+            if not sibling_keys:
+                continue
+            overlap = len(current_keys & sibling_keys) / max(len(current_keys), 1)
+            if overlap >= 0.7:
+                if ingestion_job_id is not None:
+                    log_pipeline_event(
+                        ingestion_job_id,
+                        'summary_method',
+                        'ok',
+                        {
+                            'method': 'skipped_duplicate_post',
+                            'generated': False,
+                            'matched_post_id': int(candidate['id']),
+                            'overlap_ratio': round(overlap, 3),
+                        },
+                    )
+                conn.close()
+                logger.info(
+                    f"Skipping near-duplicate post for blotter {blotter_id}; "
+                    f"overlaps post {candidate['id']} at {overlap:.0%}"
+                )
+                return 0
 
     # Build combined text for agency detection
     combined_text = " ".join(
@@ -157,6 +232,7 @@ def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
         incident_lines.append(f"- {time_str}  {itype}  |  {loc}  |  {detail}".strip(" |"))
 
     post_data = {}
+    summary_method = {'method': 'fallback', 'provider': 'fallback', 'generated': False}
     if openai_api_key:
         post_data = _call_openai(
             api_key=openai_api_key,
@@ -168,6 +244,8 @@ def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
             filename=blotter_filename,
             incident_lines=incident_lines,
         )
+        if post_data:
+            summary_method = {'method': 'ai_generated', 'provider': 'openai', 'generated': True}
 
     if not post_data and anthropic_client is not None:
         post_data = _call_claude(
@@ -179,6 +257,8 @@ def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
             filename=blotter_filename,
             incident_lines=incident_lines,
         )
+        if post_data:
+            summary_method = {'method': 'ai_generated', 'provider': 'anthropic', 'generated': True}
 
     final_agency_type = post_data.get("agency_type") or agency_type
     final_agency_name = post_data.get("agency_name") or agency_name
@@ -203,9 +283,24 @@ def generate_posts(blotter_id: int, sender_email: Optional[str] = None) -> int:
             "Daily Digest",
         ),
     )
-
+    post_id = int(cursor.lastrowid or 0)
     conn.commit()
     conn.close()
+
+    # Optional social automation: enqueue freshly-generated posts for Facebook publishing.
+    try:
+        from facebook_publisher import auto_queue_post_if_enabled
+        auto_queue_post_if_enabled(post_id)
+    except Exception as exc:
+        logger.warning("facebook auto-queue failed for post_id=%s: %s", post_id, exc)
+
+    if ingestion_job_id is not None:
+        details = {
+            **summary_method,
+            'post_id': post_id,
+        }
+        log_pipeline_event(ingestion_job_id, 'summary_method', 'ok', details)
+
     logger.info(f"generate_posts(blotter_id={blotter_id}): created 1 digest post")
     return 1
 
