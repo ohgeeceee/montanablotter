@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700{% elif category == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-indigo-600">Security</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Admin Users</h1>
+            <p class="text-sm text-slate-500 mt-2">Manage admin roles, account status, and recent login failures.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Accounts</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ users|length }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Super Admins</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ super_admin_count }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Role Model</p>
+                <p class="text-sm font-semibold text-slate-900 mt-2">RBAC enabled</p>
+            </div>
+            <a href="/admin/security/audit" class="rounded-xl border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 transition">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Audit</p>
+                <p class="text-sm font-semibold text-slate-900 mt-2">Open log</p>
+            </a>
+        </div>
+    </div>
+
+    <form method="get" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_0.8fr_0.8fr_auto]">
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Username or email"
+                       class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+            </div>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Role</label>
+                <select name="role" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    <option value="">All roles</option>
+                    {% for value, label in role_options.items() %}
+                    <option value="{{ value }}" {% if role_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Status</label>
+                <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </div>
+            <div class="flex items-end gap-3">
+                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">
+                    Apply
+                </button>
+                <a href="/admin/security/users" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                    Reset
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Accounts</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[980px]">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3 text-left">User</th>
+                        <th class="px-5 py-3 text-left">Role</th>
+                        <th class="px-5 py-3 text-left">Status</th>
+                        <th class="px-5 py-3 text-left">Last Login</th>
+                        <th class="px-5 py-3 text-left">Login Health</th>
+                        <th class="px-5 py-3 text-left">MFA</th>
+                        <th class="px-5 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for user in users %}
+                    <tr class="align-top hover:bg-slate-50 transition">
+                        <td class="px-5 py-4">
+                            <p class="text-sm font-black text-slate-900">{{ user.username }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ user.email or 'No email set' }}</p>
+                            <p class="text-xs text-slate-400 mt-1">Created {{ user.created_at or '-' }}</p>
+                        </td>
+                        <td class="px-5 py-4">
+                            <form method="post" action="/admin/security/users/{{ user.id }}/role" class="flex items-center gap-2">
+                                <select name="role" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">
+                                    {% for value, label in role_options.items() %}
+                                    <option value="{{ value }}" {% if user.role == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit"
+                                        class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">
+                                    Save
+                                </button>
+                            </form>
+                        </td>
+                        <td class="px-5 py-4">
+                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.14em] {% if user.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-slate-200 text-slate-600{% endif %}">
+                                {{ 'Active' if user.is_active else 'Disabled' }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-4 text-sm text-slate-700">
+                            {{ user.last_login_at or 'Never' }}
+                        </td>
+                        <td class="px-5 py-4">
+                            <p class="text-sm font-black {% if user.failed_logins_24h %}text-amber-700{% else %}text-emerald-700{% endif %}">
+                                {{ user.failed_logins_24h }} failed / 24h
+                            </p>
+                        </td>
+                        <td class="px-5 py-4">
+                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.14em] {% if user.mfa_enabled %}bg-blue-100 text-blue-700{% else %}bg-slate-200 text-slate-600{% endif %}">
+                                {{ 'Enabled' if user.mfa_enabled else 'Off' }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-4">
+                            <form method="post" action="/admin/security/users/{{ user.id }}/status" class="flex justify-end">
+                                <input type="hidden" name="is_active" value="{{ 0 if user.is_active else 1 }}">
+                                <button type="submit"
+                                        class="rounded-lg px-3 py-2 text-xs font-black uppercase tracking-[0.12em] {% if user.is_active %}bg-rose-600 text-white hover:bg-rose-700{% else %}bg-emerald-600 text-white hover:bg-emerald-700{% endif %} transition">
+                                    {{ 'Disable' if user.is_active else 'Enable' }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-5 py-8 text-center text-sm text-slate-500">No matching admin users found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

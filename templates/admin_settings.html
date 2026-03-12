@@ -1,99 +1,199 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <title>Admin Settings | MT Blotter</title>
-</head>
-<body class="bg-slate-50 font-sans">
-    <nav class="bg-slate-900 text-white p-4 flex justify-between items-center">
-        <span class="font-bold">ADMIN COMMAND CENTER</span>
-        <div class="space-x-4">
-            <a href="/dashboard" class="text-sm bg-slate-800 px-3 py-1 rounded">Dashboard</a>
-            <a href="/logout" class="text-sm text-red-400">Logout</a>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700{% elif category == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">
+            {{ message }}
         </div>
-    </nav>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
 
-    <div class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div class="space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Manual Ingestion</h3>
-                <form action="/admin/upload" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="file" name="file" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4"/>
-                    <button class="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold">Process PDF</button>
-                </form>
-            </div>
-
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-red-50">
-                <h3 class="text-xs font-bold text-red-600 uppercase tracking-widest mb-4">Security</h3>
-                <form action="/admin/settings" method="POST" class="space-y-3">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="change_password">
-                    <input type="password" name="new_password" placeholder="New Password" class="w-full p-2 border rounded text-xs outline-none focus:ring-1 focus:ring-red-500">
-                    <button class="w-full bg-red-600 text-white py-2 rounded-lg text-xs font-bold">Update Admin PW</button>
-                </form>
-            </div>
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-600">Admin</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Settings</h1>
+            <p class="text-sm text-slate-500 mt-2">Typed app controls for authentication, ingestion, revenue, and password management.</p>
         </div>
-
-        <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="p-4 bg-gray-50 border-b font-bold text-sm text-slate-700">Active Subscribers</div>
-                <table class="w-full text-left text-sm">
-                    <thead class="text-[10px] text-gray-400 uppercase font-bold">
-                        <tr class="border-b">
-                            <th class="px-6 py-3">Username</th>
-                            <th class="px-6 py-3">Tier</th>
-                            <th class="px-6 py-3 text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr class="border-b hover:bg-slate-50 transition">
-                            <td class="px-6 py-3 font-semibold">{{ user.username }}</td>
-                            <td class="px-6 py-3">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ 'bg-blue-100 text-blue-700' if user.membership == 'pro' else 'bg-gray-100 text-gray-500' }}">
-                                    {{ user.membership }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-3 text-right">
-                                <form action="/admin/settings" method="POST">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="action" value="update_user">
-                                    <input type="hidden" name="user_id" value="{{ user.id }}">
-                                    <select name="membership" onchange="this.form.submit()" class="text-[10px] border rounded p-1">
-                                        <option value="free" {{ 'selected' if user.membership == 'free' }}>Free</option>
-                                        <option value="pro" {{ 'selected' if user.membership == 'pro' }}>Pro</option>
-                                    </select>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Login Limit</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ setting_values.admin_login_max_attempts }}</p>
             </div>
-
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="p-4 bg-slate-900 text-white font-bold text-sm">Live System Audit</div>
-                <div class="max-h-60 overflow-y-auto">
-                    <table class="w-full text-left text-[11px]">
-                        <tbody class="divide-y divide-gray-100">
-                            {% for log in logs %}
-                            <tr>
-                                <td class="px-6 py-2 text-gray-400 font-mono">{{ log.timestamp }}</td>
-                                <td class="px-6 py-2 font-bold text-slate-700">User {{ log.user_id }}</td>
-                                <td class="px-6 py-2 italic text-slate-500">{{ log.action }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Upload MB</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ setting_values.max_upload_mb }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Alert Repeat</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ setting_values.ingest_alert_repeat_hours }}h</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Donations</p>
+                <p class="text-sm font-black {% if setting_values.donations_enabled %}text-emerald-700{% else %}text-slate-600{% endif %} mt-3">
+                    {{ 'Enabled' if setting_values.donations_enabled else 'Disabled' }}
+                </p>
             </div>
         </div>
     </div>
-</body>
-</html>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[1.3fr_0.9fr] gap-6">
+        <div class="space-y-6">
+            <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-lg font-black text-slate-900">Authentication</h2>
+                    <p class="text-xs text-slate-500 mt-1">Admin login abuse controls backed by `app_settings`.</p>
+                </div>
+                <form method="post" class="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="hidden" name="action" value="save_auth_settings">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.admin_login_max_attempts.label }}</label>
+                        <input type="number" min="{{ setting_specs.admin_login_max_attempts.min }}" max="{{ setting_specs.admin_login_max_attempts.max }}"
+                               name="admin_login_max_attempts" value="{{ setting_values.admin_login_max_attempts }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                        <p class="text-xs text-slate-500 mt-2">{{ setting_specs.admin_login_max_attempts.help }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.admin_login_window_minutes.label }}</label>
+                        <input type="number" min="{{ setting_specs.admin_login_window_minutes.min }}" max="{{ setting_specs.admin_login_window_minutes.max }}"
+                               name="admin_login_window_minutes" value="{{ setting_values.admin_login_window_minutes }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                        <p class="text-xs text-slate-500 mt-2">{{ setting_specs.admin_login_window_minutes.help }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.admin_login_lockout_minutes.label }}</label>
+                        <input type="number" min="{{ setting_specs.admin_login_lockout_minutes.min }}" max="{{ setting_specs.admin_login_lockout_minutes.max }}"
+                               name="admin_login_lockout_minutes" value="{{ setting_values.admin_login_lockout_minutes }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                        <p class="text-xs text-slate-500 mt-2">{{ setting_specs.admin_login_lockout_minutes.help }}</p>
+                    </div>
+                    <div class="md:col-span-3 flex justify-end">
+                        <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">
+                            Save Authentication
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-lg font-black text-slate-900">Ingestion</h2>
+                    <p class="text-xs text-slate-500 mt-1">Manual upload and alerting controls that the runtime can honor immediately.</p>
+                </div>
+                <form method="post" class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" name="action" value="save_ingestion_settings">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.max_upload_mb.label }}</label>
+                        <input type="number" min="{{ setting_specs.max_upload_mb.min }}" max="{{ setting_specs.max_upload_mb.max }}"
+                               name="max_upload_mb" value="{{ setting_values.max_upload_mb }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                        <p class="text-xs text-slate-500 mt-2">{{ setting_specs.max_upload_mb.help }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.ingest_alert_repeat_hours.label }}</label>
+                        <input type="number" min="{{ setting_specs.ingest_alert_repeat_hours.min }}" max="{{ setting_specs.ingest_alert_repeat_hours.max }}"
+                               name="ingest_alert_repeat_hours" value="{{ setting_values.ingest_alert_repeat_hours }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                        <p class="text-xs text-slate-500 mt-2">{{ setting_specs.ingest_alert_repeat_hours.help }}</p>
+                    </div>
+                    <div class="md:col-span-2 flex justify-end">
+                        <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">
+                            Save Ingestion
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-lg font-black text-slate-900">Revenue</h2>
+                    <p class="text-xs text-slate-500 mt-1">Feature-flag control for public donations.</p>
+                </div>
+                <form method="post" class="p-5 flex flex-col gap-4">
+                    <input type="hidden" name="action" value="save_revenue_settings">
+                    <label class="inline-flex items-center gap-3">
+                        <input type="checkbox" name="donations_enabled" value="1" {% if setting_values.donations_enabled %}checked{% endif %}
+                               class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-sm font-semibold text-slate-900">{{ setting_specs.donations_enabled.label }}</span>
+                    </label>
+                    <p class="text-xs text-slate-500">{{ setting_specs.donations_enabled.help }}</p>
+                    <div class="flex justify-end">
+                        <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">
+                            Save Revenue
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <div class="space-y-6">
+            <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-lg font-black text-slate-900">Password</h2>
+                    <p class="text-xs text-slate-500 mt-1">Update your current admin password.</p>
+                </div>
+                <form method="post" class="p-5 space-y-4">
+                    <input type="hidden" name="action" value="change_password">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">New password</label>
+                        <input type="password" name="new_password" minlength="12" required
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                        <p class="text-xs text-slate-500 mt-2">Minimum 12 characters.</p>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-black text-white hover:bg-rose-700 transition">
+                            Update Password
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-lg font-black text-slate-900">Runtime Snapshot</h2>
+                    <p class="text-xs text-slate-500 mt-1">Environment-backed values shown for context only.</p>
+                </div>
+                <div class="p-5 space-y-3 text-sm">
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-slate-500">Base URL</span>
+                        <span class="font-mono text-slate-900 text-right break-all">{{ runtime_info.base_url }}</span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-slate-500">Upload directory</span>
+                        <span class="font-mono text-slate-900 text-right break-all">{{ runtime_info.upload_dir }}</span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-slate-500">Max upload bytes</span>
+                        <span class="font-mono text-slate-900 text-right">{{ runtime_info.max_upload_bytes or 0 }}</span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-slate-500">Referrer policy</span>
+                        <span class="font-mono text-slate-900 text-right">{{ runtime_info.referrer_policy }}</span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-slate-500">API CORS allow origin</span>
+                        <span class="font-mono text-slate-900 text-right break-all">{{ runtime_info.api_cors_allow_origin }}</span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-slate-500">Session SameSite</span>
+                        <span class="font-mono text-slate-900 text-right">{{ runtime_info.session_cookie_samesite }}</span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-slate-500">Content Security Policy</span>
+                        <span class="font-mono text-slate-900 text-right">{{ 'Configured' if runtime_info.content_security_policy else 'Disabled' }}</span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-slate-500">Donation currency</span>
+                        <span class="font-mono text-slate-900 text-right">{{ runtime_info.donation_currency }}</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

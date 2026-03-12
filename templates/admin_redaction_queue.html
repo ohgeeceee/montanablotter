@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700{% elif category == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-600">Content Review</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Redaction Queue</h1>
+            <p class="text-sm text-slate-500 mt-2">Prioritize pending and flagged posts before they age out of editorial review.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Pending</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.pending_count or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Flagged</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.flagged_count or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Clean</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.clean_count or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Total</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.total_count or 0 }}</p>
+            </div>
+        </div>
+    </div>
+
+    <form method="get" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_0.8fr_0.8fr_auto]">
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Title, summary, agency"
+                       class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+            </div>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Status</label>
+                <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="flagged" {% if status_filter == 'flagged' %}selected{% endif %}>Flagged</option>
+                    <option value="clean" {% if status_filter == 'clean' %}selected{% endif %}>Clean</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">County</label>
+                <select name="county" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    <option value="">All counties</option>
+                    {% for county in county_options %}
+                    <option value="{{ county }}" {% if county_filter == county %}selected{% endif %}>{{ county }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-end gap-3">
+                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">Apply</button>
+                <a href="/admin/operations/redaction" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Reset</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[1080px]">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3 text-left">Post</th>
+                        <th class="px-5 py-3 text-left">Status</th>
+                        <th class="px-5 py-3 text-left">PII</th>
+                        <th class="px-5 py-3 text-left">Incidents</th>
+                        <th class="px-5 py-3 text-left">Summary</th>
+                        <th class="px-5 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in rows %}
+                    <tr class="align-top hover:bg-slate-50 transition">
+                        <td class="px-5 py-4">
+                            <p class="text-sm font-black text-slate-900">{{ row.title }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ row.agency_name or row.county or 'Unknown agency' }}{% if row.incident_date %} · {{ row.incident_date }}{% endif %}</p>
+                            <p class="text-xs text-slate-400 mt-1">{{ row.blotter_filename or '-' }}</p>
+                        </td>
+                        <td class="px-5 py-4">
+                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em] {% if row.audit_status == 'clean' %}bg-emerald-100 text-emerald-700{% elif row.audit_status == 'flagged' %}bg-rose-100 text-rose-700{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                {{ row.audit_status }}
+                            </span>
+                            {% if row.audited_at %}
+                            <p class="text-xs text-slate-500 mt-2">Audited {{ row.audited_at }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-4">
+                            <p class="text-sm font-black {% if row.pii_count %}text-amber-700{% else %}text-emerald-700{% endif %}">{{ row.pii_count }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ row.pii_flags or 'No stored flags' }}</p>
+                        </td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.incident_count }}</td>
+                        <td class="px-5 py-4">
+                            <p class="text-sm text-slate-600 leading-6">{{ row.summary_preview or 'No summary text.' }}</p>
+                        </td>
+                        <td class="px-5 py-4">
+                            <div class="flex flex-col items-end gap-2">
+                                <a href="/admin/post/{{ row.id }}/redact" class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Open Editor</a>
+                                <form method="post" action="/admin/operations/redaction/{{ row.id }}/approve">
+                                    <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white hover:bg-emerald-700 transition">Mark Clean</button>
+                                </form>
+                                <form method="post" action="/admin/operations/redaction/{{ row.id }}/reset">
+                                    <button type="submit" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Reset</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-500">No posts matched the current redaction filters.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

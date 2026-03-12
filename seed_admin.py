@@ -57,21 +57,21 @@ def seed_admin(username='admin', password=''):
         if user:
             # Update existing admin
             cursor.execute(
-                "UPDATE users SET password = ?, membership = 'pro' WHERE username = ?",
+                "UPDATE users SET password = ?, membership = 'pro', role = 'super_admin', is_active = 1 WHERE username = ?",
                 (hashed_pw, username)
             )
             print(f"✅ Admin user '{username}' updated with new password")
         else:
             # Create new admin
             cursor.execute(
-                "INSERT INTO users (username, password, membership) VALUES (?, ?, ?)",
-                (username, hashed_pw, 'pro')
+                "INSERT INTO users (username, password, membership, role, is_active) VALUES (?, ?, ?, ?, ?)",
+                (username, hashed_pw, 'pro', 'super_admin', 1)
             )
             print(f"✅ Admin user '{username}' created")
         
         conn.commit()
         conn.close()
-        print(f"🔐 Admin user '{username}' is ready (membership: pro)")
+        print(f"🔐 Admin user '{username}' is ready (role: super_admin)")
         
     except Exception as e:
         print(f"❌ Error: {e}")
