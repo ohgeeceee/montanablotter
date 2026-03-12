@@ -9,6 +9,7 @@ import requests
 
 import config
 from dedupe import incident_key_set
+from historical_context import append_historical_perspective
 from pipeline_state import log_pipeline_event
 
 DB_PATH = config.DB_PATH
@@ -263,6 +264,13 @@ def generate_posts(
     final_agency_type = post_data.get("agency_type") or agency_type
     final_agency_name = post_data.get("agency_name") or agency_name
     city = post_data.get("city") or ""
+    final_summary = append_historical_perspective(
+        post_data.get("summary") or _fallback_summary(agency_name, rows),
+        records=rows,
+        county=county,
+        agency_name=final_agency_name,
+        agency_type=final_agency_type,
+    )
 
     cursor.execute(
         """
@@ -274,7 +282,7 @@ def generate_posts(
         (
             blotter_id,
             post_data.get("title") or f"Daily Activity Report – {final_agency_name or county}",
-            post_data.get("summary") or _fallback_summary(agency_name, rows),
+            final_summary,
             city,
             county,
             final_agency_type,
@@ -298,6 +306,7 @@ def generate_posts(
         details = {
             **summary_method,
             'post_id': post_id,
+            'historical_perspective': '// Historical Perspective:' in final_summary,
         }
         log_pipeline_event(ingestion_job_id, 'summary_method', 'ok', details)
 

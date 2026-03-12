@@ -32,6 +32,7 @@ from typing import Optional
 
 import anthropic
 import config
+from historical_context import append_historical_perspective
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -301,6 +302,8 @@ Your responsibilities:
    and free of sensationalism. Use third-person, past tense. Do not editorialize \
    or speculate. Use "individual" or "subject" rather than "suspect" where \
    charges have not been confirmed. All persons are innocent until convicted.
+   If the draft already includes a section titled "// Historical Perspective", \
+   preserve it as a short closing note and keep it to 1-2 sentences.
 3. Assess the tone: flag any phrasing that is inflammatory, biased, \
    unprofessional, or that could expose the organization to liability.
 4. Generate an SEO meta-description optimized for Great Falls, MT and \
@@ -518,6 +521,12 @@ def audit_post(
         high_flags.append(pii_flags[-1])
 
     public_summary = claude_result.get("public_summary", existing_summary)
+    public_summary = append_historical_perspective(
+        public_summary,
+        raw_text=raw_text,
+        county=county,
+        agency_name=agency_name,
+    )
     tone_ok        = bool(claude_result.get("tone_ok", True))
     tone_notes     = claude_result.get("tone_notes", "")
     meta_desc      = claude_result.get("meta_description", "")
