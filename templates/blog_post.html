@@ -5,9 +5,57 @@
 {% set canonical_url = "https://montanablotter.com/blog/" ~ post.slug %}
 {% set og_title = post.title ~ " | Montana Blotter" %}
 {% set og_description = meta_description %}
+{% set og_type = "article" %}
+{% set twitter_card = "summary_large_image" %}
 {% set active_nav = "blog" %}
 
 {% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": {{ post.title | tojson }},
+  "description": {{ meta_description | tojson }},
+  "datePublished": {{ (post.created_at or '') | tojson }},
+  "dateModified": {{ (post.updated_at or post.created_at or '') | tojson }},
+  "author": {
+    "@type": "{{ 'Person' if post.author else 'Organization' }}",
+    "name": {{ (post.author or 'Montana Blotter') | tojson }}
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  },
+  "mainEntityOfPage": {{ canonical_url | tojson }}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Montana Blotter",
+      "item": "https://montanablotter.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Blog",
+      "item": "https://montanablotter.com/blog"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ post.title | tojson }},
+      "item": {{ canonical_url | tojson }}
+    }
+  ]
+}
+</script>
 <style>
     .prose h1, .prose h2, .prose h3, .prose h4 { color: #f4ecde; }
     .prose h1 { font-size: 1.75rem; font-weight: 800; margin: 1.5rem 0 0.75rem; }
@@ -61,6 +109,38 @@
         <div class="prose text-[#d9cfbf] text-[15px]">
             {{ post.body | markdown | safe }}
         </div>
+
+        <section class="mt-10 rounded-2xl border border-stone-800 bg-stone-950/40 p-5">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-400">Explore Montana Records</p>
+            <h2 class="mt-2 text-xl font-black text-[#f4ecde]">Keep moving into the pages that rank for local search intent</h2>
+            <p class="mt-2 text-sm leading-6 text-stone-400">
+                Use these hubs to move from analysis into county archives, city pages, jail rosters, warrants, arrests, and pattern pages.
+            </p>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <a href="/counties" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">Browse Montana counties</a>
+                <a href="/cities" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">Browse Montana city pages</a>
+                <a href="/jail-rosters" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">See every Montana jail roster</a>
+                <a href="/warrants" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">Search Montana warrant pages</a>
+                <a href="/arrests" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">View arrest-focused coverage</a>
+                <a href="/patterns" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">Open pattern pages</a>
+            </div>
+        </section>
+
+        <section class="mt-6 rounded-2xl border border-stone-800 bg-stone-950/40 p-5">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-400">Reference Guides</p>
+            <h2 class="mt-2 text-xl font-black text-[#f4ecde]">Evergreen assets built to answer records-access questions</h2>
+            <p class="mt-2 text-sm leading-6 text-stone-400">
+                These pages are designed to earn links and capture the practical queries readers search before they reach county or city pages.
+            </p>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <a href="/guides/how-to-find-montana-police-blotters" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">How to find Montana police blotters</a>
+                <a href="/guides/montana-county-guides" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">Browse Montana county guides</a>
+                <a href="/guides/how-to-find-montana-warrants" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">How to find Montana warrants</a>
+                <a href="/guides/how-to-find-montana-arrest-records" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">How to find Montana arrest records</a>
+                <a href="/guides/how-to-find-montana-jail-rosters" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500">How to find Montana jail rosters</a>
+                <a href="/annual-roundups" class="rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-sm font-bold text-stone-100 transition hover:border-emerald-500 sm:col-span-2">Read Montana annual roundups</a>
+            </div>
+        </section>
 
         <hr class="border-stone-800 mt-10 mb-6">
 

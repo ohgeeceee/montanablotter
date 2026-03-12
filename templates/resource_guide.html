@@ -1,0 +1,118 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = guide.title %}
+{% set meta_description = guide.meta_description %}
+{% set canonical_url = "https://montanablotter.com/guides/" ~ slug %}
+{% set og_title = guide.title ~ " | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": {{ guide.title | tojson }},
+  "description": {{ meta_description | tojson }},
+  "mainEntityOfPage": {{ canonical_url | tojson }},
+  "author": {
+    "@type": "Organization",
+    "name": "Montana Blotter"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  }
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/guides" class="hover:text-slate-700">Guides</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ guide.title }}</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+        <span class="inline-block bg-emerald-500/20 text-emerald-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+            {{ guide.hero_label }}
+        </span>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">{{ guide.title }}</h1>
+        <p class="text-slate-300 text-sm max-w-3xl">{{ guide.intro }}</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">How To Use This Guide</p>
+        <div class="grid gap-4 md:grid-cols-3 mt-4">
+            {% for step in guide.steps %}
+            <article class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <h2 class="text-lg font-black text-slate-900">{{ step.title }}</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-600">{{ step.body }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if guide.page_links %}
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Best Next Clicks</p>
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4 mt-4">
+            {% for item in guide.page_links %}
+            <a href="{{ item.href }}" class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:bg-slate-100">
+                <p class="text-sm font-black text-slate-900">{{ item.label }}</p>
+                <p class="mt-2 text-xs leading-5 text-slate-500">{{ item.description }}</p>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if county_cards %}
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">County Pages To Link And Share</p>
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4 mt-4">
+            {% for county in county_cards %}
+            <article class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <h2 class="text-base font-black text-slate-900">{{ county.name }} County</h2>
+                {% if county.record_count is defined or county.post_count is defined %}
+                <p class="mt-1 text-xs text-slate-500">
+                    {% if county.record_count is defined %}{{ county.record_count }} records{% endif %}
+                    {% if county.record_count is defined and county.post_count is defined %} · {% endif %}
+                    {% if county.post_count is defined %}{{ county.post_count }} reports{% endif %}
+                </p>
+                {% endif %}
+                <div class="flex flex-wrap gap-2 mt-4">
+                    <a href="/county/{{ county.slug }}" class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700">County page</a>
+                    <a href="/warrants/{{ county.slug }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100">Warrants</a>
+                    {% if county.roster_url %}
+                    <a href="{{ county.roster_url }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-100">Jail roster</a>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if guide.faq %}
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">FAQ</p>
+        <div class="space-y-4 mt-4">
+            {% for item in guide.faq %}
+            <article class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <h2 class="text-lg font-black text-slate-900">{{ item.question }}</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-600">{{ item.answer }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

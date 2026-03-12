@@ -10,6 +10,8 @@ records/
 config.py
 .env
 .env.local
+.env.bak.*
+.env.save
 .claude/
 db_backups/
 backup.log

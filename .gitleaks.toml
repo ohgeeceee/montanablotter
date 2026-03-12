@@ -1,0 +1,4 @@
+title = "Montana Blotter gitleaks config"
+
+[extend]
+useDefault = true

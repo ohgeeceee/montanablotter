@@ -3,12 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Montana Blotter | Public Safety Records</title>
+    <title>Montana Police Blotter, Arrest Records, Jail Rosters & Warrants</title>
+    <meta name="description" content="Search Montana police blotter reports, arrest records, jail rosters, warrant pages, county incident logs, and public safety updates across Montana communities.">
+    <link rel="canonical" href="https://montanablotter.com/">
+    <meta property="og:title" content="Montana Police Blotter, Arrest Records, Jail Rosters & Warrants">
+    <meta property="og:description" content="Search Montana police blotter reports, arrest records, jail rosters, warrant pages, county incident logs, and public safety updates across Montana communities.">
+    <meta property="og:url" content="https://montanablotter.com/">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
+    {% include "includes/google_analytics.html" %}
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Montana Blotter",
+      "url": "https://montanablotter.com/",
+      "description": "Search Montana police blotter reports, arrest records, jail rosters, warrant pages, county incident logs, and public safety updates across Montana communities."
+    }
+    </script>
     <style>
         :root {
             --bg:           #0D0C0B;
@@ -214,17 +231,20 @@
         <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Daily Email Alerts</p>
-                    <h1 class="serif" style="font-size: 1.35rem; line-height: 1.2; margin-top: 0.35rem;">Get Daily Montana Blotter Alerts</h1>
-                    <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem;">One email each morning with top county updates and trend highlights.</p>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Montana Public Safety Records</p>
+                    <h1 class="serif" style="font-size: 1.7rem; line-height: 1.15; margin-top: 0.35rem;">Montana police blotter, arrest records, jail rosters, and warrant lookup pages</h1>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem;">Browse county and city pages, recent incident reports, jail rosters, warrant resources, and daily public safety updates across Montana.</p>
                     <div class="flex flex-wrap gap-2 mt-3">
-                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">Free</span>
-                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">No Spam</span>
-                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">Unsubscribe Anytime</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">56 Counties</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">Police Blotters</span>
+                        <span class="mono uppercase tracking-widest px-2 py-1 rounded" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); color:var(--text-dim); font-size:0.52rem;">Jail & Warrant Links</span>
                     </div>
                 </div>
 
                 <div class="w-full lg:w-auto">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Daily Email Alerts</p>
+                    <h2 class="serif" style="font-size: 1.2rem; line-height: 1.2; margin-top: 0.35rem;">Get daily Montana Blotter alerts</h2>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.55rem; margin-bottom: 0.8rem;">One morning email with top county updates and trend highlights.</p>
                     <form method="POST" action="/subscribe" class="subscribe-form-track w-full flex flex-col sm:flex-row gap-2" data-subscribe-source="homepage_top">
                         <input type="hidden" name="source" value="homepage_top">
                         <input type="email" name="email" required placeholder="you@example.com"
@@ -247,6 +267,112 @@
                         <a href="/donate?source=homepage_top" style="color: var(--amber); text-decoration: underline;">Donate here</a>.
                     </p>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Explore By Record Type</p>
+                    <h2 class="serif" style="font-size: 1.45rem; line-height: 1.1; margin-top: 0.35rem;">Jump straight into the Montana search paths people actually use.</h2>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem; max-width: 56rem;">
+                        These hub pages concentrate the internal links that matter most for county, city, arrest, jail, warrant, and trend-based searches.
+                    </p>
+                </div>
+            </div>
+            <div class="grid md:grid-cols-3 gap-3 mt-4">
+                <a href="/counties" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">County archives</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">Montana county police blotter pages</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Browse county-level reports, arrests, jail rosters, and linked agencies.</p>
+                </a>
+                <a href="/cities" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">City pages</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">City-specific police blotter landing pages</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Use narrower city-level pages when county archives are too broad.</p>
+                </a>
+                <a href="/jail-rosters" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Jail rosters</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">Montana county jail roster links</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Direct links to detention and inmate lookup resources across the state.</p>
+                </a>
+                <a href="/warrants" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Warrant lookup</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">County warrant resources and search guides</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Jump into county warrant pages and state court search guidance.</p>
+                </a>
+                <a href="/arrests" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Arrest coverage</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">Arrest-focused Montana reporting</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Concentrated arrest intent pages linked into local archives.</p>
+                </a>
+                <a href="/patterns" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Pattern pages</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">Topic pages by incident pattern</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Long-tail hubs for DUI, warrants, domestic disturbances, and more.</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Reference Guides</p>
+                    <h2 class="serif" style="font-size: 1.45rem; line-height: 1.1; margin-top: 0.35rem;">Linkable guides built for counties, warrants, arrests, jail rosters, and year-in-review searches.</h2>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem; max-width: 56rem;">
+                        These evergreen assets are designed to earn links, answer search-driven questions, and route readers deeper into the county, city, warrant, jail, and pattern pages that matter most.
+                    </p>
+                </div>
+                <a href="/guides" class="mono uppercase tracking-widest px-3 py-2 rounded transition hover:opacity-90"
+                   style="background: var(--amber); color: var(--bg); font-size: 0.62rem; font-weight: 700; text-decoration: none;">
+                    Browse all guides
+                </a>
+            </div>
+            <div class="grid md:grid-cols-2 xl:grid-cols-5 gap-3 mt-4">
+                <a href="/guides/how-to-find-montana-police-blotters" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Blotter guide</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">How to find Montana police blotters</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">City pages, county archives, daily activity reports, and the best local follow-up paths.</p>
+                </a>
+                <a href="/guides/yellowstone-county-arrests-jail-roster-and-warrant-guide" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">County guide</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">Yellowstone County guide</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Billings, arrests, jail roster, warrants, and the main Yellowstone County follow-up paths.</p>
+                </a>
+                <a href="/guides/montana-county-guides" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">County guide</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">Best Montana county guide pages</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Start with the strongest county hubs for blotters, arrests, warrants, jail rosters, and city links.</p>
+                </a>
+                <a href="/guides/flathead-county-police-blotter-warrant-and-jail-guide" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">County guide</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">Flathead County guide</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Kalispell, Whitefish, warrants, jail roster, and the best Flathead Valley entry points.</p>
+                </a>
+                <a href="/guides/how-to-find-montana-warrants" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Warrant guide</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">How to find Montana warrants</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Evergreen guidance tied into county warrant pages and court-search paths.</p>
+                </a>
+                <a href="/guides/how-to-find-montana-arrest-records" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Arrest guide</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">How to find Montana arrest records</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">A cleaner path into arrest coverage, county pages, detention links, and court follow-up.</p>
+                </a>
+                <a href="/guides/how-to-find-montana-jail-rosters" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Roster guide</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">How to find Montana jail rosters</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Official roster lookups, county detention pages, and the best jail-resource entry points.</p>
+                </a>
+                <a href="/annual-roundups" class="panel" style="text-decoration:none;">
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.52rem;">Roundups</p>
+                    <p style="font-size: 1rem; font-weight: 700; color: var(--text); margin-top: 0.35rem;">Montana annual roundup pages</p>
+                    <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.5; margin-top: 0.45rem;">Year-level county and incident roundups that can attract citations and editorial links.</p>
+                </a>
             </div>
         </div>
     </section>
@@ -291,6 +417,66 @@
                            style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">Arrests</a>
                         <a href="/warrants/{{ county_page.slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
                            style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">Warrants</a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if leaderboard %}
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+        <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Top Counties Trending Now</p>
+                    <h2 class="serif" style="font-size: 1.35rem; line-height: 1.15; margin-top: 0.35rem;">Where weekly record volume is moving fastest right now.</h2>
+                    <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem; max-width: 56rem;">
+                        These county cards compare the last 7 days of visible records against the previous week so readers can jump into the places with the strongest recent movement.
+                    </p>
+                </div>
+                <a href="/trends" class="mono uppercase tracking-widest px-3 py-2 rounded transition hover:opacity-90"
+                   style="background: var(--amber); color: var(--bg); font-size: 0.62rem; font-weight: 700; text-decoration: none;">
+                    Open trends page
+                </a>
+            </div>
+            <div class="grid md:grid-cols-3 xl:grid-cols-6 gap-3 mt-4">
+                {% for item in leaderboard %}
+                <article class="panel" style="padding: 0.9rem;">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">Last 7 days</p>
+                            <h3 style="font-size: 1rem; font-weight: 700; margin-top: 0.25rem;">
+                                {% if item.slug %}
+                                <a href="/county/{{ item.slug }}" style="color: var(--text); text-decoration: none;">{{ item.county }}</a>
+                                {% else %}
+                                <span style="color: var(--text);">{{ item.county }}</span>
+                                {% endif %}
+                            </h3>
+                        </div>
+                        <span class="mono" style="color: var(--amber); font-size: 0.72rem; font-weight: 700;">{{ item.count }}</span>
+                    </div>
+                    <p class="mono uppercase tracking-widest" style="font-size: 0.5rem; margin-top: 0.65rem; color:{% if item.trend == 'up' %}#D4892A{% elif item.trend == 'down' %}#C94A3A{% else %}var(--text-dim){% endif %};">
+                        {{ item.trend_label }}
+                    </p>
+                    <p style="color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; margin-top: 0.45rem;">
+                        {% if item.prev %}
+                        {{ item.prev }} last week
+                        {% else %}
+                        No visible records last week
+                        {% endif %}
+                        {% if item.last_report %}
+                        · last report {{ item.last_report }}
+                        {% endif %}
+                    </p>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        {% if item.slug %}
+                        <a href="/county/{{ item.slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                           style="background: var(--amber-dim); border: 1px solid var(--amber-border); color: var(--amber); text-decoration: none; font-size: 0.55rem; font-weight: 700;">County page</a>
+                        <a href="/warrants/{{ item.slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                           style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">Warrants</a>
+                        {% endif %}
                     </div>
                 </article>
                 {% endfor %}

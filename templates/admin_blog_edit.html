@@ -17,9 +17,14 @@
                 {% if post %}Last updated: {{ post.updated_at[:10] if post.updated_at else '—' }}{% else %}Write in Markdown — preview on the right{% endif %}
             </p>
         </div>
-        <a href="/admin/blog" class="text-sm text-gray-500 hover:text-gray-900 font-semibold">
-            <i class="fas fa-arrow-left mr-1"></i> Back to Blog
-        </a>
+        <div class="flex items-center gap-3">
+            <a href="/admin/blog/workflow" class="text-sm text-emerald-600 hover:text-emerald-700 font-semibold">
+                <i class="fas fa-calendar-week mr-1"></i> Weekly Workflow
+            </a>
+            <a href="/admin/blog" class="text-sm text-gray-500 hover:text-gray-900 font-semibold">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Blog
+            </a>
+        </div>
     </div>
 
     <!-- Flash errors -->
@@ -71,6 +76,36 @@
             <textarea name="excerpt" rows="2"
                       placeholder="A short teaser sentence or two..."
                       class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none">{{ form.excerpt or '' }}</textarea>
+        </div>
+
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Weekly SEO Template</p>
+                    <h2 class="mt-2 text-base font-black text-gray-900">Use the data-driven roundup structure that already fits the site</h2>
+                    <p class="mt-2 text-sm leading-relaxed text-gray-600">
+                        This template is built for weekly search traffic around top counties, standout incident patterns, linked county pages, and a methodology section that reinforces trust.
+                    </p>
+                </div>
+                <button type="button" id="insert-weekly-template"
+                        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700">
+                    <i class="fas fa-file-lines text-xs"></i> Insert Weekly Template
+                </button>
+            </div>
+            <div class="mt-4 grid gap-3 md:grid-cols-3 text-sm text-gray-700">
+                <div class="rounded-lg border border-emerald-200 bg-white px-3 py-3">
+                    <p class="font-bold text-gray-900">Title formula</p>
+                    <p class="mt-1">`Montana Weekly Crime Roundup: [County], [County], and [County] Led Activity Through [Date]`</p>
+                </div>
+                <div class="rounded-lg border border-emerald-200 bg-white px-3 py-3">
+                    <p class="font-bold text-gray-900">Excerpt formula</p>
+                    <p class="mt-1">Lead with the top county, the main pattern, and one concrete number from the week.</p>
+                </div>
+                <div class="rounded-lg border border-emerald-200 bg-white px-3 py-3">
+                    <p class="font-bold text-gray-900">Internal links</p>
+                    <p class="mt-1">Link county pages, one warrant or jail page, and one related pattern page in every roundup.</p>
+                </div>
+            </div>
         </div>
 
         <!-- Author -->
@@ -144,6 +179,65 @@ const easyMDE = new EasyMDE({
     placeholder: 'Write your post in Markdown...\n\n## Section Heading\n\nYour paragraph here.',
     minHeight: '400px',
     status: ['autosave', 'lines', 'words'],
+});
+
+const weeklySeoTemplate = `## What stood out this week
+
+This weekly Montana roundup highlights the counties, incident patterns, and public-records pages that stood out most in the latest archive window.
+
+## Top counties this week
+
+1. **[County 1] County** led the archive with **[X]** visible records.
+2. **[County 2] County** followed with **[X]** visible records.
+3. **[County 3] County** remained active with **[X]** visible records.
+
+Link readers into the county pages:
+
+- [County 1 County page](/county/[county-1-slug])
+- [County 2 County page](/county/[county-2-slug])
+- [County 3 County page](/county/[county-3-slug])
+
+## Patterns that stood out
+
+- **DUI activity:** [What changed, where, and why it matters]
+- **Warrant-related arrests:** [What changed, where, and why it matters]
+- **Domestic disturbance activity:** [What changed, where, and why it matters]
+
+Link one pattern page:
+
+- [Pattern page](/patterns/[pattern-slug])
+
+## County-by-county notes
+
+### [County 1] County
+
+[2-3 sentences on why this county moved, what records stood out, and where the reader should click next.]
+
+### [County 2] County
+
+[2-3 sentences on the county trend, notable records, and the best supporting page.]
+
+### [County 3] County
+
+[2-3 sentences on what the archive shows and what readers should watch next.]
+
+## Best next clicks
+
+- [Warrant page](/warrants/[county-slug])
+- [Jail roster page](/jail-rosters)
+- [Arrest page](/arrests?county=[County Name])
+
+## Methodology
+
+This roundup summarizes records indexed by Montana Blotter between **[start date]** and **[end date]**. Counts reflect visible public records in the archive during that window and may change as additional reports are ingested or source data is corrected.`;
+
+document.getElementById('insert-weekly-template')?.addEventListener('click', function () {
+    const editor = easyMDE.codemirror;
+    if (!editor.getValue().trim()) {
+        editor.setValue(weeklySeoTemplate);
+        return;
+    }
+    editor.replaceSelection(`\n\n${weeklySeoTemplate}\n`);
 });
 </script>
 {% endblock %}

@@ -9,9 +9,14 @@ import PostDetailScreen from './src/screens/PostDetailScreen';
 import JailRostersScreen from './src/screens/JailRostersScreen';
 import LawsScreen from './src/screens/LawsScreen';
 import LawsDetailScreen from './src/screens/LawsDetailScreen';
+import DiagnosticsScreen from './src/screens/DiagnosticsScreen';
 import BlogScreen from './src/screens/BlogScreen';
 import BlogPostScreen from './src/screens/BlogPostScreen';
 import { LawCategory } from './src/types';
+import * as Sentry from '@sentry/react-native';
+import { initMonitoring } from './src/services/monitoring';
+
+initMonitoring();
 
 type FeedStackParamList = {
   FeedHome: undefined;
@@ -21,6 +26,7 @@ type FeedStackParamList = {
 type LawsStackParamList = {
   LawsHome: undefined;
   LawsDetail: { category: LawCategory };
+  Diagnostics: undefined;
 };
 
 type BlogStackParamList = {
@@ -47,6 +53,7 @@ function LawsStackNavigator() {
     <LawsStack.Navigator>
       <LawsStack.Screen name="LawsHome" component={LawsScreen} options={{ title: 'Montana Laws' }} />
       <LawsStack.Screen name="LawsDetail" component={LawsDetailScreen} options={{ title: 'Law Details' }} />
+      <LawsStack.Screen name="Diagnostics" component={DiagnosticsScreen} options={{ title: 'Diagnostics' }} />
     </LawsStack.Navigator>
   );
 }
@@ -60,7 +67,7 @@ function BlogStackNavigator() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <NavigationContainer>
       <StatusBar style="auto" />
@@ -94,3 +101,5 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
+export default Sentry.wrap(App);

@@ -11,6 +11,32 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana warrant search guide",
+  "description": {{ meta_description | tojson }},
+  "url": {{ canonical_url | tojson }}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Montana county warrant pages",
+  "itemListElement": [
+    {% for county in counties %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "url": {{ ("https://montanablotter.com/warrants/" ~ county.slug) | tojson }},
+      "name": {{ (county.name ~ " County warrants") | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
     {
@@ -67,12 +93,37 @@
         <p class="text-slate-300 text-sm max-w-2xl mx-auto">
             How to check for active arrest warrants, bench warrants, and failure-to-appear warrants in any of Montana's 56 counties. Free, step-by-step.
         </p>
+        <div class="mt-5 flex flex-wrap justify-center gap-2">
+            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">Montana warrant lookup</span>
+            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">County warrant lists</span>
+            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">Bench warrants</span>
+            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">Arrest warrants</span>
+        </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-12">
+
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-xl font-black text-slate-900 mb-3">Best Montana Warrant Pages To Improve First</h2>
+        <p class="text-sm leading-relaxed text-slate-600 mb-4">
+            These county pages map most closely to real search behavior around warrant lookup, local jail information, and city-level police activity. Start here if you need a faster county-specific path than the statewide portal alone.
+        </p>
+        <div class="grid gap-3 sm:grid-cols-2">
+            {% for county in counties %}
+            <a href="/warrants/{{ county.slug }}" class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100">
+                <span>{{ county.name }} County warrants</span>
+                {% if county.warrant_url %}
+                <span class="rounded-full bg-red-100 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-red-700">Online</span>
+                {% else %}
+                <span class="rounded-full bg-slate-200 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">Guide</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </section>
 
     <div class="bg-blue-50 border border-blue-200 rounded-2xl p-6">
         <div class="flex items-start gap-4">

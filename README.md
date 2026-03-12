@@ -135,6 +135,22 @@ MB_EMAIL_PASSWORD=your_password
 MB_SMTP_PASSWORD=your_smtp_password
 MB_SECRET_KEY=change_this_to_random_string
 MB_BASE_URL=https://montanablotter.com
+MB_ADMIN_ALERT_EMAILS=you@example.com,ops@example.com
+```
+
+Admin ingest alerts:
+
+- `MB_ADMIN_ALERT_EMAILS` sends stale/failing source alerts to one or more admin inboxes.
+- `MB_INGEST_ALERT_REPEAT_HOURS` controls reminder frequency for unresolved alerts. Default: `24`.
+
+## 🔐 Secret Scanning
+
+GitHub Actions runs a `Secret Scan` workflow on pull requests, pushes to `main`, and manual dispatches. It uses `gitleaks` with the repo config in `.gitleaks.toml` to scan git history for accidentally committed credentials before they ship.
+
+If you have `gitleaks` installed locally, run:
+
+```bash
+gitleaks git --config .gitleaks.toml --redact
 ```
 
 ## 📧 Email Processing

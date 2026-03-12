@@ -1,10 +1,10 @@
 {% extends "public_page_base.html" %}
 
-{% set page_title = county.name ~ " County" %}
-{% set meta_description = "Free access to " ~ county.name ~ " County arrest records, police blotter, jail roster, and public safety reports." ~ (" Serving " ~ county.seat ~ ", Montana." if county.seat else " County-level records and public safety resources for Montana readers.") %}
+{% set page_title = county.seo_title or (county.name ~ " County Arrests, Jail Roster, and Police Blotter") %}
+{% set meta_description = county.meta_description or ("Free access to " ~ county.name ~ " County arrest records, police blotter, jail roster, and public safety reports." ~ (" Serving " ~ county.seat ~ ", Montana." if county.seat else " County-level records and public safety resources for Montana readers.")) %}
 {% set canonical_url = "https://montanablotter.com/county/" ~ county.slug %}
-{% set og_title = county.name ~ " County Police Blotter | Montana Blotter" %}
-{% set og_description = "Free access to " ~ county.name ~ " County arrest records, police blotter, jail roster, and public safety reports." %}
+{% set og_title = county.og_title or page_title ~ " | Montana Blotter" %}
+{% set og_description = county.og_description or meta_description %}
 {% set active_nav = "counties" %}
 
 {% block extra_head %}
@@ -115,7 +115,7 @@
                     <span class="text-blue-400 italic">Police Blotter</span>
                 </h1>
                 <p class="text-slate-300 text-sm max-w-xl">
-                    Arrest records, daily activity reports, and public safety data for {{ county.name }} County, Montana{% if county.seat %} — including {{ county.seat }} and surrounding communities{% else %} with direct links to county-level public records resources{% endif %}.
+                    {{ county.hero_summary or ("Arrest records, daily activity reports, and public safety data for " ~ county.name ~ " County, Montana" ~ (" — including " ~ county.seat ~ " and surrounding communities" if county.seat else " with direct links to county-level public records resources") ~ ".") }}
                 </p>
             </div>
             <div class="flex gap-8 text-center flex-shrink-0">
@@ -242,6 +242,99 @@
                     <p class="text-slate-600 text-sm leading-relaxed">
                         {{ county.description }}
                     </p>
+                    {% if county.seo_summary %}
+                    <div class="mt-4 space-y-3 text-sm leading-relaxed text-slate-600">
+                        {% for paragraph in county.seo_summary %}
+                        <p>{{ paragraph }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if county.search_targets %}
+                    <div class="mt-4">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 mb-2">High-intent searches this page serves</p>
+                        <div class="flex flex-wrap gap-2">
+                            {% for item in county.search_targets %}
+                            <span class="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700">{{ item }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="border-t border-slate-100 pt-6">
+                    <h2 class="text-xl font-black text-slate-900 mb-3">
+                        {{ county.name }} County Records Snapshot
+                    </h2>
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Freshness</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">{{ page_last_updated or 'No report date available yet' }}</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">Latest indexed county report date visible on this page.</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Methodology</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">{{ county.source_note_title or 'Public records and county-level links' }}</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">{{ county.source_note or "Montana Blotter summarizes public law-enforcement records and links readers to county jail, court, and warrant resources." }}</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Source methods</p>
+                            {% if source_methods %}
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                {% for method in source_methods %}
+                                <span class="inline-flex items-center rounded-full bg-white border border-slate-200 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-700">{{ method.label }}</span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="mt-2 text-xs leading-5 text-slate-500">Imported public records and linked county reporting.</p>
+                            {% endif %}
+                        </div>
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Best next clicks</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">Arrests, warrants, jail roster, recent reports</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">Use the linked modules below to move deeper into the county record set.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-100 pt-6">
+                    <h2 class="text-xl font-black text-slate-900 mb-3">
+                        Evergreen Guides That Support {{ county.name }} County Searches
+                    </h2>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        These reference pages answer broader search questions, then route readers back into {{ county.name }} County reports, warrants, arrests, and jail resources.
+                    </p>
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        <a href="/guides/how-to-find-montana-police-blotters" class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4 hover:bg-slate-100 transition">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Blotter guide</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">How to find Montana police blotters</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">A statewide blotter guide that routes readers back into {{ county.name }} County and city-level archives.</p>
+                        </a>
+                        <a href="/guides/montana-county-guides" class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4 hover:bg-slate-100 transition">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">County guide</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">Best Montana county guide pages</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">Compare {{ county.name }} County with the strongest county hubs across Montana.</p>
+                        </a>
+                        <a href="/guides/how-to-find-montana-warrants" class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4 hover:bg-slate-100 transition">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Warrant guide</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">How to find Montana warrants</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">Use the statewide warrant guide, then drop back into {{ county.name }} County warrant resources.</p>
+                        </a>
+                        <a href="/guides/how-to-find-montana-arrest-records" class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4 hover:bg-slate-100 transition">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Arrest guide</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">How to find Montana arrest records</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">A practical statewide guide for readers starting from {{ county.name }} County arrest intent.</p>
+                        </a>
+                        <a href="/guides/how-to-find-montana-jail-rosters" class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4 hover:bg-slate-100 transition">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Roster guide</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">How to find Montana jail rosters</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">Detention lookup guidance that complements the {{ county.name }} County jail workflow.</p>
+                        </a>
+                        <a href="/annual-roundups" class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-4 hover:bg-slate-100 transition sm:col-span-2 xl:col-span-2">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Annual roundup</p>
+                            <p class="mt-2 text-sm font-bold text-slate-900">Montana year-in-review roundup pages</p>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">Use year-level roundups to compare which counties and incident patterns are gaining the most attention statewide.</p>
+                        </a>
+                    </div>
                 </div>
 
                 {% if county_cities %}
@@ -270,6 +363,11 @@
                         <a href="/arrests?county={{ county.name | urlencode }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
                             <i class="fas fa-handcuffs text-blue-500"></i>{{ county.name }} arrests
                         </a>
+                        {% if county.roster_url %}
+                        <a href="{{ county.roster_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
+                            <i class="fas fa-list-ul text-blue-500"></i>{{ county.name }} jail roster
+                        </a>
+                        {% endif %}
                         <a href="/warrants/{{ county.slug }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
                             <i class="fas fa-file-circle-exclamation text-blue-500"></i>{{ county.name }} warrants
                         </a>
@@ -299,6 +397,9 @@
                     <h2 class="text-xl font-black text-slate-900 mb-3">
                         Recent Incident Records In {{ county.name }} County
                     </h2>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        These are the newest source-linked incidents currently surfaced for {{ county.name }} County. Use them to move into recent reports and individual record pages.
+                    </p>
                     <div class="grid gap-3">
                         {% for record in recent_records %}
                         <article class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">

@@ -12,21 +12,208 @@
     {% endif %}
     {% endwith %}
 
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8">
         <div>
             <h1 class="text-3xl font-black text-slate-900">Ingestion Health</h1>
-            <p class="text-sm text-slate-500 mt-2">Inspect failed jobs, see why publication stopped, and retry from stored source data.</p>
+            <p class="text-sm text-slate-500 mt-2">Admin-only health view for source freshness, recent failures, and stuck ingestion jobs.</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="/admin" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-bold">Dashboard</a>
             <a href="/admin/ingestion?status=failed" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'failed' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Failed {{ failed_count }}</a>
             <a href="/admin/ingestion?status=published" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'published' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Published {{ published_count }}</a>
             <a href="/admin/ingestion?status=all" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'all' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">All {{ total_count }}</a>
         </div>
     </div>
 
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Sources</p>
+            <p class="text-3xl font-black text-slate-900 mt-3">{{ health_dashboard.summary.source_types }}</p>
+            <p class="text-sm text-slate-500 mt-2">{{ health_dashboard.summary.healthy_sources }} healthy · {{ health_dashboard.summary.active_sources }} active</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Official Coverage</p>
+            <p class="text-3xl font-black text-slate-900 mt-3">{{ health_dashboard.summary.official_live }}</p>
+            <p class="text-sm text-slate-500 mt-2">{{ health_dashboard.summary.official_stale }} stale covered sources</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Recent Throughput</p>
+            <p class="text-3xl font-black text-slate-900 mt-3">{{ health_dashboard.summary.jobs_24h }}</p>
+            <p class="text-sm text-slate-500 mt-2">{{ health_dashboard.summary.published_24h }} published in the last 24h</p>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Attention</p>
+            <p class="text-3xl font-black text-slate-900 mt-3">{{ health_dashboard.summary.failing_sources + health_dashboard.summary.stale_sources + health_dashboard.summary.stuck_jobs }}</p>
+            <p class="text-sm text-slate-500 mt-2">{{ health_dashboard.summary.failed_7d }} failed jobs in 7d · {{ health_dashboard.summary.stuck_jobs }} stuck jobs</p>
+        </div>
+    </div>
+
+    {% if health_dashboard.stuck_jobs %}
+    <div class="bg-red-50 border border-red-100 rounded-2xl p-6 mb-8">
+        <div class="flex items-center gap-3 mb-4">
+            <i class="fas fa-triangle-exclamation text-red-500"></i>
+            <div>
+                <h2 class="font-black text-lg text-slate-900">Stuck Jobs</h2>
+                <p class="text-sm text-slate-600">These jobs have been non-terminal for more than two hours.</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {% for job in health_dashboard.stuck_jobs %}
+            <div class="bg-white rounded-xl border border-red-100 p-4">
+                <p class="text-sm font-black text-slate-900">{{ job.source_name }}</p>
+                <p class="text-xs text-slate-500 mt-1">Job #{{ job.id }} · {{ job.source_type }} · {{ job.status }}</p>
+                <p class="text-sm text-slate-600 mt-2">{{ job.document_name }}</p>
+                <p class="text-xs text-red-600 font-bold uppercase tracking-wide mt-3">Started {{ job.started_at }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">
+        <div class="p-6 border-b border-slate-100 bg-slate-50">
+            <h2 class="font-black text-lg text-slate-900">Official Source Health</h2>
+            <p class="text-sm text-slate-500 mt-1">Public government feeds currently tracked for Montana coverage.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 text-xs uppercase text-slate-500 font-bold">
+                    <tr>
+                        <th class="px-6 py-3 text-left">Agency</th>
+                        <th class="px-6 py-3 text-left">Coverage</th>
+                        <th class="px-6 py-3 text-left">Freshness</th>
+                        <th class="px-6 py-3 text-left">Jobs</th>
+                        <th class="px-6 py-3 text-left">Notes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in health_dashboard.official_sources %}
+                    <tr class="align-top hover:bg-slate-50 transition">
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-black text-slate-900">{{ item.agency }}</p>
+                            {% if item.source_type %}
+                            <p class="text-xs font-mono text-slate-400 mt-1">{{ item.source_type }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if item.category == 'covered' %}
+                            <span class="inline-flex rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-black uppercase tracking-[0.14em]">Covered</span>
+                            {% elif item.category == 'candidate' %}
+                            <span class="inline-flex rounded-full bg-amber-100 text-amber-700 px-3 py-1 text-xs font-black uppercase tracking-[0.14em]">Candidate</span>
+                            {% else %}
+                            <span class="inline-flex rounded-full bg-slate-200 text-slate-600 px-3 py-1 text-xs font-black uppercase tracking-[0.14em]">No Source</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if item.category == 'covered' %}
+                            <p class="text-sm font-black {% if item.freshness_tone == 'green' %}text-emerald-700{% elif item.freshness_tone == 'amber' %}text-amber-700{% else %}text-red-700{% endif %}">{{ item.freshness }}</p>
+                            <p class="text-xs text-slate-500 mt-1">
+                                {% if item.latest_seen_at %}{{ item.latest_seen_at }}{% else %}No source document{% endif %}
+                                {% if item.latest_job_status %} · {{ item.latest_job_status }}{% endif %}
+                                {% if item.latest_stage %} · {{ item.latest_stage }}{% endif %}
+                            </p>
+                            {% if item.latest_error %}
+                            <p class="text-xs text-red-600 mt-2 break-words">{{ item.latest_error }}</p>
+                            {% endif %}
+                            {% else %}
+                            <p class="text-sm text-slate-500">Not ingested</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if item.category == 'covered' %}
+                            <p class="text-sm font-black text-slate-900">{{ item.job_count }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ item.published_count }} published · {{ item.failed_count }} failed</p>
+                            {% else %}
+                            <p class="text-sm text-slate-500">-</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-sm text-slate-600 leading-6">{{ item.notes }}</p>
+                            <a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer" class="inline-block text-xs font-bold text-blue-700 hover:text-blue-800 mt-2 break-all">{{ item.source_url }}</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-8">
+        <div class="p-6 border-b border-slate-100 bg-slate-50">
+            <h2 class="font-black text-lg text-slate-900">All Ingest Sources</h2>
+            <p class="text-sm text-slate-500 mt-1">Official public feeds plus internal email ingestion pipelines.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 text-xs uppercase text-slate-500 font-bold">
+                    <tr>
+                        <th class="px-6 py-3 text-left">Source</th>
+                        <th class="px-6 py-3 text-left">Health</th>
+                        <th class="px-6 py-3 text-left">Freshness</th>
+                        <th class="px-6 py-3 text-left">Volume</th>
+                        <th class="px-6 py-3 text-left">Latest Document</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for source in health_dashboard.all_sources %}
+                    <tr class="align-top hover:bg-slate-50 transition">
+                        <td class="px-6 py-4">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="text-sm font-black text-slate-900">{{ source.display_name }}</p>
+                                <span class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] {% if source.visibility == 'official' %}bg-blue-100 text-blue-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ source.visibility }}
+                                </span>
+                            </div>
+                            <p class="text-xs font-mono text-slate-400 mt-1">{{ source.source_type }}</p>
+                            <p class="text-sm text-slate-600 mt-2">{{ source.notes }}</p>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.14em]
+                                {% if source.health_tone == 'red' %}bg-red-100 text-red-700
+                                {% elif source.health_tone == 'amber' %}bg-amber-100 text-amber-700
+                                {% elif source.health_tone == 'blue' %}bg-sky-100 text-sky-700
+                                {% elif source.health_tone == 'green' %}bg-emerald-100 text-emerald-700
+                                {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                {{ source.health_label }}
+                            </span>
+                            <p class="text-xs text-slate-500 mt-2">
+                                {% if source.latest_status %}{{ source.latest_status }}{% else %}no job state{% endif %}
+                                {% if source.latest_stage %} · {{ source.latest_stage }}{% endif %}
+                                {% if source.latest_stage_status %} · {{ source.latest_stage_status }}{% endif %}
+                            </p>
+                            {% if source.latest_error %}
+                            <p class="text-xs text-red-600 mt-2 break-words">{{ source.latest_error }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-black {% if source.freshness_tone == 'green' %}text-emerald-700{% elif source.freshness_tone == 'amber' %}text-amber-700{% else %}text-slate-700{% endif %}">{{ source.freshness }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{% if source.latest_received_at %}{{ source.latest_received_at }}{% else %}No document timestamp{% endif %}</p>
+                            {% if source.latest_activity_at %}
+                            <p class="text-xs text-slate-400 mt-1">Last activity {{ source.latest_activity_at }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-black text-slate-900">{{ source.job_count }} jobs</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ source.document_count }} documents</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ source.published_count }} published · {{ source.failed_count }} failed · {{ source.active_count }} active</p>
+                        </td>
+                        <td class="px-6 py-4">
+                            <p class="text-sm text-slate-700 break-words">{{ source.latest_document_name or 'Untitled source document' }}</p>
+                            {% if source.source_url %}
+                            <a href="{{ source.source_url }}" target="_blank" rel="noopener noreferrer" class="inline-block text-xs font-bold text-blue-700 hover:text-blue-800 mt-2 break-all">{{ source.source_url }}</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div class="p-6 border-b border-slate-100 bg-slate-50">
             <h2 class="font-black text-lg">Recent Jobs</h2>
+            <p class="text-sm text-slate-500 mt-1">Filtered list for direct retry and failure inspection.</p>
         </div>
 
         {% if jobs %}

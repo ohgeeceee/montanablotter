@@ -1,11 +1,15 @@
-ww{
+{
   "expo": {
     "name": "Montana Blotter",
     "slug": "montanablotter",
     "version": "1.0.0",
+    "scheme": "montanablotter",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -16,18 +20,32 @@ ww{
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.montanablotter.app"
+      "bundleIdentifier": "com.montanablotter.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "package": "com.montanablotter.app"
+      "package": "com.montanablotter.app",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "3bb8f1f0-159c-4187-9aa3-be3afb099645"
+      }
+    },
+    "owner": "ohgeecee",
+    "updates": {
+      "url": "https://u.expo.dev/3bb8f1f0-159c-4187-9aa3-be3afb099645"
+    }
   }
 }

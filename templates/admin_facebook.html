@@ -36,9 +36,12 @@
                 <a href="/admin/upload" class="anav-link">Upload</a>
                 <a href="/admin/blog" class="anav-link">Blog</a>
                 <a href="/admin/facebook" class="anav-link active">Facebook</a>
-                <a href="/admin/emails" class="anav-link">Emails</a>
                 <a href="/admin/analytics" class="anav-link">Analytics</a>
                 <a href="/admin/visitors" class="anav-link">Visitors</a>
+                {% if current_user.role == 'super_admin' %}
+                <a href="/admin/security/users" class="anav-link">Users</a>
+                <a href="/admin/security/audit" class="anav-link">Audit</a>
+                {% endif %}
                 <a href="/" class="anav-link" style="margin-left:8px;">↗ Public</a>
                 <a href="/admin/logout" class="anav-link anav-logout" style="margin-left:4px;">Logout</a>
             </div>
