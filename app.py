@@ -14,17 +14,24 @@ import secrets
 import smtplib
 import urllib.error
 import urllib.request
+from functools import wraps
 from html import escape
 from html.parser import HTMLParser
 from email.mime.text import MIMEText
+from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, session, abort
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import config
 from dedupe import incident_key_set
+from morning_briefing import (
+    build_html as build_morning_briefing_html,
+    get_posts_for_date as get_morning_briefing_posts,
+    send_email as send_morning_briefing_email,
+)
 from facebook_publisher import (
     load_facebook_settings,
     mask_token,
@@ -49,10 +56,491 @@ app.config.update(
     SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
 )
 
+OFFICIAL_SOURCE_COVERAGE = [
+    {
+        'agency': 'Whitefish Police Department',
+        'category': 'covered',
+        'source_type': 'whitefish_pdf',
+        'source_url': 'https://www.cityofwhitefish.gov/688/Police-Blotter',
+        'notes': 'Official posted blotter. Active ingester.',
+        'stale_after_hours': 72,
+    },
+    {
+        'agency': 'Bozeman Police Department',
+        'category': 'covered',
+        'source_type': 'bozeman_calls_for_service',
+        'source_url': 'https://www.bozeman.net/departments/police/crime-information/police-call-logs/30-day-call-log',
+        'notes': 'Official calls-for-service dashboard. Active ingester.',
+        'stale_after_hours': 24,
+    },
+    {
+        'agency': 'Bozeman Police Department',
+        'category': 'covered',
+        'source_type': 'bozeman_daily_case_reports',
+        'source_url': 'https://bozeman.maps.arcgis.com/apps/dashboards/38247556995340e6b796a9e53c15ae1f',
+        'notes': 'Official city-linked crime dashboard. Active ingester.',
+        'stale_after_hours': 72,
+    },
+    {
+        'agency': 'Missoula County public report feed',
+        'category': 'covered',
+        'source_type': 'missoula_public_report',
+        'source_url': 'https://webapps.missoulacounty.us/dailypublicreport/',
+        'notes': 'Official daily public report feed. Active ingester.',
+        'stale_after_hours': 24,
+    },
+    {
+        'agency': "Big Horn County Sheriff's Office",
+        'category': 'candidate',
+        'source_type': None,
+        'source_url': 'https://www.bighorncountymt.gov/176/Sheriff',
+        'notes': 'Official sheriff page links to CitizenRIMS, but public incident and case features are disabled.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': 'Billings Police Department',
+        'category': 'candidate',
+        'source_type': None,
+        'source_url': 'https://billingsmt.gov/1773/Crime-Statistics',
+        'notes': 'Official dashboard exists, but it appears stale rather than a current rolling feed.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': 'Great Falls Police Department',
+        'category': 'candidate',
+        'source_type': None,
+        'source_url': 'https://greatfallsmt.net/police/welcome-gfpd-message-chief',
+        'notes': 'Official site references statistics, but no qualifying public blotter or call-log page is confirmed.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': 'Helena Police Department',
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://www.helenamt.gov/Departments/Police-Department/Support-Services-Records',
+        'notes': 'Records are available by request, but no posted public blotter or crime-log page was found.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': 'Kalispell Police Department',
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://www.kalispell.com/260/Police',
+        'notes': 'No qualifying public blotter or call-log page found.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': 'Belgrade Police Department',
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://www.belgrademt.gov/158/Police',
+        'notes': 'No qualifying public blotter or call-log page found.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': 'Laurel Police Department',
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://cityoflaurelmontana.com/police/custom-contact-page/police-contact-information',
+        'notes': 'No qualifying public blotter or call-log page found.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': "Yellowstone County Sheriff's Office",
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://www.yellowstonecountymt.gov/Sheriff/',
+        'notes': 'No qualifying public sheriff blotter or crime-log page found.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': "Cascade County Sheriff's Office",
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://www.cascadecountymt.gov/283/Sheriffs-Office',
+        'notes': 'No qualifying public sheriff blotter or crime-log page found.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': "Flathead County Sheriff's Office",
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://flatheadcounty.gov/department-directory/sheriffs-office',
+        'notes': 'No qualifying public sheriff blotter or crime-log page found.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': "Gallatin County Sheriff's Office",
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://www.gallatinmt.gov/patrol-division/links/crime-reporting',
+        'notes': 'Reporting page only; no posted public blotter or call-log page was found.',
+        'stale_after_hours': None,
+    },
+    {
+        'agency': "Missoula County Sheriff's Office",
+        'category': 'no_source',
+        'source_type': None,
+        'source_url': 'https://www.missoulacounty.gov/departments/sheriffs-office/',
+        'notes': 'No separate posted sheriff blotter or crime-log page was found.',
+        'stale_after_hours': None,
+    },
+]
+
 
 def _slugify_key(value):
     import re as _re
     return _re.sub(r'[^a-z0-9]+', '-', (value or '').strip().lower()).strip('-')
+
+
+def _parse_admin_timestamp(value):
+    if not value:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace('Z', '+00:00'))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        pass
+    try:
+        dt = parsedate_to_datetime(raw)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def _format_admin_age(delta):
+    hours = int(delta.total_seconds() // 3600)
+    if hours < 24:
+        return f'{hours}h ago'
+    days = hours // 24
+    return f'{days}d ago'
+
+
+def _build_source_coverage_dashboard(conn):
+    latest_rows = conn.execute(
+        """
+        SELECT sd.source_type,
+               sd.source_received_at,
+               ij.status,
+               ij.finished_at
+        FROM source_documents sd
+        LEFT JOIN ingestion_jobs ij ON ij.source_document_id = sd.id
+        INNER JOIN (
+            SELECT source_type, MAX(id) AS max_id
+            FROM source_documents
+            GROUP BY source_type
+        ) latest ON latest.max_id = sd.id
+        """
+    ).fetchall()
+    latest_by_type = {row['source_type']: row for row in latest_rows}
+
+    now = datetime.now(timezone.utc)
+    items = []
+    summary = {'covered': 0, 'live': 0, 'stale': 0, 'candidate': 0, 'no_source': 0}
+
+    for item in OFFICIAL_SOURCE_COVERAGE:
+        row = latest_by_type.get(item['source_type']) if item.get('source_type') else None
+        latest_seen_at = _parse_admin_timestamp(row['source_received_at']) if row else None
+        freshness = None
+        freshness_tone = 'slate'
+        if item['category'] == 'covered':
+            summary['covered'] += 1
+            if latest_seen_at is None:
+                freshness = 'No ingest yet'
+                freshness_tone = 'red'
+                summary['stale'] += 1
+            else:
+                age = now - latest_seen_at
+                freshness = _format_admin_age(age)
+                if item['stale_after_hours'] is not None and age.total_seconds() > item['stale_after_hours'] * 3600:
+                    freshness_tone = 'amber'
+                    summary['stale'] += 1
+                else:
+                    freshness_tone = 'green'
+                    summary['live'] += 1
+        elif item['category'] == 'candidate':
+            summary['candidate'] += 1
+        else:
+            summary['no_source'] += 1
+
+        items.append({
+            **item,
+            'latest_seen_at': latest_seen_at.strftime('%Y-%m-%d %H:%M UTC') if latest_seen_at else None,
+            'latest_job_status': row['status'] if row else None,
+            'freshness': freshness,
+            'freshness_tone': freshness_tone,
+        })
+
+    return {
+        'summary': summary,
+        'entries': items,
+    }
+
+
+def _humanize_source_type(source_type):
+    if not source_type:
+        return 'Unknown source'
+    return source_type.replace('_', ' ').strip().title()
+
+
+def _build_ingestion_health_dashboard(conn):
+    source_coverage = _build_source_coverage_dashboard(conn)
+    coverage_by_type = {
+        item['source_type']: item
+        for item in source_coverage['entries']
+        if item.get('source_type')
+    }
+    internal_source_meta = {
+        'imap_pdf': {
+            'label': 'Email inbox PDF attachments',
+            'notes': 'Attachments fetched by email worker and passed into the PDF parser pipeline.',
+            'source_url': None,
+            'stale_after_hours': None,
+        },
+        'imap_text': {
+            'label': 'Email inbox text blotters',
+            'notes': 'Plain-text blotters fetched from email and published through the text pipeline.',
+            'source_url': None,
+            'stale_after_hours': None,
+        },
+    }
+
+    aggregate_rows = conn.execute(
+        """
+        SELECT
+            sd.source_type,
+            COUNT(*) AS document_count,
+            COUNT(ij.id) AS job_count,
+            SUM(CASE WHEN ij.status = 'published' THEN 1 ELSE 0 END) AS published_count,
+            SUM(CASE WHEN ij.status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
+            SUM(CASE WHEN ij.status NOT IN ('published', 'failed') THEN 1 ELSE 0 END) AS active_count,
+            MAX(COALESCE(sd.source_received_at, sd.created_at)) AS latest_received_at
+        FROM source_documents sd
+        LEFT JOIN ingestion_jobs ij ON ij.source_document_id = sd.id
+        GROUP BY sd.source_type
+        ORDER BY sd.source_type
+        """
+    ).fetchall()
+    latest_rows = conn.execute(
+        """
+        SELECT
+            sd.source_type,
+            sd.id AS source_document_id,
+            sd.filename,
+            sd.source_subject,
+            sd.source_received_at,
+            ij.id AS job_id,
+            ij.status,
+            ij.retry_count,
+            ij.last_error,
+            ij.started_at,
+            ij.finished_at,
+            (
+                SELECT pe.stage
+                FROM pipeline_events pe
+                WHERE pe.ingestion_job_id = ij.id
+                ORDER BY pe.id DESC
+                LIMIT 1
+            ) AS latest_stage,
+            (
+                SELECT pe.status
+                FROM pipeline_events pe
+                WHERE pe.ingestion_job_id = ij.id
+                ORDER BY pe.id DESC
+                LIMIT 1
+            ) AS latest_stage_status
+        FROM source_documents sd
+        LEFT JOIN ingestion_jobs ij ON ij.source_document_id = sd.id
+        INNER JOIN (
+            SELECT source_type, MAX(id) AS max_id
+            FROM source_documents
+            GROUP BY source_type
+        ) latest ON latest.max_id = sd.id
+        """
+    ).fetchall()
+    latest_by_type = {row['source_type']: row for row in latest_rows}
+
+    jobs_24h = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM ingestion_jobs
+        WHERE COALESCE(finished_at, started_at) >= datetime('now', '-1 day')
+        """
+    ).fetchone()[0]
+    failed_7d = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM ingestion_jobs
+        WHERE status = 'failed'
+          AND COALESCE(finished_at, started_at) >= datetime('now', '-7 days')
+        """
+    ).fetchone()[0]
+    published_24h = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM ingestion_jobs
+        WHERE status = 'published'
+          AND COALESCE(finished_at, started_at) >= datetime('now', '-1 day')
+        """
+    ).fetchone()[0]
+    stuck_rows = conn.execute(
+        """
+        SELECT
+            ij.id,
+            ij.status,
+            ij.started_at,
+            sd.source_type,
+            sd.filename,
+            sd.source_subject
+        FROM ingestion_jobs ij
+        JOIN source_documents sd ON sd.id = ij.source_document_id
+        WHERE ij.status NOT IN ('published', 'failed')
+          AND ij.finished_at IS NULL
+          AND ij.started_at <= datetime('now', '-2 hours')
+        ORDER BY ij.started_at ASC
+        """
+    ).fetchall()
+
+    now = datetime.now(timezone.utc)
+    source_rows = []
+    stale_sources = 0
+    failing_sources = 0
+    healthy_sources = 0
+    active_sources = 0
+
+    for row in aggregate_rows:
+        source_type = row['source_type']
+        latest = latest_by_type.get(source_type)
+        coverage_item = coverage_by_type.get(source_type)
+        internal_meta = internal_source_meta.get(source_type, {})
+        latest_received_dt = _parse_admin_timestamp(row['latest_received_at'])
+        latest_started_dt = _parse_admin_timestamp(latest['started_at']) if latest else None
+        stale_after_hours = (
+            coverage_item['stale_after_hours']
+            if coverage_item
+            else internal_meta.get('stale_after_hours')
+        )
+        freshness = 'No source document'
+        freshness_tone = 'slate'
+        is_stale = False
+        if latest_received_dt:
+            age = now - latest_received_dt
+            freshness = _format_admin_age(age)
+            freshness_tone = 'green'
+            if stale_after_hours is not None and age.total_seconds() > stale_after_hours * 3600:
+                freshness_tone = 'amber'
+                is_stale = True
+
+        latest_status = latest['status'] if latest else None
+        health_label = 'Healthy'
+        health_tone = 'green'
+        if latest_status == 'failed':
+            health_label = 'Failing'
+            health_tone = 'red'
+            failing_sources += 1
+        elif is_stale:
+            health_label = 'Stale'
+            health_tone = 'amber'
+            stale_sources += 1
+        elif row['active_count']:
+            health_label = 'Active'
+            health_tone = 'blue'
+            active_sources += 1
+        elif latest_status == 'published':
+            healthy_sources += 1
+        else:
+            health_label = 'Unknown'
+            health_tone = 'slate'
+
+        if health_label == 'Healthy' and latest_status != 'published':
+            health_label = 'Ready'
+            health_tone = 'slate'
+
+        display_name = (
+            coverage_item['agency']
+            if coverage_item
+            else internal_meta.get('label', _humanize_source_type(source_type))
+        )
+        visibility = 'official' if coverage_item else 'internal'
+        latest_activity_dt = _parse_admin_timestamp(latest['finished_at']) if latest and latest['finished_at'] else latest_started_dt
+        source_rows.append({
+            'source_type': source_type,
+            'display_name': display_name,
+            'visibility': visibility,
+            'source_url': (coverage_item['source_url'] if coverage_item else internal_meta.get('source_url')),
+            'notes': (coverage_item['notes'] if coverage_item else internal_meta.get('notes', 'No notes recorded.')),
+            'document_count': row['document_count'] or 0,
+            'job_count': row['job_count'] or 0,
+            'published_count': row['published_count'] or 0,
+            'failed_count': row['failed_count'] or 0,
+            'active_count': row['active_count'] or 0,
+            'latest_status': latest_status,
+            'latest_stage': latest['latest_stage'] if latest else None,
+            'latest_stage_status': latest['latest_stage_status'] if latest else None,
+            'latest_error': latest['last_error'] if latest else None,
+            'latest_document_name': (latest['filename'] or latest['source_subject']) if latest else None,
+            'latest_received_at': latest_received_dt.strftime('%Y-%m-%d %H:%M UTC') if latest_received_dt else None,
+            'latest_activity_at': latest_activity_dt.strftime('%Y-%m-%d %H:%M UTC') if latest_activity_dt else None,
+            'freshness': freshness,
+            'freshness_tone': freshness_tone,
+            'health_label': health_label,
+            'health_tone': health_tone,
+        })
+
+    def _source_sort_key(item):
+        tone_rank = {'red': 0, 'amber': 1, 'blue': 2, 'green': 3, 'slate': 4}.get(item['health_tone'], 5)
+        visibility_rank = 0 if item['visibility'] == 'official' else 1
+        latest_activity = item['latest_activity_at'] or ''
+        return (tone_rank, visibility_rank, latest_activity)
+
+    source_rows.sort(key=_source_sort_key)
+
+    official_rows = []
+    for item in source_coverage['entries']:
+        stats = next((row for row in source_rows if row['source_type'] == item.get('source_type')), None)
+        official_rows.append({
+            **item,
+            'job_count': stats['job_count'] if stats else 0,
+            'published_count': stats['published_count'] if stats else 0,
+            'failed_count': stats['failed_count'] if stats else 0,
+            'active_count': stats['active_count'] if stats else 0,
+            'latest_stage': stats['latest_stage'] if stats else None,
+            'latest_error': stats['latest_error'] if stats else None,
+        })
+
+    return {
+        'summary': {
+            'source_types': len(source_rows),
+            'healthy_sources': healthy_sources,
+            'stale_sources': stale_sources,
+            'failing_sources': failing_sources,
+            'active_sources': active_sources,
+            'jobs_24h': jobs_24h or 0,
+            'published_24h': published_24h or 0,
+            'failed_7d': failed_7d or 0,
+            'stuck_jobs': len(stuck_rows),
+            'official_live': source_coverage['summary']['live'],
+            'official_stale': source_coverage['summary']['stale'],
+        },
+        'official_sources': official_rows,
+        'all_sources': source_rows,
+        'stuck_jobs': [
+            {
+                'id': row['id'],
+                'status': row['status'],
+                'source_type': row['source_type'],
+                'source_name': coverage_by_type[row['source_type']]['agency']
+                if row['source_type'] in coverage_by_type
+                else internal_source_meta.get(row['source_type'], {}).get('label', _humanize_source_type(row['source_type'])),
+                'started_at': row['started_at'],
+                'document_name': row['filename'] or row['source_subject'] or 'Untitled source document',
+            }
+            for row in stuck_rows
+        ],
+    }
 
 
 COUNTY_DIRECTORY = {
@@ -134,12 +622,14 @@ PATTERN_DEFINITIONS = {
         'short_label': 'DUI',
         'hero_label': 'Montana DUI Pattern Page',
         'description': 'Track DUI-related incident activity, repeat locations, and recent public records tied to impaired driving enforcement.',
-        'title_statewide': 'Montana DUI Activity',
-        'title_county': '{county} County DUI Activity',
-        'meta_statewide': 'Track Montana DUI activity with recent records, top counties, and direct paths into county-level public safety pages.',
-        'meta_county': 'Track DUI activity in {county} County with recent records, related reports, and direct links into county-level Montana public safety pages.',
+        'title_statewide': 'Montana DUI Activity and Arrest Records',
+        'title_county': '{county} County DUI Activity and Arrest Records',
+        'meta_statewide': 'Track Montana DUI activity, impaired-driving arrests, and related blotter records with county-level entry pages and recent linked incidents.',
+        'meta_county': 'Track DUI activity in {county} County with recent records, arrest-related coverage, and direct links into county-level Montana public safety pages.',
         'intro': 'These pages surface DUI-related public records so readers can quickly move from a broad pattern into the exact county records behind it.',
         'terms': ['dui', 'driving under the influence', 'impaired driving'],
+        'search_targets': ['dui arrests', 'dui blotter', 'impaired driving reports', 'dui activity'],
+        'source_note': 'These pages group visible DUI-related public records into a cleaner archive so readers can skip broad county feeds and move directly into impaired-driving activity.',
         'faq_name': 'What does the DUI activity page track?',
         'faq_answer': 'It tracks visible Montana Blotter records that reference DUI or driving-under-the-influence activity in the indexed archive.',
     },
@@ -149,12 +639,14 @@ PATTERN_DEFINITIONS = {
         'short_label': 'Warrants',
         'hero_label': 'Montana Warrant Pattern Page',
         'description': 'Find recent records that reference warrant service, warrant arrests, or active warrant activity in county-level public records.',
-        'title_statewide': 'Montana Warrant-Related Arrests',
-        'title_county': '{county} County Warrant-Related Arrests',
-        'meta_statewide': 'Browse Montana warrant-related arrest records with top counties, recent entries, and direct links into county warrant and arrest resources.',
+        'title_statewide': 'Montana Warrant-Related Arrests and Records',
+        'title_county': '{county} County Warrant-Related Arrests and Records',
+        'meta_statewide': 'Browse Montana warrant-related arrest records with top counties, recent entries, and direct links into county warrant, jail, and arrest resources.',
         'meta_county': 'Browse warrant-related arrests in {county} County with recent records, county warrant resources, and linked public safety coverage.',
         'intro': 'These pages are built for readers who want a narrower path into warrant-linked activity than a general arrest log provides.',
         'terms': ['warrant', 'warrant arrest', 'arrest warrant', 'bench warrant', 'served warrant'],
+        'search_targets': ['warrant arrests', 'bench warrant arrests', 'served warrant records', 'warrant-related arrests'],
+        'source_note': 'This pattern page is a bridge between arrest coverage and official warrant resources. It highlights visible records that mention warrant activity but does not replace a county warrant list or court search.',
         'faq_name': 'Does a warrant-related arrest page replace the official warrant list?',
         'faq_answer': 'No. It summarizes visible public records that mention warrant activity. Official county warrant lists and court records remain the final source.',
     },
@@ -164,12 +656,14 @@ PATTERN_DEFINITIONS = {
         'short_label': 'Domestic',
         'hero_label': 'Montana Domestic Disturbance Pattern Page',
         'description': 'Follow domestic disturbance and partner-or-family-violence related records across Montana counties and local archives.',
-        'title_statewide': 'Montana Domestic Disturbance Activity',
-        'title_county': '{county} County Domestic Disturbance Activity',
+        'title_statewide': 'Montana Domestic Disturbance Activity and Records',
+        'title_county': '{county} County Domestic Disturbance Activity and Records',
         'meta_statewide': 'Track domestic disturbance-related public records in Montana with top counties, recent entries, and linked county archive pages.',
         'meta_county': 'Track domestic disturbance activity in {county} County with recent records, related reports, and direct links into county-level archives.',
         'intro': 'These pages group domestic-disturbance-related records into a dedicated local archive for readers following recurring family or household call patterns.',
         'terms': ['domestic', 'domestic violence', 'partner/family', 'partner family', 'family member assault', 'pfma'],
+        'search_targets': ['domestic disturbance reports', 'domestic violence blotter', 'pfma records', 'family disturbance calls'],
+        'source_note': 'These pages cluster domestic-disturbance-related records into a narrower archive view so users can find family-violence and household-disturbance references without searching every county page manually.',
         'faq_name': 'What counts as domestic disturbance activity here?',
         'faq_answer': 'It includes visible records that reference domestic disturbances, domestic violence, partner or family-related assault language, or PFMA-related terminology in the indexed archive.',
     },
@@ -181,6 +675,74 @@ _migrate()
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'admin_login'
+
+ADMIN_ACCESS_ROLES = ('super_admin', 'ops', 'editor', 'revenue', 'read_only')
+ADMIN_MANAGEMENT_ROLES = ('super_admin',)
+EMAIL_OPS_SEND_ROLES = ('super_admin', 'ops', 'revenue')
+OPERATIONS_ROLES = ('super_admin', 'ops')
+CONTENT_REVIEW_ROLES = ('super_admin', 'ops', 'editor')
+AUDIENCE_MANAGEMENT_ROLES = ('super_admin', 'ops', 'revenue')
+ROLE_LABELS = {
+    'super_admin': 'Super Admin',
+    'ops': 'Operations',
+    'editor': 'Editor',
+    'revenue': 'Revenue',
+    'read_only': 'Read Only',
+}
+APP_SETTING_SPECS = {
+    'admin_login_max_attempts': {
+        'label': 'Max failed logins',
+        'type': 'int',
+        'section': 'authentication',
+        'default': config.ADMIN_LOGIN_MAX_ATTEMPTS,
+        'min': 1,
+        'max': 20,
+        'help': 'How many failed login attempts are allowed before a lockout starts.',
+    },
+    'admin_login_window_minutes': {
+        'label': 'Failure window (minutes)',
+        'type': 'int',
+        'section': 'authentication',
+        'default': config.ADMIN_LOGIN_WINDOW_MINUTES,
+        'min': 1,
+        'max': 240,
+        'help': 'How far back failed login attempts are counted.',
+    },
+    'admin_login_lockout_minutes': {
+        'label': 'Lockout length (minutes)',
+        'type': 'int',
+        'section': 'authentication',
+        'default': config.ADMIN_LOGIN_LOCKOUT_MINUTES,
+        'min': 1,
+        'max': 240,
+        'help': 'How long a locked-out admin must wait before trying again.',
+    },
+    'max_upload_mb': {
+        'label': 'Max upload size (MB)',
+        'type': 'int',
+        'section': 'ingestion',
+        'default': config.MAX_UPLOAD_MB,
+        'min': 1,
+        'max': 100,
+        'help': 'Maximum accepted file size for manual admin uploads.',
+    },
+    'ingest_alert_repeat_hours': {
+        'label': 'Alert reminder interval (hours)',
+        'type': 'int',
+        'section': 'ingestion',
+        'default': config.INGEST_ALERT_REPEAT_HOURS,
+        'min': 1,
+        'max': 168,
+        'help': 'How often unresolved ingestion alerts should repeat.',
+    },
+    'donations_enabled': {
+        'label': 'Enable public donations',
+        'type': 'bool',
+        'section': 'revenue',
+        'default': bool(config.DONATIONS_ENABLED),
+        'help': 'Controls whether the public donation flow is available.',
+    },
+}
 
 # File upload configuration
 ALLOWED_EXTENSIONS = {'pdf'}
@@ -297,6 +859,23 @@ def enforce_admin_csrf():
         return redirect(url_for('admin_login'))
 
 
+@app.before_request
+def enforce_admin_access():
+    if not request.path.startswith('/admin'):
+        return
+    if request.path == '/admin/login':
+        return
+    if not current_user.is_authenticated:
+        return
+    if getattr(current_user, 'can_access_admin', False):
+        return
+
+    logout_user()
+    session.clear()
+    flash('Your account is not authorized for the admin panel.', 'error')
+    return redirect(url_for('admin_login'))
+
+
 @app.after_request
 def apply_security_headers(response):
     if request.path.startswith('/admin'):
@@ -362,7 +941,10 @@ def _parse_sqlite_timestamp(value):
 
 
 def _login_rate_limited(conn, username: str, ip_address: str):
-    window = f'-{config.ADMIN_LOGIN_WINDOW_MINUTES} minutes'
+    window_minutes = _admin_login_window_minutes(conn=conn)
+    max_attempts = _admin_login_max_attempts(conn=conn)
+    lockout_minutes = _admin_login_lockout_minutes(conn=conn)
+    window = f'-{window_minutes} minutes'
     row = conn.execute(
         '''
         SELECT COUNT(*) AS failures, MAX(created_at) AS last_failure
@@ -375,14 +957,14 @@ def _login_rate_limited(conn, username: str, ip_address: str):
     ).fetchone()
 
     failures = int(row['failures'] or 0)
-    if failures < config.ADMIN_LOGIN_MAX_ATTEMPTS:
+    if failures < max_attempts:
         return False, 0
 
     last_failure = _parse_sqlite_timestamp(row['last_failure'])
     if not last_failure:
-        return True, config.ADMIN_LOGIN_LOCKOUT_MINUTES * 60
+        return True, lockout_minutes * 60
 
-    unlock_time = last_failure + timedelta(minutes=config.ADMIN_LOGIN_LOCKOUT_MINUTES)
+    unlock_time = last_failure + timedelta(minutes=lockout_minutes)
     remaining = int((unlock_time - datetime.utcnow()).total_seconds())
     if remaining > 0:
         return True, remaining
@@ -433,8 +1015,125 @@ def _safe_json_loads(value, default):
         return default
 
 
-def _donations_enabled():
-    return bool(getattr(config, 'DONATIONS_ENABLED', False))
+def _app_setting_raw(key: str, default=None, conn=None):
+    own_conn = conn is None
+    if own_conn:
+        conn = get_db()
+    try:
+        row = conn.execute(
+            'SELECT value FROM app_settings WHERE key = ?',
+            (key,),
+        ).fetchone()
+        if not row or row['value'] is None or row['value'] == '':
+            return default
+        return row['value']
+    except sqlite3.Error:
+        return default
+    finally:
+        if own_conn:
+            conn.close()
+
+
+def _app_setting_bool(key: str, default: bool = False, conn=None) -> bool:
+    raw = _app_setting_raw(key, default=None, conn=conn)
+    if raw is None:
+        return bool(default)
+    if isinstance(raw, bool):
+        return raw
+    return str(raw).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _app_setting_int(key: str, default: int, minimum: int | None = None, maximum: int | None = None, conn=None) -> int:
+    raw = _app_setting_raw(key, default=None, conn=conn)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        value = int(default)
+    if minimum is not None:
+        value = max(minimum, value)
+    if maximum is not None:
+        value = min(maximum, value)
+    return value
+
+
+def _save_app_setting(conn, key: str, value) -> None:
+    if isinstance(value, bool):
+        stored_value = '1' if value else '0'
+    else:
+        stored_value = str(value).strip()
+    conn.execute(
+        '''
+        INSERT INTO app_settings (key, value, updated_at)
+        VALUES (?, ?, datetime('now'))
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = datetime('now')
+        ''',
+        (key, stored_value),
+    )
+
+
+def _admin_login_max_attempts(conn=None) -> int:
+    spec = APP_SETTING_SPECS['admin_login_max_attempts']
+    return _app_setting_int('admin_login_max_attempts', spec['default'], spec['min'], spec['max'], conn=conn)
+
+
+def _admin_login_window_minutes(conn=None) -> int:
+    spec = APP_SETTING_SPECS['admin_login_window_minutes']
+    return _app_setting_int('admin_login_window_minutes', spec['default'], spec['min'], spec['max'], conn=conn)
+
+
+def _admin_login_lockout_minutes(conn=None) -> int:
+    spec = APP_SETTING_SPECS['admin_login_lockout_minutes']
+    return _app_setting_int('admin_login_lockout_minutes', spec['default'], spec['min'], spec['max'], conn=conn)
+
+
+def _max_upload_mb(conn=None) -> int:
+    spec = APP_SETTING_SPECS['max_upload_mb']
+    return _app_setting_int('max_upload_mb', spec['default'], spec['min'], spec['max'], conn=conn)
+
+
+def _ingest_alert_repeat_hours(conn=None) -> int:
+    spec = APP_SETTING_SPECS['ingest_alert_repeat_hours']
+    return _app_setting_int('ingest_alert_repeat_hours', spec['default'], spec['min'], spec['max'], conn=conn)
+
+
+def _donations_enabled(conn=None):
+    return _app_setting_bool('donations_enabled', bool(getattr(config, 'DONATIONS_ENABLED', False)), conn=conn)
+
+
+def _apply_runtime_app_settings(conn=None) -> None:
+    app.config['MAX_CONTENT_LENGTH'] = _max_upload_mb(conn=conn) * 1024 * 1024
+
+
+def _settings_form_values(conn):
+    values = {}
+    for key, spec in APP_SETTING_SPECS.items():
+        if spec['type'] == 'bool':
+            values[key] = _app_setting_bool(key, spec['default'], conn=conn)
+        elif spec['type'] == 'int':
+            values[key] = _app_setting_int(key, spec['default'], spec.get('min'), spec.get('max'), conn=conn)
+    return values
+
+
+def _coerce_setting_value(key: str, raw_value):
+    spec = APP_SETTING_SPECS[key]
+    if spec['type'] == 'bool':
+        return str(raw_value or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if spec['type'] == 'int':
+        try:
+            value = int(str(raw_value or '').strip())
+        except (TypeError, ValueError):
+            raise ValueError(f"{spec['label']} must be a whole number.")
+        if spec.get('min') is not None and value < spec['min']:
+            raise ValueError(f"{spec['label']} must be at least {spec['min']}.")
+        if spec.get('max') is not None and value > spec['max']:
+            raise ValueError(f"{spec['label']} must be at most {spec['max']}.")
+        return value
+    raise ValueError('Unsupported setting type.')
+
+
+_apply_runtime_app_settings()
 
 
 def _donation_currency():
@@ -1978,6 +2677,25 @@ def _pattern_page_context(conn, pattern_slug: str, county=None):
     related_posts = conn.execute(post_sql, post_params).fetchall()
     related_posts = _annotate_posts_for_pattern(conn, related_posts)
 
+    source_method_sql = f'''
+        SELECT COALESCE(NULLIF(blotters.source_type, ''), 'pdf') AS source_type,
+               COUNT(DISTINCT posts.id) AS count
+        FROM posts
+        JOIN records ON records.blotter_id = posts.blotter_id
+        JOIN blotters ON blotters.id = posts.blotter_id
+        WHERE {record_where}
+    '''
+    source_method_params = list(record_params)
+    if county_name:
+        source_method_sql += ' AND posts.county = ?'
+        source_method_params.append(county_name)
+    source_method_sql += '''
+        GROUP BY COALESCE(NULLIF(blotters.source_type, ''), 'pdf')
+        ORDER BY count DESC, source_type ASC
+        LIMIT 4
+    '''
+    source_method_rows = conn.execute(source_method_sql, source_method_params).fetchall()
+
     sample_counties = []
     if top_counties:
         for row in top_counties:
@@ -2011,8 +2729,374 @@ def _pattern_page_context(conn, pattern_slug: str, county=None):
         'top_counties': sample_counties,
         'recent_records': recent_records,
         'related_posts': related_posts,
+        'source_methods': _source_method_rollup(source_method_rows),
+        'page_last_updated': last_seen,
         'pattern_links': _pattern_links_for_county(county_slug) if county_slug else [],
     }
+
+
+def _source_method_label(source_key):
+    labels = {
+        'imap_pdf': 'Email PDF',
+        'imap_text': 'Email Body',
+        'local_pdf': 'Manual Upload',
+        'crimemapping': 'CrimeMapping',
+        'pdf': 'Imported PDF',
+        'text': 'Text Blotter',
+    }
+    normalized = (source_key or 'pdf').strip() or 'pdf'
+    return labels.get(normalized, 'Imported Source')
+
+
+def _source_method_rollup(rows):
+    methods = []
+    for row in rows:
+        key = row['source_type'] if hasattr(row, 'keys') else row[0]
+        count = row['count'] if hasattr(row, 'keys') else row[1]
+        methods.append({
+            'key': key or 'pdf',
+            'label': _source_method_label(key),
+            'count': count,
+        })
+    return methods
+
+
+def _ranked_county_cards(conn, limit=8, require_online_roster=False):
+    post_stats = {
+        row['county']: row
+        for row in conn.execute(
+            '''
+            SELECT county, COUNT(*) AS post_count, MAX(incident_date) AS last_report
+            FROM posts
+            WHERE county IS NOT NULL AND county != ''
+            GROUP BY county
+            '''
+        ).fetchall()
+    }
+    record_stats = {
+        row['county']: row['record_count']
+        for row in conn.execute(
+            '''
+            SELECT county, COUNT(*) AS record_count
+            FROM records
+            WHERE county IS NOT NULL AND county != ''
+            GROUP BY county
+            '''
+        ).fetchall()
+    }
+
+    county_cards = []
+    for county_data in COUNTY_DATA.values():
+        if require_online_roster and not county_data.get('roster_url'):
+            continue
+        stats = post_stats.get(county_data['name'])
+        record_count = record_stats.get(county_data['name'], 0)
+        post_count = stats['post_count'] if stats else 0
+        if not record_count and not post_count:
+            continue
+        county_cards.append({
+            **county_data,
+            'record_count': record_count,
+            'post_count': post_count,
+            'last_report': stats['last_report'] if stats else None,
+        })
+
+    county_cards.sort(key=lambda item: (-item['record_count'], -item['post_count'], item['name']))
+    return county_cards[:limit]
+
+
+RESOURCE_GUIDES = {
+    'how-to-find-montana-police-blotters': {
+        'title': 'How to Find Montana Police Blotters',
+        'meta_description': 'Learn how to find Montana police blotters using county pages, city pages, sheriff logs, daily activity reports, and linked public-records resources.',
+        'hero_label': 'Evergreen Guide',
+        'intro': 'This guide is built for the readers who search for Montana police blotters first, then need the fastest path into county pages, city pages, arrests, warrants, and jail rosters without guessing where to click next.',
+        'steps': [
+            {
+                'title': 'Start with the city page when the search is city-first',
+                'body': 'Billings, Helena, Great Falls, Kalispell, Whitefish, Bozeman, and Missoula are all better handled through their city pages before branching into county records.',
+            },
+            {
+                'title': 'Use the county page when the archive needs more depth',
+                'body': 'County pages are the main archive hubs for blotter searches because they connect recent reports, arrests, warrants, jail rosters, and neighboring cities.',
+            },
+            {
+                'title': 'Cross-check with warrant, arrest, and jail pages',
+                'body': 'Blotter searches often turn into arrest, booking, or warrant follow-up. These linked pages make that move faster and keep the search local.',
+            },
+        ],
+        'faq': [
+            {
+                'question': 'Are police blotters and daily activity reports the same thing?',
+                'answer': 'Usually yes. Agencies use different labels, but both terms generally refer to the public incident log that records calls, arrests, and officer activity.',
+            },
+            {
+                'question': 'Should I start with a city page or a county page?',
+                'answer': 'Start with a city page if the search is clearly about Billings, Helena, Great Falls, Missoula, Bozeman, Kalispell, or Whitefish. Start with the county page when the search is broader or the city has limited direct publishing.',
+            },
+        ],
+        'page_links': [
+            {'href': '/cities', 'label': 'Browse Montana city pages', 'description': 'City-first blotter pages for the strongest local search terms.'},
+            {'href': '/counties', 'label': 'Browse county archives', 'description': 'County-level blotter pages with deeper linked record paths.'},
+            {'href': '/guides/montana-county-guides', 'label': 'Montana county guides', 'description': 'The strongest county hubs for blotter, arrest, warrant, and jail searches.'},
+            {'href': '/arrests', 'label': 'Montana arrest log', 'description': 'Move from blotter searches into arrest-focused records.'},
+        ],
+    },
+    'yellowstone-county-arrests-jail-roster-and-warrant-guide': {
+        'title': 'Yellowstone County Arrests, Jail Roster, and Warrant Guide',
+        'meta_description': 'A practical Yellowstone County guide for Billings-area arrests, jail roster lookups, warrants, police blotter pages, and the best county follow-up paths.',
+        'hero_label': 'County Guide Asset',
+        'intro': 'This guide is built for the strongest Yellowstone County searches: Billings police blotter, Yellowstone County arrests, jail roster checks, warrant lookup, and city-to-county follow-up.',
+        'steps': [
+            {
+                'title': 'Start with Yellowstone County for the deepest archive',
+                'body': 'Yellowstone County is one of the deepest public-safety archives on the site, so the county page is the best starting point for broad arrest, blotter, and jail-roster searches.',
+            },
+            {
+                'title': 'Use Billings and Laurel when the search is city-first',
+                'body': 'Billings and Laurel often deserve their own entry pages before you branch into county detention or warrant tools.',
+            },
+            {
+                'title': 'Move into warrants and detention immediately',
+                'body': 'When the search is practical instead of editorial, the Yellowstone County warrant page and detention roster are the next clicks that matter.',
+            },
+        ],
+        'faq': [
+            {
+                'question': 'Should I start with Billings or Yellowstone County?',
+                'answer': 'Start with Billings if the search is clearly city-specific. Start with Yellowstone County if you need the deeper archive, county arrests, jail roster access, or countywide warrant links.',
+            },
+            {
+                'question': 'What makes Yellowstone County one of the best county pages on the site?',
+                'answer': 'It combines deep archive coverage with clear city intent around Billings and Laurel plus direct paths into county detention and warrant systems.',
+            },
+        ],
+        'page_links': [
+            {'href': '/county/yellowstone', 'label': 'Yellowstone County page', 'description': 'Main county hub for arrests, blotter coverage, jail roster links, and local record search.'},
+            {'href': '/city/billings', 'label': 'Billings police blotter', 'description': 'City-first entry page for Yellowstone County search traffic.'},
+            {'href': '/city/laurel', 'label': 'Laurel police blotter', 'description': 'Secondary city page inside the Yellowstone County cluster.'},
+            {'href': '/warrants/yellowstone', 'label': 'Yellowstone County warrants', 'description': 'County warrant guide with Billings-focused search intent.'},
+        ],
+        'featured_counties': ['yellowstone', 'carbon', 'stillwater', 'big-horn'],
+    },
+    'montana-county-guides': {
+        'title': 'Montana County Guides for Police Blotters, Arrests, Warrants, and Jail Rosters',
+        'meta_description': 'Browse the strongest Montana county guides for police blotters, arrest records, warrant lookup pages, jail rosters, and local public safety resources.',
+        'hero_label': 'County Guide Asset',
+        'intro': 'This guide collects the county pages most likely to help readers looking for police blotters, jail rosters, arrests, and warrant resources without forcing them to start from a raw statewide directory.',
+        'steps': [
+            {
+                'title': 'Start with the county page',
+                'body': 'County pages are the best first stop when the search intent is broad: blotter, arrests, jail roster, recent police activity, or warrant lookup.',
+            },
+            {
+                'title': 'Use the related city page when local intent is narrower',
+                'body': 'If the search is really about Billings, Helena, Great Falls, Kalispell, Whitefish, or Bozeman, move from the county guide into the matching city page.',
+            },
+            {
+                'title': 'Branch into warrants, arrests, and jail rosters',
+                'body': 'Each county guide should be treated as a hub that routes readers into the legal and detention pages they actually need next.',
+            },
+        ],
+        'faq': [
+            {
+                'question': 'Why use a county guide instead of a raw search?',
+                'answer': 'County guides connect multiple public-records paths in one place: police blotters, arrest coverage, jail rosters, warrant lookup pages, and matching city pages.',
+            },
+            {
+                'question': 'Which county guides should I start with?',
+                'answer': 'Start with the counties that already have the deepest visible archives and the strongest supporting warrant, jail, and city pages.',
+            },
+        ],
+        'page_links': [
+            {'href': '/counties', 'label': 'Browse all county pages', 'description': 'Open the statewide county directory.'},
+            {'href': '/warrants', 'label': 'Open warrant pages', 'description': 'Jump into county-specific warrant lookup resources.'},
+            {'href': '/jail-rosters', 'label': 'See jail rosters', 'description': 'Find county detention and inmate lookup pages.'},
+        ],
+    },
+    'flathead-county-police-blotter-warrant-and-jail-guide': {
+        'title': 'Flathead County Police Blotter, Warrant, and Jail Guide',
+        'meta_description': 'A practical Flathead County guide for Kalispell, Whitefish, and Columbia Falls blotter searches, county warrants, jail roster checks, and local follow-up links.',
+        'hero_label': 'County Guide Asset',
+        'intro': 'This guide is built for Flathead Valley search traffic that crosses city and county lines: Kalispell police blotter, Whitefish arrests, Flathead warrants, jail roster lookups, and county archive pages.',
+        'steps': [
+            {
+                'title': 'Use Flathead County as the main archive hub',
+                'body': 'Flathead County is one of the strongest county pages on the site because warrant, jail, arrest, and blotter intent overlap heavily across the valley.',
+            },
+            {
+                'title': 'Break out into Kalispell, Whitefish, and Columbia Falls',
+                'body': 'City pages help when the search is narrower than the county archive, especially for tourism-heavy and neighborhood-specific search behavior.',
+            },
+            {
+                'title': 'Lean on the county warrant and jail tools',
+                'body': 'Flathead is one of the better counties for practical follow-up because the county publishes both a warrant list and a jail roster.',
+            },
+        ],
+        'faq': [
+            {
+                'question': 'Why is Flathead County valuable for search?',
+                'answer': 'Flathead County combines strong countywide demand with city-specific interest around Kalispell and Whitefish, which makes the hub stronger than a typical county-only page.',
+            },
+            {
+                'question': 'Should I search Flathead County or Whitefish first?',
+                'answer': 'Use Whitefish or Kalispell first when the search is clearly about that city. Use Flathead County first when you need jail, warrants, arrests, or a broader valley-wide archive.',
+            },
+        ],
+        'page_links': [
+            {'href': '/county/flathead', 'label': 'Flathead County page', 'description': 'County hub for blotter coverage, arrests, jail roster access, and Flathead Valley search intent.'},
+            {'href': '/city/kalispell', 'label': 'Kalispell police blotter', 'description': 'City-first page for Kalispell activity, warrants, and Flathead detention links.'},
+            {'href': '/city/whitefish', 'label': 'Whitefish police blotter', 'description': 'Tourism-heavy city page tied into Flathead County follow-up tools.'},
+            {'href': '/warrants/flathead', 'label': 'Flathead County warrants', 'description': 'County warrant guide with Kalispell and Whitefish search demand built in.'},
+        ],
+        'featured_counties': ['flathead', 'lake', 'lincoln', 'sanders'],
+    },
+    'lewis-and-clark-county-blotter-warrant-and-jail-guide': {
+        'title': 'Lewis and Clark County Blotter, Warrant, and Jail Guide',
+        'meta_description': 'A practical Lewis and Clark County guide for Helena and East Helena police blotter searches, county warrants, jail resources, and capital-region follow-up paths.',
+        'hero_label': 'County Guide Asset',
+        'intro': 'This guide is built for capital-region search traffic that overlaps across Helena, East Helena, Lewis and Clark County warrants, jail lookups, and county arrest coverage.',
+        'steps': [
+            {
+                'title': 'Start with Lewis and Clark County for the broad archive',
+                'body': 'The county page is the best starting point when the search is not limited to one city and you need county arrests, detention links, and a broader records view.',
+            },
+            {
+                'title': 'Use Helena and East Helena when the search is city-first',
+                'body': 'Capital-region search traffic often begins with Helena or East Helena rather than the county name, so city pages need to be part of the workflow immediately.',
+            },
+            {
+                'title': 'Keep the warrant page close',
+                'body': 'Lewis and Clark is one of the stronger warrant-follow-up markets because Helena has practical warrant intent and a clear detention path nearby.',
+            },
+        ],
+        'faq': [
+            {
+                'question': 'Should I start with Helena or Lewis and Clark County?',
+                'answer': 'Start with Helena when the search is clearly city-specific. Start with Lewis and Clark County when you need broader arrest coverage, jail links, or countywide public-record follow-up.',
+            },
+            {
+                'question': 'Why is this a strong capital-region guide?',
+                'answer': 'It combines city-first searches around Helena with county-level warrant and detention follow-up, which makes it more useful than a raw directory page.',
+            },
+        ],
+        'page_links': [
+            {'href': '/county/lewis-and-clark', 'label': 'Lewis and Clark County page', 'description': 'Main county hub for arrests, blotter coverage, jail resources, and capital-region follow-up.'},
+            {'href': '/city/helena', 'label': 'Helena police blotter', 'description': 'City-first entry page for the strongest capital-region search term.'},
+            {'href': '/city/east-helena', 'label': 'East Helena police blotter', 'description': 'Secondary city page for readers searching outside Helena proper.'},
+            {'href': '/warrants/lewis-and-clark', 'label': 'Lewis and Clark warrants', 'description': 'County warrant guide connected to Helena and detention follow-up.'},
+        ],
+        'featured_counties': ['lewis-and-clark', 'jefferson', 'broadwater', 'meagher'],
+    },
+    'how-to-find-montana-warrants': {
+        'title': 'How to Find Montana Warrants',
+        'meta_description': 'Learn how to find active warrants in Montana using county warrant lists, the Montana court portal, and sheriff resources.',
+        'hero_label': 'Evergreen Guide',
+        'intro': 'This guide is built for the exact searches people make when they need to check active warrants in Montana, whether the search starts with a county, a city, or the statewide court system.',
+        'steps': [
+            {
+                'title': 'Check the county warrant page first',
+                'body': 'If the county publishes a warrant list, that is usually the fastest path into active local warrant information.',
+            },
+            {
+                'title': 'Use the Montana Judicial Branch portal',
+                'body': 'For counties without a live warrant list, the court portal is the statewide fallback for warrant lookup and case follow-up.',
+            },
+            {
+                'title': 'Confirm detention and arrest context',
+                'body': 'Use the jail roster and county arrest pages to understand whether a warrant has already resulted in booking activity or related records.',
+            },
+        ],
+        'faq': [
+            {
+                'question': 'Does this guide replace an official county warrant list?',
+                'answer': 'No. It is a routing guide into the official county and statewide systems that handle warrant publication and court records.',
+            },
+            {
+                'question': 'What is the best starting point if I only know the county?',
+                'answer': 'Start with the county warrant page, then move into the statewide court portal if that county does not publish a live list.',
+            },
+        ],
+        'page_links': [
+            {'href': '/warrants', 'label': 'Montana warrant search hub', 'description': 'Statewide warrant guide plus county pages.'},
+            {'href': '/warrants/yellowstone', 'label': 'Yellowstone County warrants', 'description': 'One of the strongest county warrant entry pages.'},
+            {'href': '/warrants/flathead', 'label': 'Flathead County warrants', 'description': 'Strong county-plus-city warrant demand.'},
+            {'href': '/warrants/lewis-and-clark', 'label': 'Lewis and Clark warrants', 'description': 'Helena-area warrant searches and county links.'},
+        ],
+    },
+    'how-to-find-montana-arrest-records': {
+        'title': 'How to Find Montana Arrest Records',
+        'meta_description': 'Learn how to find Montana arrest records using county pages, arrest coverage, jail rosters, court records, and local police blotter archives.',
+        'hero_label': 'Evergreen Guide',
+        'intro': 'This guide is meant to be a practical starting point for people looking for Montana arrest records, whether they begin with a county, a city, a jail lookup, or a broader arrest search.',
+        'steps': [
+            {
+                'title': 'Start with local arrest coverage',
+                'body': 'County and city pages surface the fastest route into recent arrest-related records and linked incident summaries.',
+            },
+            {
+                'title': 'Use the arrest log for broader searches',
+                'body': 'When the county or city is not obvious, the statewide arrest log is the best way to search across the archive for arrest-related language.',
+            },
+            {
+                'title': 'Verify with jail and court systems',
+                'body': 'Detention and court systems are the next step when you need inmate status, formal case tracking, or more complete booking context.',
+            },
+        ],
+        'faq': [
+            {
+                'question': 'Are Montana arrest records the same as jail rosters?',
+                'answer': 'No. Arrest-related records and jail rosters overlap, but jail rosters focus on current detention status while arrest coverage can include calls, bookings, and linked report summaries.',
+            },
+            {
+                'question': 'What should I use if I only know the city?',
+                'answer': 'Start with the city page, then move into the related county arrest, jail, and warrant pages from there.',
+            },
+        ],
+        'page_links': [
+            {'href': '/arrests', 'label': 'Montana arrest log', 'description': 'Search arrest-related records across the archive.'},
+            {'href': '/county/yellowstone', 'label': 'Yellowstone County guide', 'description': 'Strong county arrests, jail, and warrant hub.'},
+            {'href': '/city/billings', 'label': 'Billings police blotter', 'description': 'City-first path into arrest-related local records.'},
+            {'href': '/jail-rosters', 'label': 'Montana jail rosters', 'description': 'Official detention links for all counties.'},
+        ],
+    },
+    'how-to-find-montana-jail-rosters': {
+        'title': 'How to Find Montana Jail Rosters',
+        'meta_description': 'Learn how to find Montana jail rosters, inmate lookup pages, and detention resources using county roster pages and local public-records guides.',
+        'hero_label': 'Evergreen Guide',
+        'intro': 'This guide turns a simple jail-roster query into a usable workflow by linking official detention tools with the county, warrant, and arrest pages that help readers understand what they are seeing.',
+        'steps': [
+            {
+                'title': 'Use the statewide jail roster directory',
+                'body': 'The roster directory is the fastest way to jump into an official county detention or inmate search page.',
+            },
+            {
+                'title': 'Use the matching county guide for context',
+                'body': 'Once you know the county, the county page helps connect roster checks to arrests, warrants, and recent report coverage.',
+            },
+            {
+                'title': 'Cross-check city and warrant pages',
+                'body': 'For higher-intent searches, city and warrant pages often provide the missing context around why a booking or detention lookup matters.',
+            },
+        ],
+        'faq': [
+            {
+                'question': 'Do all Montana counties have online jail rosters?',
+                'answer': 'No. Some counties publish live inmate tools while others require phone confirmation or rely on statewide notification systems.',
+            },
+            {
+                'question': 'Why pair a jail roster with a county guide?',
+                'answer': 'Because roster lookups are stronger when they are connected to county arrests, recent police activity, and warrant resources in the same local area.',
+            },
+        ],
+        'page_links': [
+            {'href': '/jail-rosters', 'label': 'Montana jail rosters', 'description': 'Official roster and inmate search links for all 56 counties.'},
+            {'href': '/county/flathead', 'label': 'Flathead County guide', 'description': 'Strong roster, warrant, and city-page support.'},
+            {'href': '/county/yellowstone', 'label': 'Yellowstone County guide', 'description': 'Billings-area detention and public-records hub.'},
+            {'href': '/county/lewis-and-clark', 'label': 'Lewis and Clark County guide', 'description': 'Helena-area detention, warrant, and police activity paths.'},
+        ],
+    },
+}
 
 
 def _source_channel_meta(post):
@@ -2625,6 +3709,492 @@ def _weekly_snapshot(conn, window_days=7):
     }
 
 
+def _human_join(items):
+    values = [item for item in items if item]
+    if not values:
+        return ''
+    if len(values) == 1:
+        return values[0]
+    if len(values) == 2:
+        return f'{values[0]} and {values[1]}'
+    return ', '.join(values[:-1]) + f', and {values[-1]}'
+
+
+def _pretty_iso_date(value):
+    try:
+        parsed = datetime.strptime(value, '%Y-%m-%d')
+    except (TypeError, ValueError):
+        return value or ''
+    return f"{parsed.strftime('%B')} {parsed.day}, {parsed.year}"
+
+
+def _weekly_digest_workflow_defaults(conn):
+    snapshot = _weekly_snapshot(conn)
+    if not snapshot:
+        return None
+
+    top_counties = snapshot['top_counties'][:3]
+    top_incidents = snapshot['top_incidents'][:3]
+    county_names = [item['name'] for item in top_counties]
+    county_phrase = _human_join(county_names) or 'Montana counties'
+    start_label = _pretty_iso_date(snapshot['start_date'])
+    end_label = _pretty_iso_date(snapshot['end_date'])
+    lead_incident = top_incidents[0]['name'] if top_incidents else 'incident activity'
+
+    title = (
+        f"Montana Weekly Crime Roundup: {county_phrase} Led Activity Through {end_label}"
+    )
+    slug = f"montana-weekly-county-digest-{snapshot['end_date']}"
+    excerpt = (
+        f"Montana Blotter reviewed {snapshot['total_records']} public safety records "
+        f"from {start_label} through {end_label}. {county_phrase} generated the most "
+        f"visible county-level activity this week, with {lead_incident.lower()} appearing often."
+    )
+
+    county_lines = []
+    for index, county in enumerate(top_counties, start=1):
+        if county.get('slug'):
+            county_lines.append(
+                f"{index}. **[{county['name']} County](/county/{county['slug']})** led with "
+                f"**{county['count']}** visible records."
+            )
+        else:
+            county_lines.append(
+                f"{index}. **{county['name']} County** led with **{county['count']}** visible records."
+            )
+
+    incident_lines = []
+    for item in top_incidents:
+        incident_lines.append(f"- **{item['name']}:** {item['count']} visible records")
+
+    county_sections = []
+    for county in top_counties:
+        county_sections.append(
+            "\n".join(
+                [
+                    f"### {county['name']} County",
+                    "",
+                    f"[Add 2-3 sentences on why {county['name']} County moved this week, "
+                    f"what the archive showed, and the best next click for readers.]",
+                    "",
+                ]
+            )
+        )
+
+    body_parts = [
+        "## What stood out this week",
+        "",
+        (
+            f"Montana Blotter reviewed **{snapshot['total_records']}** public safety records "
+            f"indexed between **{start_label}** and **{end_label}**. "
+            f"{county_phrase} generated the strongest county-level activity in this archive window."
+        ),
+        "",
+        "## Top counties this week",
+        "",
+        *county_lines,
+        "",
+        "## Incident patterns that stood out",
+        "",
+        *incident_lines,
+        "",
+        "## County-by-county notes",
+        "",
+        "\n".join(county_sections) if county_sections else "[Add county notes here]",
+        "",
+        "## Best next clicks",
+        "",
+        "- [How to find Montana police blotters](/guides/how-to-find-montana-police-blotters)",
+        "- [Yellowstone County arrests, jail roster, and warrant guide](/guides/yellowstone-county-arrests-jail-roster-and-warrant-guide)",
+        "- [Montana county guides](/guides/montana-county-guides)",
+        "- [Flathead County police blotter, warrant, and jail guide](/guides/flathead-county-police-blotter-warrant-and-jail-guide)",
+        "- [How to find Montana warrants](/guides/how-to-find-montana-warrants)",
+        "- [How to find Montana arrest records](/guides/how-to-find-montana-arrest-records)",
+        "- [How to find Montana jail rosters](/guides/how-to-find-montana-jail-rosters)",
+        "- [Montana annual roundups](/annual-roundups)",
+        "",
+        "## Methodology",
+        "",
+        (
+            f"This roundup summarizes records indexed by Montana Blotter between "
+            f"**{start_label}** and **{end_label}**. Counts reflect visible public records "
+            f"in the archive during that window and may change as additional reports are ingested "
+            f"or source data is corrected."
+        ),
+    ]
+
+    title_options = [
+        title,
+        f"{county_phrase} Drove Montana Blotter Activity Through {end_label}",
+        f"Montana Public Safety Roundup: {county_phrase} and {lead_incident} Through {end_label}",
+    ]
+
+    return {
+        'title': title,
+        'slug': slug,
+        'excerpt': excerpt,
+        'body': '\n'.join(body_parts).strip(),
+        'author': 'Montana Blotter',
+        'published': 0,
+        'snapshot': snapshot,
+        'top_counties': top_counties,
+        'top_incidents': top_incidents,
+        'title_options': title_options,
+        'start_label': start_label,
+        'end_label': end_label,
+    }
+
+
+def _search_console_header_key(value):
+    return ' '.join((value or '').strip().lower().replace('_', ' ').split())
+
+
+def _search_console_cell(row, aliases):
+    for key, value in row.items():
+        if _search_console_header_key(key) in aliases:
+            return (value or '').strip()
+    return ''
+
+
+def _search_console_float(value):
+    raw = (value or '').strip().replace(',', '')
+    if not raw:
+        return 0.0
+    if raw.endswith('%'):
+        raw = raw[:-1].strip()
+    try:
+        return float(raw)
+    except ValueError:
+        return 0.0
+
+
+def _normalize_search_console_page(value):
+    raw = (value or '').strip()
+    if not raw:
+        return ''
+    parsed = urlparse(raw)
+    path = parsed.path if (parsed.scheme or parsed.netloc) else raw
+    if not path.startswith('/'):
+        path = '/' + path
+    if len(path) > 1 and path.endswith('/'):
+        path = path[:-1]
+    return path or '/'
+
+
+def _parse_search_console_csv(file_storage):
+    payload = file_storage.read()
+    if not payload:
+        raise ValueError('The uploaded Search Console CSV is empty.')
+
+    text = None
+    for encoding in ('utf-8-sig', 'utf-8', 'utf-16'):
+        try:
+            text = payload.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        raise ValueError('The Search Console CSV could not be decoded as UTF-8 or UTF-16.')
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise ValueError('The Search Console CSV is missing headers.')
+
+    query_aliases = {'query', 'queries', 'top query', 'top queries', 'search query', 'search queries'}
+    page_aliases = {'page', 'pages', 'top page', 'top pages', 'landing page', 'landing pages'}
+    clicks_aliases = {'clicks'}
+    impressions_aliases = {'impressions'}
+    ctr_aliases = {'ctr'}
+    position_aliases = {'position', 'avg position', 'average position'}
+
+    rows = []
+    for row in reader:
+        query = _search_console_cell(row, query_aliases)
+        page = _normalize_search_console_page(_search_console_cell(row, page_aliases))
+        if not query and not page:
+            continue
+        rows.append({
+            'query': query,
+            'page': page,
+            'clicks': _search_console_float(_search_console_cell(row, clicks_aliases)),
+            'impressions': _search_console_float(_search_console_cell(row, impressions_aliases)),
+            'ctr': _search_console_float(_search_console_cell(row, ctr_aliases)),
+            'position': _search_console_float(_search_console_cell(row, position_aliases)),
+        })
+
+    if not rows:
+        raise ValueError('The Search Console CSV did not contain any query or page rows.')
+
+    has_queries = any(row['query'] for row in rows)
+    has_pages = any(row['page'] for row in rows)
+    if has_queries and has_pages:
+        source_kind = 'mixed'
+    elif has_queries:
+        source_kind = 'queries'
+    elif has_pages:
+        source_kind = 'pages'
+    else:
+        source_kind = 'unknown'
+
+    return source_kind, rows
+
+
+def _store_search_console_import(conn, source_filename, source_kind, rows):
+    cursor = conn.execute(
+        'INSERT INTO search_console_imports (source_filename, source_kind, row_count) VALUES (?, ?, ?)',
+        (source_filename, source_kind, len(rows)),
+    )
+    import_id = cursor.lastrowid
+    conn.executemany(
+        '''
+        INSERT INTO search_console_rows (import_id, query, page, clicks, impressions, ctr, position)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''',
+        [
+            (
+                import_id,
+                row['query'],
+                row['page'],
+                row['clicks'],
+                row['impressions'],
+                row['ctr'],
+                row['position'],
+            )
+            for row in rows
+        ],
+    )
+    return import_id
+
+
+def _latest_search_console_import(conn, kind=None):
+    if kind == 'queries':
+        kinds = ('queries', 'mixed')
+    elif kind == 'pages':
+        kinds = ('pages', 'mixed')
+    else:
+        kinds = None
+
+    if kinds:
+        placeholders = ','.join('?' for _ in kinds)
+        return conn.execute(
+            f'''
+            SELECT id, source_filename, source_kind, row_count, created_at
+            FROM search_console_imports
+            WHERE source_kind IN ({placeholders})
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            ''',
+            kinds,
+        ).fetchone()
+
+    return conn.execute(
+        '''
+        SELECT id, source_filename, source_kind, row_count, created_at
+        FROM search_console_imports
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+        '''
+    ).fetchone()
+
+
+def _search_console_rows_for_import(conn, import_id):
+    return conn.execute(
+        '''
+        SELECT query, page, clicks, impressions, ctr, position
+        FROM search_console_rows
+        WHERE import_id = ?
+        ORDER BY impressions DESC, clicks DESC, position ASC, id ASC
+        ''',
+        (import_id,),
+    ).fetchall()
+
+
+def _search_console_query_intents(rows):
+    buckets = []
+    for row in rows:
+        query = (row['query'] or '').lower()
+        impressions = float(row['impressions'] or 0)
+        if 'warrant' in query:
+            buckets.append(('Warrant Search', impressions))
+        if 'jail' in query or 'roster' in query or 'inmate' in query:
+            buckets.append(('Jail Roster', impressions))
+        if 'arrest' in query or 'booking' in query or 'bookings' in query:
+            buckets.append(('Arrests', impressions))
+        if 'blotter' in query or 'police' in query or 'daily activity' in query:
+            buckets.append(('Police Blotter', impressions))
+
+    ranked = {}
+    for label, impressions in buckets:
+        ranked[label] = ranked.get(label, 0.0) + impressions
+
+    ordered = sorted(ranked.items(), key=lambda item: (-item[1], item[0]))
+    return [label for label, _score in ordered]
+
+
+def _search_console_match_queries(path, rows):
+    path = _normalize_search_console_page(path)
+    direct = [
+        row for row in rows
+        if row['query'] and _normalize_search_console_page(row['page']) == path
+    ]
+    if direct:
+        return direct
+
+    fallback = []
+    if path == '/':
+        fallback = [row for row in rows if row['query']]
+    elif path.startswith('/county/'):
+        slug = path.split('/')[-1]
+        county = COUNTY_DATA.get(slug)
+        if county:
+            terms = [county['name'].lower()]
+            if county.get('seat'):
+                terms.append(county['seat'].lower())
+            fallback = [
+                row for row in rows
+                if row['query'] and any(term in row['query'].lower() for term in terms)
+            ]
+    elif path.startswith('/city/'):
+        slug = path.split('/')[-1]
+        city = CITY_DATA.get(slug)
+        if city:
+            terms = [city['name'].lower(), city['county'].lower()]
+            fallback = [
+                row for row in rows
+                if row['query'] and any(term in row['query'].lower() for term in terms)
+            ]
+    elif path.startswith('/warrants/'):
+        slug = path.split('/')[-1]
+        county = COUNTY_DATA.get(slug)
+        if county:
+            terms = [county['name'].lower()]
+            if county.get('seat'):
+                terms.append(county['seat'].lower())
+            fallback = [
+                row for row in rows
+                if row['query']
+                and 'warrant' in row['query'].lower()
+                and any(term in row['query'].lower() for term in terms)
+            ]
+
+    return fallback
+
+
+def _search_console_suggest_snippet(path, matched_queries):
+    intents = _search_console_query_intents(matched_queries)
+    top_queries = [row['query'] for row in matched_queries[:3] if row['query']]
+
+    if path == '/':
+        title = 'Montana Police Blotter, Jail Rosters, Warrants, and Arrest Records'
+        meta = (
+            'Search Montana police blotter pages, jail rosters, warrant guides, and arrest records '
+            'using county and city pages built around the queries readers actually use.'
+        )
+        return title, meta, top_queries
+
+    if path.startswith('/county/'):
+        slug = path.split('/')[-1]
+        county = COUNTY_DATA.get(slug)
+        if county:
+            labels = intents[:3] or ['Arrests', 'Jail Roster', 'Police Blotter']
+            title = f"{county['name']} County " + _human_join(labels)
+            meta = (
+                f"Search {county['name']} County public safety pages for "
+                f"{', '.join(label.lower() for label in labels[:2])}"
+                f"{', and ' + labels[2].lower() if len(labels) > 2 else ''}. "
+                f"Built from live query demand and linked into local county resources."
+            )
+            return title, meta, top_queries
+
+    if path.startswith('/city/'):
+        slug = path.split('/')[-1]
+        city = CITY_DATA.get(slug)
+        if city:
+            labels = intents[:3] or ['Police Blotter', 'Arrests', 'Warrant Links']
+            title = f"{city['name']} " + _human_join(labels)
+            meta = (
+                f"Search {city['name']} police blotter coverage, {city['county']} County arrest resources, "
+                f"and follow-up warrant or jail links aligned to the searches bringing readers to this page."
+            )
+            return title, meta, top_queries
+
+    if path.startswith('/warrants/'):
+        slug = path.split('/')[-1]
+        county = COUNTY_DATA.get(slug)
+        if county:
+            title = f"{county['name']} County Warrant Search, Jail Roster, and Arrest Links"
+            meta = (
+                f"Search {county['name']} County warrants with county jail roster links, arrest follow-up paths, "
+                f"and search-intent language pulled from recent Search Console exports."
+            )
+            return title, meta, top_queries
+
+    return '', '', top_queries
+
+
+def _search_console_workflow_context(conn):
+    latest_query_import = _latest_search_console_import(conn, kind='queries')
+    latest_page_import = _latest_search_console_import(conn, kind='pages')
+    import_history = conn.execute(
+        '''
+        SELECT id, source_filename, source_kind, row_count, created_at
+        FROM search_console_imports
+        ORDER BY created_at DESC, id DESC
+        LIMIT 6
+        '''
+    ).fetchall()
+
+    query_rows = _search_console_rows_for_import(conn, latest_query_import['id']) if latest_query_import else []
+    page_rows = _search_console_rows_for_import(conn, latest_page_import['id']) if latest_page_import else []
+
+    top_queries = [dict(row) for row in query_rows[:10]]
+
+    aggregated_pages = {}
+    for row in page_rows:
+        path = _normalize_search_console_page(row['page'])
+        if not path:
+            continue
+        entry = aggregated_pages.setdefault(path, {
+            'path': path,
+            'clicks': 0.0,
+            'impressions': 0.0,
+            'ctr': 0.0,
+            'position_weight': 0.0,
+            'position_impressions': 0.0,
+        })
+        entry['clicks'] += float(row['clicks'] or 0)
+        entry['impressions'] += float(row['impressions'] or 0)
+        entry['ctr'] += float(row['ctr'] or 0)
+        entry['position_weight'] += float(row['position'] or 0) * max(float(row['impressions'] or 0), 1.0)
+        entry['position_impressions'] += max(float(row['impressions'] or 0), 1.0)
+
+    page_opportunities = []
+    for entry in sorted(aggregated_pages.values(), key=lambda item: (-item['impressions'], -item['clicks'], item['path']))[:10]:
+        matched_queries = _search_console_match_queries(entry['path'], query_rows)[:5]
+        suggested_title, suggested_meta, supporting_queries = _search_console_suggest_snippet(entry['path'], matched_queries)
+        avg_position = (
+            entry['position_weight'] / entry['position_impressions']
+            if entry['position_impressions'] else 0.0
+        )
+        page_opportunities.append({
+            'path': entry['path'],
+            'clicks': round(entry['clicks'], 2),
+            'impressions': round(entry['impressions'], 2),
+            'avg_position': round(avg_position, 2),
+            'suggested_title': suggested_title,
+            'suggested_meta': suggested_meta,
+            'supporting_queries': supporting_queries,
+        })
+
+    return {
+        'latest_query_import': latest_query_import,
+        'latest_page_import': latest_page_import,
+        'import_history': import_history,
+        'top_queries': top_queries,
+        'page_opportunities': page_opportunities,
+    }
+
+
 @app.context_processor
 def inject_public_nav():
     public_primary_nav_items = [
@@ -2655,18 +4225,99 @@ def inject_public_nav():
     }
 
 class User(UserMixin):
-    def __init__(self, id, username):
+    def __init__(self, id, username, role='super_admin', email=None, account_active=True, last_login_at=None, mfa_enabled=False):
         self.id = id
         self.username = username
+        self.role = (role or 'super_admin').strip() or 'super_admin'
+        self.email = email or ''
+        self.account_active = bool(account_active)
+        self.last_login_at = last_login_at
+        self.mfa_enabled = bool(mfa_enabled)
+
+    @property
+    def is_active(self):
+        return self.account_active
+
+    @property
+    def role_label(self):
+        return ROLE_LABELS.get(self.role, self.role.replace('_', ' ').title())
+
+    @property
+    def can_access_admin(self):
+        return self.account_active and self.role in ADMIN_ACCESS_ROLES
+
+    @classmethod
+    def from_row(cls, row):
+        return cls(
+            row['id'],
+            row['username'],
+            role=row['role'] if 'role' in row.keys() else 'super_admin',
+            email=row['email'] if 'email' in row.keys() else None,
+            account_active=bool(row['is_active']) if 'is_active' in row.keys() else True,
+            last_login_at=row['last_login_at'] if 'last_login_at' in row.keys() else None,
+            mfa_enabled=bool(row['mfa_enabled']) if 'mfa_enabled' in row.keys() else False,
+        )
 
 @login_manager.user_loader
 def load_user(user_id):
     conn = get_db()
     res = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     conn.close()
-    if res:
-        return User(res['id'], res['username'])
+    if res and bool(res['is_active']) and (res['role'] or '').strip() in ADMIN_ACCESS_ROLES:
+        return User.from_row(res)
     return None
+
+
+def require_role(*allowed_roles):
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return login_manager.unauthorized()
+            if not getattr(current_user, 'can_access_admin', False):
+                abort(403)
+            if allowed_roles and getattr(current_user, 'role', '') not in allowed_roles:
+                abort(403)
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def _log_admin_action(action: str, target_type: str = '', target_id=None, metadata=None, user_id=None, conn=None):
+    own_conn = conn is None
+    if own_conn:
+        conn = get_db()
+
+    try:
+        actor_id = user_id
+        if actor_id is None and current_user.is_authenticated:
+            actor_id = current_user.id
+        conn.execute(
+            '''
+            INSERT INTO audit_logs (user_id, action, target_type, target_id, ip_address, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                actor_id,
+                (action or '').strip()[:120],
+                (target_type or '').strip()[:80] or None,
+                str(target_id)[:120] if target_id is not None else None,
+                _client_ip()[:128],
+                json.dumps(metadata or {}, sort_keys=True)[:4000] if metadata is not None else None,
+            ),
+        )
+        if own_conn:
+            conn.commit()
+    finally:
+        if own_conn:
+            conn.close()
+
+
+def _active_super_admin_count(conn):
+    row = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM users WHERE role = 'super_admin' AND COALESCE(is_active, 1) = 1"
+    ).fetchone()
+    return int(row['cnt'] or 0)
 
 # ==========================================
 # PAGE VIEW TRACKING
@@ -2733,6 +4384,663 @@ def _record_subscribe_event(event_type, source='', page_path='', email=''):
         conn.close()
     except Exception:
         pass
+
+
+def _subscriber_email_hash(email):
+    normalized = (email or '').strip().lower()
+    if not normalized:
+        return ''
+    return hashlib.sha256(normalized.encode()).hexdigest()[:16]
+
+
+def _digest_target_date(raw_value=''):
+    raw_value = (raw_value or '').strip()
+    if not raw_value:
+        return (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+    try:
+        return datetime.strptime(raw_value, '%Y-%m-%d').strftime('%Y-%m-%d')
+    except ValueError as exc:
+        raise ValueError('Choose a valid digest date in YYYY-MM-DD format.') from exc
+
+
+def _digest_support_email():
+    for candidate in (
+        getattr(current_user, 'email', ''),
+        getattr(config, 'SMTP_USER', ''),
+        getattr(config, 'EMAIL_USER', ''),
+    ):
+        email = (candidate or '').strip().lower()
+        if email and '@' in email:
+            return email
+    return ''
+
+
+def _record_digest_run(
+    conn,
+    *,
+    kind,
+    target_date,
+    audience,
+    status,
+    subject,
+    preview_posts=0,
+    preview_subscribers=0,
+    initiated_by='',
+    notes='',
+    created_by_user_id=None,
+):
+    cursor = conn.execute(
+        '''
+        INSERT INTO digest_runs (
+            kind, target_date, audience, status, subject,
+            preview_posts, preview_subscribers, initiated_by, notes,
+            created_by_user_id, started_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ''',
+        (
+            (kind or '').strip()[:40] or 'morning_briefing',
+            target_date,
+            (audience or '').strip()[:40] or 'subscribers',
+            (status or '').strip()[:40] or 'pending',
+            (subject or '').strip()[:255],
+            int(preview_posts or 0),
+            int(preview_subscribers or 0),
+            (initiated_by or '').strip()[:120] or None,
+            (notes or '').strip()[:500] or None,
+            created_by_user_id,
+        ),
+    )
+    return cursor.lastrowid
+
+
+def _record_digest_run_recipient(conn, run_id, recipient_email, counties, status, post_count=0, error_message=''):
+    conn.execute(
+        '''
+        INSERT INTO digest_run_recipients (
+            run_id, recipient_email, counties, status, post_count, error_message
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            run_id,
+            (recipient_email or '').strip().lower(),
+            (counties or '').strip()[:255],
+            (status or '').strip()[:40] or 'pending',
+            int(post_count or 0),
+            (error_message or '').strip()[:500] or None,
+        ),
+    )
+
+
+def _finish_digest_run(conn, run_id, *, status, sent_count=0, skipped_count=0, failed_count=0, notes=''):
+    conn.execute(
+        '''
+        UPDATE digest_runs
+        SET status = ?,
+            sent_count = ?,
+            skipped_count = ?,
+            failed_count = ?,
+            notes = ?,
+            finished_at = datetime('now')
+        WHERE id = ?
+        ''',
+        (
+            (status or '').strip()[:40] or 'completed',
+            int(sent_count or 0),
+            int(skipped_count or 0),
+            int(failed_count or 0),
+            (notes or '').strip()[:500] or None,
+            run_id,
+        ),
+    )
+
+
+def _subscriber_counties_list(raw_value):
+    return [part.strip() for part in (raw_value or '').split(',') if part.strip()]
+
+
+def _subscriber_counties_label(raw_value):
+    counties = _subscriber_counties_list(raw_value)
+    return ', '.join(counties) if counties else 'All counties'
+
+
+def _digest_subject_for_date(target_date):
+    try:
+        display = datetime.strptime(target_date, '%Y-%m-%d').strftime('%b %d, %Y')
+    except ValueError:
+        display = target_date
+    return f'Montana Blotter Briefing - {display}'
+
+
+def _build_email_ops_preview(target_date):
+    all_posts = get_morning_briefing_posts(target_date)
+    preview_html = build_morning_briefing_html(all_posts, target_date) if all_posts else ''
+
+    conn = get_db()
+    subscribers = conn.execute(
+        '''
+        SELECT id, email, counties, created_at
+        FROM subscribers
+        WHERE active = 1
+        ORDER BY datetime(created_at) DESC, email ASC
+        '''
+    ).fetchall()
+
+    preview_rows = []
+    matching_subscribers = 0
+    skipped_subscribers = 0
+    posts_cache = {'': all_posts}
+    for subscriber in subscribers:
+        counties_raw = subscriber['counties'] or ''
+        if counties_raw not in posts_cache:
+            posts_cache[counties_raw] = get_morning_briefing_posts(
+                target_date,
+                _subscriber_counties_list(counties_raw) or None,
+            )
+        post_count = len(posts_cache[counties_raw])
+        if post_count:
+            matching_subscribers += 1
+        else:
+            skipped_subscribers += 1
+        preview_rows.append({
+            'id': subscriber['id'],
+            'email': subscriber['email'],
+            'counties': counties_raw,
+            'counties_label': _subscriber_counties_label(counties_raw),
+            'post_count': post_count,
+            'created_at': subscriber['created_at'],
+        })
+
+    stats = {
+        'active_subscribers': conn.execute(
+            'SELECT COUNT(*) AS total FROM subscribers WHERE active = 1'
+        ).fetchone()['total'],
+        'new_subscribers_7d': conn.execute(
+            "SELECT COUNT(*) AS total FROM subscribers WHERE datetime(created_at) >= datetime('now', '-7 days')"
+        ).fetchone()['total'],
+        'unsubscribe_events_30d': conn.execute(
+            "SELECT COUNT(*) AS total FROM subscribe_events WHERE event_type = 'unsubscribe' AND datetime(created_at) >= datetime('now', '-30 days')"
+        ).fetchone()['total'],
+        'subscription_events_30d': conn.execute(
+            "SELECT COUNT(*) AS total FROM subscribe_events WHERE event_type IN ('subscribe_success', 'subscribe_update') AND datetime(created_at) >= datetime('now', '-30 days')"
+        ).fetchone()['total'],
+        'failed_deliveries_30d': conn.execute(
+            "SELECT COUNT(*) AS total FROM digest_run_recipients WHERE status = 'failed' AND datetime(created_at) >= datetime('now', '-30 days')"
+        ).fetchone()['total'],
+    }
+    recent_runs = conn.execute(
+        '''
+        SELECT
+            dr.id,
+            dr.kind,
+            dr.target_date,
+            dr.audience,
+            dr.status,
+            dr.subject,
+            dr.preview_posts,
+            dr.preview_subscribers,
+            dr.sent_count,
+            dr.skipped_count,
+            dr.failed_count,
+            dr.initiated_by,
+            dr.created_at,
+            u.username AS created_by_username
+        FROM digest_runs dr
+        LEFT JOIN users u ON u.id = dr.created_by_user_id
+        ORDER BY datetime(dr.created_at) DESC, dr.id DESC
+        LIMIT 20
+        '''
+    ).fetchall()
+    recent_events = conn.execute(
+        '''
+        SELECT event_type, source, page_path, created_at
+        FROM subscribe_events
+        ORDER BY datetime(created_at) DESC, id DESC
+        LIMIT 30
+        '''
+    ).fetchall()
+    conn.close()
+
+    unsubscribe_rate = 0.0
+    if stats['subscription_events_30d']:
+        unsubscribe_rate = (
+            stats['unsubscribe_events_30d'] / stats['subscription_events_30d'] * 100.0
+        )
+
+    return {
+        'target_date': target_date,
+        'subject': _digest_subject_for_date(target_date),
+        'all_posts': all_posts,
+        'preview_html': preview_html,
+        'preview_rows': preview_rows[:30],
+        'matching_subscribers': matching_subscribers,
+        'skipped_subscribers': skipped_subscribers,
+        'stats': stats,
+        'unsubscribe_rate_30d': unsubscribe_rate,
+        'recent_runs': recent_runs,
+        'recent_events': recent_events,
+    }
+
+
+def _subscriber_admin_context(conn, q='', status_filter='active', county_filter='', source_filter=''):
+    q = (q or '').strip()[:120]
+    status_filter = (status_filter or 'active').strip().lower()
+    if status_filter not in {'active', 'inactive', 'all'}:
+        status_filter = 'active'
+    county_filter = (county_filter or '').strip()[:80]
+    source_filter = (source_filter or '').strip()[:80]
+
+    subscriber_rows = conn.execute(
+        '''
+        SELECT
+            s.id,
+            s.email,
+            s.counties,
+            COALESCE(s.active, 1) AS active,
+            s.created_at,
+            COALESCE(s.updated_at, s.created_at) AS updated_at,
+            COALESCE(NULLIF(s.source, ''), '(unknown)') AS source,
+            COALESCE(s.notes, '') AS notes
+        FROM subscribers s
+        ORDER BY datetime(COALESCE(s.updated_at, s.created_at)) DESC, s.email ASC
+        '''
+    ).fetchall()
+
+    rows = []
+    counties_seen = set()
+    sources_seen = set()
+    for subscriber in subscriber_rows:
+        email_hash = _subscriber_email_hash(subscriber['email'])
+        last_event = conn.execute(
+            '''
+            SELECT event_type, source, created_at
+            FROM subscribe_events
+            WHERE email_hash = ?
+            ORDER BY datetime(created_at) DESC, id DESC
+            LIMIT 1
+            ''',
+            (email_hash,),
+        ).fetchone()
+        item = dict(subscriber)
+        item['last_event_type'] = last_event['event_type'] if last_event else None
+        item['last_event_source'] = last_event['source'] if last_event else None
+        item['last_event_at'] = last_event['created_at'] if last_event else None
+        item['counties_label'] = _subscriber_counties_label(item['counties'])
+        item['county_list'] = _subscriber_counties_list(item['counties'])
+        rows.append(item)
+        for county in item['county_list']:
+            counties_seen.add(county)
+        sources_seen.add(item['source'])
+
+    filtered = []
+    for row in rows:
+        if q:
+            haystack = ' '.join([
+                row['email'] or '',
+                row['source'] or '',
+                row['last_event_type'] or '',
+                row['last_event_source'] or '',
+                row['counties_label'] or '',
+                row['notes'] or '',
+            ]).lower()
+            if q.lower() not in haystack:
+                continue
+        if status_filter == 'active' and not row['active']:
+            continue
+        if status_filter == 'inactive' and row['active']:
+            continue
+        if county_filter:
+            if row['county_list'] and county_filter not in row['county_list']:
+                continue
+        if source_filter and row['source'] != source_filter:
+            continue
+        filtered.append(row)
+
+    summary = {
+        'total': len(rows),
+        'active': sum(1 for row in rows if row['active']),
+        'inactive': sum(1 for row in rows if not row['active']),
+        'all_counties': sum(1 for row in rows if not row['counties']),
+    }
+    return {
+        'rows': filtered,
+        'summary': summary,
+        'counties': sorted(counties_seen),
+        'sources': sorted(source for source in sources_seen if source),
+        'q': q,
+        'status_filter': status_filter,
+        'county_filter': county_filter,
+        'source_filter': source_filter,
+    }
+
+
+def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
+    date_from = (date_from or '').strip()
+    date_to = (date_to or '').strip()
+    path_prefix = (path_prefix or '').strip()[:120]
+
+    date_where = []
+    date_params = []
+    if date_from:
+        date_where.append("date(created_at) >= date(?)")
+        date_params.append(date_from)
+    if date_to:
+        date_where.append("date(created_at) <= date(?)")
+        date_params.append(date_to)
+
+    record_where_sql = f"WHERE {' AND '.join(date_where)}" if date_where else "WHERE created_at >= date('now', '-30 days')"
+    page_view_where = list(date_where)
+    page_view_params = list(date_params)
+    if not date_where:
+        page_view_where.append("created_at >= date('now', '-30 days')")
+    if path_prefix:
+        page_view_where.append("path LIKE ?")
+        page_view_params.append(f'{path_prefix}%')
+    page_view_where_sql = f"WHERE {' AND '.join(page_view_where)}"
+
+    daily_rows = conn.execute(
+        f'''
+        SELECT date(created_at) AS day, COUNT(*) AS cnt
+        FROM records
+        {record_where_sql}
+        GROUP BY day ORDER BY day
+        ''',
+        date_params,
+    ).fetchall()
+    type_rows = conn.execute(
+        f'''
+        SELECT COALESCE(NULLIF(incident_type, ''), 'Unknown') AS itype, COUNT(*) AS cnt
+        FROM records
+        {record_where_sql}
+        GROUP BY itype ORDER BY cnt DESC LIMIT 10
+        ''',
+        date_params,
+    ).fetchall()
+    agency_rows = conn.execute(
+        '''
+        SELECT COALESCE(NULLIF(agency_type, ''), 'Other') AS atype, COUNT(*) AS cnt
+        FROM posts
+        GROUP BY atype
+        ORDER BY cnt DESC, atype ASC
+        ''',
+    ).fetchall()
+    blotter_rows = conn.execute(
+        '''
+        SELECT strftime('%Y-%m', upload_date) AS mo, COUNT(*) AS cnt
+        FROM blotters
+        GROUP BY mo
+        ORDER BY mo DESC
+        LIMIT 12
+        '''
+    ).fetchall()
+    page_daily_rows = conn.execute(
+        f'''
+        SELECT date(created_at) AS day, COUNT(*) AS cnt
+        FROM page_views
+        {page_view_where_sql}
+        GROUP BY day ORDER BY day
+        ''',
+        page_view_params,
+    ).fetchall()
+    top_pages = conn.execute(
+        f'''
+        SELECT path, COUNT(*) AS cnt
+        FROM page_views
+        {page_view_where_sql}
+        GROUP BY path ORDER BY cnt DESC, path ASC LIMIT 12
+        ''',
+        page_view_params,
+    ).fetchall()
+    top_referrers = conn.execute(
+        f'''
+        SELECT referrer, COUNT(*) AS cnt
+        FROM page_views
+        {page_view_where_sql} AND referrer != ''
+        GROUP BY referrer ORDER BY cnt DESC, referrer ASC LIMIT 12
+        ''',
+        page_view_params,
+    ).fetchall()
+    total_page_views = conn.execute(
+        f'SELECT COUNT(*) FROM page_views {page_view_where_sql}',
+        page_view_params,
+    ).fetchone()[0]
+    unique_visitors = conn.execute(
+        f"SELECT COUNT(DISTINCT ip_hash) FROM page_views {page_view_where_sql}",
+        page_view_params,
+    ).fetchone()[0]
+    pattern_rows = conn.execute(
+        '''
+        SELECT placement, COUNT(*) AS cnt
+        FROM pattern_clicks
+        WHERE created_at >= date('now', '-30 days')
+        GROUP BY placement
+        ORDER BY cnt DESC, placement ASC
+        ''',
+    ).fetchall()
+    homepage_page_views_30d = conn.execute(
+        "SELECT COUNT(*) FROM page_views WHERE path = '/' AND created_at >= date('now', '-30 days')"
+    ).fetchone()[0]
+    homepage_pattern_clicks_30d = conn.execute(
+        "SELECT COUNT(*) FROM pattern_clicks WHERE placement = 'homepage_pattern_promos' AND created_at >= date('now', '-30 days')"
+    ).fetchone()[0]
+
+    return {
+        'filters': {
+            'date_from': date_from,
+            'date_to': date_to,
+            'path_prefix': path_prefix,
+        },
+        'traffic': {
+            'total_page_views': total_page_views,
+            'unique_visitors': unique_visitors,
+            'daily_labels': [row['day'] for row in page_daily_rows],
+            'daily_counts': [row['cnt'] for row in page_daily_rows],
+            'top_pages': top_pages,
+            'top_referrers': top_referrers,
+        },
+        'content': {
+            'daily_labels': [row['day'] for row in daily_rows],
+            'daily_counts': [row['cnt'] for row in daily_rows],
+            'type_labels': [row['itype'] for row in type_rows],
+            'type_counts': [row['cnt'] for row in type_rows],
+            'type_rows': [{'label': row['itype'], 'count': row['cnt']} for row in type_rows],
+            'agency_labels': [row['atype'].title() for row in agency_rows],
+            'agency_counts': [row['cnt'] for row in agency_rows],
+            'agency_rows': [{'label': row['atype'].title(), 'count': row['cnt']} for row in agency_rows],
+            'blotter_labels': [row['mo'] for row in reversed(blotter_rows)],
+            'blotter_counts': [row['cnt'] for row in reversed(blotter_rows)],
+            'blotter_rows': [{'label': row['mo'], 'count': row['cnt']} for row in reversed(blotter_rows)],
+        },
+        'patterns': {
+            'labels': [row['placement'].replace('_', ' ').title() for row in pattern_rows],
+            'counts': [row['cnt'] for row in pattern_rows],
+            'rows': [{'label': row['placement'].replace('_', ' ').title(), 'count': row['cnt']} for row in pattern_rows],
+            'homepage_ctr': (homepage_pattern_clicks_30d / homepage_page_views_30d * 100.0) if homepage_page_views_30d else 0.0,
+            'homepage_clicks_30d': homepage_pattern_clicks_30d,
+            'homepage_views_30d': homepage_page_views_30d,
+        },
+    }
+
+
+def _send_test_digest(target_date, recipient_email, initiated_by):
+    if not recipient_email:
+        raise ValueError('No valid test recipient email is configured for this admin account.')
+
+    preview = _build_email_ops_preview(target_date)
+    if not preview['all_posts']:
+        raise ValueError(f'No posts are available for {target_date}.')
+
+    conn = get_db()
+    run_id = _record_digest_run(
+        conn,
+        kind='morning_briefing',
+        target_date=target_date,
+        audience='test',
+        status='running',
+        subject=f"[TEST] {preview['subject']}",
+        preview_posts=len(preview['all_posts']),
+        preview_subscribers=1,
+        initiated_by=initiated_by,
+        notes='Manual test send from admin email ops.',
+        created_by_user_id=current_user.id if current_user.is_authenticated else None,
+    )
+    conn.commit()
+    try:
+        send_morning_briefing_email(
+            recipient_email,
+            f"[TEST] {preview['subject']}",
+            preview['preview_html'],
+        )
+        _record_digest_run_recipient(
+            conn,
+            run_id,
+            recipient_email,
+            '',
+            'sent',
+            post_count=len(preview['all_posts']),
+        )
+        _finish_digest_run(conn, run_id, status='completed', sent_count=1)
+        _log_admin_action(
+            'email_ops.test_sent',
+            target_type='digest_run',
+            target_id=run_id,
+            metadata={'target_date': target_date, 'recipient': recipient_email},
+            conn=conn,
+        )
+        conn.commit()
+    except Exception as exc:
+        _record_digest_run_recipient(
+            conn,
+            run_id,
+            recipient_email,
+            '',
+            'failed',
+            post_count=len(preview['all_posts']),
+            error_message=str(exc),
+        )
+        _finish_digest_run(conn, run_id, status='failed', failed_count=1, notes=str(exc))
+        conn.commit()
+        conn.close()
+        raise
+    conn.close()
+
+
+def _send_digest_to_active_subscribers(target_date, initiated_by):
+    preview = _build_email_ops_preview(target_date)
+    if not preview['all_posts']:
+        raise ValueError(f'No posts are available for {target_date}.')
+
+    conn = get_db()
+    subscribers = conn.execute(
+        '''
+        SELECT email, counties, token
+        FROM subscribers
+        WHERE active = 1
+        ORDER BY datetime(created_at) DESC, email ASC
+        '''
+    ).fetchall()
+    run_id = _record_digest_run(
+        conn,
+        kind='morning_briefing',
+        target_date=target_date,
+        audience='subscribers',
+        status='running',
+        subject=preview['subject'],
+        preview_posts=len(preview['all_posts']),
+        preview_subscribers=len(subscribers),
+        initiated_by=initiated_by,
+        notes='Manual subscriber send from admin email ops.',
+        created_by_user_id=current_user.id if current_user.is_authenticated else None,
+    )
+    conn.commit()
+
+    sent_count = 0
+    skipped_count = 0
+    failed_count = 0
+    posts_cache = {'': preview['all_posts']}
+    try:
+        for subscriber in subscribers:
+            counties_raw = subscriber['counties'] or ''
+            if counties_raw not in posts_cache:
+                posts_cache[counties_raw] = get_morning_briefing_posts(
+                    target_date,
+                    _subscriber_counties_list(counties_raw) or None,
+                )
+            subscriber_posts = posts_cache[counties_raw]
+            if not subscriber_posts:
+                skipped_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    subscriber['email'],
+                    counties_raw,
+                    'skipped',
+                    post_count=0,
+                    error_message='No matching posts for subscriber counties.',
+                )
+                continue
+
+            unsubscribe_url = f"{BASE_URL}/unsubscribe?token={subscriber['token']}"
+            html = build_morning_briefing_html(
+                subscriber_posts,
+                target_date,
+                unsubscribe_url=unsubscribe_url,
+            )
+            try:
+                send_morning_briefing_email(subscriber['email'], preview['subject'], html)
+                sent_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    subscriber['email'],
+                    counties_raw,
+                    'sent',
+                    post_count=len(subscriber_posts),
+                )
+            except Exception as exc:
+                failed_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    subscriber['email'],
+                    counties_raw,
+                    'failed',
+                    post_count=len(subscriber_posts),
+                    error_message=str(exc),
+                )
+
+        final_status = 'completed'
+        if failed_count and sent_count:
+            final_status = 'completed_with_errors'
+        elif failed_count and not sent_count:
+            final_status = 'failed'
+        _finish_digest_run(
+            conn,
+            run_id,
+            status=final_status,
+            sent_count=sent_count,
+            skipped_count=skipped_count,
+            failed_count=failed_count,
+        )
+        _log_admin_action(
+            'email_ops.send_now',
+            target_type='digest_run',
+            target_id=run_id,
+            metadata={
+                'target_date': target_date,
+                'sent_count': sent_count,
+                'skipped_count': skipped_count,
+                'failed_count': failed_count,
+            },
+            conn=conn,
+        )
+        conn.commit()
+    except Exception:
+        _finish_digest_run(conn, run_id, status='failed', failed_count=failed_count, notes='Unexpected send error.')
+        conn.commit()
+        conn.close()
+        raise
+    conn.close()
+    return {'sent_count': sent_count, 'skipped_count': skipped_count, 'failed_count': failed_count}
 
 
 def _record_donation_event(event_type, source='', page_path='', amount_cents=None):
@@ -3098,8 +5406,23 @@ def index():
     for r in this_week_rows:
         prev = prev_week_map.get(r['county'], 0)
         trend = 'up' if r['cnt'] > prev else ('down' if r['cnt'] < prev else 'same')
-        leaderboard.append({'county': r['county'], 'count': r['cnt'],
-                            'prev': prev, 'trend': trend})
+        slug = _county_slug_for_name(r['county'])
+        delta = r['cnt'] - prev
+        county_stats = post_stats.get(r['county'])
+        leaderboard.append({
+            'county': r['county'],
+            'slug': slug,
+            'count': r['cnt'],
+            'prev': prev,
+            'delta': delta,
+            'trend': trend,
+            'trend_label': 'New this week' if prev == 0 else (
+                'Up from last week' if delta > 0 else (
+                    'Down from last week' if delta < 0 else 'Steady week over week'
+                )
+            ),
+            'last_report': county_stats['last_report'] if county_stats else None,
+        })
 
     conn.close()
 
@@ -3207,6 +5530,16 @@ def _render_urlset(urls):
 def _sitemap_static_urls():
     return [
         (f'{BASE_URL}/', None),
+        (f'{BASE_URL}/guides', None),
+        (f'{BASE_URL}/guides/how-to-find-montana-police-blotters', None),
+        (f'{BASE_URL}/guides/yellowstone-county-arrests-jail-roster-and-warrant-guide', None),
+        (f'{BASE_URL}/guides/montana-county-guides', None),
+        (f'{BASE_URL}/guides/flathead-county-police-blotter-warrant-and-jail-guide', None),
+        (f'{BASE_URL}/guides/lewis-and-clark-county-blotter-warrant-and-jail-guide', None),
+        (f'{BASE_URL}/guides/how-to-find-montana-warrants', None),
+        (f'{BASE_URL}/guides/how-to-find-montana-arrest-records', None),
+        (f'{BASE_URL}/guides/how-to-find-montana-jail-rosters', None),
+        (f'{BASE_URL}/annual-roundups', None),
         (f'{BASE_URL}/counties', None),
         (f'{BASE_URL}/cities', None),
         (f'{BASE_URL}/patterns', None),
@@ -3686,8 +6019,8 @@ def subscribe():
 
         try:
             conn.execute(
-                'INSERT INTO subscribers (email, counties, token) VALUES (?, ?, ?)',
-                (email, counties_str, token))
+                'INSERT INTO subscribers (email, counties, token, source, updated_at) VALUES (?, ?, ?, ?, datetime(\'now\'))',
+                (email, counties_str, token, source))
             conn.commit()
             _record_subscribe_event('subscribe_success', source=source, page_path=request.path, email=email)
             conn.close()
@@ -3698,8 +6031,8 @@ def subscribe():
         except Exception:
             # Email already subscribed — update preferences
             conn.execute(
-                'UPDATE subscribers SET counties=?, active=1 WHERE email=?',
-                (counties_str, email))
+                'UPDATE subscribers SET counties=?, active=1, source=?, updated_at=datetime(\'now\') WHERE email=?',
+                (counties_str, source, email))
             conn.commit()
             _record_subscribe_event('subscribe_update', source=source, page_path=request.path, email=email)
             conn.close()
@@ -3721,9 +6054,10 @@ def unsubscribe():
     conn = get_db()
     row = conn.execute('SELECT email FROM subscribers WHERE token=?', (token,)).fetchone()
     if row:
-        conn.execute('UPDATE subscribers SET active=0 WHERE token=?', (token,))
+        conn.execute('UPDATE subscribers SET active=0, updated_at=datetime(\'now\') WHERE token=?', (token,))
         conn.commit()
         email = row['email']
+        _record_subscribe_event('unsubscribe', source='digest_link', page_path=request.path, email=email)
         conn.close()
         return render_template('subscribe.html', counties=[], unsubscribed=True, email=email,
                                current_year=datetime.now().year)
@@ -3757,6 +6091,326 @@ def render_markdown(text):
 @app.route('/jail-rosters')
 def jail_rosters():
     return render_template('jail_rosters.html', current_year=datetime.now().year)
+
+
+def _parse_roundup_date(value):
+    if not value:
+        return None
+    raw = str(value).strip()
+    for fmt in ('%Y-%m-%d', '%m/%d/%y', '%m/%d/%Y'):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _record_roundup_date_sql(column_name: str) -> str:
+    return f"""
+        CASE
+            WHEN {column_name} GLOB '[0-9][0-9]/[0-9][0-9]/[0-9][0-9]' THEN
+                '20' || substr({column_name}, 7, 2) || '-' || substr({column_name}, 1, 2) || '-' || substr({column_name}, 4, 2)
+            WHEN {column_name} GLOB '[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]' THEN
+                substr({column_name}, 7, 4) || '-' || substr({column_name}, 1, 2) || '-' || substr({column_name}, 4, 2)
+            WHEN {column_name} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' THEN
+                substr({column_name}, 1, 10)
+            ELSE NULL
+        END
+    """
+
+
+def _annual_roundup_years(conn):
+    record_date_sql = _record_roundup_date_sql('date')
+    rows = conn.execute(
+        f"""
+        SELECT DISTINCT substr(record_date, 1, 4) AS year
+        FROM (
+            SELECT {record_date_sql} AS record_date
+            FROM records
+        )
+        WHERE record_date IS NOT NULL
+          AND substr(record_date, 1, 4) GLOB '[0-9][0-9][0-9][0-9]'
+        ORDER BY year DESC
+        """
+    ).fetchall()
+    years = {int(row['year']) for row in rows if row['year']}
+
+    for row in conn.execute(
+        """
+        SELECT incident_date
+        FROM posts
+        WHERE incident_date IS NOT NULL
+          AND incident_date != ''
+        """
+    ).fetchall():
+        parsed = _parse_roundup_date(row['incident_date'])
+        if parsed:
+            years.add(parsed.year)
+
+    return sorted(years, reverse=True)
+
+
+def _annual_roundup_context(conn, year: int):
+    year_text = str(year)
+    record_date_sql = _record_roundup_date_sql('date')
+
+    post_dates = []
+    for row in conn.execute(
+        """
+        SELECT incident_date
+        FROM posts
+        WHERE incident_date IS NOT NULL
+          AND incident_date != ''
+        """
+    ).fetchall():
+        parsed = _parse_roundup_date(row['incident_date'])
+        if parsed and parsed.year == year:
+            post_dates.append(parsed)
+    post_count = len(post_dates)
+
+    record_count = conn.execute(
+        f"SELECT COUNT(*) FROM records WHERE substr({record_date_sql}, 1, 4) = ?",
+        (year_text,),
+    ).fetchone()[0]
+    if not post_count and not record_count:
+        return None
+
+    range_row = conn.execute(
+        f"""
+        SELECT MIN(record_date) AS start_date,
+               MAX(record_date) AS end_date
+        FROM (
+            SELECT {record_date_sql} AS record_date
+            FROM records
+        )
+        WHERE substr(record_date, 1, 4) = ?
+        """,
+        (year_text,),
+    ).fetchone()
+
+    top_counties = []
+    for row in conn.execute(
+        f"""
+        SELECT county, COUNT(*) AS count
+        FROM records
+        WHERE substr({record_date_sql}, 1, 4) = ?
+          AND county IS NOT NULL
+          AND county != ''
+        GROUP BY county
+        ORDER BY count DESC, county ASC
+        LIMIT 8
+        """,
+        (year_text,),
+    ).fetchall():
+        slug = _county_slug_for_name(row['county'])
+        top_counties.append({
+            'name': row['county'],
+            'slug': slug,
+            'count': row['count'],
+        })
+
+    top_incidents = conn.execute(
+        f"""
+        SELECT COALESCE(NULLIF(incident_type, ''), NULLIF(incident, ''), 'Incident') AS name,
+               COUNT(*) AS count
+        FROM records
+        WHERE substr({record_date_sql}, 1, 4) = ?
+        GROUP BY COALESCE(NULLIF(incident_type, ''), NULLIF(incident, ''), 'Incident')
+        ORDER BY count DESC, name ASC
+        LIMIT 8
+        """,
+        (year_text,),
+    ).fetchall()
+
+    top_patterns = []
+    for pattern in PATTERN_DEFINITIONS.values():
+        clause, params = _pattern_clause(pattern['slug'], 'records')
+        row = conn.execute(
+            f"""
+            SELECT COUNT(*) AS count
+            FROM records
+            WHERE substr({record_date_sql}, 1, 4) = ?
+              AND {clause}
+            """,
+            [year_text, *params],
+        ).fetchone()
+        count = row['count'] if row else 0
+        if count:
+            top_patterns.append({
+                'label': pattern['label'],
+                'slug': pattern['slug'],
+                'count': count,
+            })
+    top_patterns.sort(key=lambda item: (-item['count'], item['label']))
+    top_patterns = top_patterns[:6]
+
+    related_posts = conn.execute(
+        """
+        SELECT slug, title, excerpt, created_at
+        FROM blog_posts
+        WHERE published = 1
+          AND substr(created_at, 1, 4) = ?
+        ORDER BY COALESCE(updated_at, created_at) DESC
+        LIMIT 6
+        """,
+        (year_text,),
+    ).fetchall()
+
+    current_year = datetime.utcnow().year
+    record_start_date = range_row['start_date'] if range_row and range_row['start_date'] else None
+    record_end_date = range_row['end_date'] if range_row and range_row['end_date'] else None
+    post_start_date = min(post_dates).isoformat() if post_dates else None
+    post_end_date = max(post_dates).isoformat() if post_dates else None
+    start_date = min(filter(None, [record_start_date, post_start_date]), default=None)
+    end_date = max(filter(None, [record_end_date, post_end_date]), default=None)
+    partial_label = f"Through {end_date}" if year == current_year and end_date else None
+
+    return {
+        'year': year,
+        'title': f'Montana {year} Annual Crime and Public Safety Roundup',
+        'meta_description': (
+            f'Montana {year} annual roundup with top counties, public safety record totals, incident trends, and links into county, warrant, arrest, and pattern pages.'
+        ),
+        'canonical_url': f'{BASE_URL}/annual-roundups/{year}',
+        'post_count': post_count,
+        'record_count': record_count,
+        'start_date': start_date,
+        'end_date': end_date,
+        'partial_label': partial_label,
+        'top_counties': top_counties,
+        'top_incidents': top_incidents,
+        'top_patterns': top_patterns,
+        'related_posts': related_posts,
+    }
+
+
+@app.route('/guides')
+def guides_hub():
+    conn = get_db()
+    featured_counties = _ranked_county_cards(conn, limit=6)
+    annual_years = _annual_roundup_years(conn)
+    conn.close()
+
+    guide_cards = [
+        {
+            'href': '/guides/how-to-find-montana-police-blotters',
+            'label': 'How to Find Montana Police Blotters',
+            'description': 'Evergreen guide for city pages, county blotter archives, daily activity reports, and local record follow-up.',
+        },
+        {
+            'href': '/guides/yellowstone-county-arrests-jail-roster-and-warrant-guide',
+            'label': 'Yellowstone County Guide',
+            'description': 'County-specific guide for Billings, Yellowstone arrests, jail roster lookups, and warrant follow-up.',
+        },
+        {
+            'href': '/guides/montana-county-guides',
+            'label': 'Montana County Guides',
+            'description': 'Editorial county-guide hub linking blotters, arrests, warrants, jail rosters, and city pages.',
+        },
+        {
+            'href': '/guides/flathead-county-police-blotter-warrant-and-jail-guide',
+            'label': 'Flathead County Guide',
+            'description': 'County-specific guide for Kalispell, Whitefish, Flathead warrants, and jail roster searches.',
+        },
+        {
+            'href': '/guides/lewis-and-clark-county-blotter-warrant-and-jail-guide',
+            'label': 'Lewis and Clark County Guide',
+            'description': 'County-specific guide for Helena, East Helena, county warrants, and detention follow-up.',
+        },
+        {
+            'href': '/guides/how-to-find-montana-warrants',
+            'label': 'How to Find Montana Warrants',
+            'description': 'Evergreen guide that routes users into county warrant pages and court lookup tools.',
+        },
+        {
+            'href': '/guides/how-to-find-montana-arrest-records',
+            'label': 'How to Find Montana Arrest Records',
+            'description': 'Evergreen guide for county pages, arrest coverage, city pages, detention, and court follow-up.',
+        },
+        {
+            'href': '/guides/how-to-find-montana-jail-rosters',
+            'label': 'How to Find Montana Jail Rosters',
+            'description': 'Evergreen guide for official inmate lookup pages and county detention resources.',
+        },
+        {
+            'href': '/annual-roundups',
+            'label': 'Annual Roundups',
+            'description': 'Year-based roundup pages with top counties, incident types, and pattern links.',
+        },
+    ]
+
+    return render_template(
+        'guides_hub.html',
+        guide_cards=guide_cards,
+        featured_counties=featured_counties,
+        annual_years=annual_years,
+        active_nav='blog',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/guides/<slug>')
+def resource_guide(slug):
+    guide = RESOURCE_GUIDES.get(slug)
+    if not guide:
+        return render_template('404.html'), 404
+
+    conn = get_db()
+    county_cards = []
+    if guide.get('featured_counties'):
+        county_cards = [COUNTY_DATA[county_slug] for county_slug in guide['featured_counties'] if county_slug in COUNTY_DATA]
+    elif slug == 'montana-county-guides':
+        county_cards = _ranked_county_cards(conn, limit=12)
+    elif slug == 'how-to-find-montana-police-blotters':
+        county_cards = _ranked_county_cards(conn, limit=10)
+    elif slug == 'how-to-find-montana-warrants':
+        county_cards = [COUNTY_DATA[s] for s in _WARRANT_COUNTIES if s in COUNTY_DATA]
+    elif slug == 'how-to-find-montana-jail-rosters':
+        county_cards = _ranked_county_cards(conn, limit=10, require_online_roster=True)
+    else:
+        county_cards = _ranked_county_cards(conn, limit=8)
+    conn.close()
+
+    return render_template(
+        'resource_guide.html',
+        guide=guide,
+        slug=slug,
+        county_cards=county_cards,
+        active_nav='blog',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/annual-roundups')
+def annual_roundups():
+    conn = get_db()
+    years = []
+    for year in _annual_roundup_years(conn):
+        context = _annual_roundup_context(conn, year)
+        if context:
+            years.append(context)
+    conn.close()
+    return render_template(
+        'annual_roundups.html',
+        years=years,
+        active_nav='blog',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/annual-roundups/<int:year>')
+def annual_roundup_year(year):
+    conn = get_db()
+    context = _annual_roundup_context(conn, year)
+    conn.close()
+    if context is None:
+        return render_template('404.html'), 404
+    return render_template(
+        'annual_roundup_year.html',
+        **context,
+        active_nav='blog',
+        current_year=datetime.now().year,
+    )
 
 
 @app.route('/counties')
@@ -3822,6 +6476,31 @@ COUNTY_DATA = {
         'phone': '406-256-2929',
         'roster_url': 'https://www.yellowstonecountymt.gov/sheriff/detention/dcsearch.asp',
         'warrant_url': 'https://www.yellowstonecountymt.gov/justicecourt/JCWarrants.asp',
+        'seo_title': 'Yellowstone County Arrests, Jail Roster, and Billings Blotter',
+        'og_title': 'Yellowstone County Arrests, Jail Roster, and Billings Blotter',
+        'warrant_title': 'Yellowstone County Warrant Search, Billings Warrants, and Jail Roster',
+        'warrant_og_title': 'Yellowstone County Warrant Search, Billings Warrants, and Jail Roster',
+        'warrant_meta_description': 'Yellowstone County warrant search, Billings warrant lookup, active warrant list, and jail roster links for Yellowstone County, Montana.',
+        'warrant_hero_summary': (
+            "Yellowstone County warrant lookup, Billings warrant resources, active warrant list access, "
+            "and jail roster links for the county's highest-intent legal searches."
+        ),
+        'warrant_search_targets': [
+            'Yellowstone County warrants',
+            'Billings warrants',
+            'Yellowstone County warrant list',
+            'Billings warrant lookup',
+        ],
+        'warrant_source_note_title': 'Billings-led warrant traffic with official county access',
+        'warrant_source_note': (
+            "This page is built for the searches people actually make around Billings and Yellowstone County warrants. It connects city-intent queries to the official county warrant list, detention roster, and broader Yellowstone County archive."
+        ),
+        'meta_description': 'Yellowstone County, Montana police blotter, arrest records, jail roster, and warrant resources for Billings, Laurel, and surrounding communities.',
+        'og_description': 'Yellowstone County police blotter, arrest records, jail roster, and warrant lookup pages for Billings and the wider Yellowstone Valley.',
+        'hero_summary': (
+            "Billings-area police blotter coverage, Yellowstone County arrest records, jail roster links, "
+            "warrant resources, and recent public safety reports for the county's busiest search market."
+        ),
         'description': (
             "Yellowstone County is Montana's most populous county, home to Billings — the state's largest city. "
             "Law enforcement is handled by the Yellowstone County Sheriff's Office, the Billings Police Department, "
@@ -3829,6 +6508,21 @@ COUNTY_DATA = {
             "Interstate 90 and I-94, making it a key transit corridor that law enforcement monitors closely for "
             "drug trafficking and vehicle crime. The Yellowstone County Detention Facility is located in Billings "
             "and publishes a live inmate roster online. The county also operates a dedicated cold case unit."
+        ),
+        'seo_summary': [
+            "This page is designed to answer the searches people actually make around Billings and Yellowstone County: police blotter, arrests, jail roster, warrants, and recent law-enforcement activity.",
+            "Yellowstone is currently one of the deepest county archives on Montana Blotter, so this page can act as both a county landing page and the main internal hub for Billings, Laurel, county arrest coverage, and warrant-related searches.",
+        ],
+        'search_targets': [
+            'Yellowstone County police blotter',
+            'Billings police blotter',
+            'Yellowstone County arrests',
+            'Yellowstone County jail roster',
+            'Yellowstone County warrants',
+        ],
+        'source_note_title': 'Billings-area reports plus county record links',
+        'source_note': (
+            "This page combines Montana Blotter archive coverage with direct links to Yellowstone County detention and warrant resources, making it the strongest local starting point for Billings and countywide record searches."
         ),
         'agencies': [
             {'name': 'Yellowstone County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-256-2929'},
@@ -3851,6 +6545,31 @@ COUNTY_DATA = {
         'phone': '406-582-2100',
         'roster_url': 'https://gallatin-so-mt.zuercherportal.com/#/inmates',
         'warrant_url': None,
+        'seo_title': 'Gallatin County Arrests, Bozeman Blotter, and Jail Roster',
+        'og_title': 'Gallatin County Arrests, Bozeman Blotter, and Jail Roster',
+        'warrant_title': 'Gallatin County Warrant Search, Bozeman Warrants, and Jail Roster',
+        'warrant_og_title': 'Gallatin County Warrant Search, Bozeman Warrants, and Jail Roster',
+        'warrant_meta_description': 'Gallatin County warrant search guide for Bozeman, Belgrade, and surrounding communities, with court portal and sheriff contact steps.',
+        'warrant_hero_summary': (
+            "Gallatin County warrant search guidance for Bozeman-area users, with the fastest path into "
+            "state court lookup tools, sheriff contact, and detention follow-up resources."
+        ),
+        'warrant_search_targets': [
+            'Gallatin County warrants',
+            'Bozeman warrants',
+            'Gallatin County warrant search',
+            'Bozeman warrant lookup',
+        ],
+        'warrant_source_note_title': 'Bozeman-focused warrant guide without a county list',
+        'warrant_source_note': (
+            "Gallatin County does not currently publish a dedicated county warrant list, so this page is optimized as a step-by-step lookup guide for Bozeman and Gallatin County users who need the court portal, sheriff contact, and jail roster in one place."
+        ),
+        'meta_description': 'Gallatin County, Montana police blotter, arrest records, jail roster links, and public safety reports for Bozeman, Belgrade, and surrounding communities.',
+        'og_description': 'Gallatin County police blotter, arrest records, and jail roster resources for Bozeman and the wider Gallatin Valley.',
+        'hero_summary': (
+            "Bozeman-area police blotter coverage, Gallatin County arrest records, jail roster links, "
+            "and recent public safety reports for one of Montana's fastest-growing counties."
+        ),
         'description': (
             "Gallatin County, home to Bozeman and Montana State University, is one of the fastest-growing counties "
             "in the United States. The Gallatin County Sheriff's Office patrols the unincorporated areas of the county, "
@@ -3859,6 +6578,21 @@ COUNTY_DATA = {
             "activity. The county has seen a rise in property crime and traffic incidents in step with its rapid population "
             "growth, and drug enforcement has become an increasing priority as meth and fentanyl distribution networks "
             "have expanded into the Bozeman area."
+        ),
+        'seo_summary': [
+            "Gallatin County serves overlapping search intent from users looking for Bozeman police activity, county arrest coverage, jail information, and broader public safety reporting tied to the county's rapid growth.",
+            "This page is built to capture those county-level searches while pushing users into Bozeman, Belgrade, and other city pages when they need a narrower local record trail than the county archive alone can provide.",
+        ],
+        'search_targets': [
+            'Gallatin County police blotter',
+            'Bozeman police blotter',
+            'Gallatin County arrests',
+            'Gallatin County jail roster',
+            'Belgrade police blotter',
+        ],
+        'source_note_title': 'Bozeman-led county coverage with detention links',
+        'source_note': (
+            "Montana Blotter uses Gallatin County report coverage as the main archive layer here, then routes readers into Bozeman-area city pages and the official county detention roster for current inmate checks."
         ),
         'agencies': [
             {'name': 'Gallatin County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-582-2100'},
@@ -3880,12 +6614,52 @@ COUNTY_DATA = {
         'phone': '406-265-5481',
         'roster_url': 'https://vinelink.vineapps.com/state/mt',
         'warrant_url': None,
+        'seo_title': 'Hill County Arrests, Havre Police Blotter, and Jail Roster',
+        'og_title': 'Hill County Arrests, Havre Police Blotter, and Jail Roster',
+        'warrant_title': 'Hill County Warrant Search, Havre Arrests, and Jail Lookup',
+        'warrant_og_title': 'Hill County Warrant Search, Havre Arrests, and Jail Lookup',
+        'warrant_meta_description': 'Hill County warrant search guide for Havre-area readers, with statewide court lookup, sheriff contact steps, and jail follow-up resources.',
+        'warrant_hero_summary': (
+            "Hill County warrant lookup guidance for Havre-area users, "
+            "with the court portal, sheriff contact path, and detention follow-up links in one place."
+        ),
+        'warrant_search_targets': [
+            'Hill County warrants',
+            'Havre warrants',
+            'Hill County warrant search',
+            'Havre warrant lookup',
+        ],
+        'warrant_source_note_title': 'Hi-Line warrant guide tied to Havre search demand',
+        'warrant_source_note': (
+            "Hill County does not publish a dedicated live warrant list, so this page is built as a practical lookup path for Havre and Hi-Line readers who need court search steps and sheriff contact details."
+        ),
+        'meta_description': 'Hill County, Montana police blotter, Havre arrests, jail roster links, and public safety reports for Hi-Line readers.',
+        'og_description': 'Hill County police blotter, Havre arrests, jail roster resources, and public safety reports for north-central Montana.',
+        'hero_summary': (
+            "Havre-led police blotter coverage, Hill County arrest records, jail roster links, "
+            "and recent public safety reporting from Montana's Hi-Line."
+        ),
         'description': (
             "Hill County sits along Montana's Hi-Line near the Canadian border and is anchored by Havre, the county "
             "seat and largest city. The Hill County Sheriff's Office works alongside the Havre Police Department to "
             "cover a large rural footprint, cross-border highway traffic, and the regional hub around Montana State "
             "University-Northern. Montana Blotter receives regular Havre Police activity, making Hill County one of "
             "the most visible county archives on the site today."
+        ),
+        'seo_summary': [
+            "Hill County already has deeper archive coverage than most people would expect, especially because Havre activity feeds directly into the county story.",
+            "This page is structured to capture Hi-Line searches around Havre police activity, Hill County arrests, and jail-roster lookups before routing readers into detention and warrant follow-up paths.",
+        ],
+        'search_targets': [
+            'Hill County police blotter',
+            'Havre police blotter',
+            'Hill County arrests',
+            'Hill County jail roster',
+            'Havre arrests',
+        ],
+        'source_note_title': 'Hi-Line county archive with Havre-led local intent',
+        'source_note': (
+            "Montana Blotter uses Hill County as the county hub for Havre-driven report coverage, then routes readers into detention, warrants, and nearby city pages when they need a narrower follow-up path."
         ),
         'agencies': [
             {'name': 'Hill County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-265-5481'},
@@ -3905,12 +6679,52 @@ COUNTY_DATA = {
         'phone': '406-446-1234',
         'roster_url': 'https://carbonmt.gov/sheriff/',
         'warrant_url': None,
+        'seo_title': 'Carbon County Arrests, Red Lodge Blotter, and Jail Resources',
+        'og_title': 'Carbon County Arrests, Red Lodge Blotter, and Jail Resources',
+        'warrant_title': 'Carbon County Warrant Search, Red Lodge Arrests, and Jail Links',
+        'warrant_og_title': 'Carbon County Warrant Search, Red Lodge Arrests, and Jail Links',
+        'warrant_meta_description': 'Carbon County warrant search guide for Red Lodge and Bridger readers, with sheriff contact, statewide court lookup, and detention links.',
+        'warrant_hero_summary': (
+            "Carbon County warrant lookup guidance for Red Lodge-area readers, "
+            "with the fastest path into sheriff contact, statewide court search, and jail follow-up."
+        ),
+        'warrant_search_targets': [
+            'Carbon County warrants',
+            'Red Lodge warrants',
+            'Carbon County warrant search',
+            'Red Lodge warrant lookup',
+        ],
+        'warrant_source_note_title': 'Mountain-corridor warrant guide with county follow-up paths',
+        'warrant_source_note': (
+            "Carbon County does not publish a dedicated live warrant list, so this page is built to catch Red Lodge and Carbon County warrant searches and route them into the sheriff office, court portal, and detention workflow."
+        ),
+        'meta_description': 'Carbon County, Montana police blotter, Red Lodge arrests, jail resources, and public safety pages for the Beartooth foothills.',
+        'og_description': 'Carbon County police blotter, Red Lodge arrests, jail resources, and public safety pages for south-central Montana.',
+        'hero_summary': (
+            "Red Lodge-area blotter coverage, Carbon County arrest resources, jail links, "
+            "and public safety reporting for the Beartooth foothills and surrounding communities."
+        ),
         'description': (
             "Carbon County covers Red Lodge, Bridger, Joliet, and the Beartooth foothills in south-central Montana. "
             "The Carbon County Sheriff's Office works with Red Lodge Police and nearby local agencies across a region "
             "that blends rural highway traffic, tourism, and mountain recreation. Montana Blotter already carries a "
             "small amount of Carbon County activity through CrimeMapping-connected agency coverage, and this county "
             "page creates a stable landing point as that archive grows."
+        ),
+        'seo_summary': [
+            "Carbon County is a strategic second-tier county because Red Lodge and the broader mountain corridor create strong branded search intent even before the archive gets deep.",
+            "This page is built to answer Carbon County blotter, Red Lodge arrest, and jail-resource searches first, then grow into a larger county archive over time.",
+        ],
+        'search_targets': [
+            'Carbon County police blotter',
+            'Red Lodge police blotter',
+            'Carbon County arrests',
+            'Carbon County jail roster',
+            'Red Lodge arrests',
+        ],
+        'source_note_title': 'Red Lodge-led county page with detention follow-up',
+        'source_note': (
+            "Montana Blotter uses this page as the Carbon County hub for Red Lodge and nearby communities, then routes readers into detention tools, neighboring county pages, and city-level follow-up where available."
         ),
         'agencies': [
             {'name': 'Carbon County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-446-1234'},
@@ -3932,6 +6746,31 @@ COUNTY_DATA = {
         'phone': '406-258-4780',
         'roster_url': 'https://webapps.missoulacounty.us/jailroster/Inmates',
         'warrant_url': None,
+        'seo_title': 'Missoula County Arrests, Jail Roster, and Police Blotter',
+        'og_title': 'Missoula County Arrests, Jail Roster, and Police Blotter',
+        'warrant_title': 'Missoula County Warrant Search, Jail Roster, and Court Lookup',
+        'warrant_og_title': 'Missoula County Warrant Search, Jail Roster, and Court Lookup',
+        'warrant_meta_description': 'Missoula County warrant search guide with steps for Missoula warrant lookup, court portal searches, and jail roster follow-up.',
+        'warrant_hero_summary': (
+            "Missoula County warrant lookup guidance, Missoula-area court search steps, "
+            "and detention follow-up resources for western Montana users."
+        ),
+        'warrant_search_targets': [
+            'Missoula County warrants',
+            'Missoula warrants',
+            'Missoula County warrant search',
+            'Missoula warrant lookup',
+        ],
+        'warrant_source_note_title': 'Missoula-first warrant guide with county detention follow-up',
+        'warrant_source_note': (
+            "Missoula County has strong warrant-related search demand even without a county-published list. This page is designed to capture those searches and route readers into the statewide court portal, Missoula County detention tools, and broader county coverage."
+        ),
+        'meta_description': 'Missoula County, Montana police blotter, arrest records, jail roster links, and recent public safety reports for Missoula and surrounding communities.',
+        'og_description': 'Missoula County police blotter, arrest records, and jail roster resources for western Montana readers.',
+        'hero_summary': (
+            "Missoula police blotter coverage, Missoula County arrest records, jail roster links, "
+            "and recent public safety reports for western Montana's largest urban center."
+        ),
         'description': (
             "Missoula County is home to the University of Montana and the city of Missoula, western Montana's largest "
             "urban center. The Missoula County Sheriff's Office and Missoula Police Department are the primary law "
@@ -3940,6 +6779,21 @@ COUNTY_DATA = {
             "increased. The county also has an active drug task force that seized nearly 40,000 dosage units of "
             "fentanyl in 2024. The Missoula County Detention Center publishes a real-time inmate roster updated "
             "throughout the day."
+        ),
+        'seo_summary': [
+            "Missoula County has stronger brand and search demand than its current archive depth would suggest, so this page needs to answer the obvious practical searches first: police blotter, arrests, jail roster, and recent county activity.",
+            "The goal here is to make Missoula County a durable search landing page now, then let the archive deepen underneath it over time as more local reporting and linked records are added.",
+        ],
+        'search_targets': [
+            'Missoula police blotter',
+            'Missoula County police blotter',
+            'Missoula County arrests',
+            'Missoula County jail roster',
+            'Missoula recent arrests',
+        ],
+        'source_note_title': 'Missoula-centered archive with live detention links',
+        'source_note': (
+            "This page combines Montana Blotter's Missoula-area reporting with direct access to the Missoula County detention roster so readers can move from summaries into current inmate and court follow-up workflows."
         ),
         'agencies': [
             {'name': 'Missoula County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-258-4780'},
@@ -3961,6 +6815,31 @@ COUNTY_DATA = {
         'phone': '406-454-6840',
         'roster_url': 'https://www.cascadecountymt.gov/314/Inmate-Roster',
         'warrant_url': 'https://greatfallsmt.net/municipalcourt/warrants-list',
+        'seo_title': 'Cascade County Arrests, Great Falls Warrants, and Jail Roster',
+        'og_title': 'Cascade County Arrests, Great Falls Warrants, and Jail Roster',
+        'warrant_title': 'Cascade County Warrant Search, Great Falls Warrants, and Jail Roster',
+        'warrant_og_title': 'Cascade County Warrant Search, Great Falls Warrants, and Jail Roster',
+        'warrant_meta_description': 'Cascade County warrant search, Great Falls warrant list, active warrant lookup, and jail roster links for Cascade County, Montana.',
+        'warrant_hero_summary': (
+            "Cascade County warrant lookup, Great Falls warrant list access, "
+            "and county jail roster links for north-central Montana legal searches."
+        ),
+        'warrant_search_targets': [
+            'Cascade County warrants',
+            'Great Falls warrants',
+            'Cascade County warrant list',
+            'Great Falls warrant lookup',
+        ],
+        'warrant_source_note_title': 'Great Falls warrant demand backed by a live city list',
+        'warrant_source_note': (
+            "This is one of the stronger warrant pages on the site because Great Falls has both clear city-level search demand and a live warrant resource. The page ties that into Cascade County detention and county archive links."
+        ),
+        'meta_description': 'Cascade County, Montana police blotter, arrest records, Great Falls warrant lookup, jail roster links, and recent public safety reports.',
+        'og_description': 'Cascade County police blotter, arrest records, Great Falls warrant resources, and jail roster links for north-central Montana.',
+        'hero_summary': (
+            "Great Falls and Cascade County police blotter coverage, arrest records, jail roster links, "
+            "and warrant resources for one of north-central Montana's highest-interest public safety markets."
+        ),
         'description': (
             "Cascade County is home to Great Falls, Montana's third-largest city and the county seat. The county is "
             "served by the Cascade County Sheriff's Office and the Great Falls Police Department. Great Falls sits "
@@ -3968,6 +6847,21 @@ COUNTY_DATA = {
             "located within the city, brings a substantial military population to the area. The Great Falls Municipal "
             "Court publishes an active warrant list online. Cascade County Detention Center maintains a public inmate "
             "roster with current bookings."
+        ),
+        'seo_summary': [
+            "Cascade County captures a mix of county-level and Great Falls-specific search intent, so this page is built to serve both users looking for a county archive and users trying to find warrant, arrest, and jail information tied to Great Falls.",
+            "Because Cascade has both active warrant and detention links plus a growing report archive, it is one of the better candidates on the site for ranking across multiple practical query types instead of just a single blotter term.",
+        ],
+        'search_targets': [
+            'Cascade County police blotter',
+            'Great Falls police blotter',
+            'Cascade County arrests',
+            'Cascade County jail roster',
+            'Great Falls warrants',
+        ],
+        'source_note_title': 'Great Falls-centered coverage with official county links',
+        'source_note': (
+            "Montana Blotter surfaces recent Cascade County reporting and connects it to the official Cascade detention roster and Great Falls warrant list so readers can move from summaries into the underlying public-record systems."
         ),
         'agencies': [
             {'name': 'Cascade County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-454-6840'},
@@ -3988,6 +6882,31 @@ COUNTY_DATA = {
         'phone': '406-758-5610',
         'roster_url': 'https://apps.flathead.mt.gov/jailroster/',
         'warrant_url': 'https://apps.flathead.mt.gov/warrants/warrants_list.php',
+        'seo_title': 'Flathead County Blotter, Warrants, Arrests, and Jail Roster',
+        'og_title': 'Flathead County Blotter, Warrants, Arrests, and Jail Roster',
+        'warrant_title': 'Flathead County Warrant Search, Kalispell Warrants, and Jail Roster',
+        'warrant_og_title': 'Flathead County Warrant Search, Kalispell Warrants, and Jail Roster',
+        'warrant_meta_description': 'Flathead County warrant search, Kalispell warrant lookup, active warrant list, and jail roster links for Whitefish, Kalispell, and the Flathead Valley.',
+        'warrant_hero_summary': (
+            "Flathead County warrant lookup, Kalispell-area warrant list access, "
+            "and jail roster links for the broader Flathead Valley search market."
+        ),
+        'warrant_search_targets': [
+            'Flathead County warrants',
+            'Kalispell warrants',
+            'Flathead County warrant list',
+            'Whitefish warrants',
+        ],
+        'warrant_source_note_title': 'Flathead Valley warrant traffic with county list access',
+        'warrant_source_note': (
+            "Flathead County is one of the best warrant targets on the site because county-level and city-level searches overlap heavily across Kalispell, Whitefish, and Columbia Falls. This page is the county anchor for that traffic."
+        ),
+        'meta_description': 'Flathead County, Montana police blotter, arrest records, jail roster, and warrant resources for Kalispell, Whitefish, and Columbia Falls.',
+        'og_description': 'Flathead County police blotter, arrest records, warrant lookup, and jail roster coverage for Kalispell, Whitefish, and the Flathead Valley.',
+        'hero_summary': (
+            "Flathead Valley police blotter coverage, arrest records, jail roster links, and warrant resources "
+            "for Kalispell, Whitefish, Columbia Falls, and the wider northwest Montana search market."
+        ),
         'description': (
             "Flathead County is located in northwest Montana and includes Kalispell, Whitefish, and Columbia Falls. "
             "It borders Glacier National Park to the east and Flathead Lake — the largest natural freshwater lake west "
@@ -3995,6 +6914,21 @@ COUNTY_DATA = {
             "are the primary agencies. The county's outdoor recreation economy and proximity to the Canadian border "
             "create unique law enforcement challenges. The Flathead Beacon newspaper publishes a detailed daily police "
             "blotter. Flathead County offers a public warrant list and live inmate roster online."
+        ),
+        'seo_summary': [
+            "Flathead County supports some of the strongest local-intent queries in Montana because people often search at both the county and city level for Kalispell, Whitefish, and Columbia Falls police activity.",
+            "This page is built as the main Flathead Valley records hub, with internal paths into city pages, county arrest coverage, the live jail roster, and the official county warrant list for users who need more than a headline summary.",
+        ],
+        'search_targets': [
+            'Flathead County police blotter',
+            'Kalispell police blotter',
+            'Whitefish police blotter',
+            'Flathead County jail roster',
+            'Flathead County warrants',
+        ],
+        'source_note_title': 'Flathead Valley archive plus county warrant and roster links',
+        'source_note': (
+            "This page ties Montana Blotter coverage to Flathead County's official warrant and detention tools while also routing readers into Kalispell, Whitefish, and Columbia Falls pages for narrower local search intent."
         ),
         'agencies': [
             {'name': 'Flathead County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-758-5610'},
@@ -4017,6 +6951,31 @@ COUNTY_DATA = {
         'phone': '406-447-8270',
         'roster_url': 'https://www.lccountymt.gov/Sheriff/Detention-Center',
         'warrant_url': 'https://www.helenamt.gov/Departments/Municipal-Court/Arrest-Warrants-Defendants-in-Custody',
+        'seo_title': 'Lewis and Clark County Blotter, Helena Warrants, and Jail Roster',
+        'og_title': 'Lewis and Clark County Blotter, Helena Warrants, and Jail Roster',
+        'warrant_title': 'Lewis and Clark County Warrant Search, Helena Warrants, and Jail Roster',
+        'warrant_og_title': 'Lewis and Clark County Warrant Search, Helena Warrants, and Jail Roster',
+        'warrant_meta_description': 'Lewis and Clark County warrant search, Helena warrant lookup, active warrant list, and jail roster links for the capital region.',
+        'warrant_hero_summary': (
+            "Lewis and Clark County warrant lookup, Helena warrant list access, "
+            "and jail roster links for one of Montana's strongest city-plus-county legal search markets."
+        ),
+        'warrant_search_targets': [
+            'Lewis and Clark County warrants',
+            'Helena warrants',
+            'Helena warrant list',
+            'Lewis and Clark warrant search',
+        ],
+        'warrant_source_note_title': 'Helena warrant traffic with county detention follow-up',
+        'warrant_source_note': (
+            "This page serves both Helena and Lewis and Clark County warrant searches, then routes readers into the county detention roster and Helena police coverage for broader follow-up context."
+        ),
+        'meta_description': 'Lewis and Clark County, Montana police blotter, arrest records, Helena warrant lookup, jail roster links, and recent public safety reports.',
+        'og_description': 'Lewis and Clark County police blotter, Helena warrant resources, arrest records, and jail roster links.',
+        'hero_summary': (
+            "Helena-area police blotter coverage, Lewis and Clark County arrest records, jail roster links, "
+            "and warrant resources for Montana's capital-region search traffic."
+        ),
         'description': (
             "Lewis and Clark County is the home of Helena, Montana's state capital. As the seat of state government, "
             "the county hosts the Montana Legislature, the Governor's office, and numerous state agencies. The Lewis "
@@ -4024,6 +6983,21 @@ COUNTY_DATA = {
             "The Helena Municipal Court publishes a list of active arrest warrants and defendants in custody online. "
             "Montana Blotter currently receives daily activity reports directly from the Helena Police Department, "
             "making Lewis and Clark County one of our most consistently covered areas."
+        ),
+        'seo_summary': [
+            "Lewis and Clark County is one of the site's more consistent archives, and it benefits from a clear overlap between county-level search intent and Helena-specific searches around police activity, warrants, and arrests.",
+            "Because the county already has both detention and warrant resources online, this page can compete for more practical high-intent queries than a standard county blotter page that only summarizes reports.",
+        ],
+        'search_targets': [
+            'Lewis and Clark County police blotter',
+            'Helena police blotter',
+            'Lewis and Clark County arrests',
+            'Helena warrants',
+            'Lewis and Clark County jail roster',
+        ],
+        'source_note_title': 'Helena report coverage plus warrant and jail resources',
+        'source_note': (
+            "Montana Blotter pairs Helena-area report coverage with the Lewis and Clark detention roster and Helena warrant resource so readers can move from daily activity into official follow-up sources."
         ),
         'agencies': [
             {'name': 'Lewis and Clark County Sheriff\'s Office', 'type': 'sheriff', 'phone': '406-447-8270'},
@@ -4184,6 +7158,20 @@ def county_page(slug):
         (county['name'],)
     ).fetchall()
 
+    source_method_rows = conn.execute(
+        """
+        SELECT COALESCE(NULLIF(blotters.source_type, ''), 'pdf') AS source_type,
+               COUNT(*) AS count
+        FROM posts
+        JOIN blotters ON blotters.id = posts.blotter_id
+        WHERE posts.county = ?
+        GROUP BY COALESCE(NULLIF(blotters.source_type, ''), 'pdf')
+        ORDER BY count DESC, source_type ASC
+        LIMIT 4
+        """,
+        (county['name'],)
+    ).fetchall()
+
     last_row = conn.execute(
         'SELECT incident_date FROM posts WHERE county = ? ORDER BY incident_date DESC LIMIT 1',
         (county['name'],)
@@ -4212,10 +7200,12 @@ def county_page(slug):
         top_incidents=top_incidents,
         recent_records=recent_records,
         agency_coverage=agency_coverage,
+        source_methods=_source_method_rollup(source_method_rows),
         county_cities=county_cities,
         pattern_links=_pattern_links_for_county(county['slug']),
         linked_neighbors=linked_neighbors,
         last_report=last_report,
+        page_last_updated=last_report,
         latest_weekly_digest=latest_weekly_digest,
         page=page,
         total_pages=total_pages,
@@ -4241,6 +7231,14 @@ CITY_DATA = {
         'warrant_url': 'https://www.billingsmt.gov/2874/Warrants',
         'municipal_court_url': None,
         'search_terms': ['Billings', 'Billings Police'],
+        'seo_title': 'Billings Police Blotter, Warrants, and Yellowstone Jail Roster',
+        'og_title': 'Billings Police Blotter, Warrants, and Yellowstone Jail Roster',
+        'meta_description': 'Billings, Montana police blotter, daily activity reports, arrest resources, and warrant links from the Billings Police Department and Yellowstone County.',
+        'og_description': 'Billings police blotter, daily activity reports, warrant links, and Yellowstone County arrest resources.',
+        'hero_summary': (
+            "Billings police blotter coverage, recent activity reports, Yellowstone County arrest resources, "
+            "and warrant links for Montana's largest city."
+        ),
         'description': (
             "The Billings Police Department serves Montana's largest city, with a population of around 120,000. "
             "Billings sits at the crossroads of Interstate 90 and I-94 in Yellowstone County, making it a major "
@@ -4249,6 +7247,21 @@ CITY_DATA = {
             "agencies to combat meth and fentanyl distribution in the Yellowstone Valley. The Billings Police "
             "Department publishes regular crime statistics and participates in the national Project Safe Neighborhoods "
             "initiative."
+        ),
+        'seo_summary': [
+            "Billings is one of the clearest city-level search terms in the state, so this page needs to answer the obvious local queries directly: police blotter, arrests, warrants, and recent daily activity.",
+            "The goal is to make this the main Billings entry page while still routing readers into Yellowstone County arrest coverage, the county jail roster, and city warrant tools when they need the next step beyond a summary.",
+        ],
+        'search_targets': [
+            'Billings police blotter',
+            'Billings police activity today',
+            'Billings arrests',
+            'Billings warrants',
+            'Yellowstone County jail roster',
+        ],
+        'source_note_title': 'Billings Police coverage with Yellowstone County links',
+        'source_note': (
+            "This page combines Billings-focused report coverage with Yellowstone County jail resources and Billings warrant access so city-intent searches have a clear path into official follow-up tools."
         ),
         'nearby': [
             {'name': 'Laurel', 'slug': 'laurel'},
@@ -4293,6 +7306,14 @@ CITY_DATA = {
         'warrant_url': None,
         'municipal_court_url': 'https://www.bozeman.net/departments/municipal-court',
         'search_terms': ['Bozeman', 'Bozeman Police'],
+        'seo_title': 'Bozeman Police Blotter, Arrests, and Gallatin Jail Roster',
+        'og_title': 'Bozeman Police Blotter, Arrests, and Gallatin Jail Roster',
+        'meta_description': 'Bozeman, Montana police blotter, daily activity reports, arrest resources, and Gallatin County jail information for the Bozeman area.',
+        'og_description': 'Bozeman police blotter, daily activity reports, and Gallatin County arrest and jail resources.',
+        'hero_summary': (
+            "Bozeman police blotter coverage, Gallatin County arrest resources, municipal court links, "
+            "and recent public safety reports for Montana's fastest-growing city market."
+        ),
         'description': (
             "The Bozeman Police Department serves one of the fastest-growing cities in the United States. Bozeman's "
             "population has grown dramatically over the past decade, driven by an influx of remote workers, tech "
@@ -4301,6 +7322,21 @@ CITY_DATA = {
             "vehicle traffic. The department works closely with the Gallatin County Sheriff's Office and Montana "
             "State University Police. Property crime and drug-related offenses have grown alongside the city's "
             "expanding population."
+        ),
+        'seo_summary': [
+            "Bozeman search traffic is city-first even when the underlying records route through Gallatin County systems, so this page is structured to bridge that gap cleanly.",
+            "Readers who search for Bozeman police activity should be able to land here first, then move into Gallatin County jail information, municipal court resources, and broader county reporting without starting over.",
+        ],
+        'search_targets': [
+            'Bozeman police blotter',
+            'Bozeman police activity',
+            'Bozeman arrests',
+            'Gallatin County jail roster',
+            'Bozeman municipal court',
+        ],
+        'source_note_title': 'Bozeman coverage with Gallatin County detention links',
+        'source_note': (
+            "Montana Blotter uses this page as the Bozeman entry point, then links readers into Gallatin County detention and court resources when they need inmate status or case-level follow-up."
         ),
         'nearby': [
             {'name': 'Belgrade', 'slug': 'belgrade'},
@@ -4320,6 +7356,14 @@ CITY_DATA = {
         'warrant_url': 'https://greatfallsmt.net/municipalcourt/warrants-list',
         'municipal_court_url': 'https://greatfallsmt.net/municipalcourt',
         'search_terms': ['Great Falls', 'Great Falls Police'],
+        'seo_title': 'Great Falls Police Blotter, Warrants, and Cascade Jail Roster',
+        'og_title': 'Great Falls Police Blotter, Warrants, and Cascade Jail Roster',
+        'meta_description': 'Great Falls, Montana police blotter, daily activity reports, warrant lookup, and Cascade County jail resources for local public safety searches.',
+        'og_description': 'Great Falls police blotter, warrant lookup, daily activity reports, and Cascade County arrest resources.',
+        'hero_summary': (
+            "Great Falls police blotter coverage, active warrant links, Cascade County jail resources, "
+            "and recent city public safety reports."
+        ),
         'description': (
             "The Great Falls Police Department serves Montana's third-largest city, situated along the Missouri River "
             "in Cascade County. The city is home to Malmstrom Air Force Base, a significant presence that affects "
@@ -4328,6 +7372,21 @@ CITY_DATA = {
             "warrant list. The GFPD works alongside the Cascade County Sheriff's Office and Malmstrom's security "
             "forces. The department has a strong community policing focus and participates in regional drug task "
             "force operations."
+        ),
+        'seo_summary': [
+            "Great Falls is valuable because the city term, warrant term, and county detention term all overlap in real search behavior, which makes this page stronger than a standard city archive page.",
+            "This page should be the entry point for Great Falls police activity searches and then hand readers off to Cascade County jail resources and the city's live warrant list when they need current status information.",
+        ],
+        'search_targets': [
+            'Great Falls police blotter',
+            'Great Falls warrants',
+            'Great Falls police activity',
+            'Cascade County jail roster',
+            'Great Falls arrests',
+        ],
+        'source_note_title': 'Great Falls reporting plus live warrant and jail links',
+        'source_note': (
+            "This page pairs Great Falls police coverage with the city's warrant list and Cascade County detention roster so high-intent searches can move directly into official systems."
         ),
         'nearby': [
             {'name': 'Havre', 'slug': 'havre'},
@@ -4346,6 +7405,14 @@ CITY_DATA = {
         'warrant_url': 'https://www.helenamt.gov/Departments/Municipal-Court/Arrest-Warrants-Defendants-in-Custody',
         'municipal_court_url': 'https://www.helenamt.gov/Departments/Municipal-Court',
         'search_terms': ['Helena', 'Helena Police'],
+        'seo_title': 'Helena Police Blotter, Warrants, and Lewis and Clark Jail',
+        'og_title': 'Helena Police Blotter, Warrants, and Lewis and Clark Jail',
+        'meta_description': 'Helena, Montana police blotter, daily activity reports, active warrant lookup, and Lewis and Clark County jail resources.',
+        'og_description': 'Helena police blotter, active warrant lookup, and Lewis and Clark County arrest and jail resources.',
+        'hero_summary': (
+            "Helena police blotter coverage, active warrant links, Lewis and Clark County jail resources, "
+            "and recent daily activity reports from Montana's capital city."
+        ),
         'description': (
             "The Helena Police Department serves Montana's state capital, a city of approximately 33,000 people in "
             "Lewis and Clark County. As the seat of state government, Helena is home to the Montana Legislature, "
@@ -4354,6 +7421,21 @@ CITY_DATA = {
             "consistently covered agencies. The HPD's media log is published each weekday and includes all calls for "
             "service, arrests, and notable incidents. The Helena Municipal Court publishes active arrest warrants "
             "and current defendants in custody online."
+        ),
+        'seo_summary': [
+            "Helena is one of the best city pages on the site for practical search intent because police activity, active warrants, and county detention all connect cleanly here.",
+            "That makes this page useful both for readers following Helena daily activity and for users who arrive with a narrower warrant or arrest lookup need tied to the capital region.",
+        ],
+        'search_targets': [
+            'Helena police blotter',
+            'Helena warrants',
+            'Helena police activity',
+            'Lewis and Clark County jail roster',
+            'Helena arrests',
+        ],
+        'source_note_title': 'Helena Police reports with capital-region warrant links',
+        'source_note': (
+            "Montana Blotter pairs Helena report coverage with Helena Municipal Court warrant access and Lewis and Clark detention links so users can move from media-log searches into official follow-up records."
         ),
         'nearby': [
             {'name': 'East Helena', 'slug': 'east-helena'},
@@ -4373,6 +7455,14 @@ CITY_DATA = {
         'warrant_url': 'https://apps.flathead.mt.gov/warrants/warrants_list.php',
         'municipal_court_url': None,
         'search_terms': ['Kalispell', 'Kalispell Police'],
+        'seo_title': 'Kalispell Police Blotter, Flathead Warrants, and Jail Roster',
+        'og_title': 'Kalispell Police Blotter, Flathead Warrants, and Jail Roster',
+        'meta_description': 'Kalispell, Montana police blotter, daily activity reports, Flathead County warrant lookup, and jail roster resources for the Flathead Valley.',
+        'og_description': 'Kalispell police blotter, Flathead County warrants, daily activity reports, and jail roster resources.',
+        'hero_summary': (
+            "Kalispell police blotter coverage, Flathead County warrant links, jail roster access, "
+            "and recent public safety reports for the Flathead Valley."
+        ),
         'description': (
             "The Kalispell Police Department serves the county seat of Flathead County in northwest Montana. "
             "Kalispell is the largest city in the region and the commercial hub for the Flathead Valley, which "
@@ -4380,6 +7470,21 @@ CITY_DATA = {
             "draws significant seasonal tourism. The KPD works closely with the Flathead County Sheriff's Office, "
             "which maintains both a public jail roster and a public warrant list online. The Flathead Beacon "
             "newspaper provides detailed daily police blotter coverage for the Flathead Valley."
+        ),
+        'seo_summary': [
+            "Kalispell sits at the center of the Flathead Valley search cluster, so this page needs to compete both for pure Kalispell queries and for users comparing city and county public-safety resources.",
+            "The combination of Flathead warrants, jail roster access, and nearby city links makes this one of the stronger city pages on the site even before the archive gets deeper.",
+        ],
+        'search_targets': [
+            'Kalispell police blotter',
+            'Kalispell police activity',
+            'Flathead County warrants',
+            'Flathead County jail roster',
+            'Kalispell arrests',
+        ],
+        'source_note_title': 'Kalispell city coverage with Flathead warrant access',
+        'source_note': (
+            "This page connects Kalispell-focused coverage to Flathead County's official warrant and detention tools so readers can move from city searches into county follow-up records quickly."
         ),
         'nearby': [
             {'name': 'Whitefish', 'slug': 'whitefish'},
@@ -4399,6 +7504,14 @@ CITY_DATA = {
         'warrant_url': None,
         'municipal_court_url': None,
         'search_terms': ['Butte', 'Butte-Silver Bow', 'Butte Silver Bow'],
+        'seo_title': 'Butte Police Blotter, Arrests, and Silver Bow Jail Links',
+        'og_title': 'Butte Police Blotter, Arrests, and Silver Bow Jail Links',
+        'meta_description': 'Butte, Montana police blotter, arrest resources, and Silver Bow detention links for city and county public safety searches.',
+        'og_description': 'Butte police blotter, arrest resources, and Silver Bow detention links for southwest Montana searches.',
+        'hero_summary': (
+            "Butte police blotter coverage, arrest resources, and Silver Bow detention links "
+            "for one of Montana's most recognizable city search terms."
+        ),
         'description': (
             "Butte-Silver Bow Law Enforcement is the unified law enforcement division of the consolidated "
             "City and County of Butte-Silver Bow — one of the few city-county government consolidations in the "
@@ -4407,6 +7520,21 @@ CITY_DATA = {
             "historically, drug trafficking routes. The consolidated government structure means a single law "
             "enforcement agency handles both municipal and county functions, and the Silver Bow County Detention "
             "Center handles all local inmate booking."
+        ),
+        'seo_summary': [
+            "Butte has stronger brand recognition than most second-tier cities on the site, which makes the city page worth targeting before the archive deepens.",
+            "This page is meant to capture Butte police-blotter and arrest searches first, then route readers into Silver Bow detention resources and nearby western Montana pages.",
+        ],
+        'search_targets': [
+            'Butte police blotter',
+            'Butte arrests',
+            'Butte police activity',
+            'Silver Bow jail roster',
+            'Butte-Silver Bow police',
+        ],
+        'source_note_title': 'Recognizable Butte intent with county detention follow-up',
+        'source_note': (
+            "Montana Blotter uses this page to capture Butte-first searches and connect them to the consolidated Butte-Silver Bow law-enforcement and detention workflow."
         ),
         'nearby': [
             {'name': 'Anaconda', 'slug': 'anaconda'},
@@ -4426,6 +7554,14 @@ CITY_DATA = {
         'warrant_url': None,
         'municipal_court_url': None,
         'search_terms': ['Havre', 'Havre Police', 'HAVRE POLICE'],
+        'seo_title': 'Havre Police Blotter, Arrests, and Hill County Jail Links',
+        'og_title': 'Havre Police Blotter, Arrests, and Hill County Jail Links',
+        'meta_description': 'Havre, Montana police blotter, arrest resources, and Hill County jail links for Hi-Line public safety searches.',
+        'og_description': 'Havre police blotter, arrest resources, and Hill County jail links for north-central Montana readers.',
+        'hero_summary': (
+            "Havre police blotter coverage, Hill County arrest resources, and detention follow-up links "
+            "for Montana's Hi-Line."
+        ),
         'description': (
             "The Havre Police Department serves Hill County's largest city, located in north-central Montana near "
             "the Canadian border. Havre is home to Montana State University–Northern and serves as a regional hub "
@@ -4433,6 +7569,21 @@ CITY_DATA = {
             "enforcement challenges including drug smuggling and human trafficking concerns. Montana Blotter "
             "currently receives daily activity reports directly from the Havre Police Department, making it one of "
             "our most consistently covered agencies on the Hi-Line."
+        ),
+        'seo_summary': [
+            "Havre is one of the best second-tier city pages to push because the city already has direct report coverage and unusually strong Hi-Line search recognition.",
+            "This page is designed to catch Havre police-activity and arrest queries first, then route readers into Hill County jail, warrant, and county archive pages.",
+        ],
+        'search_targets': [
+            'Havre police blotter',
+            'Havre police activity',
+            'Havre arrests',
+            'Hill County jail roster',
+            'Hill County police blotter',
+        ],
+        'source_note_title': 'Direct Havre reporting with Hill County follow-up',
+        'source_note': (
+            "Montana Blotter receives Havre Police coverage directly, then uses this page to hand readers into Hill County detention and county-level public-record follow-up."
         ),
         'nearby': [
             {'name': 'Great Falls', 'slug': 'great-falls'},
@@ -4451,9 +7602,32 @@ CITY_DATA = {
         'warrant_url': None,
         'municipal_court_url': None,
         'search_terms': ['Laurel', 'Laurel Police'],
+        'seo_title': 'Laurel Police Blotter, Arrests, and Yellowstone Jail Links',
+        'og_title': 'Laurel Police Blotter, Arrests, and Yellowstone Jail Links',
+        'meta_description': 'Laurel, Montana police blotter, arrest resources, and Yellowstone County jail links for city-first public safety searches.',
+        'og_description': 'Laurel police blotter, arrest resources, and Yellowstone County detention links for Billings-metro readers.',
+        'hero_summary': (
+            "Laurel police blotter coverage, Yellowstone County arrest resources, and detention links "
+            "for the western edge of the Billings metro corridor."
+        ),
         'description': (
             "Laurel sits west of Billings in Yellowstone County and functions as part of the larger Billings metro corridor. "
             "This city page gives Montana Blotter a dedicated landing page for Laurel-area reports and for readers who want a narrower search than the full Yellowstone County archive."
+        ),
+        'seo_summary': [
+            "Laurel is useful because many readers search for the city specifically even though the broader public-record workflow runs through Yellowstone County.",
+            "This page is built to catch Laurel police-blotter and arrest searches first, then route readers into Yellowstone detention, warrant, and county archive pages when they need more depth.",
+        ],
+        'search_targets': [
+            'Laurel police blotter',
+            'Laurel arrests',
+            'Laurel police activity',
+            'Yellowstone County jail roster',
+            'Billings metro police blotter',
+        ],
+        'source_note_title': 'Laurel city intent linked into Yellowstone County tools',
+        'source_note': (
+            "Montana Blotter uses Laurel as a city-first entry page inside the Yellowstone County cluster, then connects readers to county detention and warrant resources for follow-up."
         ),
         'nearby': [
             {'name': 'Billings', 'slug': 'billings'},
@@ -4495,9 +7669,32 @@ CITY_DATA = {
         'warrant_url': None,
         'municipal_court_url': None,
         'search_terms': ['Belgrade', 'Belgrade Police'],
+        'seo_title': 'Belgrade Police Blotter, Arrests, and Gallatin Jail Links',
+        'og_title': 'Belgrade Police Blotter, Arrests, and Gallatin Jail Links',
+        'meta_description': 'Belgrade, Montana police blotter, arrest resources, and Gallatin County jail links for city and county public safety searches.',
+        'og_description': 'Belgrade police blotter, arrest resources, and Gallatin County jail links for the Bozeman-area search cluster.',
+        'hero_summary': (
+            "Belgrade police blotter coverage, Gallatin County arrest resources, and detention links "
+            "for one of the fastest-growing communities in southwest Montana."
+        ),
         'description': (
             "Belgrade is one of the fastest-growing communities in Gallatin County and often gets grouped into broader Bozeman coverage. "
             "This city page gives Belgrade its own entry point for blotter and arrest-related search traffic."
+        ),
+        'seo_summary': [
+            "Belgrade has enough growth and name recognition to justify its own city page instead of being swallowed by Bozeman search demand.",
+            "This page is designed to catch Belgrade police-blotter and arrest searches, then route readers into Gallatin County jail and county archive pages for the next step.",
+        ],
+        'search_targets': [
+            'Belgrade police blotter',
+            'Belgrade arrests',
+            'Belgrade police activity',
+            'Gallatin County jail roster',
+            'Belgrade Montana police',
+        ],
+        'source_note_title': 'Belgrade growth-market intent connected to Gallatin County',
+        'source_note': (
+            "Montana Blotter uses this page to pull Belgrade-specific search traffic out of the broader Bozeman cluster and connect it to Gallatin County detention and follow-up pages."
         ),
         'nearby': [
             {'name': 'Bozeman', 'slug': 'bozeman'},
@@ -4539,9 +7736,32 @@ CITY_DATA = {
         'warrant_url': None,
         'municipal_court_url': None,
         'search_terms': ['Whitefish', 'Whitefish Police'],
+        'seo_title': 'Whitefish Police Blotter, Arrests, and Flathead Jail Roster',
+        'og_title': 'Whitefish Police Blotter, Arrests, and Flathead Jail Roster',
+        'meta_description': 'Whitefish, Montana police blotter, daily activity reports, and Flathead County jail and warrant resources for local search traffic.',
+        'og_description': 'Whitefish police blotter, daily activity reports, and Flathead County jail and warrant resources.',
+        'hero_summary': (
+            "Whitefish police blotter coverage, Flathead County jail links, and recent public safety reports "
+            "for one of northwest Montana's highest-interest city searches."
+        ),
         'description': (
             "Whitefish is one of northwest Montana's highest-interest local search terms thanks to tourism, seasonal traffic, and regional nightlife. "
             "This page gives Whitefish its own blotter landing page separate from the broader Flathead County archive."
+        ),
+        'seo_summary': [
+            "Whitefish has stronger search demand than its archive depth because visitors and residents often search for city-specific police activity rather than countywide records.",
+            "This page exists to capture that city-first search intent and then route readers into Flathead County jail and warrant tools when they need broader or more official follow-up resources.",
+        ],
+        'search_targets': [
+            'Whitefish police blotter',
+            'Whitefish police activity',
+            'Whitefish arrests',
+            'Flathead County jail roster',
+            'Flathead County warrants',
+        ],
+        'source_note_title': 'Whitefish search intent connected to Flathead County tools',
+        'source_note': (
+            "Montana Blotter uses this page as the Whitefish-specific entry point, then connects readers to Flathead County detention and warrant resources when city-level reporting is not enough."
         ),
         'nearby': [
             {'name': 'Kalispell', 'slug': 'kalispell'},
@@ -4561,8 +7781,31 @@ CITY_DATA = {
         'warrant_url': None,
         'municipal_court_url': None,
         'search_terms': ['Columbia Falls', 'Columbia Falls Police'],
+        'seo_title': 'Columbia Falls Police Blotter, Arrests, and Flathead Jail Links',
+        'og_title': 'Columbia Falls Police Blotter, Arrests, and Flathead Jail Links',
+        'meta_description': 'Columbia Falls, Montana police blotter, arrest resources, and Flathead County jail links for Flathead Valley public safety searches.',
+        'og_description': 'Columbia Falls police blotter, arrest resources, and Flathead County detention links for the Flathead Valley.',
+        'hero_summary': (
+            "Columbia Falls police blotter coverage, Flathead County arrest resources, and detention links "
+            "for a city-level Flathead Valley search."
+        ),
         'description': (
             "Columbia Falls is another Flathead Valley city that benefits from a dedicated page because it captures more specific local-intent traffic than county-level coverage alone."
+        ),
+        'seo_summary': [
+            "Columbia Falls is worth targeting because Flathead Valley search demand is split across multiple city names, not just Kalispell and Whitefish.",
+            "This page is designed to capture Columbia Falls police-blotter and arrest searches and then route readers into Flathead County detention, warrant, and county archive pages.",
+        ],
+        'search_targets': [
+            'Columbia Falls police blotter',
+            'Columbia Falls arrests',
+            'Columbia Falls police activity',
+            'Flathead County jail roster',
+            'Flathead County warrants',
+        ],
+        'source_note_title': 'Columbia Falls city intent tied to Flathead County tools',
+        'source_note': (
+            "Montana Blotter uses this page to capture a narrower Flathead Valley search path and connect it to Flathead County jail, warrant, and county archive resources."
         ),
         'nearby': [
             {'name': 'Whitefish', 'slug': 'whitefish'},
@@ -4582,8 +7825,31 @@ CITY_DATA = {
         'warrant_url': None,
         'municipal_court_url': None,
         'search_terms': ['East Helena', 'East Helena Police'],
+        'seo_title': 'East Helena Police Blotter, Arrests, and Lewis and Clark Jail',
+        'og_title': 'East Helena Police Blotter, Arrests, and Lewis and Clark Jail',
+        'meta_description': 'East Helena, Montana police blotter, arrest resources, and Lewis and Clark County jail links for city-first searches.',
+        'og_description': 'East Helena police blotter, arrest resources, and Lewis and Clark County detention links.',
+        'hero_summary': (
+            "East Helena police blotter coverage, Lewis and Clark County arrest resources, "
+            "and detention links for capital-region readers."
+        ),
         'description': (
             "East Helena gives the Lewis and Clark archive an additional city-level landing page for readers looking beyond Helena proper."
+        ),
+        'seo_summary': [
+            "East Helena is a useful second-tier city page because capital-region search intent does not stop at Helena proper.",
+            "This page is built to capture East Helena police-blotter and arrest searches first, then route readers into Lewis and Clark County detention and county archive pages.",
+        ],
+        'search_targets': [
+            'East Helena police blotter',
+            'East Helena arrests',
+            'East Helena police activity',
+            'Lewis and Clark County jail roster',
+            'Helena area police blotter',
+        ],
+        'source_note_title': 'Capital-region city page linked into Lewis and Clark County',
+        'source_note': (
+            "Montana Blotter uses East Helena as a narrower capital-region entry page and connects it to Lewis and Clark County detention and countywide record searches."
         ),
         'nearby': [
             {'name': 'Helena', 'slug': 'helena'},
@@ -4754,6 +8020,20 @@ def city_page(slug):
         params_count
     ).fetchall()
 
+    source_method_rows = conn.execute(
+        f"""
+        SELECT COALESCE(NULLIF(blotters.source_type, ''), 'pdf') AS source_type,
+               COUNT(*) AS count
+        FROM posts
+        JOIN blotters ON blotters.id = posts.blotter_id
+        WHERE {where_sql}
+        GROUP BY COALESCE(NULLIF(blotters.source_type, ''), 'pdf')
+        ORDER BY count DESC, source_type ASC
+        LIMIT 4
+        """,
+        params_count
+    ).fetchall()
+
     last_row = conn.execute(
         f'SELECT incident_date FROM posts WHERE {where_sql} ORDER BY incident_date DESC LIMIT 1',
         params_count
@@ -4777,9 +8057,11 @@ def city_page(slug):
         top_incidents=top_incidents,
         recent_records=recent_records,
         agency_coverage=agency_coverage,
+        source_methods=_source_method_rollup(source_method_rows),
         pattern_links=_pattern_links_for_county(city['county_slug']),
         linked_nearby=linked_nearby,
         last_report=last_report,
+        page_last_updated=last_report,
         page=page,
         total_pages=total_pages,
         current_year=datetime.now().year,
@@ -5675,8 +8957,53 @@ def admin_blog():
     conn = get_db()
     posts = conn.execute(
         'SELECT * FROM blog_posts ORDER BY created_at DESC').fetchall()
+    workflow = _weekly_digest_workflow_defaults(conn)
     conn.close()
-    return render_template('admin_blog.html', posts=posts)
+    return render_template('admin_blog.html', posts=posts, workflow=workflow)
+
+
+@app.route('/admin/blog/workflow', methods=['GET', 'POST'])
+@login_required
+def admin_blog_workflow():
+    if request.method == 'POST':
+        upload = request.files.get('search_console_csv')
+        if not upload or not upload.filename:
+            flash('Choose a Search Console CSV export from the Queries or Pages tab.', 'error')
+            return redirect(url_for('admin_blog_workflow'))
+
+        conn = get_db()
+        try:
+            source_kind, rows = _parse_search_console_csv(upload)
+            source_filename = secure_filename(upload.filename or 'search-console.csv') or 'search-console.csv'
+            _store_search_console_import(conn, source_filename, source_kind, rows)
+            conn.commit()
+            flash(
+                f'Imported {len(rows)} Search Console {source_kind} rows from {source_filename}.',
+                'success',
+            )
+        except ValueError as exc:
+            flash(str(exc), 'error')
+        finally:
+            conn.close()
+        return redirect(url_for('admin_blog_workflow'))
+
+    conn = get_db()
+    workflow = _weekly_digest_workflow_defaults(conn)
+    latest_weekly_digest = _latest_weekly_digest(conn)
+    recent_posts = conn.execute(
+        'SELECT id, title, slug, published, created_at FROM blog_posts ORDER BY created_at DESC LIMIT 8'
+    ).fetchall()
+    annual_years = _annual_roundup_years(conn)
+    search_console = _search_console_workflow_context(conn)
+    conn.close()
+    return render_template(
+        'admin_blog_workflow.html',
+        workflow=workflow,
+        latest_weekly_digest=latest_weekly_digest,
+        recent_posts=recent_posts,
+        annual_years=annual_years,
+        search_console=search_console,
+    )
 
 
 @app.route('/admin/blog/new', methods=['GET', 'POST'])
@@ -5706,7 +9033,23 @@ def admin_blog_new():
             flash(f'Error: {e}', 'error')
         finally:
             conn.close()
-    return render_template('admin_blog_edit.html', post=None, form={})
+    form = {}
+    if request.args.get('template') == 'weekly_digest':
+        conn = get_db()
+        workflow = _weekly_digest_workflow_defaults(conn)
+        conn.close()
+        if workflow:
+            form = {
+                'title': workflow['title'],
+                'slug': workflow['slug'],
+                'excerpt': workflow['excerpt'],
+                'body': workflow['body'],
+                'author': workflow['author'],
+                'published': workflow['published'],
+            }
+        else:
+            flash('No weekly snapshot is available yet for a prefilled roundup draft.', 'error')
+    return render_template('admin_blog_edit.html', post=None, form=form)
 
 
 @app.route('/admin/blog/<int:post_id>/edit', methods=['GET', 'POST'])
@@ -5892,6 +9235,7 @@ def view_post(post_id):
     conn.close()
 
     city_slug = _city_slug_for_name(post['city'])
+    county_page = COUNTY_DATA.get(county_slug) if county_slug else None
     source_pdf_name = None
     if post['file_path']:
         source_pdf_name = os.path.basename(post['file_path'])
@@ -5908,6 +9252,7 @@ def view_post(post_id):
         summary_lines=_summary_lines(post['summary']),
         county_slug=county_slug,
         city_slug=city_slug,
+        county_page=county_page,
         source_pdf_name=source_pdf_name,
         current_year=datetime.now().year,
     )
@@ -6004,23 +9349,51 @@ def admin_login():
             'SELECT * FROM users WHERE username = ?',
             (username,),
         ).fetchone()
-        is_valid = bool(user_row and bcrypt.check_password_hash(user_row['password'], password))
+        password_valid = bool(user_row and bcrypt.check_password_hash(user_row['password'], password))
+        is_active_account = bool(user_row and user_row['is_active'])
+        has_admin_role = bool(user_row and (user_row['role'] or '').strip() in ADMIN_ACCESS_ROLES)
+        is_valid = bool(password_valid and is_active_account and has_admin_role)
         _record_login_attempt(conn, username, ip_address, is_valid)
-        conn.close()
 
         if is_valid:
+            conn.execute(
+                'UPDATE users SET last_login_at = datetime(\'now\') WHERE id = ?',
+                (user_row['id'],),
+            )
+            _log_admin_action(
+                'auth.login',
+                target_type='user',
+                target_id=user_row['id'],
+                metadata={'role': user_row['role']},
+                user_id=user_row['id'],
+                conn=conn,
+            )
+            conn.commit()
+            conn.close()
             session.clear()
             session['_csrf_token'] = secrets.token_urlsafe(32)
-            login_user(User(user_row['id'], user_row['username']))
+            login_user(User.from_row(user_row))
             return redirect(url_for('admin_dashboard'))
-        
-        flash('Invalid credentials')
+
+        conn.close()
+        if password_valid and not is_active_account:
+            flash('This account has been disabled.')
+        elif password_valid and not has_admin_role:
+            flash('This account is not authorized for the admin panel.')
+        else:
+            flash('Invalid credentials')
     
     return render_template('admin_login.html')
 
 @app.route('/admin/logout')
 @login_required
 def admin_logout():
+    _log_admin_action(
+        'auth.logout',
+        target_type='user',
+        target_id=current_user.id,
+        metadata={'role': getattr(current_user, 'role', '')},
+    )
     logout_user()
     session.clear()
     return redirect(url_for('index'))
@@ -6054,6 +9427,14 @@ def admin_dashboard():
         GROUP BY county 
         ORDER BY count DESC
     ''').fetchall()
+    source_coverage = _build_source_coverage_dashboard(conn)
+    active_admin_users = conn.execute(
+        "SELECT COUNT(*) FROM users WHERE role IN (?, ?, ?, ?, ?) AND COALESCE(is_active, 1) = 1",
+        ADMIN_ACCESS_ROLES,
+    ).fetchone()[0]
+    recent_audit_actions = conn.execute(
+        "SELECT COUNT(*) FROM audit_logs WHERE timestamp >= datetime('now', '-7 days')"
+    ).fetchone()[0]
     
     conn.close()
     
@@ -6062,8 +9443,641 @@ def admin_dashboard():
                          total_blotters=total_blotters,
                          total_counties=total_counties,
                          failed_ingestions=failed_ingestions,
+                         active_admin_users=active_admin_users,
+                         recent_audit_actions=recent_audit_actions,
+                         source_coverage=source_coverage,
                          recent_blotters=recent_blotters,
                          county_stats=county_stats)
+
+
+@app.route('/admin/operations/sources')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_sources():
+    q = (request.args.get('q') or '').strip()[:120]
+    category_filter = (request.args.get('category') or 'all').strip().lower()
+    health_filter = (request.args.get('health') or 'all').strip().lower()
+    if category_filter not in {'all', 'covered', 'candidate', 'no_source'}:
+        category_filter = 'all'
+    if health_filter not in {'all', 'live', 'stale', 'failing'}:
+        health_filter = 'all'
+
+    conn = get_db()
+    health_dashboard = _build_ingestion_health_dashboard(conn)
+    conn.close()
+
+    official_sources = []
+    for item in health_dashboard['official_sources']:
+        health_state = 'live'
+        if item.get('latest_job_status') == 'failed' or item.get('failed_count', 0):
+            health_state = 'failing'
+        elif item.get('freshness_tone') in {'amber', 'red'} and item.get('category') == 'covered':
+            health_state = 'stale'
+
+        searchable = ' '.join([
+            item.get('agency') or '',
+            item.get('source_type') or '',
+            item.get('source_url') or '',
+            item.get('notes') or '',
+        ]).lower()
+        if q and q.lower() not in searchable:
+            continue
+        if category_filter != 'all' and item.get('category') != category_filter:
+            continue
+        if health_filter != 'all' and health_state != health_filter:
+            continue
+        enriched = dict(item)
+        enriched['health_state'] = health_state
+        official_sources.append(enriched)
+
+    return render_template(
+        'admin_sources.html',
+        health_dashboard=health_dashboard,
+        official_sources=official_sources,
+        q=q,
+        category_filter=category_filter,
+        health_filter=health_filter,
+    )
+
+
+@app.route('/admin/operations/redaction')
+@login_required
+@require_role(*CONTENT_REVIEW_ROLES)
+def admin_redaction_queue():
+    from blotter_auditor import get_pii_spans
+
+    q = (request.args.get('q') or '').strip()[:120]
+    status_filter = (request.args.get('status') or 'pending').strip().lower()
+    county_filter = (request.args.get('county') or '').strip()[:80]
+    if status_filter not in {'pending', 'clean', 'flagged', 'all'}:
+        status_filter = 'pending'
+
+    where = []
+    params = []
+    if status_filter != 'all':
+        where.append("COALESCE(p.audit_status, 'pending') = ?")
+        params.append(status_filter)
+    if county_filter:
+        where.append('COALESCE(p.county, b.county, \'\') = ?')
+        params.append(county_filter)
+    if q:
+        where.append('(COALESCE(p.title, \'\') LIKE ? OR COALESCE(p.summary, \'\') LIKE ? OR COALESCE(p.agency_name, \'\') LIKE ?)')
+        like = f'%{q}%'
+        params.extend([like, like, like])
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ''
+    conn = get_db()
+    rows = conn.execute(
+        f'''
+        SELECT
+            p.id,
+            p.title,
+            p.summary,
+            p.county,
+            p.agency_name,
+            p.incident_date,
+            COALESCE(p.audit_status, 'pending') AS audit_status,
+            COALESCE(p.pii_flags, '') AS pii_flags,
+            COALESCE(p.audited_at, '') AS audited_at,
+            COALESCE(b.filename, '') AS blotter_filename,
+            (
+                SELECT COUNT(*)
+                FROM records r
+                WHERE r.blotter_id = p.blotter_id
+            ) AS incident_count
+        FROM posts p
+        LEFT JOIN blotters b ON b.id = p.blotter_id
+        {where_sql}
+        ORDER BY
+            CASE COALESCE(p.audit_status, 'pending')
+                WHEN 'flagged' THEN 0
+                WHEN 'pending' THEN 1
+                ELSE 2
+            END,
+            datetime(COALESCE(p.audited_at, p.created_at)) DESC,
+            p.id DESC
+        LIMIT 120
+        ''',
+        params,
+    ).fetchall()
+    county_options = conn.execute(
+        '''
+        SELECT DISTINCT COALESCE(NULLIF(county, ''), '') AS county
+        FROM posts
+        WHERE COALESCE(NULLIF(county, ''), '') != ''
+        ORDER BY county ASC
+        '''
+    ).fetchall()
+    summary = conn.execute(
+        '''
+        SELECT
+            SUM(CASE WHEN COALESCE(audit_status, 'pending') = 'pending' THEN 1 ELSE 0 END) AS pending_count,
+            SUM(CASE WHEN COALESCE(audit_status, 'pending') = 'clean' THEN 1 ELSE 0 END) AS clean_count,
+            SUM(CASE WHEN COALESCE(audit_status, 'pending') = 'flagged' THEN 1 ELSE 0 END) AS flagged_count,
+            COUNT(*) AS total_count
+        FROM posts
+        '''
+    ).fetchone()
+    conn.close()
+
+    queue_rows = []
+    for row in rows:
+        pii_count = len(get_pii_spans(row['summary'] or ''))
+        item = dict(row)
+        item['pii_count'] = pii_count
+        item['summary_preview'] = ((row['summary'] or '')[:180] + '...') if row['summary'] and len(row['summary']) > 180 else (row['summary'] or '')
+        queue_rows.append(item)
+
+    return render_template(
+        'admin_redaction_queue.html',
+        rows=queue_rows,
+        summary=summary,
+        q=q,
+        status_filter=status_filter,
+        county_filter=county_filter,
+        county_options=[row['county'] for row in county_options],
+    )
+
+
+@app.route('/admin/operations/redaction/<int:post_id>/approve', methods=['POST'])
+@login_required
+@require_role(*CONTENT_REVIEW_ROLES)
+def admin_redaction_queue_approve(post_id):
+    conn = get_db()
+    post = conn.execute('SELECT id, title, COALESCE(audit_status, \'pending\') AS audit_status FROM posts WHERE id = ?', (post_id,)).fetchone()
+    if not post:
+        conn.close()
+        flash('Post not found.', 'error')
+        return redirect(url_for('admin_redaction_queue'))
+    conn.execute(
+        "UPDATE posts SET audit_status = 'clean', audited_at = datetime('now') WHERE id = ?",
+        (post_id,),
+    )
+    _log_admin_action(
+        'redaction.approved',
+        target_type='post',
+        target_id=post_id,
+        metadata={'title': post['title'], 'from': post['audit_status'], 'to': 'clean'},
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash('Post marked clean.', 'success')
+    return redirect(url_for('admin_redaction_queue'))
+
+
+@app.route('/admin/operations/redaction/<int:post_id>/reset', methods=['POST'])
+@login_required
+@require_role(*CONTENT_REVIEW_ROLES)
+def admin_redaction_queue_reset(post_id):
+    conn = get_db()
+    post = conn.execute('SELECT id, title, COALESCE(audit_status, \'pending\') AS audit_status FROM posts WHERE id = ?', (post_id,)).fetchone()
+    if not post:
+        conn.close()
+        flash('Post not found.', 'error')
+        return redirect(url_for('admin_redaction_queue'))
+    conn.execute(
+        "UPDATE posts SET audit_status = 'pending', audited_at = NULL WHERE id = ?",
+        (post_id,),
+    )
+    _log_admin_action(
+        'redaction.reset',
+        target_type='post',
+        target_id=post_id,
+        metadata={'title': post['title'], 'from': post['audit_status'], 'to': 'pending'},
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash('Post returned to pending review.', 'success')
+    return redirect(url_for('admin_redaction_queue'))
+
+
+@app.route('/admin/audience/subscribers')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_subscribers():
+    conn = get_db()
+    context = _subscriber_admin_context(
+        conn,
+        q=request.args.get('q'),
+        status_filter=request.args.get('status'),
+        county_filter=request.args.get('county'),
+        source_filter=request.args.get('source'),
+    )
+    conn.close()
+    return render_template('admin_subscribers.html', **context)
+
+
+@app.route('/admin/audience/subscribers/<int:subscriber_id>/status', methods=['POST'])
+@login_required
+@require_role(*AUDIENCE_MANAGEMENT_ROLES)
+def admin_subscriber_status(subscriber_id):
+    requested = (request.form.get('active') or '').strip()
+    new_active = 1 if requested == '1' else 0
+    conn = get_db()
+    subscriber = conn.execute(
+        'SELECT id, email, counties, COALESCE(active, 1) AS active FROM subscribers WHERE id = ?',
+        (subscriber_id,),
+    ).fetchone()
+    if not subscriber:
+        conn.close()
+        flash('Subscriber not found.', 'error')
+        return redirect(url_for('admin_subscribers'))
+    conn.execute(
+        'UPDATE subscribers SET active = ?, updated_at = datetime(\'now\') WHERE id = ?',
+        (new_active, subscriber_id),
+    )
+    _log_admin_action(
+        'subscriber.status_changed',
+        target_type='subscriber',
+        target_id=subscriber_id,
+        metadata={'email': subscriber['email'], 'from': subscriber['active'], 'to': new_active},
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    _record_subscribe_event(
+        'admin_reactivated' if new_active else 'admin_suppressed',
+        source='admin_subscribers',
+        page_path=request.path,
+        email=subscriber['email'],
+    )
+    flash(f"{'Reactivated' if new_active else 'Suppressed'} {subscriber['email']}.", 'success')
+    return redirect(url_for('admin_subscribers'))
+
+
+@app.route('/admin/audience/subscribers/<int:subscriber_id>/counties', methods=['POST'])
+@login_required
+@require_role(*AUDIENCE_MANAGEMENT_ROLES)
+def admin_subscriber_counties(subscriber_id):
+    raw_counties = (request.form.get('counties') or '').strip()
+    counties = [part.strip() for part in raw_counties.split(',') if part.strip()]
+    counties_value = ','.join(dict.fromkeys(counties))
+    conn = get_db()
+    subscriber = conn.execute(
+        'SELECT id, email, counties FROM subscribers WHERE id = ?',
+        (subscriber_id,),
+    ).fetchone()
+    if not subscriber:
+        conn.close()
+        flash('Subscriber not found.', 'error')
+        return redirect(url_for('admin_subscribers'))
+    conn.execute(
+        'UPDATE subscribers SET counties = ?, updated_at = datetime(\'now\') WHERE id = ?',
+        (counties_value, subscriber_id),
+    )
+    _log_admin_action(
+        'subscriber.counties_updated',
+        target_type='subscriber',
+        target_id=subscriber_id,
+        metadata={'email': subscriber['email'], 'from': subscriber['counties'], 'to': counties_value},
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash(f'Updated counties for {subscriber["email"]}.', 'success')
+    return redirect(url_for('admin_subscribers'))
+
+
+@app.route('/admin/audience/subscribers/<int:subscriber_id>/notes', methods=['POST'])
+@login_required
+@require_role(*AUDIENCE_MANAGEMENT_ROLES)
+def admin_subscriber_notes(subscriber_id):
+    notes = (request.form.get('notes') or '').strip()[:2000]
+    conn = get_db()
+    subscriber = conn.execute(
+        'SELECT id, email, COALESCE(notes, \'\') AS notes FROM subscribers WHERE id = ?',
+        (subscriber_id,),
+    ).fetchone()
+    if not subscriber:
+        conn.close()
+        flash('Subscriber not found.', 'error')
+        return redirect(url_for('admin_subscribers'))
+    conn.execute(
+        'UPDATE subscribers SET notes = ?, updated_at = datetime(\'now\') WHERE id = ?',
+        (notes, subscriber_id),
+    )
+    _log_admin_action(
+        'subscriber.notes_updated',
+        target_type='subscriber',
+        target_id=subscriber_id,
+        metadata={'email': subscriber['email'], 'had_notes': bool(subscriber['notes']), 'has_notes': bool(notes)},
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash(f'Updated notes for {subscriber["email"]}.', 'success')
+    return redirect(url_for('admin_subscribers'))
+
+
+@app.route('/admin/audience/subscribers/export.csv')
+@login_required
+@require_role(*AUDIENCE_MANAGEMENT_ROLES)
+def admin_subscribers_export():
+    conn = get_db()
+    context = _subscriber_admin_context(
+        conn,
+        q=request.args.get('q'),
+        status_filter=request.args.get('status'),
+        county_filter=request.args.get('county'),
+        source_filter=request.args.get('source'),
+    )
+    output = io.StringIO(newline='')
+    writer = csv.writer(output)
+    writer.writerow([
+        'id',
+        'email',
+        'active',
+        'counties',
+        'source',
+        'notes',
+        'created_at',
+        'updated_at',
+        'last_event_type',
+        'last_event_source',
+        'last_event_at',
+    ])
+    for row in context['rows']:
+        writer.writerow([
+            row['id'],
+            row['email'],
+            int(row['active']),
+            row['counties'],
+            row['source'],
+            row['notes'],
+            row['created_at'],
+            row['updated_at'],
+            row['last_event_type'] or '',
+            row['last_event_source'] or '',
+            row['last_event_at'] or '',
+        ])
+    conn.close()
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=subscribers.csv'},
+    )
+
+
+@app.route('/admin/content/seo', methods=['GET', 'POST'])
+@login_required
+@require_role(*CONTENT_REVIEW_ROLES)
+def admin_seo_console():
+    if request.method == 'POST':
+        upload = request.files.get('search_console_csv')
+        if not upload or not (upload.filename or '').strip():
+            flash('Choose a Search Console CSV to import.', 'error')
+            return redirect(url_for('admin_seo_console'))
+
+        conn = get_db()
+        try:
+            source_kind, rows = _parse_search_console_csv(upload)
+            source_filename = secure_filename(upload.filename or 'search-console.csv') or 'search-console.csv'
+            _store_search_console_import(conn, source_filename, source_kind, rows)
+            _log_admin_action(
+                'seo.search_console_imported',
+                target_type='search_console_import',
+                metadata={'source_filename': source_filename, 'source_kind': source_kind, 'row_count': len(rows)},
+                conn=conn,
+            )
+            conn.commit()
+            flash(f'Imported {len(rows)} Search Console rows from {source_filename}.', 'success')
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), 'error')
+        finally:
+            conn.close()
+        return redirect(url_for('admin_seo_console'))
+
+    conn = get_db()
+    search_console = _search_console_workflow_context(conn)
+    conn.close()
+    return render_template('admin_seo_console.html', search_console=search_console)
+
+
+@app.route('/admin/security/users')
+@login_required
+@require_role(*ADMIN_MANAGEMENT_ROLES)
+def admin_security_users():
+    q = (request.args.get('q') or '').strip()[:100]
+    role_filter = (request.args.get('role') or '').strip()
+    status_filter = (request.args.get('status') or 'active').strip().lower()
+    if status_filter not in {'active', 'inactive', 'all'}:
+        status_filter = 'active'
+
+    where = []
+    params = []
+    if q:
+        where.append('(u.username LIKE ? OR COALESCE(u.email, \'\') LIKE ?)')
+        like = f'%{q}%'
+        params.extend([like, like])
+    if role_filter in ROLE_LABELS:
+        where.append('u.role = ?')
+        params.append(role_filter)
+    if status_filter == 'active':
+        where.append('COALESCE(u.is_active, 1) = 1')
+    elif status_filter == 'inactive':
+        where.append('COALESCE(u.is_active, 1) = 0')
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ''
+    conn = get_db()
+    users = conn.execute(
+        f'''
+        SELECT
+            u.id,
+            u.username,
+            u.email,
+            u.role,
+            COALESCE(u.is_active, 1) AS is_active,
+            u.last_login_at,
+            COALESCE(u.mfa_enabled, 0) AS mfa_enabled,
+            u.created_at,
+            (
+                SELECT COUNT(*)
+                FROM auth_login_attempts ala
+                WHERE ala.username = u.username
+                  AND ala.success = 0
+                  AND ala.created_at >= datetime('now', '-24 hours')
+            ) AS failed_logins_24h
+        FROM users u
+        {where_sql}
+        ORDER BY COALESCE(u.is_active, 1) DESC, u.role ASC, u.username ASC
+        ''',
+        params,
+    ).fetchall()
+    super_admin_count = _active_super_admin_count(conn)
+    conn.close()
+    return render_template(
+        'admin_users.html',
+        users=users,
+        q=q,
+        role_filter=role_filter,
+        status_filter=status_filter,
+        role_options=ROLE_LABELS,
+        super_admin_count=super_admin_count,
+    )
+
+
+@app.route('/admin/security/users/<int:user_id>/role', methods=['POST'])
+@login_required
+@require_role(*ADMIN_MANAGEMENT_ROLES)
+def admin_security_user_role(user_id):
+    new_role = (request.form.get('role') or '').strip()
+    if new_role not in ROLE_LABELS:
+        flash('Choose a valid role.', 'error')
+        return redirect(url_for('admin_security_users'))
+
+    conn = get_db()
+    target = conn.execute(
+        'SELECT id, username, role, COALESCE(is_active, 1) AS is_active FROM users WHERE id = ?',
+        (user_id,),
+    ).fetchone()
+    if not target:
+        conn.close()
+        flash('User not found.', 'error')
+        return redirect(url_for('admin_security_users'))
+
+    if target['role'] == 'super_admin' and new_role != 'super_admin' and int(target['is_active'] or 0) == 1 and _active_super_admin_count(conn) <= 1:
+        conn.close()
+        flash('You cannot demote the last active super admin.', 'error')
+        return redirect(url_for('admin_security_users'))
+
+    if target['role'] == new_role:
+        conn.close()
+        flash('Role unchanged.', 'warning')
+        return redirect(url_for('admin_security_users'))
+
+    conn.execute('UPDATE users SET role = ? WHERE id = ?', (new_role, user_id))
+    _log_admin_action(
+        'security.role_changed',
+        target_type='user',
+        target_id=user_id,
+        metadata={'username': target['username'], 'from': target['role'], 'to': new_role},
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash(f"Updated role for {target['username']} to {ROLE_LABELS[new_role]}.", 'success')
+    return redirect(url_for('admin_security_users'))
+
+
+@app.route('/admin/security/users/<int:user_id>/status', methods=['POST'])
+@login_required
+@require_role(*ADMIN_MANAGEMENT_ROLES)
+def admin_security_user_status(user_id):
+    requested = (request.form.get('is_active') or '').strip()
+    new_is_active = 1 if requested == '1' else 0
+
+    conn = get_db()
+    target = conn.execute(
+        'SELECT id, username, role, COALESCE(is_active, 1) AS is_active FROM users WHERE id = ?',
+        (user_id,),
+    ).fetchone()
+    if not target:
+        conn.close()
+        flash('User not found.', 'error')
+        return redirect(url_for('admin_security_users'))
+
+    if target['id'] == current_user.id and new_is_active == 0:
+        conn.close()
+        flash('You cannot disable your own account.', 'error')
+        return redirect(url_for('admin_security_users'))
+
+    if target['role'] == 'super_admin' and int(target['is_active'] or 0) == 1 and new_is_active == 0 and _active_super_admin_count(conn) <= 1:
+        conn.close()
+        flash('You cannot disable the last active super admin.', 'error')
+        return redirect(url_for('admin_security_users'))
+
+    if int(target['is_active'] or 0) == new_is_active:
+        conn.close()
+        flash('Account status unchanged.', 'warning')
+        return redirect(url_for('admin_security_users'))
+
+    conn.execute('UPDATE users SET is_active = ? WHERE id = ?', (new_is_active, user_id))
+    _log_admin_action(
+        'security.account_status_changed',
+        target_type='user',
+        target_id=user_id,
+        metadata={'username': target['username'], 'from': int(target['is_active'] or 0), 'to': new_is_active},
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash(f"{'Enabled' if new_is_active else 'Disabled'} account for {target['username']}.", 'success')
+    return redirect(url_for('admin_security_users'))
+
+
+@app.route('/admin/security/audit')
+@login_required
+@require_role(*ADMIN_MANAGEMENT_ROLES)
+def admin_security_audit():
+    q = (request.args.get('q') or '').strip()[:100]
+    actor_filter = (request.args.get('actor') or '').strip()[:80]
+    action_filter = (request.args.get('action') or '').strip()[:120]
+
+    where = []
+    params = []
+    if q:
+        where.append('(al.action LIKE ? OR COALESCE(al.target_type, \'\') LIKE ? OR COALESCE(al.target_id, \'\') LIKE ? OR COALESCE(al.metadata_json, \'\') LIKE ?)')
+        like = f'%{q}%'
+        params.extend([like, like, like, like])
+    if actor_filter:
+        where.append('COALESCE(u.username, \'\') = ?')
+        params.append(actor_filter)
+    if action_filter:
+        where.append('al.action = ?')
+        params.append(action_filter)
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ''
+    conn = get_db()
+    rows = conn.execute(
+        f'''
+        SELECT
+            al.id,
+            al.timestamp,
+            al.action,
+            al.target_type,
+            al.target_id,
+            al.ip_address,
+            al.metadata_json,
+            u.username AS actor_username
+        FROM audit_logs al
+        LEFT JOIN users u ON u.id = al.user_id
+        {where_sql}
+        ORDER BY datetime(al.timestamp) DESC, al.id DESC
+        LIMIT 250
+        ''',
+        params,
+    ).fetchall()
+    actor_options = conn.execute(
+        '''
+        SELECT DISTINCT COALESCE(u.username, '') AS username
+        FROM audit_logs al
+        LEFT JOIN users u ON u.id = al.user_id
+        WHERE COALESCE(u.username, '') != ''
+        ORDER BY username ASC
+        '''
+    ).fetchall()
+    action_options = conn.execute(
+        '''
+        SELECT DISTINCT action
+        FROM audit_logs
+        WHERE action IS NOT NULL AND action != ''
+        ORDER BY action ASC
+        '''
+    ).fetchall()
+    conn.close()
+    return render_template(
+        'admin_audit_log.html',
+        rows=rows,
+        q=q,
+        actor_filter=actor_filter,
+        action_filter=action_filter,
+        actor_options=[row['username'] for row in actor_options],
+        action_options=[row['action'] for row in action_options],
+    )
 
 
 @app.route('/admin/ingestion')
@@ -6144,6 +10158,7 @@ def admin_ingestion():
         FROM ingestion_jobs
         """
     ).fetchone()
+    health_dashboard = _build_ingestion_health_dashboard(conn)
     conn.close()
 
     parsed_jobs = []
@@ -6161,6 +10176,7 @@ def admin_ingestion():
 
     return render_template(
         'admin_ingestion.html',
+        health_dashboard=health_dashboard,
         jobs=parsed_jobs,
         status_filter=status_filter,
         failed_count=counts['failed_count'] or 0,
@@ -6344,8 +10360,15 @@ def admin_redact_post(post_id):
         mark_clean       = request.form.get('mark_clean', '') == '1'
         new_status       = 'clean' if mark_clean else (post['audit_status'] or 'pending')
         conn.execute(
-            'UPDATE posts SET summary = ?, audit_status = ? WHERE id = ?',
-            (redacted_summary, new_status, post_id),
+            'UPDATE posts SET summary = ?, audit_status = ?, audited_at = ? WHERE id = ?',
+            (redacted_summary, new_status, datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') if mark_clean else post['audited_at'], post_id),
+        )
+        _log_admin_action(
+            'redaction.saved',
+            target_type='post',
+            target_id=post_id,
+            metadata={'from': post['audit_status'] or 'pending', 'to': new_status, 'mark_clean': mark_clean},
+            conn=conn,
         )
         conn.commit()
         conn.close()
@@ -6593,237 +10616,177 @@ def admin_facebook():
     )
 
 
+@app.route('/admin/audience/email-ops')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_email_ops():
+    try:
+        target_date = _digest_target_date(request.args.get('target_date'))
+    except ValueError as exc:
+        flash(str(exc), 'error')
+        target_date = _digest_target_date('')
+
+    preview = _build_email_ops_preview(target_date)
+    test_recipient = _digest_support_email()
+    return render_template(
+        'admin_email_ops.html',
+        target_date=target_date,
+        preview=preview,
+        test_recipient=test_recipient,
+        can_send_email_ops=current_user.role in EMAIL_OPS_SEND_ROLES,
+    )
+
+
+@app.route('/admin/audience/email-ops/send-test', methods=['POST'])
+@login_required
+@require_role(*EMAIL_OPS_SEND_ROLES)
+def admin_email_ops_send_test():
+    try:
+        target_date = _digest_target_date(request.form.get('target_date'))
+        recipient_email = _digest_support_email()
+        _send_test_digest(
+            target_date,
+            recipient_email=recipient_email,
+            initiated_by=current_user.username,
+        )
+        flash(f'Test digest sent to {recipient_email}.', 'success')
+    except ValueError as exc:
+        flash(str(exc), 'error')
+    except Exception as exc:
+        flash(f'Test digest failed: {str(exc)[:200]}', 'error')
+    return redirect(url_for('admin_email_ops', target_date=request.form.get('target_date') or ''))
+
+
+@app.route('/admin/audience/email-ops/send-now', methods=['POST'])
+@login_required
+@require_role(*EMAIL_OPS_SEND_ROLES)
+def admin_email_ops_send_now():
+    try:
+        target_date = _digest_target_date(request.form.get('target_date'))
+        results = _send_digest_to_active_subscribers(
+            target_date,
+            initiated_by=current_user.username,
+        )
+        flash(
+            f"Digest send complete: {results['sent_count']} sent, "
+            f"{results['skipped_count']} skipped, {results['failed_count']} failed.",
+            'success' if results['failed_count'] == 0 else 'warning',
+        )
+    except ValueError as exc:
+        flash(str(exc), 'error')
+    except Exception as exc:
+        flash(f'Digest send failed: {str(exc)[:200]}', 'error')
+    return redirect(url_for('admin_email_ops', target_date=request.form.get('target_date') or ''))
+
+
 @app.route('/admin/settings', methods=['GET', 'POST'])
 @login_required
+@require_role(*ADMIN_MANAGEMENT_ROLES)
 def admin_settings():
-    """Admin settings - change password"""
-    
+    """Typed admin settings backed by app_settings."""
     if request.method == 'POST':
-        new_password = request.form.get('new_password')
-        
-        if new_password:
-            conn = get_db()
-            hashed_pw = bcrypt.generate_password_hash(new_password).decode('utf-8')
-            conn.execute('UPDATE users SET password = ? WHERE id = ?', 
-                        (hashed_pw, current_user.id))
-            conn.commit()
+        action = (request.form.get('action') or '').strip()
+        conn = get_db()
+        try:
+            if action == 'change_password':
+                new_password = (request.form.get('new_password') or '').strip()
+                if len(new_password) < 12:
+                    raise ValueError('Password must be at least 12 characters.')
+
+                hashed_pw = bcrypt.generate_password_hash(new_password).decode('utf-8')
+                conn.execute(
+                    'UPDATE users SET password = ? WHERE id = ?',
+                    (hashed_pw, current_user.id),
+                )
+                _log_admin_action(
+                    'security.password_changed',
+                    target_type='user',
+                    target_id=current_user.id,
+                    metadata={'username': current_user.username},
+                    conn=conn,
+                )
+                conn.commit()
+                flash('Password updated successfully.', 'success')
+            elif action == 'save_auth_settings':
+                updates = {}
+                for key in ('admin_login_max_attempts', 'admin_login_window_minutes', 'admin_login_lockout_minutes'):
+                    value = _coerce_setting_value(key, request.form.get(key))
+                    _save_app_setting(conn, key, value)
+                    updates[key] = value
+                _log_admin_action(
+                    'settings.authentication_updated',
+                    target_type='app_settings',
+                    metadata=updates,
+                    conn=conn,
+                )
+                conn.commit()
+                flash('Authentication settings saved.', 'success')
+            elif action == 'save_ingestion_settings':
+                updates = {}
+                for key in ('max_upload_mb', 'ingest_alert_repeat_hours'):
+                    value = _coerce_setting_value(key, request.form.get(key))
+                    _save_app_setting(conn, key, value)
+                    updates[key] = value
+                _log_admin_action(
+                    'settings.ingestion_updated',
+                    target_type='app_settings',
+                    metadata=updates,
+                    conn=conn,
+                )
+                conn.commit()
+                _apply_runtime_app_settings(conn=conn)
+                flash('Ingestion settings saved.', 'success')
+            elif action == 'save_revenue_settings':
+                enabled = _coerce_setting_value('donations_enabled', request.form.get('donations_enabled'))
+                _save_app_setting(conn, 'donations_enabled', enabled)
+                _log_admin_action(
+                    'settings.revenue_updated',
+                    target_type='app_settings',
+                    metadata={'donations_enabled': enabled},
+                    conn=conn,
+                )
+                conn.commit()
+                flash('Revenue settings saved.', 'success')
+            else:
+                raise ValueError('Unknown settings action.')
+        except ValueError as exc:
+            conn.rollback()
+            flash(str(exc), 'error')
+        finally:
             conn.close()
-            
-            flash('Password updated successfully')
-            return redirect(url_for('admin_dashboard'))
-    
-    return render_template('admin_settings.html')
+
+        return redirect(url_for('admin_settings'))
+
+    conn = get_db()
+    setting_values = _settings_form_values(conn)
+    runtime_info = {
+        'base_url': config.BASE_URL,
+        'upload_dir': app.config['UPLOAD_FOLDER'],
+        'max_upload_bytes': app.config.get('MAX_CONTENT_LENGTH'),
+        'referrer_policy': config.REFERRER_POLICY,
+        'api_cors_allow_origin': getattr(config, 'API_CORS_ALLOW_ORIGIN', '*'),
+        'session_cookie_samesite': config.SESSION_COOKIE_SAMESITE,
+        'content_security_policy': bool(config.CONTENT_SECURITY_POLICY),
+        'donation_currency': _donation_currency().upper(),
+    }
+    conn.close()
+    return render_template(
+        'admin_settings.html',
+        setting_values=setting_values,
+        setting_specs=APP_SETTING_SPECS,
+        runtime_info=runtime_info,
+    )
 
 @app.route('/admin/emails', methods=['GET', 'POST'])
 @login_required
 def admin_emails():
-    """Manage emails and send bulk emails to sheriffs"""
-    
-    if request.method == 'POST':
-        action = request.form.get('action')
-        
-        if action == 'resend_bounced':
-            from resend_bounced import run as resend_run
-            resent, skipped = resend_run()
-            flash(f'✅ Bounced emails processed — Resent: {resent} | Skipped: {skipped}')
-            return redirect(url_for('admin_emails'))
-
-        if action == 'send_to_sheriffs':
-            # Get form data
-            counties = request.form.getlist('counties')
-            subject = request.form.get('subject', '')
-            body = request.form.get('body', '')
-            
-            if not counties or not subject or not body:
-                flash('Please select counties, provide subject and body')
-                return redirect(url_for('admin_emails'))
-            
-            # Sheriffs email database (by county)
-            # NOTE: Only entries with confirmed valid MX records are included.
-            # The remaining ~50 counties need real addresses looked up from each
-            # sheriff's official website — their domains do not have valid DNS MX
-            # records and all sends will bounce. Add them here once verified.
-            SHERIFFS_EMAILS = {
-                'Beaverhead':      'sheriff@beaverheadcounty.gov',
-                'Big Horn':        'bso@bighorncountymt.gov',
-                'Blaine':          'bcsheriff@blainecounty-mt.gov',
-                'Broadwater':      'records@co.broadwater.mt.us',
-                'Carbon':          'carboncoso@co.carbon.mt.us',
-                'Carter':          'ccsomontana@gmail.com',
-                'Cascade':         'info@cascadecountysheriff.org',
-                'Chouteau':        'sheriff@chouteaucounty.org',
-                'Custer':          'ccso-records@co.custer.mt.us',
-                # 'Daniels': TODO — email address could not be verified (URL pasted by mistake)
-                'Dawson':          'dcsoadmin@dawsoncountymontana.com',
-                'Deer Lodge':      'dlrecords@adlc.us',
-                'Fallon':          'sheriff@falloncounty.net',
-                'Fergus':          'fcso@co.fergus.mt.us',
-                'Flathead':        'fcsorecords@flathead.mt.gov',
-                'Gallatin':        'publicrecordsrequests@gallatin.mt.gov',
-                'Garfield':        'garfieldcountysheriff@midrivers.com',
-                'Glacier':         'sheriffadmin@glaciercountymt.org',
-                'Golden Valley':   'gvso@itstriangle.com',
-                'Granite':         'sheriff@granitecountymt.gov',
-                'Hill':            'hillcosheriff@hillcounty.us',
-                'Jefferson':       'tgrimsrud@jeffersoncounty-mt.gov',
-                'Judith Basin':    'jbcso@jbcounty.org',
-                'Lake':            'lcsorecords@lakemt.gov',
-                'Lewis and Clark': 'records@lccountymt.gov',
-                'Liberty':         'lcso@libertycountymt.gov',
-                'Lincoln':         'lcsoadmin@libbymt.com',
-                'Madison':         'mcso@madisoncountymt.gov',
-                'McCone':          'mcconesheriff@midrivers.com',
-                'Meagher':         'mcso@meagherco.net',
-                'Mineral':         'records@co.mineral.mt.us',
-                'Missoula':        'MCSOrecords@missoulacounty.us',
-                'Musselshell':     'mcso@musselshellcounty.org',
-                'Park':            'sheriffrecords@parkcounty.org',
-                'Petroleum':       'petcoso@midrivers.com',
-                'Phillips':        'sheriff@phillipscountymt.gov',
-                'Pondera':         'brandy.egan@ponderacounty.org',
-                'Powder River':    'prso@prcounty.com',
-                'Powell':          'pcoso@powellcountymt.gov',
-                'Prairie':         'klewis@prairiecounty.org',
-                'Ravalli':         'rcso-records@rc.mt.gov',
-                'Richland':        'rcso-records@richland.org',
-                'Roosevelt':       'rcsosheriff@rooseveltcounty.org',
-                'Rosebud':         'afulton@rosebudcountymt.com',
-                'Sanders':         'sfielders@co.sanders.mt.us',
-                'Sheridan':        'ljohnson@sheridancountymt.gov',
-                'Silver Bow':      'bsbpolice@bsb.mt.gov',
-                'Stillwater':      'carnold@stillwatercountymt.gov',
-                'Sweet Grass':     'aronneberg@sgcountymt.gov',
-                'Teton':           'tcso@tetoncountymt.gov',
-                'Toole':           'tcsorecords@toolecountymt.gov',
-                'Treasure':        'msears@treasurecountymt.gov',
-                'Valley':          'tboyer@valleycountymt.gov',
-                'Wheatland':       'wcdisp@wheatlandcomt.gov',
-                'Wibaux':          'wibauxso@midrivers.com',
-                'Yellowstone':     'SheriffRecords@yellowstonecountymt.gov',
-            }
-
-            POLICE_EMAILS = {
-                'Billings PD':   'BPDRecords@billingsmt.gov',
-                'Bozeman PD':    'bpdrecords@bozeman.net',
-                'Great Falls PD':'gfpdrecords@greatfallsmt.net',
-                'Helena PD':     'hpdrecords@helenamt.gov',
-                'Kalispell PD':  'kpdrecords@kalispell.com',
-                'Missoula PD':   'mpdrecords@ci.missoula.mt.us',
-            }
-
-            ALL_AGENCIES = {**SHERIFFS_EMAILS, **POLICE_EMAILS}
-
-            # Load already-contacted agencies
-            conn = get_db()
-            already_emailed = {
-                row[0] for row in conn.execute(
-                    'SELECT DISTINCT agency_name FROM emailed_agencies'
-                ).fetchall()
-            }
-
-            # Split selected agencies into new vs already contacted
-            selected = [a for a in counties if a in ALL_AGENCIES]
-            skip = [a for a in selected if a in already_emailed]
-            to_send = [a for a in selected if a not in already_emailed]
-
-            if not to_send:
-                flash(f'All {len(skip)} selected agencies have already been contacted — no emails sent.')
-                conn.close()
-                return redirect(url_for('admin_emails'))
-
-            # Send only to new agencies
-            try:
-                from email_worker import EmailWorker
-                worker = EmailWorker()
-                results = worker.send_bulk_emails(
-                    [ALL_AGENCIES[a] for a in to_send], subject, body
-                )
-
-                # Log successful sends
-                for agency in to_send:
-                    email_addr = ALL_AGENCIES[agency]
-                    if results.get(email_addr):
-                        conn.execute(
-                            'INSERT INTO emailed_agencies (agency_name, email_address, subject) VALUES (?, ?, ?)',
-                            (agency, email_addr, subject)
-                        )
-                conn.commit()
-
-                successful = sum(1 for v in results.values() if v)
-                failed = len(results) - successful
-
-                msg = f'✅ Emails sent! Success: {successful}/{len(to_send)}'
-                if skip:
-                    msg += f' | Skipped {len(skip)} already-contacted'
-                flash(msg)
-                if failed > 0:
-                    flash(f'⚠️ Failed to send to {failed} recipients', 'warning')
-
-            except Exception as e:
-                flash(f'Error sending emails: {str(e)}')
-            finally:
-                conn.close()
-
-            return redirect(url_for('admin_emails'))
-
-    police_depts = ['Billings PD', 'Bozeman PD', 'Great Falls PD', 'Helena PD', 'Kalispell PD', 'Missoula PD']
-    conn = get_db()
-    already_emailed = {
-        row[0] for row in conn.execute(
-            'SELECT DISTINCT agency_name FROM emailed_agencies'
-        ).fetchall()
-    }
-    conn.close()
-    return render_template('admin_emails.html', counties=config.MONTANA_COUNTIES,
-                           police_depts=police_depts, already_emailed=already_emailed)
+    """Legacy route redirected to the current digest email ops console."""
+    return redirect(url_for('admin_email_ops'))
 
 @app.route('/admin/emails/template/<template_type>')
 @login_required
 def get_email_template(template_type):
-    """Get a preset email template"""
-    
-    TEMPLATES = {
-        'blotter_request': {
-            'subject': 'Request for Law Enforcement Blotter Records - Montana Blotter Project',
-            'body': '''Dear Sheriff,
-
-We are writing to request law enforcement blotter records from your county as part of the Montana Blotter project, a public information initiative to make law enforcement activity more transparent and accessible to citizens.
-
-The Montana Blotter aggregates public blotter information from sheriffs' offices across the state, allowing citizens to search and view recent law enforcement incidents in their area. This helps communities stay informed about public safety activities.
-
-We would greatly appreciate it if your office could provide regular blotter updates (weekly or daily) via email. The appropriate format would be either:
-- PDF documents with incident listings
-- CSV/Excel spreadsheets with structured data
-- Any other standard format your office uses
-
-All information shared will be made publicly available and properly attributed to your department.
-
-Thank you for your time and consideration. Please contact us if you have any questions about this initiative.
-
-Best regards,
-Montana Blotter Project
-'''
-        },
-        'follow_up': {
-            'subject': 'Follow-up: Law Enforcement Blotter Submission - Montana Blotter',
-            'body': '''Dear Sheriff,
-
-We hope you received our previous request regarding law enforcement blotter records for the Montana Blotter project. We have not yet received a response and wanted to follow up.
-
-The Montana Blotter is a valuable public resource for citizens to stay informed about law enforcement activity in their communities. Your county's participation would be greatly appreciated.
-
-If you have any questions or concerns about the project, please feel free to reach out. We are happy to discuss any data sharing arrangements or requirements your office may have.
-
-Thank you,
-Montana Blotter Project
-'''
-        }
-    }
-    
-    if template_type not in TEMPLATES:
-        return jsonify({'error': 'Template not found'}), 404
-    
-    return jsonify(TEMPLATES[template_type])
+    return jsonify({'error': 'Email sheriff admin has been removed.'}), 404
 
 # ==========================================
 # PUBLIC JSON API
@@ -7510,6 +11473,10 @@ def admin_donations_export():
 @login_required
 def admin_bail_ads():
     package_map = _bail_ad_package_lookup()
+    q = (request.args.get('q') or '').strip()[:120]
+    status_filter = (request.args.get('status') or 'all').strip().lower()
+    if status_filter not in _BAIL_OUTREACH_STATUSES and status_filter != 'all':
+        status_filter = 'all'
     stats = {
         'pending': 0,
         'in_review': 0,
@@ -7547,6 +11514,10 @@ def admin_bail_ads():
     county_pipeline_30d = []
     consumer_leads = []
     advertiser_pipeline_30d = []
+    agencies = []
+    email_logs = []
+    status_counts = {status: 0 for status in sorted(_BAIL_OUTREACH_STATUSES)}
+    total_count = 0
     schema_ready = True
 
     conn = get_db()
@@ -7817,45 +11788,7 @@ def admin_bail_ads():
                     'county_slots': int(pkg.get('county_slots') or 0),
                     'recommendation': recommendation,
                 })
-    except sqlite3.OperationalError:
-        schema_ready = False
-    finally:
-        conn.close()
 
-    return render_template(
-        'admin_bail_ads.html',
-        schema_ready=schema_ready,
-        stats=stats,
-        order_stats=order_stats,
-        inquiries=inquiries,
-        orders=orders,
-        creatives=creatives,
-        performance_30d=performance_30d,
-        county_performance_30d=county_performance_30d,
-        renewal_candidates=renewal_candidates,
-        upgrade_candidates=upgrade_candidates,
-        consumer_pipeline_30d=consumer_pipeline_30d,
-        county_pipeline_30d=county_pipeline_30d,
-        consumer_leads=consumer_leads,
-        advertiser_pipeline_30d=advertiser_pipeline_30d,
-        package_map=package_map,
-    )
-
-
-@app.route('/admin/bail-ads/agencies')
-@login_required
-def admin_bail_agency_cms():
-    q = (request.args.get('q') or '').strip()[:120]
-    status_filter = (request.args.get('status') or 'all').strip().lower()
-    if status_filter not in _BAIL_OUTREACH_STATUSES and status_filter != 'all':
-        status_filter = 'all'
-
-    agencies = []
-    email_logs = []
-    status_counts = {status: 0 for status in sorted(_BAIL_OUTREACH_STATUSES)}
-    total_count = 0
-    conn = get_db()
-    try:
         _ensure_bail_agency_outreach_schema(conn)
         _seed_bail_agency_outreach(conn)
         conn.commit()
@@ -7893,7 +11826,7 @@ def admin_bail_agency_cms():
             params.extend([like, like, like, like, like, like])
 
         where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ''
-        rows = conn.execute(
+        agency_rows = conn.execute(
             f'''
             SELECT
                 id, agency_name, contact_name, email, phone, counties, source, outreach_status,
@@ -7910,7 +11843,7 @@ def admin_bail_agency_cms():
             ''',
             tuple(params),
         ).fetchall()
-        for row in rows:
+        for row in agency_rows:
             agency = dict(row)
             agency.update(_bail_agency_rendered_templates(agency))
             agencies.append(agency)
@@ -7934,12 +11867,26 @@ def admin_bail_agency_cms():
             '''
         ).fetchall()
     except sqlite3.OperationalError:
-        flash('Bail agency CMS table is not available. Run migration first.', 'error')
+        schema_ready = False
     finally:
         conn.close()
 
     return render_template(
-        'admin_bail_agency_cms.html',
+        'admin_bail_ads.html',
+        schema_ready=schema_ready,
+        stats=stats,
+        order_stats=order_stats,
+        inquiries=inquiries,
+        orders=orders,
+        creatives=creatives,
+        performance_30d=performance_30d,
+        county_performance_30d=county_performance_30d,
+        renewal_candidates=renewal_candidates,
+        upgrade_candidates=upgrade_candidates,
+        consumer_pipeline_30d=consumer_pipeline_30d,
+        county_pipeline_30d=county_pipeline_30d,
+        consumer_leads=consumer_leads,
+        advertiser_pipeline_30d=advertiser_pipeline_30d,
         agencies=agencies,
         total_count=total_count,
         status_counts=status_counts,
@@ -7948,7 +11895,19 @@ def admin_bail_agency_cms():
         outreach_statuses=sorted(_BAIL_OUTREACH_STATUSES),
         default_test_email=_default_bail_test_email(),
         email_logs=email_logs,
+        package_map=package_map,
     )
+
+
+@app.route('/admin/bail-ads/agencies')
+@login_required
+def admin_bail_agency_cms():
+    q = (request.args.get('q') or '').strip()[:120]
+    status_filter = (request.args.get('status') or 'all').strip().lower()
+    if status_filter not in _BAIL_OUTREACH_STATUSES and status_filter != 'all':
+        status_filter = 'all'
+    target = url_for('admin_bail_ads', q=q, status=status_filter)
+    return redirect(f'{target}#agency-cms')
 
 
 @app.route('/admin/bail-ads/agencies/create', methods=['POST'])
@@ -7964,12 +11923,12 @@ def admin_bail_agency_cms_create():
 
     if not agency_name:
         flash('Agency name is required.', 'warning')
-        return redirect(url_for('admin_bail_agency_cms'))
+        return redirect(f"{url_for('admin_bail_ads')}#agency-cms")
 
     dedupe_key = _bail_agency_dedupe_key(agency_name, email, phone)
     if not dedupe_key:
         flash('Unable to create agency record.', 'error')
-        return redirect(url_for('admin_bail_agency_cms'))
+        return redirect(f"{url_for('admin_bail_ads')}#agency-cms")
 
     conn = get_db()
     try:
@@ -7997,7 +11956,7 @@ def admin_bail_agency_cms_create():
         flash('Bail agency CMS table is not available. Run migration first.', 'error')
     finally:
         conn.close()
-    return redirect(url_for('admin_bail_agency_cms'))
+    return redirect(f"{url_for('admin_bail_ads')}#agency-cms")
 
 
 @app.route('/admin/bail-ads/agencies/<int:agency_id>/update', methods=['POST'])
@@ -8031,7 +11990,7 @@ def admin_bail_agency_cms_update(agency_id):
     dedupe_key = _bail_agency_dedupe_key(agency_name, email, phone)
     if not agency_name or not dedupe_key:
         flash('Agency name is required for updates.', 'warning')
-        return redirect(url_for('admin_bail_agency_cms'))
+        return redirect(f"{url_for('admin_bail_ads')}#agency-cms")
 
     conn = get_db()
     try:
@@ -8192,7 +12151,7 @@ def admin_bail_agency_cms_update(agency_id):
         flash('Bail agency CMS table is not available. Run migration first.', 'error')
     finally:
         conn.close()
-    return redirect(url_for('admin_bail_agency_cms'))
+    return redirect(f"{url_for('admin_bail_ads')}#agency-cms")
 
 
 @app.route('/admin/bail-ads/attribution/export.csv')
@@ -8463,129 +12422,14 @@ def admin_bail_consumer_lead_status(lead_id):
 @login_required
 def admin_analytics():
     conn = get_db()
-
-    # Incidents per day — last 30 days
-    daily_rows = conn.execute(
-        "SELECT date(created_at) AS day, COUNT(*) AS cnt FROM records "
-        "WHERE created_at >= date('now', '-30 days') "
-        "GROUP BY day ORDER BY day"
-    ).fetchall()
-    daily_labels = [r['day'] for r in daily_rows]
-    daily_counts = [r['cnt'] for r in daily_rows]
-
-    # Top 10 incident types
-    type_rows = conn.execute(
-        "SELECT COALESCE(incident_type, 'Unknown') AS itype, COUNT(*) AS cnt "
-        "FROM records WHERE incident_type IS NOT NULL AND incident_type != '' "
-        "GROUP BY itype ORDER BY cnt DESC LIMIT 10"
-    ).fetchall()
-    type_labels = [r['itype'] for r in type_rows]
-    type_counts = [r['cnt'] for r in type_rows]
-
-    # Agency type breakdown
-    agency_rows = conn.execute(
-        "SELECT COALESCE(agency_type, 'other') AS atype, COUNT(*) AS cnt "
-        "FROM posts GROUP BY atype"
-    ).fetchall()
-    agency_labels = [r['atype'].title() for r in agency_rows]
-    agency_counts = [r['cnt'] for r in agency_rows]
-
-    # Top 10 counties — this month vs last month
-    county_this = {r['county']: r['cnt'] for r in conn.execute(
-        "SELECT COALESCE(county, 'Unknown') AS county, COUNT(*) AS cnt FROM records "
-        "WHERE created_at >= date('now', 'start of month') "
-        "GROUP BY county ORDER BY cnt DESC LIMIT 10"
-    ).fetchall()}
-    county_last = {r['county']: r['cnt'] for r in conn.execute(
-        "SELECT COALESCE(county, 'Unknown') AS county, COUNT(*) AS cnt FROM records "
-        "WHERE created_at >= date('now', 'start of month', '-1 month') "
-        "AND created_at < date('now', 'start of month') "
-        "GROUP BY county ORDER BY cnt DESC LIMIT 10"
-    ).fetchall()}
-    county_labels = sorted(set(list(county_this.keys()) + list(county_last.keys())))[:10]
-    county_this_vals = [county_this.get(c, 0) for c in county_labels]
-    county_last_vals = [county_last.get(c, 0) for c in county_labels]
-
-    # Blotters received per month — last 12 months
-    blotter_rows = conn.execute(
-        "SELECT strftime('%Y-%m', upload_date) AS mo, COUNT(*) AS cnt "
-        "FROM blotters GROUP BY mo ORDER BY mo DESC LIMIT 12"
-    ).fetchall()
-    blotter_labels = [r['mo'] for r in reversed(blotter_rows)]
-    blotter_counts = [r['cnt'] for r in reversed(blotter_rows)]
-
-    pattern_clicks_30d = conn.execute(
-        "SELECT COUNT(*) FROM pattern_clicks WHERE created_at >= date('now', '-30 days')"
-    ).fetchone()[0]
-    pattern_clicks_homepage = conn.execute(
-        "SELECT COUNT(*) FROM pattern_clicks WHERE placement = 'homepage_pattern_promos' AND created_at >= date('now', '-30 days')"
-    ).fetchone()[0]
-    pattern_clicks_post = conn.execute(
-        "SELECT COUNT(*) FROM pattern_clicks WHERE placement = 'post_related_patterns' AND created_at >= date('now', '-30 days')"
-    ).fetchone()[0]
-    pattern_click_rows = conn.execute(
-        '''
-        SELECT placement, COUNT(*) AS cnt
-        FROM pattern_clicks
-        WHERE created_at >= date('now', '-30 days')
-        GROUP BY placement
-        ORDER BY cnt DESC, placement ASC
-        '''
-    ).fetchall()
-    pattern_click_labels = [row['placement'].replace('_', ' ').title() for row in pattern_click_rows]
-    pattern_click_counts = [row['cnt'] for row in pattern_click_rows]
-    pattern_click_targets = conn.execute(
-        '''
-        SELECT target_path, placement, COUNT(*) AS cnt
-        FROM pattern_clicks
-        WHERE created_at >= date('now', '-30 days')
-        GROUP BY target_path, placement
-        ORDER BY cnt DESC, target_path ASC
-        LIMIT 10
-        '''
-    ).fetchall()
-    pattern_click_patterns = conn.execute(
-        '''
-        SELECT pattern_slug, county_slug, COUNT(*) AS cnt
-        FROM pattern_clicks
-        WHERE created_at >= date('now', '-30 days')
-        GROUP BY pattern_slug, county_slug
-        ORDER BY cnt DESC, pattern_slug ASC, county_slug ASC
-        LIMIT 10
-        '''
-    ).fetchall()
-    homepage_page_views_30d = conn.execute(
-        "SELECT COUNT(*) FROM page_views WHERE path = '/' AND created_at >= date('now', '-30 days')"
-    ).fetchone()[0]
-    post_page_views_30d = conn.execute(
-        "SELECT COUNT(*) FROM page_views WHERE path LIKE '/post/%' AND created_at >= date('now', '-30 days')"
-    ).fetchone()[0]
-    homepage_pattern_ctr = (
-        (pattern_clicks_homepage / homepage_page_views_30d * 100) if homepage_page_views_30d else 0
+    context = _analytics_hub_context(
+        conn,
+        date_from=request.args.get('date_from'),
+        date_to=request.args.get('date_to'),
+        path_prefix=request.args.get('path_prefix'),
     )
-    post_pattern_ctr = (
-        (pattern_clicks_post / post_page_views_30d * 100) if post_page_views_30d else 0
-    )
-
     conn.close()
-    return render_template('admin_analytics.html',
-        daily_labels=daily_labels, daily_counts=daily_counts,
-        type_labels=type_labels, type_counts=type_counts,
-        agency_labels=agency_labels, agency_counts=agency_counts,
-        county_labels=county_labels, county_this=county_this_vals, county_last=county_last_vals,
-        blotter_labels=blotter_labels, blotter_counts=blotter_counts,
-        pattern_clicks_30d=pattern_clicks_30d,
-        pattern_clicks_homepage=pattern_clicks_homepage,
-        pattern_clicks_post=pattern_clicks_post,
-        pattern_click_labels=pattern_click_labels,
-        pattern_click_counts=pattern_click_counts,
-        pattern_click_targets=pattern_click_targets,
-        pattern_click_patterns=pattern_click_patterns,
-        homepage_page_views_30d=homepage_page_views_30d,
-        post_page_views_30d=post_page_views_30d,
-        homepage_pattern_ctr=homepage_pattern_ctr,
-        post_pattern_ctr=post_pattern_ctr,
-    )
+    return render_template('admin_analytics_hub.html', analytics=context)
 
 
 # ==========================================
@@ -8595,48 +12439,7 @@ def admin_analytics():
 @app.route('/admin/visitors')
 @login_required
 def admin_visitors():
-    conn = get_db()
-
-    # Summary counts
-    today     = conn.execute("SELECT COUNT(*) FROM page_views WHERE date(created_at)=date('now')").fetchone()[0]
-    this_week = conn.execute("SELECT COUNT(*) FROM page_views WHERE created_at >= date('now','-7 days')").fetchone()[0]
-    this_month= conn.execute("SELECT COUNT(*) FROM page_views WHERE created_at >= date('now','start of month')").fetchone()[0]
-    all_time  = conn.execute("SELECT COUNT(*) FROM page_views").fetchone()[0]
-
-    # Unique visitors (by ip_hash) — last 30 days
-    unique_today     = conn.execute("SELECT COUNT(DISTINCT ip_hash) FROM page_views WHERE date(created_at)=date('now')").fetchone()[0]
-    unique_week      = conn.execute("SELECT COUNT(DISTINCT ip_hash) FROM page_views WHERE created_at >= date('now','-7 days')").fetchone()[0]
-    unique_month     = conn.execute("SELECT COUNT(DISTINCT ip_hash) FROM page_views WHERE created_at >= date('now','start of month')").fetchone()[0]
-
-    # Views per day — last 30 days
-    daily_rows = conn.execute(
-        "SELECT date(created_at) AS day, COUNT(*) AS cnt FROM page_views "
-        "WHERE created_at >= date('now','-30 days') GROUP BY day ORDER BY day"
-    ).fetchall()
-    daily_labels = [r['day'] for r in daily_rows]
-    daily_counts = [r['cnt'] for r in daily_rows]
-
-    # Top 10 pages
-    top_pages = conn.execute(
-        "SELECT path, COUNT(*) AS cnt FROM page_views "
-        "WHERE created_at >= date('now','-30 days') "
-        "GROUP BY path ORDER BY cnt DESC LIMIT 10"
-    ).fetchall()
-
-    # Top 10 referrers (exclude empty/direct)
-    top_referrers = conn.execute(
-        "SELECT referrer, COUNT(*) AS cnt FROM page_views "
-        "WHERE referrer != '' AND created_at >= date('now','-30 days') "
-        "GROUP BY referrer ORDER BY cnt DESC LIMIT 10"
-    ).fetchall()
-
-    conn.close()
-    return render_template('admin_visitors.html',
-        today=today, this_week=this_week, this_month=this_month, all_time=all_time,
-        unique_today=unique_today, unique_week=unique_week, unique_month=unique_month,
-        daily_labels=daily_labels, daily_counts=daily_counts,
-        top_pages=top_pages, top_referrers=top_referrers,
-    )
+    return redirect(url_for('admin_analytics', tab='traffic'))
 
 
 # ==========================================

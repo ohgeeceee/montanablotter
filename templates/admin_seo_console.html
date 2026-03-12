@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700{% elif category == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-emerald-600">Growth</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">SEO Console</h1>
+            <p class="text-sm text-slate-500 mt-2">Search Console imports, high-impression queries, and page-level CTR opportunities.</p>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <input type="file" name="search_console_csv" accept=".csv,text/csv"
+                   class="block rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+            <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">Import CSV</button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Latest Query Import</p>
+            <p class="text-sm font-semibold text-slate-900 mt-2">
+                {% if search_console.latest_query_import %}
+                {{ search_console.latest_query_import.source_filename }} · {{ search_console.latest_query_import.row_count }} rows
+                {% else %}
+                No query CSV imported
+                {% endif %}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Latest Page Import</p>
+            <p class="text-sm font-semibold text-slate-900 mt-2">
+                {% if search_console.latest_page_import %}
+                {{ search_console.latest_page_import.source_filename }} · {{ search_console.latest_page_import.row_count }} rows
+                {% else %}
+                No page CSV imported
+                {% endif %}
+            </p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Recent Imports</p>
+            <p class="text-2xl font-black text-slate-900 mt-1">{{ search_console.import_history|length }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Top Queries</h2>
+            </div>
+            <div class="p-5 space-y-3">
+                {% for row in search_console.top_queries %}
+                <div class="rounded-xl border border-slate-200 px-4 py-3">
+                    <p class="text-sm font-semibold text-slate-900">{{ row.query }}</p>
+                    <p class="text-xs text-slate-500 mt-1">{{ row.impressions|int }} impressions · {{ row.clicks|int }} clicks · CTR {{ '%.2f'|format(row.ctr or 0) }}% · Position {{ '%.2f'|format(row.position or 0) }}</p>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">Import a query CSV to populate this panel.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Page Opportunities</h2>
+            </div>
+            <div class="p-5 space-y-4">
+                {% for item in search_console.page_opportunities %}
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div class="flex items-start justify-between gap-4 flex-wrap">
+                        <div>
+                            <p class="text-sm font-black text-slate-900">{{ item.path }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ item.impressions|int }} impressions · {{ item.clicks|int }} clicks · Avg position {{ '%.2f'|format(item.avg_position or 0) }}</p>
+                        </div>
+                        <a href="{{ item.path }}" target="_blank" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Open Page</a>
+                    </div>
+                    {% if item.suggested_title %}
+                    <div class="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <p class="text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">Suggested Title</p>
+                        <p class="text-sm font-semibold text-slate-900 mt-2">{{ item.suggested_title }}</p>
+                    </div>
+                    {% endif %}
+                    {% if item.suggested_meta %}
+                    <div class="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <p class="text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">Suggested Meta Description</p>
+                        <p class="text-sm text-slate-600 leading-6 mt-2">{{ item.suggested_meta }}</p>
+                    </div>
+                    {% endif %}
+                    {% if item.supporting_queries %}
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        {% for query in item.supporting_queries %}
+                        <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700">{{ query }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">Import a pages CSV to see page-level opportunities here.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% if search_console.import_history %}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Import History</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[760px]">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3 text-left">File</th>
+                        <th class="px-5 py-3 text-left">Kind</th>
+                        <th class="px-5 py-3 text-left">Rows</th>
+                        <th class="px-5 py-3 text-left">Imported</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in search_console.import_history %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-4 text-sm font-semibold text-slate-900">{{ item.source_filename }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ item.source_kind }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ item.row_count }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ item.created_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

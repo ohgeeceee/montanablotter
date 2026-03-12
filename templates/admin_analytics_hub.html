@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-emerald-600">Reporting</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Analytics Hub</h1>
+            <p class="text-sm text-slate-500 mt-2">Unified traffic, content, and pattern-conversion analytics.</p>
+        </div>
+        <form method="get" class="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <input type="date" name="date_from" value="{{ analytics.filters.date_from }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+            <input type="date" name="date_to" value="{{ analytics.filters.date_to }}" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+            <input type="text" name="path_prefix" value="{{ analytics.filters.path_prefix }}" placeholder="Path prefix" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+            <button type="submit" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">Apply</button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Page Views</p>
+            <p class="text-3xl font-black text-slate-900 mt-2">{{ analytics.traffic.total_page_views }}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Unique Visitors</p>
+            <p class="text-3xl font-black text-slate-900 mt-2">{{ analytics.traffic.unique_visitors }}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Homepage CTR</p>
+            <p class="text-3xl font-black text-slate-900 mt-2">{{ '%.2f'|format(analytics.patterns.homepage_ctr) }}%</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Homepage Pattern Clicks 30d</p>
+            <p class="text-3xl font-black text-slate-900 mt-2">{{ analytics.patterns.homepage_clicks_30d }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Traffic</h2>
+            </div>
+            <div class="p-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 mb-3">Top Pages</h3>
+                    <div class="space-y-2">
+                        {% for row in analytics.traffic.top_pages %}
+                        <div class="rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                            <span class="text-sm font-mono text-slate-700 truncate">{{ row.path }}</span>
+                            <span class="text-sm font-black text-slate-900 shrink-0">{{ row.cnt }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-500">No page view data for the current filter set.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 mb-3">Top Referrers</h3>
+                    <div class="space-y-2">
+                        {% for row in analytics.traffic.top_referrers %}
+                        <div class="rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                            <span class="text-sm text-slate-700 truncate">{{ row.referrer }}</span>
+                            <span class="text-sm font-black text-slate-900 shrink-0">{{ row.cnt }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-500">No referrer data for the current filter set.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Content</h2>
+            </div>
+            <div class="p-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 mb-3">Top Incident Types</h3>
+                    <div class="space-y-2">
+                        {% for row in analytics.content.type_rows %}
+                        <div class="rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                            <span class="text-sm text-slate-700">{{ row.label }}</span>
+                            <span class="text-sm font-black text-slate-900">{{ row.count }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-500">No incident data for the current filter set.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 mb-3">Agency Mix</h3>
+                    <div class="space-y-2">
+                        {% for row in analytics.content.agency_rows %}
+                        <div class="rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                            <span class="text-sm text-slate-700">{{ row.label }}</span>
+                            <span class="text-sm font-black text-slate-900">{{ row.count }}</span>
+                        </div>
+                        {% else %}
+                        <p class="text-sm text-slate-500">No agency-type data is available.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1fr]">
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Pattern Placements</h2>
+            </div>
+            <div class="p-5 space-y-2">
+                {% for row in analytics.patterns.rows %}
+                <div class="rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                    <span class="text-sm text-slate-700">{{ row.label }}</span>
+                    <span class="text-sm font-black text-slate-900">{{ row.count }}</span>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">No pattern click data is available yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Blotter Throughput</h2>
+            </div>
+            <div class="p-5 space-y-2">
+                {% for row in analytics.content.blotter_rows %}
+                <div class="rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                    <span class="text-sm text-slate-700">{{ row.label }}</span>
+                    <span class="text-sm font-black text-slate-900">{{ row.count }}</span>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">No blotter ingestion history is available.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

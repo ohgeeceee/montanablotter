@@ -31,16 +31,22 @@
             </div>
             <div class="hidden md:flex items-center gap-0.5">
                 <a href="/admin" class="anav-link">Dashboard</a>
+                <a href="/admin/operations/sources" class="anav-link">Sources</a>
+                <a href="/admin/operations/redaction" class="anav-link">Redaction</a>
                 <a href="/admin/blotters" class="anav-link">Blotters</a>
                 <a href="/admin/ingestion" class="anav-link">Ingestion</a>
                 <a href="/admin/upload" class="anav-link">Upload</a>
                 <a href="/admin/blog" class="anav-link">Blog</a>
-                <a href="/admin/emails" class="anav-link">Emails</a>
+                <a href="/admin/content/seo" class="anav-link">SEO</a>
+                <a href="/admin/audience/subscribers" class="anav-link">Subscribers</a>
+                <a href="/admin/audience/email-ops" class="anav-link">Email Ops</a>
                 <a href="/admin/bail-ads" class="anav-link">Bail Ads</a>
-                <a href="/admin/bail-ads/agencies" class="anav-link">Agency CMS</a>
                 <a href="/admin/donations" class="anav-link">Donations</a>
                 <a href="/admin/analytics" class="anav-link">Analytics</a>
-                <a href="/admin/visitors" class="anav-link">Visitors</a>
+                {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+                <a href="/admin/security/users" class="anav-link">Users</a>
+                <a href="/admin/security/audit" class="anav-link">Audit</a>
+                {% endif %}
                 <a href="/" class="anav-link" style="margin-left:8px;">↗ Public</a>
                 <a href="/admin/logout" class="anav-link anav-logout" style="margin-left:4px;">Logout</a>
             </div>

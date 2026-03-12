@@ -32,6 +32,113 @@ def get_db():
     return conn
 
 
+def _ensure_digest_tables(conn):
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS digest_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL,
+            target_date TEXT NOT NULL,
+            audience TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            subject TEXT,
+            preview_posts INTEGER DEFAULT 0,
+            preview_subscribers INTEGER DEFAULT 0,
+            sent_count INTEGER DEFAULT 0,
+            skipped_count INTEGER DEFAULT 0,
+            failed_count INTEGER DEFAULT 0,
+            initiated_by TEXT,
+            notes TEXT,
+            created_by_user_id INTEGER,
+            started_at TEXT,
+            finished_at TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_digest_runs_created ON digest_runs(created_at)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_digest_runs_target ON digest_runs(target_date)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_digest_runs_status ON digest_runs(status)')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS digest_run_recipients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id INTEGER NOT NULL,
+            recipient_email TEXT NOT NULL,
+            counties TEXT DEFAULT '',
+            status TEXT NOT NULL,
+            post_count INTEGER DEFAULT 0,
+            error_message TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (run_id) REFERENCES digest_runs(id) ON DELETE CASCADE
+        )
+    ''')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_digest_run_recipients_run ON digest_run_recipients(run_id)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_digest_run_recipients_status ON digest_run_recipients(status)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_digest_run_recipients_created ON digest_run_recipients(created_at)')
+
+
+def _create_digest_run(conn, *, target_date, subject, preview_posts, preview_subscribers):
+    cursor = conn.execute(
+        '''
+        INSERT INTO digest_runs (
+            kind, target_date, audience, status, subject, preview_posts,
+            preview_subscribers, initiated_by, notes, started_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ''',
+        (
+            'morning_briefing',
+            target_date,
+            'subscribers',
+            'running',
+            (subject or '').strip()[:255],
+            int(preview_posts or 0),
+            int(preview_subscribers or 0),
+            'cron',
+            'Scheduled daily briefing run.',
+        ),
+    )
+    return cursor.lastrowid
+
+
+def _record_digest_recipient(conn, run_id, email, counties, status, post_count=0, error_message=''):
+    conn.execute(
+        '''
+        INSERT INTO digest_run_recipients (
+            run_id, recipient_email, counties, status, post_count, error_message
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            run_id,
+            (email or '').strip().lower(),
+            (counties or '').strip()[:255],
+            (status or '').strip()[:40] or 'pending',
+            int(post_count or 0),
+            (error_message or '').strip()[:500] or None,
+        ),
+    )
+
+
+def _finish_digest_run(conn, run_id, *, status, sent_count=0, skipped_count=0, failed_count=0, notes=''):
+    conn.execute(
+        '''
+        UPDATE digest_runs
+        SET status = ?,
+            sent_count = ?,
+            skipped_count = ?,
+            failed_count = ?,
+            notes = ?,
+            finished_at = datetime('now')
+        WHERE id = ?
+        ''',
+        (
+            (status or '').strip()[:40] or 'completed',
+            int(sent_count or 0),
+            int(skipped_count or 0),
+            int(failed_count or 0),
+            (notes or '').strip()[:500] or None,
+            run_id,
+        ),
+    )
+
+
 def get_posts_for_date(date_str, counties=None):
     """Return posts for a given YYYY-MM-DD date, optionally filtered by county list."""
     conn = get_db()
@@ -158,24 +265,79 @@ def run_briefing():
     subscribers = conn.execute(
         'SELECT email, counties, token FROM subscribers WHERE active=1'
     ).fetchall()
+    _ensure_digest_tables(conn)
+    run_id = _create_digest_run(
+        conn,
+        target_date=yesterday,
+        subject=subject,
+        preview_posts=len(posts),
+        preview_subscribers=len(subscribers),
+    )
+    conn.commit()
     conn.close()
 
     sent = skipped = 0
+    failed = 0
+    run_conn = get_db()
     for sub in subscribers:
         county_filter = [c.strip() for c in (sub['counties'] or '').split(',') if c.strip()]
         sub_posts = get_posts_for_date(yesterday, county_filter or None)
         if not sub_posts:
             skipped += 1
+            _record_digest_recipient(
+                run_conn,
+                run_id,
+                sub['email'],
+                sub['counties'] or '',
+                'skipped',
+                post_count=0,
+                error_message='No matching posts for subscriber counties.',
+            )
             continue
         unsub_url = f"{BASE_URL}/unsubscribe?token={sub['token']}"
         html = build_html(sub_posts, yesterday, unsubscribe_url=unsub_url)
         try:
             send_email(sub['email'], subject, html)
             sent += 1
+            _record_digest_recipient(
+                run_conn,
+                run_id,
+                sub['email'],
+                sub['counties'] or '',
+                'sent',
+                post_count=len(sub_posts),
+            )
         except Exception as e:
             print(f"Failed to send to {sub['email']}: {e}")
+            failed += 1
+            _record_digest_recipient(
+                run_conn,
+                run_id,
+                sub['email'],
+                sub['counties'] or '',
+                'failed',
+                post_count=len(sub_posts),
+                error_message=str(e),
+            )
 
-    print(f"Subscriber briefings: {sent} sent, {skipped} skipped (no matching posts)")
+    final_status = 'completed'
+    if failed and sent:
+        final_status = 'completed_with_errors'
+    elif failed and not sent:
+        final_status = 'failed'
+    _finish_digest_run(
+        run_conn,
+        run_id,
+        status=final_status,
+        sent_count=sent,
+        skipped_count=skipped,
+        failed_count=failed,
+        notes='Scheduled daily briefing run.',
+    )
+    run_conn.commit()
+    run_conn.close()
+
+    print(f"Subscriber briefings: {sent} sent, {skipped} skipped, {failed} failed")
 
 
 if __name__ == "__main__":

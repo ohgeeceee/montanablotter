@@ -108,6 +108,23 @@ def _create_core_tables(cursor: sqlite3.Cursor) -> None:
         'ON auth_login_attempts(username, ip_address, created_at)'
     )
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            target_type TEXT,
+            target_id TEXT,
+            ip_address TEXT,
+            metadata_json TEXT,
+            timestamp TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)')
+
 def init_database():
     """Initialize the database with all required tables"""
     
@@ -146,6 +163,36 @@ def migrate():
         print("✅ Added source_type column to blotters")
     except sqlite3.OperationalError:
         pass  # Column already exists
+
+    for col, definition in [
+        ('role', "TEXT NOT NULL DEFAULT 'super_admin'"),
+        ('is_active', 'INTEGER NOT NULL DEFAULT 1'),
+        ('last_login_at', 'TEXT'),
+        ('mfa_secret', 'TEXT'),
+        ('mfa_enabled', 'INTEGER NOT NULL DEFAULT 0'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE users ADD COLUMN {col} {definition}')
+            print(f'✅ Added users.{col}')
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)')
+
+    for col, definition in [
+        ('target_type', 'TEXT'),
+        ('target_id', 'TEXT'),
+        ('ip_address', 'TEXT'),
+        ('metadata_json', 'TEXT'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE audit_logs ADD COLUMN {col} {definition}')
+            print(f'✅ Added audit_logs.{col}')
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)')
 
     # Add file_path column to blotters if missing
     try:
@@ -236,6 +283,36 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_blog_slug ON blog_posts(slug)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_blog_published ON blog_posts(published)')
 
+    # Search Console CSV imports for workflow/SEO tuning
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS search_console_imports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_filename TEXT NOT NULL,
+            source_kind TEXT NOT NULL DEFAULT 'unknown',
+            row_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS search_console_rows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            import_id INTEGER NOT NULL,
+            query TEXT,
+            page TEXT,
+            clicks REAL DEFAULT 0,
+            impressions REAL DEFAULT 0,
+            ctr REAL DEFAULT 0,
+            position REAL DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (import_id) REFERENCES search_console_imports(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_search_console_imports_created ON search_console_imports(created_at)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_search_console_imports_kind ON search_console_imports(source_kind)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_search_console_rows_import ON search_console_rows(import_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_search_console_rows_page ON search_console_rows(page)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_search_console_rows_query ON search_console_rows(query)')
+
     # Subscribers table for public email digest
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS subscribers (
@@ -247,6 +324,7 @@ def migrate():
             created_at TEXT DEFAULT (datetime('now'))
         )
     ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(active)')
 
     # Emailed agencies — tracks which agencies have been contacted so duplicates are skipped
     cursor.execute('''
@@ -308,6 +386,30 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_source_documents_sha ON source_documents(content_sha256)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status ON ingestion_jobs(status)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_pipeline_events_job_stage ON pipeline_events(ingestion_job_id, stage)')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ingestion_source_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_type TEXT NOT NULL,
+            alert_kind TEXT NOT NULL,
+            state TEXT NOT NULL DEFAULT 'open',
+            summary TEXT,
+            first_detected_at TEXT DEFAULT (datetime('now')),
+            last_detected_at TEXT DEFAULT (datetime('now')),
+            last_sent_at TEXT,
+            resolved_at TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_ingestion_source_alerts_open '
+        'ON ingestion_source_alerts(source_type, alert_kind, state)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_ingestion_source_alerts_updated '
+        'ON ingestion_source_alerts(updated_at)'
+    )
 
     try:
         cursor.execute('ALTER TABLE blotters ADD COLUMN source_document_id INTEGER')
@@ -645,6 +747,60 @@ def migrate():
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS digest_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL,
+            target_date TEXT NOT NULL,
+            audience TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            subject TEXT,
+            preview_posts INTEGER DEFAULT 0,
+            preview_subscribers INTEGER DEFAULT 0,
+            sent_count INTEGER DEFAULT 0,
+            skipped_count INTEGER DEFAULT 0,
+            failed_count INTEGER DEFAULT 0,
+            initiated_by TEXT,
+            notes TEXT,
+            created_by_user_id INTEGER,
+            started_at TEXT,
+            finished_at TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_digest_runs_created ON digest_runs(created_at)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_digest_runs_target ON digest_runs(target_date)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_digest_runs_status ON digest_runs(status)')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS digest_run_recipients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id INTEGER NOT NULL,
+            recipient_email TEXT NOT NULL,
+            counties TEXT DEFAULT '',
+            status TEXT NOT NULL,
+            post_count INTEGER DEFAULT 0,
+            error_message TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (run_id) REFERENCES digest_runs(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_digest_run_recipients_run ON digest_run_recipients(run_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_digest_run_recipients_status ON digest_run_recipients(status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_digest_run_recipients_created ON digest_run_recipients(created_at)')
+
+    for col, definition in [
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+        ('source', 'TEXT'),
+        ('notes', 'TEXT'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE subscribers ADD COLUMN {col} {definition}')
+            print(f'✅ Added subscribers.{col}')
+        except sqlite3.OperationalError:
+            pass
 
     # Facebook publishing queue (MVP social autopost pipeline)
     cursor.execute('''
