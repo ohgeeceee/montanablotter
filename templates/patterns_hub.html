@@ -17,6 +17,23 @@
   "url": "https://montanablotter.com/patterns"
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Montana public safety pattern pages",
+  "itemListElement": [
+    {% for pattern in pattern_cards %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "url": {{ ("https://montanablotter.com/patterns/" ~ pattern.slug) | tojson }},
+      "name": {{ pattern.label | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
 {% endblock %}
 
 {% block breadcrumb %}
@@ -34,6 +51,11 @@
         <p class="text-slate-300 text-sm max-w-3xl">
             Dedicated landing pages for recurring search intent like DUI activity, warrant-related arrests, and domestic disturbance records across Montana counties.
         </p>
+        <div class="mt-5 flex flex-wrap gap-2">
+            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">DUI arrests</span>
+            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">Warrant-related arrests</span>
+            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">Domestic disturbance</span>
+        </div>
     </div>
 </section>
 {% endblock %}

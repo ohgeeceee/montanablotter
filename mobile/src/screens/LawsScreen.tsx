@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   ScrollView,
@@ -85,10 +86,44 @@ const LAW_CATEGORIES: LawCategory[] = [
 type LawsStackParamList = {
   LawsHome: undefined;
   LawsDetail: { category: LawCategory };
+  Diagnostics: undefined;
 };
 
 export default function LawsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<LawsStackParamList>>();
+  const [diagnosticTapCount, setDiagnosticTapCount] = useState(0);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleDiagnosticTap = () => {
+    const nextCount = diagnosticTapCount + 1;
+    setDiagnosticTapCount(nextCount);
+
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+    }
+
+    if (nextCount >= 7) {
+      setDiagnosticTapCount(0);
+      navigation.navigate('Diagnostics');
+      return;
+    }
+
+    resetTimerRef.current = setTimeout(() => {
+      setDiagnosticTapCount(0);
+    }, 1500);
+
+    if (nextCount === 4) {
+      Alert.alert('Diagnostics shortcut', 'Tap the legal disclaimer title three more times to open diagnostics.');
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -120,7 +155,9 @@ export default function LawsScreen() {
       </View>
 
       <View style={styles.disclaimer}>
-        <Text style={styles.disclaimerTitle}>⚠️ Legal Disclaimer</Text>
+        <TouchableOpacity onPress={handleDiagnosticTap} activeOpacity={0.8}>
+          <Text style={styles.disclaimerTitle}>Legal Disclaimer</Text>
+        </TouchableOpacity>
         <Text style={styles.disclaimerText}>
           This page is for general informational purposes only and does not constitute legal advice. 
           Always verify current statutes at leg.mt.gov or consult a licensed Montana attorney.

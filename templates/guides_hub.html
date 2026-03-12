@@ -1,0 +1,94 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana Resource Guides" %}
+{% set meta_description = "Linkable Montana resource guides for county pages, warrants, arrest records, jail rosters, and annual public-safety roundups." %}
+{% set canonical_url = "https://montanablotter.com/guides" %}
+{% set og_title = "Montana Resource Guides | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana resource guides",
+  "description": {{ meta_description | tojson }},
+  "url": {{ canonical_url | tojson }}
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Guides</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+        <span class="inline-block bg-blue-500/20 text-blue-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+            Linkable Assets
+        </span>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Montana Guides Built To Earn Links And Capture Search Demand</h1>
+        <p class="text-slate-300 text-sm max-w-3xl">
+            Evergreen guides for county pages, warrant lookup, arrest records, jail rosters, and annual roundups. These are designed to be shared, cited, and used as entry points into the stronger local pages across the site.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <section class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {% for card in guide_cards %}
+        <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Resource Guide</p>
+            <h2 class="mt-2 text-2xl font-black text-slate-900">
+                <a href="{{ card.href }}" class="hover:text-blue-700 transition">{{ card.label }}</a>
+            </h2>
+            <p class="mt-3 text-sm leading-6 text-slate-600">{{ card.description }}</p>
+            <a href="{{ card.href }}" class="inline-flex items-center gap-2 mt-5 rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-700">
+                Open guide <i class="fas fa-arrow-right text-xs"></i>
+            </a>
+        </article>
+        {% endfor %}
+    </section>
+
+    {% if featured_counties %}
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">County Guide Starters</p>
+                <h2 class="mt-2 text-2xl font-black text-slate-900">The county pages most worth sharing first</h2>
+            </div>
+            <a href="/guides/montana-county-guides" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-700">
+                County guide asset <i class="fas fa-arrow-right text-xs"></i>
+            </a>
+        </div>
+        <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6 mt-5">
+            {% for county in featured_counties %}
+            <a href="/county/{{ county.slug }}" class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:bg-slate-100">
+                <p class="text-sm font-black text-slate-900">{{ county.name }} County</p>
+                <p class="mt-1 text-xs text-slate-500">{{ county.record_count }} records · {{ county.post_count }} reports</p>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if annual_years %}
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Roundup Archive</p>
+        <h2 class="mt-2 text-2xl font-black text-slate-900">Annual roundup pages</h2>
+        <p class="mt-3 text-sm leading-6 text-slate-600">Year-based roundup pages work as linkable summaries for journalists, local sites, and readers looking for a broader statewide snapshot than a county page can provide.</p>
+        <div class="flex flex-wrap gap-3 mt-5">
+            {% for year in annual_years %}
+            <a href="/annual-roundups/{{ year }}" class="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-100">
+                {{ year }} roundup
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

@@ -19,10 +19,14 @@
     <title>{{ page_title }} | Montana Blotter</title>
     <meta name="description" content="{{ meta_description }}">
     {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+    <meta property="og:site_name" content="Montana Blotter">
     <meta property="og:title" content="{{ og_title or (page_title ~ ' | Montana Blotter') }}">
     <meta property="og:description" content="{{ og_description or meta_description }}">
+    <meta property="og:type" content="{{ og_type or 'website' }}">
     {% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+    <meta name="twitter:card" content="{{ twitter_card or 'summary_large_image' }}">
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
+    {% include "includes/google_analytics.html" %}
     {% block extra_head %}{% endblock %}
 </head>
 <body style="background:#0D0C0B; color:#E8DFD0; font-family:'Spectral',Georgia,serif; min-height:100vh;">

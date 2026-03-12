@@ -1,15 +1,41 @@
 import { API_BASE_URL } from '../constants';
 import { Post, PostsResponse, County, Agency, BlogPost } from '../types';
+import { captureApiFailure } from './monitoring';
 
 async function fetchAPI<T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> {
   const url = new URL(`${API_BASE_URL}${endpoint}`);
   Object.entries(params).forEach(([key, value]) => {
-    if (value) url.searchParams.append(key, String(value));
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.append(key, String(value));
+    }
   });
 
-  const response = await fetch(url.toString());
+  let response: Response;
+
+  try {
+    response = await fetch(url.toString());
+  } catch (error) {
+    captureApiFailure(error, {
+      endpoint,
+      method: 'GET',
+      queryKeys: Object.keys(params).filter((key) => params[key] !== undefined && params[key] !== null && params[key] !== ''),
+    });
+    throw error;
+  }
+
   if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
+    const error = new Error(`API Error: ${response.status}`);
+
+    if (response.status >= 500) {
+      captureApiFailure(error, {
+        endpoint,
+        method: 'GET',
+        status: response.status,
+        queryKeys: Object.keys(params).filter((key) => params[key] !== undefined && params[key] !== null && params[key] !== ''),
+      });
+    }
+
+    throw error;
   }
   return response.json();
 }

@@ -47,6 +47,17 @@ class EmailWorker:
         # Ensure upload directory exists
         os.makedirs(self.upload_dir, exist_ok=True)
 
+    def _validate_imap_config(self) -> str | None:
+        if not (self.email_user or '').strip():
+            return 'MB_EMAIL_USER is not set'
+        if not (self.email_pass or '').strip():
+            return 'MB_EMAIL_PASSWORD is not set'
+        if (self.email_pass or '').strip().lower() in {'replace-me', 'changeme', 'change-me'}:
+            return 'MB_EMAIL_PASSWORD is still a placeholder value'
+        if not (self.imap_server or '').strip():
+            return 'MB_IMAP_SERVER is not set'
+        return None
+
     def _looks_like_blotter_email(self, subject: str, sender: str, body: str) -> bool:
         text = " ".join([subject or "", sender or "", body[:4000] or ""]).lower()
         negative_markers = (
@@ -96,6 +107,11 @@ class EmailWorker:
     
     def fetch_and_process_emails(self):
         """Main method - fetch emails and process PDFs"""
+        config_error = self._validate_imap_config()
+        if config_error:
+            logging.error(f"Email worker config error: {config_error}")
+            return 0
+
         try:
             # Connect to IONOS IMAP
             mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)

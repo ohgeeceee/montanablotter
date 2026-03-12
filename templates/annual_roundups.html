@@ -1,0 +1,65 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Annual Roundups" %}
+{% set meta_description = "Annual Montana public-safety roundup pages with top counties, incident patterns, and linked county, warrant, arrest, and jail-roster resources." %}
+{% set canonical_url = "https://montanablotter.com/annual-roundups" %}
+{% set og_title = "Annual Roundups | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana annual roundups",
+  "description": {{ meta_description | tojson }},
+  "url": {{ canonical_url | tojson }}
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Annual Roundups</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+        <span class="inline-block bg-amber-500/20 text-amber-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+            Yearly Linkable Assets
+        </span>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Montana Annual Public Safety Roundups</h1>
+        <p class="text-slate-300 text-sm max-w-3xl">Year-based roundup pages summarize the archive into something linkable: top counties, top incidents, strongest patterns, and the local pages that matter most for follow-up.</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {% for year in years %}
+        <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Annual Roundup</p>
+            <h2 class="mt-2 text-2xl font-black text-slate-900">
+                <a href="/annual-roundups/{{ year.year }}" class="hover:text-blue-700 transition">{{ year.year }}</a>
+            </h2>
+            <p class="mt-3 text-sm leading-6 text-slate-600">
+                {{ year.record_count }} records and {{ year.post_count }} reports{% if year.partial_label %} {{ year.partial_label | lower }}{% endif %}.
+            </p>
+            {% if year.top_counties %}
+            <p class="mt-3 text-xs text-slate-500">
+                Top counties:
+                {% for item in year.top_counties[:3] %}
+                {{ item.name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+            {% endif %}
+            <a href="/annual-roundups/{{ year.year }}" class="inline-flex items-center gap-2 mt-5 rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white transition hover:bg-blue-700">
+                Open roundup <i class="fas fa-arrow-right text-xs"></i>
+            </a>
+        </article>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

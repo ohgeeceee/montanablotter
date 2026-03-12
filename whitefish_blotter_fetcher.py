@@ -69,6 +69,7 @@ class FetchStats:
     discovered: int = 0
     selected: int = 0
     skipped_published: int = 0
+    skipped_missing: int = 0
     skipped_parse_errors: int = 0
     processed: int = 0
     created_blotters: int = 0
@@ -270,6 +271,29 @@ def ingest_whitefish_blotters(page_url: str, max_links: int, dry_run: bool = Fal
             else:
                 stats.duplicate_only += 1
                 logger.info("Whitefish log %s had no new incidents (duplicate-only)", link.label)
+        except requests.exceptions.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code == 404:
+                stats.skipped_missing += 1
+                logger.warning("Skipping missing Whitefish link %s (%s)", link.label, document_url)
+                continue
+
+            stats.failed += 1
+            logger.exception("Failed ingest for Whitefish link %s (%s)", link.label, document_url)
+
+            # Best effort pipeline status update for failed jobs.
+            try:
+                if "ingestion_job_id" in locals():
+                    increment_ingestion_retry(ingestion_job_id, str(exc))
+                    set_ingestion_job_status(ingestion_job_id, "failed", last_error=str(exc), finished=True)
+                    log_pipeline_event(
+                        ingestion_job_id,
+                        "publish",
+                        "error",
+                        {"error": str(exc), "source_url": document_url},
+                    )
+            except Exception:
+                stats.skipped_parse_errors += 1
         except Exception as exc:
             stats.failed += 1
             logger.exception("Failed ingest for Whitefish link %s (%s)", link.label, document_url)
@@ -312,7 +336,8 @@ def main() -> None:
         "Whitefish fetch complete "
         f"(discovered={stats.discovered}, selected={stats.selected}, processed={stats.processed}, "
         f"created={stats.created_blotters}, duplicate_only={stats.duplicate_only}, "
-        f"skipped_published={stats.skipped_published}, failed={stats.failed})"
+        f"skipped_published={stats.skipped_published}, skipped_missing={stats.skipped_missing}, "
+        f"failed={stats.failed})"
     )
 
 

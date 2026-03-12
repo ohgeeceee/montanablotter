@@ -8,11 +8,41 @@
             <h1 class="text-2xl font-bold text-gray-900">Blog Posts</h1>
             <p class="text-sm text-gray-500 mt-1">Manage your blog content</p>
         </div>
-        <a href="/admin/blog/new"
-           class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-            <i class="fas fa-plus"></i> New Post
-        </a>
+        <div class="flex items-center gap-3">
+            <a href="/admin/blog/workflow"
+               class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+                <i class="fas fa-calendar-week"></i> Weekly Workflow
+            </a>
+            <a href="/admin/blog/new"
+               class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+                <i class="fas fa-plus"></i> New Post
+            </a>
+        </div>
     </div>
+
+    {% if workflow %}
+    <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Current Weekly Window</p>
+                <h2 class="mt-2 text-lg font-black text-gray-900">{{ workflow.start_label }} to {{ workflow.end_label }}</h2>
+                <p class="mt-2 text-sm text-gray-600">
+                    {{ workflow.snapshot.total_records }} visible records.
+                    {% if workflow.top_counties %}
+                    Top counties:
+                    {% for county in workflow.top_counties %}
+                    {{ county.name }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                </p>
+            </div>
+            <a href="/admin/blog/new?template=weekly_digest"
+               class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800">
+                <i class="fas fa-wand-magic-sparkles text-xs"></i> Open Prefilled Draft
+            </a>
+        </div>
+    </div>
+    {% endif %}
 
     {% if posts %}
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

@@ -1,0 +1,145 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = title %}
+{% set canonical_url = canonical_url %}
+{% set og_title = title ~ " | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": {{ title | tojson }},
+  "description": {{ meta_description | tojson }},
+  "mainEntityOfPage": {{ canonical_url | tojson }},
+  "author": {
+    "@type": "Organization",
+    "name": "Montana Blotter"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  }
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/annual-roundups" class="hover:text-slate-700">Annual Roundups</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ year }}</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+        <span class="inline-block bg-red-500/20 text-red-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+            Annual Roundup
+        </span>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">{{ title }}</h1>
+        <p class="text-slate-300 text-sm max-w-3xl">
+            {% if partial_label %}{{ partial_label }}.{% endif %}
+            This page summarizes the strongest counties, incident patterns, and linked local pages visible in the Montana Blotter archive for {{ year }}.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Records</p>
+            <p class="mt-2 text-3xl font-black text-slate-900">{{ record_count }}</p>
+        </article>
+        <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Reports</p>
+            <p class="mt-2 text-3xl font-black text-slate-900">{{ post_count }}</p>
+        </article>
+        <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Archive Start</p>
+            <p class="mt-2 text-lg font-black text-slate-900">{{ start_date or 'Unavailable' }}</p>
+        </article>
+        <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Archive End</p>
+            <p class="mt-2 text-lg font-black text-slate-900">{{ end_date or 'Unavailable' }}</p>
+        </article>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
+        <div class="space-y-6">
+            <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-2xl font-black text-slate-900">Top Counties In {{ year }}</h2>
+                <div class="grid gap-3 md:grid-cols-2 mt-5">
+                    {% for county in top_counties %}
+                    <a href="/county/{{ county.slug }}" class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:bg-slate-100">
+                        <div class="flex items-center justify-between gap-4">
+                            <span class="text-base font-black text-slate-900">{{ county.name }} County</span>
+                            <span class="text-sm font-black text-blue-700">{{ county.count }}</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-2xl font-black text-slate-900">Top Incident Labels</h2>
+                <div class="grid gap-3 md:grid-cols-2 mt-5">
+                    {% for item in top_incidents %}
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="flex items-center justify-between gap-4">
+                            <span class="text-sm font-black text-slate-900">{{ item.name }}</span>
+                            <span class="text-sm font-black text-blue-700">{{ item.count }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+        </div>
+
+        <aside class="space-y-6">
+            {% if top_patterns %}
+            <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-lg font-black text-slate-900">Patterns That Stood Out</h2>
+                <div class="space-y-3 mt-4">
+                    {% for item in top_patterns %}
+                    <a href="/patterns/{{ item.slug }}" class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 transition hover:bg-slate-100">
+                        <span class="text-sm font-black text-slate-900">{{ item.label }}</span>
+                        <span class="text-sm font-black text-blue-700">{{ item.count }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </article>
+            {% endif %}
+
+            {% if related_posts %}
+            <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-lg font-black text-slate-900">Related Roundup Posts</h2>
+                <div class="space-y-3 mt-4">
+                    {% for post in related_posts %}
+                    <a href="/blog/{{ post.slug }}" class="block rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:bg-slate-100">
+                        <p class="text-sm font-black text-slate-900">{{ post.title }}</p>
+                        {% if post.excerpt %}
+                        <p class="mt-2 text-xs leading-5 text-slate-500">{{ post.excerpt }}</p>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </article>
+            {% endif %}
+
+            <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-lg font-black text-slate-900">Best Next Clicks</h2>
+                <div class="space-y-3 mt-4">
+                    <a href="/guides" class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-900 transition hover:bg-slate-100">Resource guides <i class="fas fa-arrow-right text-xs text-blue-500"></i></a>
+                    <a href="/warrants" class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-900 transition hover:bg-slate-100">Warrant pages <i class="fas fa-arrow-right text-xs text-blue-500"></i></a>
+                    <a href="/jail-rosters" class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-900 transition hover:bg-slate-100">Jail rosters <i class="fas fa-arrow-right text-xs text-blue-500"></i></a>
+                </div>
+            </article>
+        </aside>
+    </section>
+</div>
+{% endblock %}

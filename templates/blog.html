@@ -5,7 +5,40 @@
 {% set canonical_url = "https://montanablotter.com/blog" %}
 {% set og_title = "Blog | Montana Blotter" %}
 {% set og_description = meta_description %}
+{% set og_type = "website" %}
+{% set twitter_card = "summary_large_image" %}
 {% set active_nav = "blog" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana Blotter blog",
+  "description": {{ meta_description | tojson }},
+  "url": {{ canonical_url | tojson }}
+}
+</script>
+{% if posts %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Montana Blotter blog posts",
+  "itemListElement": [
+    {% for post in posts %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "url": {{ ("https://montanablotter.com/blog/" ~ post.slug) | tojson }},
+      "name": {{ post.title | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
+{% endblock %}
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
