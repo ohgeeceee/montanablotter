@@ -1,0 +1,89 @@
+{% if featured_case_journeys %}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+    <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem;">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+                <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">What Happened Next</p>
+                <h2 class="serif" style="font-size: 1.45rem; line-height: 1.1; margin-top: 0.35rem;">Case journeys that follow a record beyond the first incident line.</h2>
+                <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem; max-width: 56rem;">
+                    These public timelines combine the initial incident record, follow-up command-log activity, source confidence, and the original daily report into one page.
+                </p>
+            </div>
+            <a href="/case-journeys" class="mono uppercase tracking-widest px-3 py-2 rounded transition hover:opacity-90"
+               style="background: var(--amber); color: var(--bg); font-size: 0.62rem; font-weight: 700; text-decoration: none;">
+                Browse all journeys
+            </a>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-3 mt-4">
+            {% for journey in featured_case_journeys %}
+            <article class="panel" style="padding: 0.95rem;">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">
+                            {{ journey.county }} County{% if journey.started_at %} · {{ journey.started_at }}{% endif %}
+                        </p>
+                        <h3 style="font-size: 1.02rem; font-weight: 700; margin-top: 0.3rem; color: var(--text);">
+                            {{ journey.title or 'Incident timeline' }}
+                        </h3>
+                    </div>
+                    {% if journey.confidence_badge %}
+                    <span class="mono uppercase tracking-widest px-2 py-1 rounded {{ journey.confidence_badge.bg_class }} {{ journey.confidence_badge.text_class }}"
+                          style="font-size: 0.55rem; font-weight: 700;"
+                          title="{{ journey.confidence_badge.label }} · {{ journey.confidence_badge.score }}/100">
+                        {{ journey.confidence_badge.label }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if journey.location %}
+                <p style="color: var(--text-muted); font-size: 0.82rem; line-height: 1.45; margin-top: 0.55rem;">
+                    {{ journey.location }}
+                </p>
+                {% endif %}
+
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <span class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                          style="background: var(--amber-dim); border: 1px solid var(--amber-border); color: var(--amber); font-size: 0.55rem; font-weight: 700;">
+                        {{ journey.timeline_step_count }} timeline steps
+                    </span>
+                    <span class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                          style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.55rem; font-weight: 700;">
+                        {{ journey.status_label }}
+                    </span>
+                    {% if journey.cfs_number %}
+                    <span class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                          style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.55rem; font-weight: 700;">
+                        CFS {{ journey.cfs_number }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <p style="color: var(--text-dim); font-size: 0.76rem; line-height: 1.45; margin-top: 0.65rem;">
+                    {{ journey.summary or 'Additional timeline detail available.' }}
+                </p>
+
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <a href="/case-journeys/{{ journey.slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                       style="background: var(--amber); color: var(--bg); text-decoration: none; font-size: 0.55rem; font-weight: 700;">
+                        Open journey
+                    </a>
+                    {% if journey.primary_record_id %}
+                    <a href="/record/{{ journey.primary_record_id }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                       style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">
+                        Record page
+                    </a>
+                    {% endif %}
+                    {% if journey.county_slug %}
+                    <a href="/county/{{ journey.county_slug }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                       style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-muted); text-decoration: none; font-size: 0.55rem; font-weight: 700;">
+                        County page
+                    </a>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}

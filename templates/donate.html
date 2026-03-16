@@ -1,9 +1,9 @@
 {% extends "public_page_base.html" %}
 
-{% set page_title = "Donate" %}
-{% set meta_description = "Support Montana Blotter with a secure one-time or monthly donation." %}
+{% set page_title = donation_campaign.headline if donation_campaign and donation_campaign.key else "Donate" %}
+{% set meta_description = donation_campaign.description if donation_campaign and donation_campaign.key else "Support Montana Blotter with a secure one-time or monthly donation." %}
 {% set canonical_url = "https://montanablotter.com/donate" %}
-{% set og_title = "Donate | Montana Blotter" %}
+{% set og_title = (donation_campaign.headline ~ " | Montana Blotter") if donation_campaign and donation_campaign.key else "Donate | Montana Blotter" %}
 {% set og_description = meta_description %}
 
 {% block breadcrumb %}
@@ -15,11 +15,11 @@
 <section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
     <div class="max-w-5xl mx-auto">
         <div class="inline-flex items-center bg-blue-500/20 text-blue-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            Support
+            {{ donation_campaign.badge if donation_campaign else 'Support' }}
         </div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Support Independent Montana Public Safety Coverage</h1>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">{{ donation_campaign.headline if donation_campaign else 'Support Independent Montana Public Safety Coverage' }}</h1>
         <p class="text-slate-300 text-sm max-w-3xl">
-            Your donation helps keep Montana Blotter free, searchable, and available to the public every day.
+            {{ donation_campaign.description if donation_campaign else 'Your donation helps keep Montana Blotter free, searchable, and available to the public every day.' }}
         </p>
     </div>
 </section>
@@ -98,9 +98,9 @@
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
                 <h3 class="text-lg font-black text-slate-900">What Your Support Funds</h3>
                 <ul class="mt-3 space-y-2 text-sm text-slate-600">
-                    <li>Daily data ingestion and archive maintenance</li>
-                    <li>Public search and county-level reporting pages</li>
-                    <li>Reliability, hosting, and operations costs</li>
+                    {% for item in donation_campaign.funds %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
                 </ul>
             </div>
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">

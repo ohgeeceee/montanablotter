@@ -12,6 +12,7 @@ import json
 import logging
 import re
 import sqlite3
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -65,6 +66,47 @@ class IngestStats:
     created_blotter: int = 0
     created_posts: int = 0
     skipped_published_source: int = 0
+
+
+def _should_retry_missoula_response(exc: requests.exceptions.RequestException) -> bool:
+    response = getattr(exc, "response", None)
+    if response is None:
+        return True
+    status_code = getattr(response, "status_code", 0) or 0
+    return status_code >= 500 or status_code == 429
+
+
+def _fetch_report_html(
+    session: requests.Session,
+    url: str,
+    *,
+    timeout: int = 45,
+    max_attempts: int = 3,
+    retry_delay_seconds: float = 2.0,
+) -> str:
+    last_error: Exception | None = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = session.get(url, timeout=timeout)
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.RequestException as exc:
+            last_error = exc
+            should_retry = attempt < max_attempts and _should_retry_missoula_response(exc)
+            if not should_retry:
+                raise
+            logger.warning(
+                "Missoula fetch attempt %s/%s failed: %s",
+                attempt,
+                max_attempts,
+                exc,
+            )
+            time.sleep(retry_delay_seconds * attempt)
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Missoula fetch failed without an exception")
 
 
 def _connect_db() -> sqlite3.Connection:
@@ -305,9 +347,7 @@ def ingest_missoula_public_report(url: str, dry_run: bool = False) -> tuple[int,
     )
 
     logger.info("Fetching Missoula public report: %s", url)
-    response = session.get(url, timeout=45)
-    response.raise_for_status()
-    page_html = response.text
+    page_html = _fetch_report_html(session, url)
 
     incidents = _parse_incidents(page_html)
     stats.fetched_incidents = len(incidents)
@@ -316,6 +356,15 @@ def ingest_missoula_public_report(url: str, dry_run: bool = False) -> tuple[int,
         return 0, stats
 
     report_date = _parse_report_date(page_html, incidents)
+    if dry_run:
+        logger.info("Dry run: fetched %s incidents for %s", len(incidents), report_date)
+        for row in incidents[:10]:
+            print(
+                f"{row['date']} {row['time']} | {row['incident_type']} | "
+                f"{row['location']} | {row['cfs_number']} | {row['agency_name']}"
+            )
+        return 0, stats
+
     source_payload = {
         "source": "missoula_daily_public_report",
         "report_date": report_date,
@@ -352,15 +401,6 @@ def ingest_missoula_public_report(url: str, dry_run: bool = False) -> tuple[int,
     )
     set_ingestion_job_status(ingestion_job_id, "extracted")
     set_ingestion_job_status(ingestion_job_id, "parsed")
-
-    if dry_run:
-        logger.info("Dry run: fetched %s incidents for %s", len(incidents), report_date)
-        for row in incidents[:10]:
-            print(
-                f"{row['date']} {row['time']} | {row['incident_type']} | "
-                f"{row['location']} | {row['cfs_number']} | {row['agency_name']}"
-            )
-        return 0, stats
 
     try:
         blotter_id, skipped_existing = _ingest_rows(

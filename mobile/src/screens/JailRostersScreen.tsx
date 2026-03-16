@@ -76,6 +76,8 @@ export default function JailRostersScreen() {
   const filteredRosters = JAIL_ROSTERS.filter(roster =>
     roster.name.toLowerCase().includes(search.toLowerCase())
   );
+  const onlineCount = JAIL_ROSTERS.filter((roster) => roster.hasOnline).length;
+  const phoneOnlyCount = JAIL_ROSTERS.length - onlineCount;
 
   const openUrl = (url: string) => {
     Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
@@ -118,10 +120,21 @@ export default function JailRostersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <Text style={styles.headerEyebrow}>County Directory</Text>
         <Text style={styles.headerTitle}>Montana Jail Rosters</Text>
         <Text style={styles.headerSubtitle}>
           Links to all 56 county jail rosters and inmate search pages
         </Text>
+        <View style={styles.headerStats}>
+          <View style={styles.headerStatCard}>
+            <Text style={styles.headerStatValue}>{onlineCount}</Text>
+            <Text style={styles.headerStatLabel}>Online</Text>
+          </View>
+          <View style={styles.headerStatCard}>
+            <Text style={styles.headerStatValue}>{phoneOnlyCount}</Text>
+            <Text style={styles.headerStatLabel}>Phone only</Text>
+          </View>
+        </View>
       </View>
       <View style={styles.searchContainer}>
         <TextInput
@@ -131,6 +144,9 @@ export default function JailRostersScreen() {
           onChangeText={setSearch}
           placeholderTextColor={COLORS.secondary}
         />
+        <Text style={styles.resultsText}>
+          Showing {filteredRosters.length} of {JAIL_ROSTERS.length} counties
+        </Text>
       </View>
       <FlatList
         data={filteredRosters}
@@ -140,12 +156,25 @@ export default function JailRostersScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.stateLinks}>
-            <TouchableOpacity onPress={() => openUrl('https://offendersearch.mt.gov/conweb/')}>
-              <Text style={styles.stateLink}>MT Dept. of Corrections Search</Text>
+            <TouchableOpacity
+              style={styles.stateLinkCard}
+              onPress={() => openUrl('https://offendersearch.mt.gov/conweb/')}
+            >
+              <Text style={styles.stateLinkTitle}>MT DOC Search</Text>
+              <Text style={styles.stateLinkSubtitle}>State offender lookup</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => openUrl('https://vinelink.vineapps.com/state/mt')}>
-              <Text style={styles.stateLink}>VINELink Statewide</Text>
+            <TouchableOpacity
+              style={styles.stateLinkCard}
+              onPress={() => openUrl('https://vinelink.vineapps.com/state/mt')}
+            >
+              <Text style={styles.stateLinkTitle}>VINELink</Text>
+              <Text style={styles.stateLinkSubtitle}>Statewide custody alerts</Text>
             </TouchableOpacity>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No counties matched that search.</Text>
           </View>
         }
       />
@@ -161,7 +190,15 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: COLORS.primary,
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 24,
+  },
+  headerEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fdba74',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 8,
   },
   headerTitle: {
     fontSize: 24,
@@ -172,6 +209,34 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#94a3b8',
+    lineHeight: 20,
+  },
+  headerStats: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  headerStatCard: {
+    minWidth: 100,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  headerStatValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.card,
+    marginBottom: 2,
+  },
+  headerStatLabel: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   searchContainer: {
     padding: 16,
@@ -186,18 +251,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.primary,
   },
+  resultsText: {
+    marginTop: 10,
+    fontSize: 12,
+    color: COLORS.secondary,
+  },
   list: {
     padding: 16,
   },
   stateLinks: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: 10,
     marginBottom: 16,
   },
-  stateLink: {
-    color: COLORS.info,
+  stateLinkCard: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  stateLinkTitle: {
+    color: '#1d4ed8',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  stateLinkSubtitle: {
+    color: '#1e40af',
+    fontSize: 12,
+    lineHeight: 17,
   },
   card: {
     backgroundColor: COLORS.card,
@@ -281,5 +365,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.secondary,
+  },
+  emptyContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: COLORS.secondary,
+    fontSize: 14,
   },
 });

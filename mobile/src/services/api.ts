@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../constants';
-import { Post, PostsResponse, County, Agency, BlogPost } from '../types';
+import { Post, PostsResponse, County, Agency, BlogPost, StatsResponse } from '../types';
 import { captureApiFailure } from './monitoring';
 
 async function fetchAPI<T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> {
@@ -65,8 +65,8 @@ export const api = {
     return fetchAPI<{ agencies: Agency[] }>('/api/agencies');
   },
 
-  getStats: async () => {
-    return fetchAPI('/api/stats');
+  getStats: async (): Promise<StatsResponse> => {
+    return fetchAPI<StatsResponse>('/api/stats');
   },
 };
 

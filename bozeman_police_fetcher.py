@@ -377,6 +377,18 @@ def ingest_dataset(dataset: DatasetConfig, days_back: int, dry_run: bool = False
         sort_keys=True,
         separators=(",", ":"),
     )
+    if dry_run:
+        print(
+            f"{dataset.key}: fetched={len(features)} normalized={len(rows)} "
+            f"window={start.isoformat()}..{end.isoformat()}"
+        )
+        for row in rows[:5]:
+            print(
+                f"{row['date']} {row['time']} | {row['incident_type']} | "
+                f"{row['cfs_number']} | {row['details']}"
+            )
+        return 0, len(features), len(rows)
+
     source_document_id = ensure_source_document(
         source_type=dataset.source_type,
         source_sender=dataset.agency_name,
@@ -401,18 +413,6 @@ def ingest_dataset(dataset: DatasetConfig, days_back: int, dry_run: bool = False
         {"dataset": dataset.key, "feature_count": len(features), "days_back": days_back},
     )
     set_ingestion_job_status(ingestion_job_id, "parsed")
-
-    if dry_run:
-        print(
-            f"{dataset.key}: fetched={len(features)} normalized={len(rows)} "
-            f"window={start.isoformat()}..{end.isoformat()}"
-        )
-        for row in rows[:5]:
-            print(
-                f"{row['date']} {row['time']} | {row['incident_type']} | "
-                f"{row['cfs_number']} | {row['details']}"
-            )
-        return 0, len(features), len(rows)
 
     conn = _connect_db()
     try:

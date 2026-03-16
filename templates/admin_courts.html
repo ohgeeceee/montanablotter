@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Operations</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Court Tracker</h1>
+            <p class="text-sm text-slate-500 mt-2">Initial source-health and inventory view for the Montana court tracker scaffold.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Sources</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.source_count or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Courts</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.court_count or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Cases</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.case_count or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Hearings</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.upcoming_hearings or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Filings</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.filing_count or 0 }}</p>
+            </div>
+        </div>
+    </div>
+
+    <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-emerald-700">Healthy</p>
+            <p class="mt-1 text-2xl font-black text-emerald-950">{{ health_counts.healthy or 0 }}</p>
+        </div>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-amber-700">Stale</p>
+            <p class="mt-1 text-2xl font-black text-amber-950">{{ health_counts.stale or 0 }}</p>
+        </div>
+        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-rose-700">Errors</p>
+            <p class="mt-1 text-2xl font-black text-rose-950">{{ health_counts.error or 0 }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Never Synced</p>
+            <p class="mt-1 text-2xl font-black text-slate-900">{{ health_counts.never or 0 }}</p>
+        </div>
+    </section>
+
+    {% if active_alerts %}
+    <section class="rounded-2xl border border-rose-200 bg-rose-50 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-rose-200 bg-rose-100/70">
+            <h2 class="text-lg font-black text-rose-900">Active Court Alerts</h2>
+            <p class="text-sm text-rose-700 mt-1">These sources are currently stale or failing and should be investigated.</p>
+        </div>
+        <div class="divide-y divide-rose-200">
+            {% for alert in active_alerts %}
+            <div class="px-5 py-4">
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="inline-flex rounded-full bg-rose-200 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-rose-900">{{ alert.alert_kind }}</span>
+                    <p class="text-sm font-black text-slate-900">{{ alert.source_slug }}</p>
+                </div>
+                <p class="mt-2 text-sm text-slate-700">{{ alert.summary }}</p>
+                <p class="mt-2 text-xs text-slate-500">Detected {{ alert.first_detected_at }}{% if alert.last_sent_at %} · emailed {{ alert.last_sent_at }}{% endif %}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Refresh Workflow</h2>
+            <p class="text-sm text-slate-500 mt-1">Court sources are expected to refresh at least once every {{ stale_cutoff_hours }} hours.</p>
+        </div>
+        <div class="p-5 space-y-3 text-sm text-slate-700">
+            <p><span class="font-black text-slate-900">Runner:</span> <code>/root/montanablotter/venv/bin/python3 /root/montanablotter/court_refresh.py</code></p>
+            <p><span class="font-black text-slate-900">Log:</span> <code>/root/montanablotter/court_refresh.log</code></p>
+            <p><span class="font-black text-slate-900">Cron:</span> every 3 hours to keep hearings and opinions current without excessive traffic.</p>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Tracked Sources</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[1180px]">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3 text-left">Source</th>
+                        <th class="px-5 py-3 text-left">Provider</th>
+                        <th class="px-5 py-3 text-left">Health</th>
+                        <th class="px-5 py-3 text-left">Courts</th>
+                        <th class="px-5 py-3 text-left">Cases</th>
+                        <th class="px-5 py-3 text-left">Filings</th>
+                        <th class="px-5 py-3 text-left">Upcoming</th>
+                        <th class="px-5 py-3 text-left">Last Scrape</th>
+                        <th class="px-5 py-3 text-left">Last Success</th>
+                        <th class="px-5 py-3 text-left">Last Error</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in sources %}
+                    <tr>
+                        <td class="px-5 py-4">
+                            <p class="text-sm font-black text-slate-900">{{ row.name }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ row.source_url }}</p>
+                        </td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.provider_type }}</td>
+                        <td class="px-5 py-4">
+                            {% if row.health_state == 'healthy' %}
+                            <span class="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-emerald-800">Healthy</span>
+                            {% elif row.health_state == 'stale' %}
+                            <span class="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-amber-800">Stale</span>
+                            {% elif row.health_state == 'error' %}
+                            <span class="inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-rose-800">Error</span>
+                            {% else %}
+                            <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-slate-700">Never</span>
+                            {% endif %}
+                            <p class="mt-2 text-xs text-slate-500">{{ row.status }}</p>
+                        </td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.court_count }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.case_count }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.filing_count }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.upcoming_hearing_count }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.last_scraped_at or 'Never' }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.last_success_at or 'Never' }}</td>
+                        <td class="px-5 py-4 text-xs text-slate-500 max-w-[260px]">{{ row.last_error or 'None' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="px-5 py-8 text-center text-sm text-slate-500">No court sources loaded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">County Coverage</h2>
+        </div>
+        <div class="p-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {% for row in county_rollup %}
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="text-sm font-black text-slate-900">{{ row.county }}</p>
+                <p class="text-xs text-slate-500 mt-1">{{ row.court_count }} tracked courts</p>
+            </div>
+            {% else %}
+            <p class="text-sm text-slate-500">No county coverage data yet.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

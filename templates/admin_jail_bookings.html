@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700{% elif category == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Operations</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Jail Bookings</h1>
+            <p class="text-sm text-slate-500 mt-2">Manage the public-facing feed of new jail bookings from major Montana county rosters.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Tracked Counties</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.tracked_counties }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Current</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.current_bookings }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">New 24h</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.new_24h }}</p>
+            </div>
+            <a href="/jail-bookings" class="rounded-xl border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 transition">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Public Feed</p>
+                <p class="text-sm font-semibold text-slate-900 mt-2">Open page</p>
+            </a>
+        </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="text-lg font-black text-slate-900">Add Booking Entry</h2>
+            <p class="mt-2 text-sm text-slate-500">Use this to publish a clean public entry while automated county roster ingestion is still being expanded.</p>
+            <form method="post" action="/admin/operations/jail-bookings/create" class="mt-5 space-y-4">
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">County Source</label>
+                    <select name="source_id" required class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                        <option value="">Choose a tracked county</option>
+                        {% for source in source_rows %}
+                        <option value="{{ source.id }}">{{ source.county_name }}{% if source.is_featured %} · Featured{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Person Name</label>
+                        <input type="text" name="person_name" required class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Age</label>
+                        <input type="number" name="age" min="0" max="120" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    </div>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Booking Time</label>
+                        <input type="text" name="booking_at" placeholder="2026-03-15 08:45" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Booking Number</label>
+                        <input type="text" name="booking_number" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    </div>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Status</label>
+                        <select name="booking_status" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                            <option value="current">Current</option>
+                            <option value="released">Released</option>
+                            <option value="transferred">Transferred</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Arresting Agency</label>
+                        <input type="text" name="arresting_agency" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Charge Summary</label>
+                    <textarea name="charges_summary" rows="4" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800" placeholder="Use plain language and keep this tight."></textarea>
+                </div>
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Official Source URL</label>
+                    <input type="url" name="source_url" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800" placeholder="Optional override if the record has a direct page">
+                </div>
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Internal Notes</label>
+                    <textarea name="notes" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800"></textarea>
+                </div>
+                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800 transition">Publish Booking Entry</button>
+            </form>
+        </div>
+
+        <div class="space-y-6">
+            <form method="get" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="grid gap-4 lg:grid-cols-[1.2fr_0.8fr_0.8fr_auto]">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Search</label>
+                        <input type="text" name="q" value="{{ q }}" placeholder="Name, charge, booking number"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">County</label>
+                        <select name="county" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                            <option value="">All tracked counties</option>
+                            {% for source in source_rows %}
+                            <option value="{{ source.county_slug }}" {% if county_filter == source.county_slug %}selected{% endif %}>{{ source.county_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Status</label>
+                        <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                            <option value="current" {% if status_filter == 'current' %}selected{% endif %}>Current</option>
+                            <option value="recent" {% if status_filter == 'recent' %}selected{% endif %}>New in 24 hours</option>
+                            <option value="released" {% if status_filter == 'released' %}selected{% endif %}>Released / archived</option>
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All entries</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end gap-3">
+                        <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800 transition">Apply</button>
+                        <a href="/admin/operations/jail-bookings" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Reset</a>
+                    </div>
+                </div>
+            </form>
+
+            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                    <h2 class="text-lg font-black text-slate-900">Tracked Sources</h2>
+                </div>
+                <div class="grid gap-4 p-5 md:grid-cols-2">
+                    {% for source in source_rows %}
+                    <div class="rounded-xl border border-slate-200 px-4 py-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-black text-slate-900">{{ source.county_name }}</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ source.facility_name }}</p>
+                            </div>
+                            {% if source.is_featured %}
+                            <span class="rounded-full bg-blue-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">Featured</span>
+                            {% endif %}
+                        </div>
+                        <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-lg bg-slate-50 px-3 py-2">
+                                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Current</p>
+                                <p class="mt-1 font-black text-slate-900">{{ source.current_count }}</p>
+                            </div>
+                            <div class="rounded-lg bg-slate-50 px-3 py-2">
+                                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">New 24h</p>
+                                <p class="mt-1 font-black text-slate-900">{{ source.new_24h_count }}</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 rounded-lg border {% if source.sync_state == 'healthy' %}border-emerald-200 bg-emerald-50{% elif source.sync_state == 'attention' %}border-amber-200 bg-amber-50{% else %}border-slate-200 bg-slate-50{% endif %} px-3 py-3">
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-[10px] font-black uppercase tracking-[0.14em] {% if source.sync_state == 'healthy' %}text-emerald-700{% elif source.sync_state == 'attention' %}text-amber-700{% else %}text-slate-500{% endif %}">Sync Health</p>
+                                <span class="text-[10px] font-black uppercase tracking-[0.14em] {% if source.sync_state == 'healthy' %}text-emerald-700{% elif source.sync_state == 'attention' %}text-amber-700{% else %}text-slate-500{% endif %}">{{ source.sync_state_label }}</span>
+                            </div>
+                            <p class="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{{ source.coverage_label }}</p>
+                            <p class="mt-2 text-xs text-slate-600">Last checked: {{ source.last_checked_label }}</p>
+                            <p class="mt-1 text-xs text-slate-600">Last success: {{ source.last_success_label }}</p>
+                        </div>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <a href="{{ source.public_href }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">County page</a>
+                            {% if source.roster_url %}
+                            <a href="{{ source.roster_url }}" target="_blank" rel="noopener" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">Roster</a>
+                            {% endif %}
+                            {% if source.phone %}
+                            <a href="tel:{{ source.phone }}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">{{ source.phone }}</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Recent Sync Runs</h2>
+        </div>
+        <div class="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+            {% for run in recent_runs %}
+            <div class="rounded-xl border border-slate-200 px-4 py-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-black text-slate-900">{{ run.county_name or 'Manual source' }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ run.run_type_label }}</p>
+                    </div>
+                    <span class="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] {% if run.status == 'success' %}bg-emerald-100 text-emerald-700{% elif run.status == 'error' %}bg-rose-100 text-rose-700{% else %}bg-slate-100 text-slate-600{% endif %}">{{ run.status_label }}</span>
+                </div>
+                <div class="mt-4 space-y-1 text-xs text-slate-600">
+                    <p>Started: {{ run.started_label }}</p>
+                    <p>Completed: {{ run.completed_label }}</p>
+                    <p>Fetched {{ run.fetched_count }} · New {{ run.new_count }} · Updated {{ run.updated_count }} · Missing {{ run.missing_count }}</p>
+                </div>
+                {% if run.notes %}
+                <p class="mt-3 text-xs leading-5 text-slate-500">{{ run.notes }}</p>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="px-5 py-6 text-sm text-slate-500">No sync runs have been recorded yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Published Entries</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[1080px]">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3 text-left">Person</th>
+                        <th class="px-5 py-3 text-left">County</th>
+                        <th class="px-5 py-3 text-left">Booked</th>
+                        <th class="px-5 py-3 text-left">Charge Summary</th>
+                        <th class="px-5 py-3 text-left">Status</th>
+                        <th class="px-5 py-3 text-right">Update</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in rows %}
+                    <tr class="align-top hover:bg-slate-50 transition">
+                        <td class="px-5 py-4">
+                            <p class="text-sm font-black text-slate-900">{{ row.person_name }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ row.facility_name }}</p>
+                            {% if row.booking_number %}
+                            <p class="mt-1 text-xs text-slate-400">Booking #{{ row.booking_number }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-4">
+                            <p class="text-sm text-slate-800">{{ row.county_name }}</p>
+                            {% if row.arresting_agency %}
+                            <p class="mt-1 text-xs text-slate-500">{{ row.arresting_agency }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-4 text-sm text-slate-700">
+                            <p>{{ row.booking_at_label }}</p>
+                            <p class="mt-1 text-xs text-slate-500">Seen {{ row.first_seen_label }}</p>
+                        </td>
+                        <td class="px-5 py-4 text-sm text-slate-700 max-w-[340px]">
+                            {{ row.charges_summary or 'No summary yet.' }}
+                        </td>
+                        <td class="px-5 py-4">
+                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.14em] {% if row.booking_status == 'current' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                {{ row.booking_status_label }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-4">
+                            <form method="post" action="/admin/operations/jail-bookings/{{ row.id }}/status" class="flex justify-end gap-2">
+                                <select name="booking_status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">
+                                    <option value="current" {% if row.booking_status == 'current' %}selected{% endif %}>Current</option>
+                                    <option value="released" {% if row.booking_status == 'released' %}selected{% endif %}>Released</option>
+                                    <option value="transferred" {% if row.booking_status == 'transferred' %}selected{% endif %}>Transferred</option>
+                                    <option value="archived" {% if row.booking_status == 'archived' %}selected{% endif %}>Archived</option>
+                                </select>
+                                <button type="submit" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Save</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-500">No jail booking entries matched the current filters.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

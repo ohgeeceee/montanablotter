@@ -7,6 +7,9 @@ import sqlite3
 import os
 from datetime import datetime
 
+from case_journeys import ensure_case_journey_schema, seed_case_journeys
+from court_tracker import ensure_court_tracker_schema
+from public_meetings import ensure_public_meeting_schema
 
 def _env_int(name: str, default: int) -> int:
     raw = os.getenv(name, '').strip()
@@ -125,6 +128,219 @@ def _create_core_tables(cursor: sqlite3.Cursor) -> None:
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)')
 
+
+def ensure_public_engagement_schema(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS public_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            subscription_counties TEXT DEFAULT '',
+            subscribe_digest INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            last_login_at TEXT
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_public_users_email ON public_users(email)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_public_users_active ON public_users(is_active)')
+
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS public_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            public_user_id INTEGER NOT NULL,
+            content_type TEXT NOT NULL,
+            content_id TEXT NOT NULL,
+            body TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            moderation_note TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (public_user_id) REFERENCES public_users(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_comments_thread '
+        'ON public_comments(content_type, content_id, status, created_at)'
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_public_comments_user ON public_comments(public_user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_public_comments_status ON public_comments(status)')
+
+    for col, definition in [
+        ('subscription_counties', "TEXT DEFAULT ''"),
+        ('subscribe_digest', 'INTEGER NOT NULL DEFAULT 0'),
+        ('is_active', 'INTEGER NOT NULL DEFAULT 1'),
+        ('last_login_at', 'TEXT'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE public_users ADD COLUMN {col} {definition}')
+            print(f'✅ Added public_users.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('moderation_note', 'TEXT'),
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE public_comments ADD COLUMN {col} {definition}')
+            print(f'✅ Added public_comments.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS jail_booking_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            county_slug TEXT UNIQUE NOT NULL,
+            county_name TEXT NOT NULL,
+            facility_name TEXT NOT NULL,
+            roster_url TEXT,
+            phone TEXT,
+            source_type TEXT NOT NULL DEFAULT 'official_roster',
+            coverage_tier TEXT NOT NULL DEFAULT 'standard',
+            is_enabled INTEGER NOT NULL DEFAULT 1,
+            is_featured INTEGER NOT NULL DEFAULT 0,
+            last_checked_at TEXT,
+            last_success_at TEXT,
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS jail_bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER,
+            county_slug TEXT NOT NULL,
+            county_name TEXT NOT NULL,
+            facility_name TEXT NOT NULL,
+            person_name TEXT NOT NULL,
+            age INTEGER,
+            booking_number TEXT,
+            booking_at TEXT,
+            release_at TEXT,
+            charges_summary TEXT DEFAULT '',
+            charges_json TEXT,
+            arresting_agency TEXT,
+            source_url TEXT,
+            source_record_id TEXT,
+            booking_status TEXT NOT NULL DEFAULT 'current',
+            is_current INTEGER NOT NULL DEFAULT 1,
+            first_seen_at TEXT DEFAULT (datetime('now')),
+            last_seen_at TEXT DEFAULT (datetime('now')),
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (source_id) REFERENCES jail_booking_sources(id) ON DELETE SET NULL
+        )
+        '''
+    )
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS jail_booking_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER,
+            run_type TEXT NOT NULL DEFAULT 'manual',
+            status TEXT NOT NULL DEFAULT 'success',
+            fetched_count INTEGER NOT NULL DEFAULT 0,
+            new_count INTEGER NOT NULL DEFAULT 0,
+            updated_count INTEGER NOT NULL DEFAULT 0,
+            missing_count INTEGER NOT NULL DEFAULT 0,
+            started_at TEXT DEFAULT (datetime('now')),
+            completed_at TEXT,
+            notes TEXT DEFAULT '',
+            FOREIGN KEY (source_id) REFERENCES jail_booking_sources(id) ON DELETE SET NULL
+        )
+        '''
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_booking_sources_featured '
+        'ON jail_booking_sources(is_featured, is_enabled, county_name)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_bookings_lookup '
+        'ON jail_bookings(county_slug, is_current, booking_at, first_seen_at)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_bookings_source '
+        'ON jail_bookings(source_id, last_seen_at)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_bookings_person '
+        'ON jail_bookings(person_name, booking_number)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_booking_runs_source '
+        'ON jail_booking_runs(source_id, started_at)'
+    )
+
+    for col, definition in [
+        ('coverage_tier', "TEXT NOT NULL DEFAULT 'standard'"),
+        ('is_enabled', 'INTEGER NOT NULL DEFAULT 1'),
+        ('is_featured', 'INTEGER NOT NULL DEFAULT 0'),
+        ('last_checked_at', 'TEXT'),
+        ('last_success_at', 'TEXT'),
+        ('notes', "TEXT DEFAULT ''"),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE jail_booking_sources ADD COLUMN {col} {definition}')
+            print(f'✅ Added jail_booking_sources.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('source_id', 'INTEGER'),
+        ('facility_name', "TEXT NOT NULL DEFAULT ''"),
+        ('booking_number', 'TEXT'),
+        ('release_at', 'TEXT'),
+        ('charges_json', 'TEXT'),
+        ('arresting_agency', 'TEXT'),
+        ('source_url', 'TEXT'),
+        ('source_record_id', 'TEXT'),
+        ('booking_status', "TEXT NOT NULL DEFAULT 'current'"),
+        ('is_current', 'INTEGER NOT NULL DEFAULT 1'),
+        ('first_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('last_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('notes', "TEXT DEFAULT ''"),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE jail_bookings ADD COLUMN {col} {definition}')
+            print(f'✅ Added jail_bookings.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('run_type', "TEXT NOT NULL DEFAULT 'manual'"),
+        ('status', "TEXT NOT NULL DEFAULT 'success'"),
+        ('fetched_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('new_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('updated_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('missing_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('started_at', "TEXT DEFAULT (datetime('now'))"),
+        ('completed_at', 'TEXT'),
+        ('notes', "TEXT DEFAULT ''"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE jail_booking_runs ADD COLUMN {col} {definition}')
+            print(f'✅ Added jail_booking_runs.{col}')
+        except sqlite3.OperationalError:
+            pass
+
 def init_database():
     """Initialize the database with all required tables"""
     
@@ -135,9 +351,14 @@ def init_database():
         os.system(f'cp {DB_PATH} {backup_path}')
     
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     _configure_sqlite(conn)
     cursor = conn.cursor()
     _create_core_tables(cursor)
+    ensure_public_meeting_schema(conn)
+    ensure_public_engagement_schema(conn)
+    ensure_jail_booking_schema(conn)
+    ensure_court_tracker_schema(conn)
     
     conn.commit()
     conn.close()
@@ -153,9 +374,14 @@ def init_database():
 def migrate():
     """Safely apply schema changes to an existing DB without data loss"""
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     _configure_sqlite(conn)
     cursor = conn.cursor()
     _create_core_tables(cursor)
+    ensure_public_meeting_schema(conn)
+    ensure_public_engagement_schema(conn)
+    ensure_jail_booking_schema(conn)
+    ensure_court_tracker_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -848,6 +1074,20 @@ def migrate():
         except sqlite3.OperationalError:
             pass  # Already exists
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_audit_status ON posts(audit_status)')
+
+    ensure_case_journey_schema(conn)
+    created_journeys = seed_case_journeys(conn)
+    if created_journeys:
+        print(f'✅ Seeded {created_journeys} case journeys')
+
+    try:
+        from agency_normalization import normalize_existing_post_agencies
+
+        normalized_posts = normalize_existing_post_agencies(conn)
+        if normalized_posts:
+            print(f'✅ Normalized agency metadata for {normalized_posts} posts')
+    except Exception as exc:
+        print(f'⚠️ Skipped post agency normalization: {exc}')
 
     conn.commit()
     conn.close()

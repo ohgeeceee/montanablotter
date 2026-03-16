@@ -9,6 +9,7 @@ import os
 import logging
 import smtplib
 import re
+import contextlib
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -58,6 +59,81 @@ class EmailWorker:
             return 'MB_IMAP_SERVER is not set'
         return None
 
+    @staticmethod
+    def _sender_domain(sender: str) -> str:
+        sender_match = re.search(r'[\w.+-]+@([\w.-]+)', sender or '', re.I)
+        return (sender_match.group(1).lower() if sender_match else '')
+
+    @classmethod
+    def _sender_looks_like_public_safety(cls, sender: str) -> bool:
+        domain = cls._sender_domain(sender)
+        if not domain:
+            return False
+        return any(
+            marker in domain
+            for marker in (
+                '.gov',
+                'county',
+                'sheriff',
+                'police',
+                'cityof',
+                'ci.',
+                'mt.gov',
+            )
+        )
+
+    @staticmethod
+    def _has_date_like_text(body: str) -> bool:
+        return bool(re.search(r'\b\d{1,2}/\d{1,2}/(?:\d{2}|\d{4})\b', body or ''))
+
+    @classmethod
+    def _preview_looks_structured(cls, preview: dict) -> bool:
+        incidents = preview.get('incidents') or []
+        if not incidents:
+            return False
+        for incident in incidents:
+            date_text = (incident.get('date') or '').strip()
+            if not re.match(r'^\d{1,2}/\d{1,2}/(?:\d{2}|\d{4})$', date_text):
+                continue
+            has_context = any(
+                (incident.get(field) or '').strip()
+                for field in ('cfs_number', 'incident_type', 'location', 'details')
+            )
+            if has_context:
+                return True
+        return False
+
+    @classmethod
+    def _preview_is_plausible_text_blotter(
+        cls,
+        preview: dict,
+        *,
+        subject: str,
+        sender: str,
+        body: str,
+    ) -> bool:
+        total_count = int(preview.get('total_count') or 0)
+        if total_count <= 0:
+            return False
+        if not cls._preview_looks_structured(preview):
+            return False
+        if cls._sender_looks_like_public_safety(sender):
+            return True
+        text = " ".join([subject or "", body[:2000] or ""]).lower()
+        strong_markers = (
+            'blotter',
+            'media log',
+            'daily activity',
+            'daily log',
+            'calls for service',
+            'call log',
+            'dispatch log',
+            'public report',
+        )
+        if any(marker in text for marker in strong_markers):
+            return True
+        return total_count >= 3 and cls._has_date_like_text(body)
+
     def _looks_like_blotter_email(self, subject: str, sender: str, body: str) -> bool:
         text = " ".join([subject or "", sender or "", body[:4000] or ""]).lower()
         negative_markers = (
@@ -76,34 +152,39 @@ class EmailWorker:
             'pricing',
             'invoice',
             'receipt',
+            'trusted data sources',
+            'microsoft azure',
+            'product announcement',
         )
         if any(marker in text for marker in negative_markers):
             return False
 
-        positive_markers = (
+        strong_positive_markers = (
             'blotter',
             'media log',
             'daily activity',
             'daily log',
             'calls for service',
             'call log',
+            'dispatch log',
+            'public report',
+        )
+        if any(marker in text for marker in strong_positive_markers):
+            return True
+
+        weak_positive_markers = (
             'dispatch',
             'incident',
             'arrest',
             'cad',
-            'press:',
             'police',
             'sheriff',
         )
-        if any(marker in text for marker in positive_markers):
+        weak_matches = sum(1 for marker in weak_positive_markers if marker in text)
+        if weak_matches >= 2 and self._has_date_like_text(body):
             return True
 
-        sender_match = re.search(r'[\w.+-]+@([\w.-]+)', sender or '', re.I)
-        if not sender_match:
-            return False
-
-        domain = sender_match.group(1).lower()
-        return any(marker in domain for marker in ('mt.gov', 'county', 'sheriff', 'police', 'cityof', 'ci.'))
+        return self._sender_looks_like_public_safety(sender) and self._has_date_like_text(body)
     
     def fetch_and_process_emails(self):
         """Main method - fetch emails and process PDFs"""
@@ -192,6 +273,17 @@ class EmailWorker:
                                         )
                                         self._move_to_processed(mail, num)
                                         continue
+                                    if not self._preview_is_plausible_text_blotter(
+                                        preview,
+                                        subject=subject,
+                                        sender=sender,
+                                        body=body,
+                                    ):
+                                        logging.info(
+                                            f"Skipping text email with weak blotter structure: {subject}"
+                                        )
+                                        self._move_to_processed(mail, num)
+                                        continue
 
                                     body_hash = sha256_text(body)
                                     source_document_id = ensure_source_document(
@@ -261,6 +353,32 @@ class EmailWorker:
         except Exception as e:
             logging.error(f"Email worker critical error: {str(e)}")
             return 0
+
+    def smoke_check_connection(self) -> dict:
+        """Read-only IMAP connectivity check used by ingestion smoke tests."""
+        config_error = self._validate_imap_config()
+        if config_error:
+            raise RuntimeError(config_error)
+
+        mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
+        try:
+            mail.login(self.email_user, self.email_pass)
+            status, _ = mail.select("INBOX")
+            if status != 'OK':
+                raise RuntimeError("Unable to select INBOX")
+            status, messages = mail.search(None, 'UNSEEN')
+            if status != 'OK':
+                raise RuntimeError("Unable to search unread email")
+            unread_count = len(messages[0].split()) if messages and messages[0] else 0
+            return {
+                'mailbox': 'INBOX',
+                'unread_count': unread_count,
+            }
+        finally:
+            with contextlib.suppress(Exception):
+                mail.close()
+            with contextlib.suppress(Exception):
+                mail.logout()
     
     def _process_attachments(self, msg, source_message_id: str, sender: str, subject: str, received_at: str) -> tuple[bool, bool]:
         """

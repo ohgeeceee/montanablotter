@@ -8,11 +8,12 @@ import {
   RefreshControl,
   StyleSheet,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../services/api';
-import { Post } from '../types';
+import { County, Post, StatsResponse } from '../types';
 import { COLORS } from '../constants';
 
 type FeedStackParamList = {
@@ -25,21 +26,35 @@ export default function FeedScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [counties, setCounties] = useState<County[]>([]);
+  const [selectedCounty, setSelectedCounty] = useState<string>('');
+  const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [error, setError] = useState('');
 
-  const fetchPosts = useCallback(async (pageNum: number = 1, searchQuery: string = '') => {
+  const fetchPosts = useCallback(async (pageNum: number = 1, searchQuery: string = '', county: string = '') => {
     try {
-      const data = await api.getPosts({ page: pageNum, per_page: 20, search: searchQuery });
+      setError('');
+      const data = await api.getPosts({
+        page: pageNum,
+        per_page: 20,
+        search: searchQuery,
+        county,
+      });
       if (pageNum === 1) {
         setPosts(data.posts);
       } else {
-        setPosts(prev => [...prev, ...data.posts]);
+      setPosts(prev => [...prev, ...data.posts]);
       }
       setTotalPages(data.total_pages);
-    } catch (error) {
-      console.error('Failed to fetch posts:', error);
+      setPage(pageNum);
+    } catch (fetchError) {
+      console.error('Failed to fetch posts:', fetchError);
+      setError('Unable to load blotter posts right now.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -47,23 +62,85 @@ export default function FeedScreen() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
+    const loadBootstrapData = async () => {
+      try {
+        const [statsData, countiesData] = await Promise.all([
+          api.getStats(),
+          api.getCounties(),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        setStats(statsData);
+        setCounties(countiesData.counties);
+      } catch (bootstrapError) {
+        console.error('Failed to load feed metadata:', bootstrapError);
+      } finally {
+        if (active) {
+          setBootstrapping(false);
+        }
+      }
+    };
+
+    loadBootstrapData();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setSearch(query.trim());
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
+
+  useEffect(() => {
     setLoading(true);
-    fetchPosts(1, search);
-  }, [search]);
+    setPage(1);
+    fetchPosts(1, search, selectedCounty);
+  }, [search, selectedCounty, fetchPosts]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setPage(1);
-    fetchPosts(1, search);
-  }, [search, fetchPosts]);
+    fetchPosts(1, search, selectedCounty);
+  }, [search, selectedCounty, fetchPosts]);
 
   const onEndReached = useCallback(() => {
     if (page < totalPages && !loading) {
       const nextPage = page + 1;
-      setPage(nextPage);
-      fetchPosts(nextPage, search);
+      fetchPosts(nextPage, search, selectedCounty);
     }
-  }, [page, totalPages, loading, search, fetchPosts]);
+  }, [page, totalPages, loading, search, selectedCounty, fetchPosts]);
+
+  const formatCompactDate = (value?: string) => {
+    if (!value) {
+      return 'Unknown';
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return parsed.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const clearFilters = () => {
+    setQuery('');
+    setSearch('');
+    setSelectedCounty('');
+  };
 
   const renderPost = ({ item }: { item: Post }) => (
     <TouchableOpacity
@@ -74,7 +151,7 @@ export default function FeedScreen() {
         <Text style={styles.agencyType}>
           {item.agency_type === 'Sheriff' ? '👮' : '🚔'} {item.agency_type}
         </Text>
-        <Text style={styles.date}>{item.incident_date}</Text>
+        <Text style={styles.date}>{formatCompactDate(item.incident_date)}</Text>
       </View>
       <Text style={styles.title} numberOfLines={2}>
         {item.title}
@@ -93,22 +170,97 @@ export default function FeedScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading blotter...</Text>
+        <Text style={styles.loadingText}>
+          {bootstrapping ? 'Loading Montana Blotter...' : 'Loading blotter...'}
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <View style={styles.hero}>
+        <Text style={styles.heroEyebrow}>MontanaBlotter.com</Text>
+        <Text style={styles.heroTitle}>Statewide public safety feed</Text>
+        <Text style={styles.heroSubtitle}>
+          Browse recent blotter posts, narrow by county, and track the latest publishing activity from across Montana.
+        </Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats?.total_posts ?? '...'}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats?.total_counties ?? '...'}</Text>
+            <Text style={styles.statLabel}>Counties</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats?.total_agencies ?? '...'}</Text>
+            <Text style={styles.statLabel}>Agencies</Text>
+          </View>
+        </View>
+        {stats?.latest_blotter && (
+          <View style={styles.latestBanner}>
+            <Text style={styles.latestLabel}>Latest blotter</Text>
+            <Text style={styles.latestValue}>
+              {stats.latest_blotter.county} County · {formatCompactDate(stats.latest_blotter.upload_date)}
+            </Text>
+          </View>
+        )}
+      </View>
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
           placeholder="Search incidents..."
-          value={search}
-          onChangeText={setSearch}
+          value={query}
+          onChangeText={setQuery}
           placeholderTextColor={COLORS.secondary}
         />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          <TouchableOpacity
+            style={[styles.filterChip, !selectedCounty && styles.filterChipActive]}
+            onPress={() => setSelectedCounty('')}
+          >
+            <Text style={[styles.filterChipText, !selectedCounty && styles.filterChipTextActive]}>
+              All counties
+            </Text>
+          </TouchableOpacity>
+          {counties.slice(0, 12).map((county) => {
+            const active = county.county === selectedCounty;
+            return (
+              <TouchableOpacity
+                key={county.county}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setSelectedCounty(active ? '' : county.county)}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {county.county}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+        <View style={styles.resultsRow}>
+          <Text style={styles.resultsText}>
+            {selectedCounty ? `${selectedCounty} County` : 'All Montana counties'}
+            {search ? ` · "${search}"` : ''}
+          </Text>
+          {(selectedCounty || search) ? (
+            <TouchableOpacity onPress={clearFilters}>
+              <Text style={styles.clearFilters}>Clear</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{error}</Text>
+        </View>
+      ) : null}
       <FlatList
         data={posts}
         keyExtractor={item => String(item.id)}
@@ -127,6 +279,9 @@ export default function FeedScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No posts found</Text>
+            <Text style={styles.emptySubtext}>
+              Try a different search or switch counties.
+            </Text>
           </View>
         }
       />
@@ -150,6 +305,78 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     fontSize: 14,
   },
+  hero: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 20,
+  },
+  heroEyebrow: {
+    color: '#f97316',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  heroTitle: {
+    color: COLORS.card,
+    fontSize: 26,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    color: '#cbd5e1',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: 18,
+    gap: 10,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  statValue: {
+    color: COLORS.card,
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  latestBanner: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(249,115,22,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.25)',
+  },
+  latestLabel: {
+    color: '#fdba74',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  latestValue: {
+    color: COLORS.card,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   searchContainer: {
     padding: 16,
     backgroundColor: COLORS.card,
@@ -162,6 +389,64 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     color: COLORS.primary,
+  },
+  filterRow: {
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  filterChipText: {
+    color: COLORS.secondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  filterChipTextActive: {
+    color: COLORS.card,
+  },
+  resultsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  resultsText: {
+    flex: 1,
+    color: COLORS.secondary,
+    fontSize: 12,
+    marginRight: 12,
+  },
+  clearFilters: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  errorBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorBannerText: {
+    color: COLORS.error,
+    fontSize: 13,
+    fontWeight: '600',
   },
   list: {
     padding: 16,
@@ -232,6 +517,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
+    color: COLORS.secondary,
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    marginTop: 6,
+    fontSize: 13,
     color: COLORS.secondary,
   },
 });

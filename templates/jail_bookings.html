@@ -1,0 +1,212 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = page_title|default("New Jail Bookings") %}
+{% set meta_description = meta_description|default("Track newly posted jail bookings from major Montana county rosters with county filters, booking timestamps, and official source links.") %}
+{% set canonical_url = canonical_url|default("https://montanablotter.com/jail-bookings") %}
+{% set og_title = og_title|default("New Jail Bookings | Montana Blotter") %}
+{% set og_description = og_description|default("Recent Montana jail bookings presented with county context, timestamps, and official roster links.") %}
+{% set active_nav = "jail_bookings" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ breadcrumb_label|default("New Jail Bookings") }}</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+        <div class="max-w-3xl">
+            <div class="inline-flex items-center rounded-full bg-orange-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-300">
+                {{ hero_kicker|default("Daily Booking Monitor") }}
+            </div>
+            <h1 class="mt-4 text-4xl font-black tracking-tight">{{ hero_title|default("New jail bookings from Montana's largest county rosters") }}</h1>
+            <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
+                {{ hero_description|default("This page tracks newly published jail roster entries from major Montana counties and presents them in a cleaner statewide feed. These records reflect booking or detention status only and do not imply guilt or conviction.") }}
+            </p>
+        </div>
+
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Tracked Counties</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.tracked_counties }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Current Listings</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.current_bookings }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">New In 24h</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.new_24h }}</p>
+            </div>
+            <div class="rounded-2xl border border-orange-400/20 bg-orange-500/10 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-orange-200">Official Source Links</p>
+                <p class="mt-2 text-sm leading-6 text-orange-50">Every entry links back to the underlying county roster or detention page when available.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-10 space-y-8">
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <form method="get" class="grid gap-4 lg:grid-cols-[1.3fr_0.8fr_0.8fr_auto]">
+            <div>
+                <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Name, charge, county, booking number"
+                       class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+            </div>
+            <div>
+                <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">County</label>
+                {% if county_locked and selected_source %}
+                <div class="flex h-[50px] items-center rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                    {{ selected_source.county_name }}
+                </div>
+                <input type="hidden" name="county" value="{{ selected_source.county_slug }}">
+                {% else %}
+                <select name="county" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    <option value="">All tracked counties</option>
+                    {% for source in featured_sources %}
+                    <option value="{{ source.county_slug }}" {% if county_filter == source.county_slug %}selected{% endif %}>{{ source.county_name }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">Status</label>
+                <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    <option value="current" {% if status_filter == 'current' %}selected{% endif %}>Current</option>
+                    <option value="recent" {% if status_filter == 'recent' %}selected{% endif %}>New in 24 hours</option>
+                    <option value="released" {% if status_filter == 'released' %}selected{% endif %}>Released / archived</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All entries</option>
+                </select>
+            </div>
+            <div class="flex items-end gap-3">
+                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800 transition">Apply</button>
+                <a href="{{ reset_href|default('/jail-bookings') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">{% if county_locked %}County Page{% else %}Reset{% endif %}</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-[1.45fr_0.55fr]">
+        <div class="space-y-4">
+            {% if rows %}
+            {% for row in rows %}
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="inline-flex rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-white">{{ row.county_name }}</span>
+                            <span class="inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] {% if row.booking_status == 'current' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-600{% endif %}">{{ row.booking_status_label }}</span>
+                            {% if row.is_new_24h %}
+                            <span class="inline-flex rounded-full bg-orange-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700">New in 24h</span>
+                            {% elif row.is_new_72h %}
+                            <span class="inline-flex rounded-full bg-blue-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-blue-700">New this week</span>
+                            {% endif %}
+                        </div>
+                        <h2 class="mt-4 text-2xl font-black text-slate-900">{{ row.person_name }}</h2>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">
+                            {{ row.facility_name }}
+                            {% if row.age %} · Age {{ row.age }}{% endif %}
+                            {% if row.arresting_agency %} · {{ row.arresting_agency }}{% endif %}
+                        </p>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 lg:min-w-[220px]">
+                        <p><span class="font-black text-slate-900">Booked:</span> {{ row.booking_at_label }}</p>
+                        <p class="mt-2"><span class="font-black text-slate-900">First seen:</span> {{ row.first_seen_label }}</p>
+                        <p class="mt-2"><span class="font-black text-slate-900">Last checked:</span> {{ row.last_seen_label }}</p>
+                        {% if row.booking_number %}
+                        <p class="mt-2"><span class="font-black text-slate-900">Booking #:</span> {{ row.booking_number }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="mt-5 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                    <div>
+                        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Charge Summary</p>
+                        <p class="mt-2 text-sm leading-7 text-slate-700">{{ row.charges_summary or 'No charge summary has been entered yet for this roster entry.' }}</p>
+                        {% if row.notes %}
+                        <p class="mt-3 text-xs leading-6 text-slate-500">Editor note: {{ row.notes }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        {% if row.source_url %}
+                        <a href="{{ row.source_url }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl bg-orange-600 px-4 py-3 text-sm font-black text-white hover:bg-orange-700 transition">Open Official Source</a>
+                        {% endif %}
+                        {% if row.roster_url and row.roster_url != row.source_url %}
+                        <a href="{{ row.roster_url }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">County Roster</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+            {% else %}
+            <div class="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+                <h2 class="text-xl font-black text-slate-900">No jail booking entries matched those filters.</h2>
+                <p class="mt-3 text-sm leading-7 text-slate-600">
+                    This feed only shows counties we are actively tracking. Try a broader filter or return to the statewide <a href="/jail-rosters" class="font-bold text-blue-600 hover:text-blue-800">jail roster directory</a>.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <aside class="space-y-5">
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Tracked Counties</p>
+                <div class="mt-4 space-y-3">
+                    {% for source in featured_sources %}
+                    <div class="rounded-xl border border-slate-200 px-4 py-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <a href="{{ source.public_href }}" class="text-sm font-black text-slate-900 hover:text-blue-700">{{ source.county_name }}</a>
+                                <p class="mt-1 text-xs text-slate-500">{{ source.facility_name }}</p>
+                            </div>
+                            <span class="text-sm font-black text-slate-900">{{ source.current_count }}</span>
+                        </div>
+                        <div class="mt-3 flex items-center justify-between gap-3 text-[11px] font-black uppercase tracking-[0.14em]">
+                            <span class="{% if source.sync_state == 'healthy' %}text-emerald-700{% elif source.sync_state == 'attention' %}text-amber-700{% else %}text-slate-500{% endif %}">{{ source.sync_state_label }}</span>
+                            <span class="text-slate-500">{{ source.last_success_label }}</span>
+                        </div>
+                        <p class="mt-2 text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">{{ source.coverage_label }}</p>
+                        <div class="mt-3 flex gap-2">
+                            <a href="{{ source.public_href }}" class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">County page</a>
+                            {% if source.roster_url %}
+                            <a href="{{ source.roster_url }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">Official roster</a>
+                            {% endif %}
+                            {% if source.phone %}
+                            <a href="tel:{{ source.phone }}" class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">{{ source.phone }}</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700">Important Context</p>
+                <ul class="mt-3 space-y-3 text-sm leading-6 text-amber-900">
+                    <li>Jail roster entries reflect booking or detention status only.</li>
+                    <li>People listed here are presumed innocent unless proven guilty in court.</li>
+                    <li>County rosters can change quickly as people are released, transferred, or corrected.</li>
+                </ul>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Recent Sync Activity</p>
+                <div class="mt-4 space-y-3">
+                    {% for run in recent_runs %}
+                    <div class="rounded-xl bg-slate-50 px-4 py-3">
+                        <p class="text-sm font-black text-slate-900">{{ run.county_name or 'Manual source' }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ run.run_type_label }} · {{ run.status_label }}</p>
+                        <p class="mt-2 text-xs text-slate-500">{{ run.completed_label if run.completed_at else run.started_label }}</p>
+                        <p class="mt-1 text-xs text-slate-400">Fetched {{ run.fetched_count }} · New {{ run.new_count }} · Updated {{ run.updated_count }}</p>
+                    </div>
+                    {% else %}
+                    <p class="text-sm text-slate-500">No sync runs have been recorded yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

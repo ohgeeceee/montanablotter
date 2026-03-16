@@ -27,6 +27,18 @@ BASH_ENV=/root/montanablotter/.env
 # Daily DB backup at 2am
 0 2 * * * /root/montanablotter/backup_db.sh >> /root/montanablotter/backup.log 2>&1
 
+# Court tracker sources — refresh every 3 hours
+18 */3 * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/court_refresh.py >> /root/montanablotter/court_refresh.log 2>&1
+
+# Court tracker stale/failing source alerts — check every 30 minutes
+17,47 * * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/court_source_alerts.py >> /root/montanablotter/court_source_alerts.log 2>&1
+
+# Public meetings / agendas sources — refresh every 6 hours
+45 */6 * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/agendas_ingest.py /root/montanablotter/configs/agendas/montana_live.json >> /root/montanablotter/agendas_ingest.log 2>&1
+
+# Public meetings stale/failing source alerts — check every 30 minutes
+14,44 * * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/meeting_source_alerts.py >> /root/montanablotter/meeting_source_alerts.log 2>&1
+
 # CrimeMapping.com — pull all 8 Montana agencies at 6am and 6pm daily
 # Agencies: Billings PD, Great Falls PD, Flathead Co Sheriff, MSU PD,
 #           Carbon Co Sheriff, Red Lodge PD, Bridger PD, Chouteau Co Sheriff
@@ -37,6 +49,12 @@ BASH_ENV=/root/montanablotter/.env
 
 # Whitefish Police Blotter PDFs — poll every 6 hours; dedupe prevents repeats
 25 */6 * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/whitefish_blotter_fetcher.py >> /root/montanablotter/whitefish_fetcher.log 2>&1
+
+# Yellowstone County jail roster — poll every 2 hours; marks missing bookings as no longer current
+20 */2 * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county yellowstone >> /root/montanablotter/jail_booking_ingest.log 2>&1
+
+# Missoula County jail roster — poll every 2 hours; requests the full ALL roster view
+50 */2 * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county missoula >> /root/montanablotter/jail_booking_ingest.log 2>&1
 
 # Bozeman Police Department calls-for-service dashboard — poll hourly with 2-day overlap
 40 * * * * cd /root/montanablotter && /root/montanablotter/venv/bin/python3 /root/montanablotter/bozeman_police_fetcher.py --dataset calls >> /root/montanablotter/bozeman_calls.log 2>&1

@@ -54,6 +54,44 @@
         </div>
     </div>
 
+    <div class="rounded-2xl border {% if alert_rollup.total %}border-rose-200 bg-rose-50{% else %}border-emerald-200 bg-emerald-50{% endif %} shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b {% if alert_rollup.total %}border-rose-200 bg-rose-100/70{% else %}border-emerald-200 bg-emerald-100/70{% endif %}">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="text-lg font-black {% if alert_rollup.total %}text-rose-900{% else %}text-emerald-900{% endif %}">Open Source Alerts</h2>
+                    <p class="text-sm mt-1 {% if alert_rollup.total %}text-rose-700{% else %}text-emerald-700{% endif %}">
+                        {% if alert_rollup.total %}
+                        {{ alert_rollup.total }} active issue{% if alert_rollup.total != 1 %}s{% endif %} need review across ingestion, courts, and meetings.
+                        {% else %}
+                        No open source alerts right now. All monitored pipelines are currently healthy.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="rounded-xl bg-white/80 px-4 py-3 text-center shadow-sm">
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Total Open</p>
+                    <p class="mt-1 text-3xl font-black {% if alert_rollup.total %}text-rose-800{% else %}text-emerald-800{% endif %}">{{ alert_rollup.total }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-3">
+            <a href="/admin/ingestion" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Blotter Ingestion</p>
+                <p class="text-3xl font-black {% if alert_rollup.ingestion %}text-rose-700{% else %}text-slate-900{% endif %} mt-2">{{ alert_rollup.ingestion }}</p>
+                <p class="text-sm text-slate-500 mt-2">Open ingest-source alerts and job issues.</p>
+            </a>
+            <a href="/admin/operations/courts" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Court Sources</p>
+                <p class="text-3xl font-black {% if alert_rollup.courts %}text-rose-700{% else %}text-slate-900{% endif %} mt-2">{{ alert_rollup.courts }}</p>
+                <p class="text-sm text-slate-500 mt-2">Open stale or failing court-source alerts.</p>
+            </a>
+            <a href="/admin/operations/meetings" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Meetings Sources</p>
+                <p class="text-3xl font-black {% if alert_rollup.meetings %}text-rose-700{% else %}text-slate-900{% endif %} mt-2">{{ alert_rollup.meetings }}</p>
+                <p class="text-sm text-slate-500 mt-2">Open stale or failing agendas-source alerts.</p>
+            </a>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
@@ -84,6 +122,11 @@
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Audience</p>
                     <p class="text-xl font-black text-slate-900 mt-2">Subscribers</p>
                     <p class="text-sm text-slate-500 mt-2">Manage audience status, counties, and exports.</p>
+                </a>
+                <a href="/admin/operations/jail-bookings" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Bookings</p>
+                    <p class="text-xl font-black text-slate-900 mt-2">Jail Bookings</p>
+                    <p class="text-sm text-slate-500 mt-2">Publish and manage daily jail booking entries for major counties.</p>
                 </a>
                 <a href="/admin/content/seo" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Growth</p>

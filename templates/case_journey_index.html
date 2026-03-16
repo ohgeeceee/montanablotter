@@ -1,0 +1,98 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Case Journeys" %}
+{% set meta_description = "Follow Montana incident timelines with command-log updates, source confidence, and direct links back to public records." %}
+{% set canonical_url = "https://montanablotter.com/case-journeys" %}
+{% set og_title = "Case Journeys | Montana Blotter" %}
+{% set og_description = meta_description %}
+{% set active_nav = "case_journeys" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana Blotter Case Journeys",
+  "description": {{ meta_description | tojson }},
+  "url": {{ canonical_url | tojson }}
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Case Journeys</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-stone-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+        <p class="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">What Happened Next</p>
+        <h1 class="mt-3 text-3xl md:text-4xl font-black tracking-tight">Incident timelines with follow-up logs and source traceability.</h1>
+        <p class="mt-4 max-w-3xl text-sm md:text-base text-slate-300 leading-7">
+            These case journeys collect the initial Montana Blotter record, the follow-up command log, and the linked report context into one page.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {% for journey in journeys %}
+        <article class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">{{ journey.county }} County</p>
+                    <h2 class="mt-2 text-xl font-black leading-tight" style="font-family:'Playfair Display',Georgia,serif; color:#F0E8D8;">
+                        <a href="/case-journeys/{{ journey.slug }}" style="text-decoration:none; color:inherit;">{{ journey.title }}</a>
+                    </h2>
+                </div>
+                {% if journey.confidence_badge %}
+                <span class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] {{ journey.confidence_badge.bg_class }} {{ journey.confidence_badge.text_class }}">
+                    {{ journey.confidence_badge.label }}
+                </span>
+                {% endif %}
+            </div>
+
+            <div class="flex flex-wrap gap-2 mt-4">
+                <span class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em]" style="background:#1A1815; color:#D4892A;">
+                    {{ journey.timeline_step_count }} steps
+                </span>
+                <span class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em]" style="background:#1A1815; color:#C9B99F;">
+                    {{ journey.status_label }}
+                </span>
+                {% if journey.cfs_number %}
+                <span class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em]" style="background:#1A1815; color:#C9B99F;">
+                    CFS {{ journey.cfs_number }}
+                </span>
+                {% endif %}
+            </div>
+
+            {% if journey.location %}
+            <p class="mt-4 text-sm leading-6" style="color:#C9B99F;">{{ journey.location }}</p>
+            {% endif %}
+            {% if journey.summary %}
+            <p class="mt-3 text-sm leading-6" style="color:#E6DCCB;">{{ journey.summary }}</p>
+            {% endif %}
+
+            <div class="mt-5 flex flex-wrap gap-2">
+                <a href="/case-journeys/{{ journey.slug }}" class="rounded-xl px-4 py-2 text-sm font-bold" style="background:#D4892A; color:#0D0C0B; text-decoration:none;">
+                    Open journey
+                </a>
+                {% if journey.primary_record_id %}
+                <a href="/record/{{ journey.primary_record_id }}" class="rounded-xl px-4 py-2 text-sm font-bold border" style="border-color:#35302A; color:#F0E8D8; text-decoration:none;">
+                    Record page
+                </a>
+                {% endif %}
+            </div>
+        </article>
+        {% else %}
+        <div class="rounded-[24px] border p-8" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-xl font-black" style="font-family:'Playfair Display',Georgia,serif; color:#F0E8D8;">No published journeys yet.</h2>
+            <p class="mt-3 text-sm leading-6" style="color:#C9B99F;">Published journeys will appear here once the timeline seeding process finds records with follow-up log activity.</p>
+        </div>
+        {% endfor %}
+    </div>
+</main>
+{% endblock %}

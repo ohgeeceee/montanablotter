@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700{% elif category == 'warning' %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Audience</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Public Comments</h1>
+            <p class="text-sm text-slate-500 mt-2">Moderate reader comments before they appear on public pages.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Total</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.total }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Pending</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.pending }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Approved</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.approved }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Rejected</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.rejected }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Spam</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.spam }}</p>
+            </div>
+        </div>
+    </div>
+
+    <form method="get" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_0.7fr_0.8fr_auto]">
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Body text, name, email"
+                       class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+            </div>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Status</label>
+                <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                    <option value="spam" {% if status_filter == 'spam' %}selected{% endif %}>Spam</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Content type</label>
+                <select name="content_type" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    <option value="">All content</option>
+                    {% for item in content_types %}
+                    <option value="{{ item.value }}" {% if content_type_filter == item.value %}selected{% endif %}>{{ item.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-end gap-3">
+                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">Apply</button>
+                <a href="/admin/audience/comments" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Reset</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="space-y-4">
+        {% for row in rows %}
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div class="space-y-3 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em] {% if row.status == 'approved' %}bg-emerald-100 text-emerald-700{% elif row.status == 'pending' %}bg-amber-100 text-amber-800{% elif row.status == 'rejected' %}bg-slate-200 text-slate-700{% else %}bg-rose-100 text-rose-700{% endif %}">
+                            {{ row.status }}
+                        </span>
+                        <span class="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{{ row.content_label }}</span>
+                        <a href="{{ row.target_path }}" target="_blank" rel="noopener" class="text-xs font-black uppercase tracking-[0.12em] text-blue-600 hover:underline">Open page</a>
+                    </div>
+                    <div>
+                        <p class="text-sm font-black text-slate-900">{{ row.display_name }}</p>
+                        <p class="text-xs text-slate-500 mt-1">{{ row.email }} · {{ row.created_at }}</p>
+                    </div>
+                    <p class="text-sm leading-7 text-slate-700" style="white-space: pre-line;">{{ row.body }}</p>
+                    {% if row.moderation_note %}
+                    <p class="text-xs text-slate-500">Moderator note: {{ row.moderation_note }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="flex flex-col gap-3 lg:w-[320px]">
+                    <form method="post" action="/admin/audience/comments/{{ row.id }}/status" class="space-y-2">
+                        <input type="hidden" name="status" value="approved">
+                        <button type="submit" class="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white hover:bg-emerald-700 transition">Approve</button>
+                    </form>
+                    <form method="post" action="/admin/audience/comments/{{ row.id }}/status" class="space-y-2">
+                        <input type="hidden" name="status" value="rejected">
+                        <input type="text" name="moderation_note" value="{{ row.moderation_note or '' }}" placeholder="Optional rejection note"
+                               class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800">
+                        <button type="submit" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50 transition">Reject</button>
+                    </form>
+                    <form method="post" action="/admin/audience/comments/{{ row.id }}/status" class="space-y-2">
+                        <input type="hidden" name="status" value="spam">
+                        <button type="submit" class="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white hover:bg-rose-700 transition">Mark Spam</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+        {% else %}
+        <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            No comments matched the current filters.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

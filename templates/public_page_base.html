@@ -54,6 +54,13 @@
                 {% endif %}
                 {% endfor %}
                 <a href="/subscribe" class="pnav-link" style="margin-left:8px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A;">Subscribe</a>
+                {% if public_user %}
+                <span class="pnav-link" style="margin-left:8px; color:#E8DFD0;">{{ public_user.display_name }}</span>
+                <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link">Log Out</a>
+                {% else %}
+                <a href="/login?next={{ request.full_path | urlencode }}" class="pnav-link" style="margin-left:8px;">Log In</a>
+                <a href="/register?next={{ request.full_path | urlencode }}" class="pnav-link">Register</a>
+                {% endif %}
             </nav>
             <button id="pub-mobile-btn" class="md:hidden" style="background:none; border:none; color:#8A7F72; cursor:pointer; padding:4px;" aria-label="Open menu">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="0" y1="4" x2="18" y2="4"/><line x1="0" y1="9" x2="18" y2="9"/><line x1="0" y1="14" x2="18" y2="14"/></svg>
@@ -79,6 +86,15 @@
             <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}" style="display:block; padding:8px 12px;">{{ item.label }}</a>
             {% endfor %}
             <a href="/subscribe" class="pnav-link" style="display:block; padding:8px 12px; color:#D4892A;">Subscribe</a>
+            {% if public_user %}
+            <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Account</p>
+            <span class="pnav-link" style="display:block; padding:8px 12px; color:#E8DFD0;">{{ public_user.display_name }}</span>
+            <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link" style="display:block; padding:8px 12px;">Log Out</a>
+            {% else %}
+            <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Account</p>
+            <a href="/login?next={{ request.full_path | urlencode }}" class="pnav-link" style="display:block; padding:8px 12px;">Log In</a>
+            <a href="/register?next={{ request.full_path | urlencode }}" class="pnav-link" style="display:block; padding:8px 12px;">Register</a>
+            {% endif %}
             {% if public_secondary_nav_items %}
             <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Explore</p>
             {% for item in public_secondary_nav_items %}
@@ -95,6 +111,18 @@
             {% block breadcrumb %}{% endblock %}
         </div>
     </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-2xl border px-4 py-3 text-sm {% if category == 'error' %}border-rose-200 bg-rose-50 text-rose-700{% elif category == 'warning' %}border-amber-200 bg-amber-50 text-amber-800{% else %}border-emerald-200 bg-emerald-50 text-emerald-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
 
     {% set show_conversion_cta = (
         request.path == '/trends'

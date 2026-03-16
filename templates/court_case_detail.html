@@ -1,0 +1,128 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/courts" class="hover:text-slate-700">Courts</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ case.case_number }}</span>
+{% endblock %}
+
+{% block content %}
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid lg:grid-cols-[minmax(0,1fr)_320px] gap-8">
+    <section class="space-y-6">
+        <div class="rounded-[28px] overflow-hidden border" style="background:#F7F3EB; border-color:#E7DECF;">
+            <div class="px-6 sm:px-8 py-7" style="background:#141210; color:#F0E8D8;">
+                <p class="text-[10px] uppercase tracking-[0.22em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Montana Court Tracker</p>
+                <h1 class="mt-2 text-3xl sm:text-4xl leading-tight font-black" style="font-family:'Playfair Display',Georgia,serif;">{{ case.caption }}</h1>
+                <p class="mt-3 text-sm leading-6" style="color:#C9B99F;">{{ case.case_number }} · {{ case.court_name }}{% if case.case_type %} · {{ case.case_type }}{% endif %}</p>
+            </div>
+            <div class="grid sm:grid-cols-3 border-b" style="border-color:#E7DECF;">
+                <div class="p-6">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">County</p>
+                    <p class="mt-2 text-base font-bold text-slate-900">{{ case.county }} County</p>
+                </div>
+                <div class="p-6 border-t sm:border-t-0 sm:border-l" style="border-color:#E7DECF;">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Filed</p>
+                    <p class="mt-2 text-base font-bold text-slate-900">{{ case.filed_date or 'Unknown' }}</p>
+                </div>
+                <div class="p-6 border-t sm:border-t-0 sm:border-l" style="border-color:#E7DECF;">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Status</p>
+                    <p class="mt-2 text-base font-bold text-slate-900">{{ case.status or 'Open' }}</p>
+                </div>
+            </div>
+            {% if case.next_hearing %}
+            <div class="p-6 sm:p-8">
+                <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Next hearing</p>
+                <div class="mt-3 rounded-2xl border border-slate-200 bg-white p-5">
+                    <p class="text-sm font-black text-slate-900">{{ case.next_hearing.event_title }}</p>
+                    <p class="mt-2 text-sm text-slate-600">{{ case.next_hearing.event_date }}{% if case.next_hearing.event_time %} · {{ case.next_hearing.event_time }}{% endif %}</p>
+                    {% if case.next_hearing.judge %}
+                    <p class="mt-1 text-xs text-slate-500">Judge {{ case.next_hearing.judge }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <section class="rounded-[24px] border p-6 sm:p-8" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-lg font-black mb-5" style="font-family:'Playfair Display',Georgia,serif;">Hearing timeline</h2>
+            <div class="space-y-3">
+                {% for event in case.events %}
+                <div class="rounded-xl border px-4 py-4" style="border-color:#282420; background:#1A1815;">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">{{ event.event_type }}</p>
+                            <p class="mt-1 text-sm font-bold" style="color:#F0E8D8;">{{ event.event_title }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">{{ event.event_date }}</p>
+                            <p class="mt-1 text-xs" style="color:#C9B99F;">{{ event.event_time or 'Time pending' }}</p>
+                        </div>
+                    </div>
+                    {% if event.notes %}
+                    <p class="mt-3 text-sm leading-6" style="color:#E6DCCB;">{{ event.notes }}</p>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="rounded-xl border px-4 py-4" style="border-color:#282420; background:#1A1815; color:#C9B99F;">No hearing events indexed yet.</div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="rounded-[24px] border p-6 sm:p-8" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-lg font-black mb-5" style="font-family:'Playfair Display',Georgia,serif;">Recent filings</h2>
+            <div class="space-y-3">
+                {% for filing in case.filings %}
+                <div class="rounded-xl border px-4 py-4" style="border-color:#282420; background:#1A1815;">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <p class="text-sm font-bold" style="color:#F0E8D8;">{{ filing.filing_title }}</p>
+                        <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">{{ filing.filing_date }}</p>
+                    </div>
+                    {% if filing.document_number %}
+                    <p class="mt-2 text-xs" style="color:#C9B99F;">Document {{ filing.document_number }}</p>
+                    {% endif %}
+                    {% if filing.source_url %}
+                    <a href="{{ filing.source_url }}" target="_blank" rel="noopener" class="mt-3 inline-flex items-center rounded-2xl px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em]" style="background:#D4892A; color:#0D0C0B; text-decoration:none;">
+                        Open filing
+                    </a>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="rounded-xl border px-4 py-4" style="border-color:#282420; background:#1A1815; color:#C9B99F;">No filings indexed yet.</div>
+                {% endfor %}
+            </div>
+        </section>
+    </section>
+
+    <aside class="space-y-5">
+        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Source context</h2>
+            <div class="space-y-3 text-sm mt-4">
+                <div class="rounded-xl p-4" style="background:#1A1815;">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Court</p>
+                    <p class="mt-2 font-semibold" style="color:#F0E8D8;">{{ case.court_name }}</p>
+                    <p class="mt-1 text-xs" style="color:#C9B99F;">{{ case.court_type }}{% if case.city %} · {{ case.city }}{% endif %}</p>
+                </div>
+                {% if case.source_name %}
+                <div class="rounded-xl p-4" style="background:#1A1815;">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Feed source</p>
+                    <p class="mt-2 font-semibold" style="color:#F0E8D8;">{{ case.source_name }}</p>
+                    {% if case.last_success_at %}
+                    <p class="mt-1 text-xs" style="color:#C9B99F;">Last sync {{ case.last_success_at }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if case.source_url %}
+                <a href="{{ case.source_url }}" target="_blank" rel="noopener" class="block rounded-xl px-4 py-3 font-bold text-sm transition" style="background:#D4892A; color:#0D0C0B; text-decoration:none;">
+                    Open official case reference
+                </a>
+                {% elif case.portal_url %}
+                <a href="{{ case.portal_url }}" target="_blank" rel="noopener" class="block rounded-xl px-4 py-3 font-bold text-sm transition" style="background:#D4892A; color:#0D0C0B; text-decoration:none;">
+                    Open court portal
+                </a>
+                {% endif %}
+            </div>
+        </section>
+    </aside>
+</main>
+{% endblock %}

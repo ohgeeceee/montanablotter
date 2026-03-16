@@ -85,6 +85,8 @@ export default function BlogScreen() {
     </TouchableOpacity>
   );
 
+  const featuredPost = posts[0];
+
   if (loading && posts.length === 0) {
     return (
       <View style={styles.centerContainer}>
@@ -97,10 +99,36 @@ export default function BlogScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <Text style={styles.headerEyebrow}>Editorial Desk</Text>
         <Text style={styles.headerTitle}>News & Analysis</Text>
         <Text style={styles.headerSubtitle}>
           Insights on Montana public safety and community reporting
         </Text>
+        <View style={styles.headerStats}>
+          <View style={styles.headerStatCard}>
+            <Text style={styles.headerStatValue}>{posts.length}</Text>
+            <Text style={styles.headerStatLabel}>Loaded</Text>
+          </View>
+          <View style={styles.headerStatCard}>
+            <Text style={styles.headerStatValue}>{totalPages}</Text>
+            <Text style={styles.headerStatLabel}>Pages</Text>
+          </View>
+        </View>
+        {featuredPost ? (
+          <TouchableOpacity
+            style={styles.featuredCard}
+            onPress={() => navigation.navigate('BlogPost', { slug: featuredPost.slug })}
+          >
+            <Text style={styles.featuredLabel}>Latest article</Text>
+            <Text style={styles.featuredTitle} numberOfLines={2}>
+              {featuredPost.title}
+            </Text>
+            <Text style={styles.featuredMeta}>
+              {(featuredPost.created_at || '').substring(0, 10)}
+              {featuredPost.author ? ` · ${featuredPost.author}` : ''}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
       <FlatList
         data={posts}
@@ -148,7 +176,15 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: COLORS.primary,
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 24,
+  },
+  headerEyebrow: {
+    color: '#34d399',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 8,
   },
   headerTitle: {
     fontSize: 24,
@@ -159,6 +195,61 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#94a3b8',
+    lineHeight: 20,
+  },
+  headerStats: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  headerStatCard: {
+    minWidth: 88,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  headerStatValue: {
+    color: COLORS.card,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  headerStatLabel: {
+    color: '#cbd5e1',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  featuredCard: {
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(52,211,153,0.25)',
+  },
+  featuredLabel: {
+    color: '#6ee7b7',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  featuredTitle: {
+    color: COLORS.card,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+  featuredMeta: {
+    color: '#d1fae5',
+    fontSize: 12,
   },
   list: {
     padding: 16,
@@ -221,5 +312,6 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: COLORS.secondary,
+    marginTop: 4,
   },
 });
