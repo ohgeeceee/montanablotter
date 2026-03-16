@@ -1,0 +1,101 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/courts" class="hover:text-slate-700">Courts</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Hearings</span>
+{% endblock %}
+
+{% block content %}
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <section class="rounded-[30px] overflow-hidden border" style="background:#F7F3EB; border-color:#E7DECF;">
+        <div class="px-6 sm:px-8 py-7" style="background:#141210; color:#F0E8D8;">
+            <p class="text-[10px] uppercase tracking-[0.22em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Montana Court Tracker</p>
+            <h1 class="mt-2 text-3xl sm:text-5xl leading-tight font-black" style="font-family:'Playfair Display',Georgia,serif;">{% if search_mode %}Search court records{% else %}Upcoming public hearings{% endif %}</h1>
+            <p class="mt-3 max-w-3xl text-sm leading-6" style="color:#C9B99F;">{% if search_mode %}Search across upcoming hearings, historical hearings, and indexed opinion filings from official Montana court feeds.{% else %}Track upcoming public hearing dates across Montana courts, filter by county or court type, and move into case-level pages as they are indexed.{% endif %}</p>
+        </div>
+
+        <div class="p-6 sm:p-8 border-b" style="border-color:#E7DECF;">
+            <form method="get" class="grid gap-4 md:grid-cols-[minmax(0,2fr),1fr,1fr,1fr,auto] md:items-end">
+                <div>
+                    <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Search</label>
+                    <input name="q" value="{{ q }}" placeholder="Case number, caption, hearing type"
+                           class="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900">
+                </div>
+                <div>
+                    <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">County</label>
+                    <select name="county" class="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900">
+                        <option value="">All counties</option>
+                        {% for county_name in counties %}
+                        <option value="{{ county_name }}" {% if selected_county == county_name %}selected{% endif %}>{{ county_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Court type</label>
+                    <select name="court_type" class="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900">
+                        <option value="">All courts</option>
+                        {% for value in court_types %}
+                        <option value="{{ value }}" {% if selected_court_type == value|lower %}selected{% endif %}>{{ value }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Date</label>
+                    <input type="date" name="hearing_date" value="{{ selected_date }}"
+                           class="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900">
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-white">Filter</button>
+                    <a href="{% if search_mode %}/court-search{% else %}/court-hearings{% endif %}" class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-slate-600">Reset</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="p-6 sm:p-8">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{{ hearing_count }} hearings shown</p>
+                <div class="flex flex-wrap gap-2">
+                    <a href="/court-hearings" class="inline-flex items-center rounded-2xl border border-slate-300 px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] {% if not search_mode %}bg-slate-900 text-white border-slate-900{% else %}text-slate-700{% endif %}">Upcoming only</a>
+                    <a href="/court-search" class="inline-flex items-center rounded-2xl border border-slate-300 px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] {% if search_mode %}bg-slate-900 text-white border-slate-900{% else %}text-slate-700{% endif %}">Search all indexed</a>
+                </div>
+            </div>
+            <div class="mt-4 space-y-4">
+                {% for hearing in hearings %}
+                <article class="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">{{ hearing.county }} County · {{ hearing.court_name }}</p>
+                            <h2 class="mt-2 text-xl font-black text-slate-950" style="font-family:'Playfair Display',Georgia,serif;">{{ hearing.event_title }}</h2>
+                            <p class="mt-2 text-sm text-slate-700">{{ hearing.caption }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ hearing.case_number }}{% if hearing.case_type %} · {{ hearing.case_type }}{% endif %}</p>
+                            {% if hearing.notes %}
+                            <p class="mt-3 text-sm text-slate-600">{{ hearing.notes }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-amber-700">{{ hearing.event_date }}</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-700">{{ hearing.event_time or 'Time pending' }}</p>
+                            {% if hearing.judge %}
+                            <p class="mt-1 text-xs text-slate-500">Judge {{ hearing.judge }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <a href="/court-case/{{ hearing.case_slug }}" class="inline-flex items-center rounded-2xl bg-sky-600 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white">Open case</a>
+                        {% if hearing.source_url %}
+                        <a href="{{ hearing.source_url }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-2xl border border-slate-300 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700">Source row</a>
+                        {% endif %}
+                    </div>
+                </article>
+                {% else %}
+                <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                    No hearings matched those filters.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}

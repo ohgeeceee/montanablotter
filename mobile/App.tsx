@@ -72,6 +72,7 @@ function App() {
     <NavigationContainer>
       <StatusBar style="auto" />
       <Tab.Navigator
+        sceneContainerStyle={{ backgroundColor: '#f8fafc' }}
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
             let iconName: keyof typeof Ionicons.glyphMap = 'home';
@@ -90,6 +91,17 @@ function App() {
           },
           tabBarActiveTintColor: '#0f172a',
           tabBarInactiveTintColor: '#64748b',
+          tabBarStyle: {
+            height: 72,
+            paddingTop: 8,
+            paddingBottom: 8,
+            borderTopColor: '#e2e8f0',
+            backgroundColor: '#ffffff',
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '700',
+          },
           headerShown: false,
         })}
       >

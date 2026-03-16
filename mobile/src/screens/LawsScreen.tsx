@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  TextInput,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -93,6 +94,7 @@ export default function LawsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<LawsStackParamList>>();
   const [diagnosticTapCount, setDiagnosticTapCount] = useState(0);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     return () => {
@@ -125,17 +127,53 @@ export default function LawsScreen() {
     }
   };
 
+  const filteredCategories = LAW_CATEGORIES.filter((category) => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) {
+      return true;
+    }
+
+    return (
+      category.title.toLowerCase().includes(query) ||
+      category.subtitle.toLowerCase().includes(query) ||
+      category.laws.some((law) =>
+        `${law.title} ${law.description}`.toLowerCase().includes(query)
+      )
+    );
+  });
+
+  const totalLawCount = LAW_CATEGORIES.reduce((sum, category) => sum + category.laws.length, 0);
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
+        <Text style={styles.headerEyebrow}>Reference Guide</Text>
         <Text style={styles.headerTitle}>Montana Laws</Text>
         <Text style={styles.headerSubtitle}>
           A plain-language overview of key Montana statutes
         </Text>
+        <View style={styles.headerStats}>
+          <View style={styles.headerStatCard}>
+            <Text style={styles.headerStatValue}>{LAW_CATEGORIES.length}</Text>
+            <Text style={styles.headerStatLabel}>Categories</Text>
+          </View>
+          <View style={styles.headerStatCard}>
+            <Text style={styles.headerStatValue}>{totalLawCount}</Text>
+            <Text style={styles.headerStatLabel}>Summaries</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.content}>
-        {LAW_CATEGORIES.map(category => (
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search laws, topics, or statutes..."
+          value={search}
+          onChangeText={setSearch}
+          placeholderTextColor={COLORS.secondary}
+        />
+        {filteredCategories.map(category => (
           <TouchableOpacity
             key={category.id}
             style={styles.card}
@@ -152,6 +190,12 @@ export default function LawsScreen() {
             <Text style={styles.arrow}>→</Text>
           </TouchableOpacity>
         ))}
+        {filteredCategories.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No law summaries matched that search.</Text>
+            <Text style={styles.emptyText}>Try a broader term like "DUI", "theft", or "hunting".</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.disclaimer}>
@@ -175,7 +219,15 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: COLORS.primary,
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 24,
+  },
+  headerEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#93c5fd',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 8,
   },
   headerTitle: {
     fontSize: 24,
@@ -186,9 +238,47 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#94a3b8',
+    lineHeight: 20,
+  },
+  headerStats: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  headerStatCard: {
+    minWidth: 100,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  headerStatValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.card,
+    marginBottom: 2,
+  },
+  headerStatLabel: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   content: {
     padding: 16,
+  },
+  searchInput: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: COLORS.primary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 14,
   },
   card: {
     flexDirection: 'row',
@@ -233,6 +323,27 @@ const styles = StyleSheet.create({
   arrow: {
     fontSize: 18,
     color: COLORS.secondary,
+  },
+  emptyState: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    color: COLORS.primary,
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyText: {
+    color: COLORS.secondary,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
   },
   disclaimer: {
     margin: 16,

@@ -31,6 +31,30 @@ export interface Agency {
   post_count: number;
 }
 
+export interface StatsBucket {
+  county?: string;
+  incident_type?: string;
+  count: number;
+}
+
+export interface StatsResponse {
+  total_records: number;
+  total_posts: number;
+  total_blotters: number;
+  total_counties: number;
+  total_agencies: number;
+  latest_blotter?: {
+    county: string;
+    upload_date: string;
+  };
+  date_range?: {
+    earliest: string | null;
+    latest: string | null;
+  };
+  top_counties: StatsBucket[];
+  top_incident_types: StatsBucket[];
+}
+
 export interface BlogPost {
   id: number;
   title: string;

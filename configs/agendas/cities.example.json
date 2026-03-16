@@ -1,0 +1,62 @@
+[
+  {
+    "slug": "billings-city-council",
+    "name": "Billings City Council",
+    "provider": "granicus",
+    "url": "https://www.example.gov/AgendaCenter",
+    "selectors": {
+      "row": "table tbody tr",
+      "title": "td:nth-child(1)",
+      "date": "td:nth-child(2)",
+      "agenda_link": "a:has-text('Agenda'), a:has-text('View Details')",
+      "minutes_link": "a:has-text('Minutes')"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "billings",
+      "location_name": "Billings",
+      "city_name": "Billings",
+      "county_name": "Yellowstone"
+    }
+  },
+  {
+    "slug": "missoula-county-commission",
+    "name": "Missoula County Board of Commissioners",
+    "provider": "municode",
+    "url": "https://www.examplecounty.us/calendar",
+    "selectors": {
+      "row": ".meeting-row",
+      "title": ".meeting-title",
+      "date": ".meeting-date",
+      "agenda_link": "a:has-text('Agenda'), a:has-text('Packet')",
+      "minutes_link": "a:has-text('Minutes')"
+    },
+    "metadata": {
+      "meeting_scope": "county",
+      "location_slug": "missoula-county",
+      "location_name": "Missoula County",
+      "county_name": "Missoula"
+    }
+  },
+  {
+    "slug": "great-falls-city-commission",
+    "name": "Great Falls City Commission",
+    "provider": "custom_html",
+    "url": "https://www.example.org/public-meetings",
+    "selectors": {
+      "row": ".meeting-card",
+      "title": "h3",
+      "date": ".meeting-card__date",
+      "agenda_link": "a[href*='agenda'], a:has-text('Agenda')",
+      "minutes_link": "a[href*='minutes'], a:has-text('Minutes')"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "great-falls",
+      "location_name": "Great Falls",
+      "city_name": "Great Falls",
+      "county_name": "Cascade",
+      "legacy_row_keywords": ["agenda", "minutes", "packet", "commission"]
+    }
+  }
+]

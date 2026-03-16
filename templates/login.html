@@ -1,133 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <title>Login | MT Blotter</title>
-</head>
-<body class="bg-slate-50 font-sans text-slate-900">
+{% extends "public_page_base.html" %}
 
-    <div class="min-h-screen flex items-center justify-center p-6">
-        <div class="max-w-md w-full">
-            <div class="text-center mb-10">
-                <a href="/" class="inline-flex items-center gap-2 mb-4">
-                    <div class="bg-slate-900 text-white p-2 rounded-lg"><i class="fas fa-mountain"></i></div>
-                    <span class="font-black tracking-tighter text-xl italic uppercase">MT BLOTTER</span>
-                </a>
-                <h2 class="text-3xl font-black text-slate-900 tracking-tight">Welcome Back</h2>
-                <p class="text-slate-500 mt-2">Enter your credentials to access the dashboard.</p>
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Log In</span>
+{% endblock %}
+
+{% block content %}
+<main class="max-w-4xl mx-auto px-4 sm:px-6 py-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <section class="rounded-[28px] border overflow-hidden" style="background:#F7F3EB; border-color:#E7DECF; color:#1E1B18;">
+        <div class="px-6 sm:px-8 py-7" style="background:#141210; color:#F0E8D8;">
+            <p class="text-[10px] uppercase tracking-[0.22em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Public Account</p>
+            <h1 class="mt-2 text-3xl sm:text-4xl font-black leading-tight" style="font-family:'Playfair Display',Georgia,serif;">Log in to comment and manage alerts</h1>
+            <p class="mt-3 text-sm leading-6" style="color:#C9B99F;">Use the email address you registered with. Public login is separate from the admin panel.</p>
+        </div>
+
+        <form method="post" action="/login" class="p-6 sm:p-8 space-y-5">
+            <input type="hidden" name="next" value="{{ next_url }}">
+
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Email</label>
+                <input type="email" name="email" value="{{ email_value }}" required maxlength="255"
+                       class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                       placeholder="name@example.com">
             </div>
 
-            {% with messages = get_flashed_messages() %}
-              {% if messages %}
-                {% for message in messages %}
-                  <div class="bg-blue-50 border border-blue-200 text-blue-600 px-4 py-3 rounded-xl mb-6 text-sm font-bold flex items-center">
-                      <i class="fas fa-info-circle mr-2"></i> {{ message }}
-                  </div>
-                {% endfor %}
-              {% endif %}
-            {% endwith %}
-
-            <div class="bg-white p-8 rounded-[32px] shadow-2xl shadow-slate-200/60 border border-slate-100">
-                <form action="/login" method="POST" class="space-y-5">
-                    <div>
-                        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Username</label>
-                        <div class="relative">
-                            <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
-                            <input type="text" name="username" required placeholder="admin"
-                                   class="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition">
-                        </div>
-                    </div>
-
-                    <div>
-    <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Password</label>
-    <div class="relative">
-        <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
-        
-        <input type="password" id="password" name="password" required placeholder="••••••••"
-               class="w-full pl-12 pr-12 py-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm"
-               oninput="checkStrength(this.value)">
-        
-        <button type="button" onclick="togglePassword()" 
-                class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-blue-500 transition focus:outline-none">
-            <i id="eye-icon" class="fas fa-eye"></i>
-        </button>
-    </div>
-    
-    <div class="mt-3 px-1">
-        <div class="flex justify-between items-center mb-1">
-            <span id="strength-text" class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Security Strength</span>
-            <span id="strength-label" class="text-[10px] font-black uppercase text-slate-300">Very Weak</span>
-        </div>
-        <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-            <div id="strength-bar" class="h-full w-0 transition-all duration-500 bg-slate-300"></div>
-        </div>
-    </div>
-</div>
-
-                    <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm hover:bg-blue-600 transition shadow-xl shadow-slate-200 uppercase tracking-widest">
-                        Sign In
-                    </button>
-                </form>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Password</label>
+                <input type="password" name="password" required
+                       class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                       placeholder="Your password">
             </div>
 
-            <p class="text-center mt-8 text-sm text-slate-500 font-medium">
-                New to the platform? 
-                <a href="/register" class="text-blue-600 font-black hover:underline ml-1">Create Account</a>
-            </p>
-        </div>
-    </div>
-<script>
-function checkStrength(password) {
-    let strength = 0;
-    const bar = document.getElementById('strength-bar');
-    const label = document.getElementById('strength-label');
-    
-    if (password.length >= 8) strength += 25;
-    if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength += 25;
-    if (password.match(/\d/)) strength += 25;
-    if (password.match(/[^a-zA-Z\d]/)) strength += 25;
+            <button type="submit" class="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.16em]" style="background:#D4892A; color:#0D0C0B;">
+                Log In
+            </button>
+        </form>
+    </section>
 
-    // Update Bar Width and Color
-    bar.style.width = strength + '%';
-    
-    if (strength <= 25) {
-        bar.className = 'h-full transition-all duration-500 bg-red-500';
-        label.innerText = 'Weak';
-        label.className = 'text-[10px] font-black uppercase text-red-500';
-    } else if (strength <= 50) {
-        bar.className = 'h-full transition-all duration-500 bg-orange-400';
-        label.innerText = 'Fair';
-        label.className = 'text-[10px] font-black uppercase text-orange-400';
-    } else if (strength <= 75) {
-        bar.className = 'h-full transition-all duration-500 bg-yellow-400';
-        label.innerText = 'Good';
-        label.className = 'text-[10px] font-black uppercase text-yellow-500';
-    } else {
-        bar.className = 'h-full transition-all duration-500 bg-green-500';
-        label.innerText = 'Strong';
-        label.className = 'text-[10px] font-black uppercase text-green-500';
-    }
-}
-
-function togglePassword() {
-    const passwordInput = document.getElementById('password');
-    const eyeIcon = document.getElementById('eye-icon');
-    
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        // Change icon to the 'slashed' eye
-        eyeIcon.classList.remove('fa-eye');
-        eyeIcon.classList.add('fa-eye-slash');
-    } else {
-        passwordInput.type = 'password';
-        // Change icon back to the regular eye
-        eyeIcon.classList.remove('fa-eye-slash');
-        eyeIcon.classList.add('fa-eye');
-    }
-}
-</script>
-</body>
-</html>
+    <aside class="space-y-5">
+        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Need an account?</h2>
+            <p class="mt-3 text-sm leading-6" style="color:#C9B99F;">Register once, then use the same account everywhere public comments appear on the site.</p>
+            <a href="/register?next={{ next_url | urlencode }}" class="mt-4 inline-flex items-center rounded-xl border px-4 py-3 text-sm font-bold" style="border-color:#35302A; color:#F0E8D8; text-decoration:none;">Create account</a>
+        </section>
+    </aside>
+</main>
+{% endblock %}

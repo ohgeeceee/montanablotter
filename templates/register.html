@@ -1,180 +1,97 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <title>Create Your Account | Montana Blotter</title>
-</head>
-<body class="bg-white font-sans text-slate-900">
+{% extends "public_page_base.html" %}
 
-    <div class="flex min-h-screen">
-        <div class="hidden lg:flex lg:w-1/2 bg-slate-900 p-16 flex-col justify-between relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full -mr-48 -mt-48 blur-3xl"></div>
-            
-            <div class="relative z-10">
-                <a href="/" class="flex items-center gap-2 mb-12">
-                    <div class="bg-blue-600 text-white p-2 rounded-lg"><i class="fas fa-mountain"></i></div>
-                    <span class="font-black tracking-tighter text-2xl italic uppercase text-white">MT BLOTTER</span>
-                </a>
-                
-                <h1 class="text-5xl font-black text-white leading-tight mb-8">
-                    The intelligence layer for <span class="text-blue-500">Montana Safety.</span>
-                </h1>
-                
-                <ul class="space-y-6">
-                    <li class="flex items-start gap-4">
-                        <div class="mt-1 bg-slate-800 p-2 rounded-lg text-blue-400 text-xs"><i class="fas fa-search"></i></div>
-                        <div>
-                            <p class="text-white font-bold text-lg">Deep Historical Search</p>
-                            <p class="text-slate-400 text-sm">Access years of archived records across every major county.</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-4">
-                        <div class="mt-1 bg-slate-800 p-2 rounded-lg text-blue-400 text-xs"><i class="fas fa-bell"></i></div>
-                        <div>
-                            <p class="text-white font-bold text-lg">Custom Alerts</p>
-                            <p class="text-slate-400 text-sm">Be the first to know when specific incidents are logged.</p>
-                        </div>
-                    </li>
-                    <li class="flex items-start gap-4">
-                        <div class="mt-1 bg-slate-800 p-2 rounded-lg text-blue-400 text-xs"><i class="fas fa-lock"></i></div>
-                        <div>
-                            <p class="text-white font-bold text-lg">Private & Secure</p>
-                            <p class="text-slate-400 text-sm">Your searches and data remain 100% confidential and encrypted.</p>
-                        </div>
-                    </li>
-                </ul>
-            </div>
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Create Account</span>
+{% endblock %}
 
-            <div class="relative z-10 border-t border-slate-800 pt-8">
-                <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">Trusted by citizens in</p>
-                <div class="flex gap-4 text-slate-400 font-black italic text-sm opacity-50">
-                    <span>CHOTEAU</span> <span>GREAT FALLS</span> <span>SPOKANE</span> <span>HELENA</span>
-                </div>
-            </div>
+{% block content %}
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-8 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_340px]">
+    <section class="rounded-[28px] border overflow-hidden" style="background:#F7F3EB; border-color:#E7DECF; color:#1E1B18;">
+        <div class="px-6 sm:px-8 py-7" style="background:#141210; color:#F0E8D8;">
+            <p class="text-[10px] uppercase tracking-[0.22em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Public Account</p>
+            <h1 class="mt-2 text-3xl sm:text-4xl font-black leading-tight" style="font-family:'Playfair Display',Georgia,serif;">Create one account for comments and alerts</h1>
+            <p class="mt-3 text-sm leading-6" style="color:#C9B99F;">This first version gives readers a single login for commenting and optional daily digest subscriptions. Comments are moderated before they appear publicly.</p>
         </div>
 
-        <div class="w-full lg:w-1/2 flex flex-col justify-center p-8 md:p-24 bg-slate-50">
-            <div class="max-w-md w-full mx-auto">
-                <div class="mb-10 lg:hidden text-center">
-                    <span class="font-black tracking-tighter text-2xl italic uppercase text-slate-900">MT BLOTTER</span>
+        <form method="post" action="/register" class="p-6 sm:p-8 space-y-6">
+            <input type="hidden" name="next" value="{{ next_url }}">
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                    <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Display name</label>
+                    <input type="text" name="display_name" value="{{ form_values.display_name }}" required maxlength="120"
+                           class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                           placeholder="How your comments should appear">
                 </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Email</label>
+                    <input type="email" name="email" value="{{ form_values.email }}" required maxlength="255"
+                           class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                           placeholder="name@example.com">
+                </div>
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Password</label>
+                    <input type="password" name="password" required minlength="8"
+                           class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                           placeholder="At least 8 characters">
+                </div>
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Confirm password</label>
+                    <input type="password" name="confirm_password" required minlength="8"
+                           class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                           placeholder="Repeat password">
+                </div>
+            </div>
 
-                <h2 class="text-3xl font-black text-slate-900 mb-2">Get Started</h2>
-                <p class="text-slate-500 mb-8 font-medium">Create your free account to begin searching.</p>
+            <section class="rounded-2xl border border-slate-200 bg-white p-5">
+                <label class="flex items-start gap-3">
+                    <input type="checkbox" name="subscribe_digest" value="1" {% if form_values.subscribe_digest %}checked{% endif %}
+                           class="mt-1 h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500">
+                    <span>
+                        <span class="block text-sm font-black text-slate-900">Also subscribe me to the free digest</span>
+                        <span class="block mt-1 text-sm text-slate-600">Choose counties below or leave them blank for statewide coverage.</span>
+                    </span>
+                </label>
 
-                {% with messages = get_flashed_messages() %}
-                  {% if messages %}
-                    {% for message in messages %}
-                      <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm text-sm" role="alert">
-                        {{ message }}
-                      </div>
+                <div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {% for county in counties %}
+                    <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        <input type="checkbox" name="counties" value="{{ county }}"
+                               {% if county in form_values.selected_counties %}checked{% endif %}
+                               class="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500">
+                        <span>{{ county }}</span>
+                    </label>
                     {% endfor %}
-                  {% endif %}
-                {% endwith %}
+                </div>
+            </section>
 
-                <form action="/register" method="POST" class="space-y-6">
-                    <div>
-                        <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Username</label>
-                        <input type="text" name="username" required placeholder="Pick a username"
-                               class="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm">
-                    </div>
+            <button type="submit" class="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.16em]" style="background:#D4892A; color:#0D0C0B;">
+                Create Account
+            </button>
+        </form>
+    </section>
 
-                    <div>
-                <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Password</label>
-                        <div class="relative">
-                        <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
-                            
-                 <input type="password" id="password" name="password" required placeholder="••••••••"
-                              class="w-full pl-12 pr-12 py-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm"
-                              oninput="checkStrength(this.value)">
-        
-                    <button type="button" onclick="togglePassword()" 
-                    class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-blue-500 transition focus:outline-none">
-                         <i id="eye-icon" class="fas fa-eye"></i>
-                            </button>
-    </div>
-    
-    <div class="mt-3 px-1">
-        <div class="flex justify-between items-center mb-1">
-            <span id="strength-text" class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Security Strength</span>
-            <span id="strength-label" class="text-[10px] font-black uppercase text-slate-300">Very Weak</span>
-        </div>
-        <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-            <div id="strength-bar" class="h-full w-0 transition-all duration-500 bg-slate-300"></div>
-        </div>
-    </div>
-</div>
-    
-
-                    <div class="flex items-center gap-3 py-2">
-                        <input type="checkbox" required class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                        <label class="text-xs text-slate-500 font-medium">I agree to the <a href="#" class="text-blue-600 underline">Terms of Intelligence Access</a></label>
-                    </div>
-
-                    <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm hover:bg-blue-600 transition shadow-xl uppercase tracking-widest flex items-center justify-center gap-2">
-                        Unlock Database Access <i class="fas fa-arrow-right text-[10px]"></i>
-                    </button>
-                </form>
-
-                <p class="text-center mt-8 text-sm text-slate-500">
-                    Already an investigator? 
-                    <a href="/login" class="text-blue-600 font-black hover:underline ml-1">Log in here</a>
-                </p>
+    <aside class="space-y-5">
+        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">What this enables</h2>
+            <div class="mt-4 space-y-3 text-sm" style="color:#E6DCCB;">
+                <div class="rounded-xl p-4" style="background:#1A1815;">
+                    Comment on records, case journeys, blog posts, and daily reports.
+                </div>
+                <div class="rounded-xl p-4" style="background:#1A1815;">
+                    Save a single email for digest signup instead of filling the form repeatedly.
+                </div>
+                <div class="rounded-xl p-4" style="background:#1A1815;">
+                    Keep moderation in place so public threads stay readable.
+                </div>
             </div>
-        </div>
-    </div>
-<script>
-function checkStrength(password) {
-    let strength = 0;
-    const bar = document.getElementById('strength-bar');
-    const label = document.getElementById('strength-label');
-    
-    if (password.length >= 8) strength += 25;
-    if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength += 25;
-    if (password.match(/\d/)) strength += 25;
-    if (password.match(/[^a-zA-Z\d]/)) strength += 25;
+        </section>
 
-    // Update Bar Width and Color
-    bar.style.width = strength + '%';
-    
-    if (strength <= 25) {
-        bar.className = 'h-full transition-all duration-500 bg-red-500';
-        label.innerText = 'Weak';
-        label.className = 'text-[10px] font-black uppercase text-red-500';
-    } else if (strength <= 50) {
-        bar.className = 'h-full transition-all duration-500 bg-orange-400';
-        label.innerText = 'Fair';
-        label.className = 'text-[10px] font-black uppercase text-orange-400';
-    } else if (strength <= 75) {
-        bar.className = 'h-full transition-all duration-500 bg-yellow-400';
-        label.innerText = 'Good';
-        label.className = 'text-[10px] font-black uppercase text-yellow-500';
-    } else {
-        bar.className = 'h-full transition-all duration-500 bg-green-500';
-        label.innerText = 'Strong';
-        label.className = 'text-[10px] font-black uppercase text-green-500';
-    }
-}
-
-function togglePassword() {
-    const passwordInput = document.getElementById('password');
-    const eyeIcon = document.getElementById('eye-icon');
-    
-    if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        // Change icon to the 'slashed' eye
-        eyeIcon.classList.remove('fa-eye');
-        eyeIcon.classList.add('fa-eye-slash');
-    } else {
-        passwordInput.type = 'password';
-        // Change icon back to the regular eye
-        eyeIcon.classList.remove('fa-eye-slash');
-        eyeIcon.classList.add('fa-eye');
-    }
-}
-</script>
-</body>
-</html>
+        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+            <p class="text-[10px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Already registered?</p>
+            <a href="/login?next={{ next_url | urlencode }}" class="mt-3 inline-flex items-center rounded-xl border px-4 py-3 text-sm font-bold" style="border-color:#35302A; color:#F0E8D8; text-decoration:none;">Log in instead</a>
+        </section>
+    </aside>
+</main>
+{% endblock %}

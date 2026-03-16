@@ -39,6 +39,12 @@
                     {{ 'Enabled' if setting_values.donations_enabled else 'Disabled' }}
                 </p>
             </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Storm Banner</p>
+                <p class="text-sm font-black {% if setting_values.winter_storm_banner_enabled %}text-emerald-700{% else %}text-slate-600{% endif %} mt-3">
+                    {{ 'Enabled' if setting_values.winter_storm_banner_enabled else 'Disabled' }}
+                </p>
+            </div>
         </div>
     </div>
 
@@ -112,7 +118,7 @@
             <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
                     <h2 class="text-lg font-black text-slate-900">Revenue</h2>
-                    <p class="text-xs text-slate-500 mt-1">Feature-flag control for public donations.</p>
+                    <p class="text-xs text-slate-500 mt-1">Feature-flag control for public donations and top-of-site support messaging.</p>
                 </div>
                 <form method="post" class="p-5 flex flex-col gap-4">
                     <input type="hidden" name="action" value="save_revenue_settings">
@@ -122,6 +128,26 @@
                         <span class="text-sm font-semibold text-slate-900">{{ setting_specs.donations_enabled.label }}</span>
                     </label>
                     <p class="text-xs text-slate-500">{{ setting_specs.donations_enabled.help }}</p>
+                    <label class="inline-flex items-center gap-3">
+                        <input type="checkbox" name="winter_storm_banner_enabled" value="1" {% if setting_values.winter_storm_banner_enabled %}checked{% endif %}
+                               class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                        <span class="text-sm font-semibold text-slate-900">{{ setting_specs.winter_storm_banner_enabled.label }}</span>
+                    </label>
+                    <p class="text-xs text-slate-500">{{ setting_specs.winter_storm_banner_enabled.help }}</p>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.winter_storm_banner_headline.label }}</label>
+                        <input type="text" name="winter_storm_banner_headline" value="{{ setting_values.winter_storm_banner_headline }}"
+                               maxlength="{{ setting_specs.winter_storm_banner_headline.max_length }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                        <p class="text-xs text-slate-500 mt-2">{{ setting_specs.winter_storm_banner_headline.help }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.winter_storm_banner_body.label }}</label>
+                        <textarea name="winter_storm_banner_body" rows="3"
+                                  maxlength="{{ setting_specs.winter_storm_banner_body.max_length }}"
+                                  class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">{{ setting_values.winter_storm_banner_body }}</textarea>
+                        <p class="text-xs text-slate-500 mt-2">{{ setting_specs.winter_storm_banner_body.help }}</p>
+                    </div>
                     <div class="flex justify-end">
                         <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">
                             Save Revenue

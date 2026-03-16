@@ -304,6 +304,66 @@ def fetch_incidents(
     return all_incidents
 
 
+def smoke_check_agency(
+    agency: dict,
+    *,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+) -> dict:
+    """
+    Probe a single CrimeMapping agency without writing to the database.
+
+    Unlike `fetch_incidents`, this is strict about network failures so a smoke
+    check can distinguish "0 incidents today" from "endpoint unavailable".
+    """
+    now = datetime.now(timezone.utc)
+    start = start_date or (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    end = end_date or now.replace(hour=0, minute=0, second=0, microsecond=0)
+    filter_obj = _build_filter(
+        agency["org_id"],
+        agency["cx"],
+        agency["cy"],
+        agency["radius_m"],
+        start,
+        end,
+    )
+
+    map_resp = _SESSION.post(
+        ENDPOINT_MAP_UPDATED,
+        data={"filterdata": json.dumps(filter_obj), "alertID": "", "spatfilter": ""},
+        timeout=30,
+    )
+    map_resp.raise_for_status()
+    map_data = map_resp.json()
+    map_total = map_data.get("result", {}).get("nr", 0)
+
+    resp = _SESSION.post(
+        ENDPOINT_CRIME_INCIDENTS,
+        data={
+            "paramFilt": json.dumps(filter_obj),
+            "unmappableOrgIDs": "[]",
+            "skip": 0,
+            "take": 5,
+            "page": 1,
+            "pageSize": 5,
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if "Data" not in data:
+        raise RuntimeError(f"CrimeMapping probe returned unexpected payload for org_id={agency['org_id']}")
+
+    return {
+        "agency_name": agency["agency_name"],
+        "org_id": agency["org_id"],
+        "window_start": start.date().isoformat(),
+        "window_end": end.date().isoformat(),
+        "map_total": int(map_total or 0),
+        "sample_count": len(data.get("Data") or []),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Normalise a CrimeIncidents_Read row → records-table dict
 # ---------------------------------------------------------------------------

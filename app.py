@@ -14,24 +14,34 @@ import secrets
 import smtplib
 import urllib.error
 import urllib.request
+from collections import defaultdict
 from functools import wraps
 from html import escape
 from html.parser import HTMLParser
 from email.mime.text import MIMEText
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, session, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, session, abort, g
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
+from agency_normalization import normalize_agency_identity
 import config
+from court_tracker import (
+    court_admin_context,
+    court_case_detail,
+    court_directory_context,
+    court_hearing_feed_context,
+    ensure_court_tracker_schema,
+)
 from dedupe import incident_key_set
 from morning_briefing import (
     build_html as build_morning_briefing_html,
     get_posts_for_date as get_morning_briefing_posts,
     send_email as send_morning_briefing_email,
 )
+from public_meetings import ensure_public_meeting_schema, meeting_admin_context
 from facebook_publisher import (
     load_facebook_settings,
     mask_token,
@@ -50,6 +60,16 @@ except Exception:
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 BASE_URL = config.BASE_URL
+WINTER_STORM_SUPPORT_BANNER_DEFAULTS = {
+    'enabled': True,
+    'label': 'Winter Storm Support',
+    'headline': 'Help fund Montana winter storm coverage',
+    'body': 'Support dispatch monitoring, county emergency follow-up, and fast public-records coverage during severe weather.',
+    'donate_href': '/donate?source=winter_storm_banner&campaign=winter_storm',
+    'donate_label': 'Support Coverage',
+    'subscribe_href': '/subscribe?source=winter_storm_banner',
+    'subscribe_label': 'Get Alerts',
+}
 app.config.update(
     SESSION_COOKIE_HTTPONLY=config.SESSION_COOKIE_HTTPONLY,
     SESSION_COOKIE_SAMESITE=config.SESSION_COOKIE_SAMESITE,
@@ -316,7 +336,7 @@ def _build_ingestion_health_dashboard(conn):
             COUNT(ij.id) AS job_count,
             SUM(CASE WHEN ij.status = 'published' THEN 1 ELSE 0 END) AS published_count,
             SUM(CASE WHEN ij.status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
-            SUM(CASE WHEN ij.status NOT IN ('published', 'failed') THEN 1 ELSE 0 END) AS active_count,
+            SUM(CASE WHEN ij.status NOT IN ('published', 'failed', 'skipped') THEN 1 ELSE 0 END) AS active_count,
             MAX(COALESCE(sd.source_received_at, sd.created_at)) AS latest_received_at
         FROM source_documents sd
         LEFT JOIN ingestion_jobs ij ON ij.source_document_id = sd.id
@@ -397,7 +417,7 @@ def _build_ingestion_health_dashboard(conn):
             sd.source_subject
         FROM ingestion_jobs ij
         JOIN source_documents sd ON sd.id = ij.source_document_id
-        WHERE ij.status NOT IN ('published', 'failed')
+        WHERE ij.status NOT IN ('published', 'failed', 'skipped')
           AND ij.finished_at IS NULL
           AND ij.started_at <= datetime('now', '-2 hours')
         ORDER BY ij.started_at ASC
@@ -441,6 +461,9 @@ def _build_ingestion_health_dashboard(conn):
             health_label = 'Failing'
             health_tone = 'red'
             failing_sources += 1
+        elif latest_status == 'skipped':
+            health_label = 'Ignored'
+            health_tone = 'slate'
         elif is_stale:
             health_label = 'Stale'
             health_tone = 'amber'
@@ -602,6 +625,20 @@ COUNTY_DIRECTORY = {
     'yellowstone': {'name': 'Yellowstone', 'roster_url': 'https://www.yellowstonecountymt.gov/sheriff/detention/dcsearch.asp', 'phone': '406-256-2929', 'has_online_roster': True},
 }
 
+MAJOR_JAIL_BOOKING_COUNTIES = (
+    'yellowstone',
+    'missoula',
+    'gallatin',
+    'flathead',
+    'cascade',
+)
+JAIL_BOOKING_STATUS_LABELS = {
+    'current': 'Current',
+    'released': 'Released',
+    'transferred': 'Transferred',
+    'archived': 'Archived',
+}
+
 NEW_CITY_SLUGS = (
     'laurel',
     'hardin',
@@ -741,6 +778,29 @@ APP_SETTING_SPECS = {
         'section': 'revenue',
         'default': bool(config.DONATIONS_ENABLED),
         'help': 'Controls whether the public donation flow is available.',
+    },
+    'winter_storm_banner_enabled': {
+        'label': 'Enable winter storm banner',
+        'type': 'bool',
+        'section': 'revenue',
+        'default': bool(WINTER_STORM_SUPPORT_BANNER_DEFAULTS['enabled']),
+        'help': 'Controls whether the storm support strip appears beside the official banner.',
+    },
+    'winter_storm_banner_headline': {
+        'label': 'Storm banner headline',
+        'type': 'text',
+        'section': 'revenue',
+        'default': WINTER_STORM_SUPPORT_BANNER_DEFAULTS['headline'],
+        'max_length': 140,
+        'help': 'Short top-line message shown in the storm support strip.',
+    },
+    'winter_storm_banner_body': {
+        'label': 'Storm banner detail copy',
+        'type': 'text',
+        'section': 'revenue',
+        'default': WINTER_STORM_SUPPORT_BANNER_DEFAULTS['body'],
+        'max_length': 280,
+        'help': 'Expanded explanation shown when visitors open the official banner detail.',
     },
 }
 
@@ -922,6 +982,257 @@ def get_db():
     return conn
 
 
+PUBLIC_USER_SESSION_KEY = 'public_user_id'
+PUBLIC_COMMENT_TYPES = {
+    'record': 'Incident record',
+    'case_journey': 'Case journey',
+    'blog_post': 'Blog post',
+    'daily_post': 'Daily report',
+}
+PUBLIC_COMMENT_STATUSES = {'pending', 'approved', 'rejected', 'spam'}
+
+
+class PublicUser:
+    def __init__(
+        self,
+        id,
+        email,
+        display_name,
+        subscribe_digest=False,
+        subscription_counties='',
+        is_active=True,
+        last_login_at=None,
+    ):
+        self.id = id
+        self.email = email or ''
+        self.display_name = display_name or ''
+        self.subscribe_digest = bool(subscribe_digest)
+        self.subscription_counties = subscription_counties or ''
+        self.is_active = bool(is_active)
+        self.last_login_at = last_login_at
+
+    @property
+    def county_list(self):
+        return [item.strip() for item in (self.subscription_counties or '').split(',') if item.strip()]
+
+    @classmethod
+    def from_row(cls, row):
+        return cls(
+            row['id'],
+            row['email'],
+            row['display_name'],
+            subscribe_digest=bool(row['subscribe_digest']) if 'subscribe_digest' in row.keys() else False,
+            subscription_counties=row['subscription_counties'] if 'subscription_counties' in row.keys() else '',
+            is_active=bool(row['is_active']) if 'is_active' in row.keys() else True,
+            last_login_at=row['last_login_at'] if 'last_login_at' in row.keys() else None,
+        )
+
+
+def _safe_next_url(raw_value, fallback='/'):
+    target = (raw_value or '').strip()
+    if not target:
+        return fallback
+    parsed = urlparse(target)
+    if parsed.scheme or parsed.netloc:
+        return fallback
+    if not target.startswith('/'):
+        return fallback
+    return target
+
+
+def _all_subscription_counties(conn):
+    counties = [
+        row['county']
+        for row in conn.execute(
+            '''
+            SELECT county
+            FROM (
+                SELECT DISTINCT county AS county FROM posts WHERE county IS NOT NULL AND county != ''
+                UNION
+                SELECT DISTINCT county AS county FROM records WHERE county IS NOT NULL AND county != ''
+            )
+            ORDER BY county
+            '''
+        ).fetchall()
+    ]
+    return counties
+
+
+def _selected_counties_from_form():
+    selected = []
+    for county in request.form.getlist('counties'):
+        value = (county or '').strip()
+        if value and value not in selected:
+            selected.append(value)
+    return selected
+
+
+def _upsert_digest_subscription(conn, email, counties, source='public_account'):
+    _ensure_subscriber_schema(conn)
+    normalized_email = (email or '').strip().lower()
+    if not normalized_email:
+        return
+
+    counties_str = ','.join(counties or [])
+    token = secrets.token_urlsafe(32)
+    existing = conn.execute(
+        'SELECT id, token FROM subscribers WHERE email = ?',
+        (normalized_email,),
+    ).fetchone()
+    if existing:
+        conn.execute(
+            '''
+            UPDATE subscribers
+            SET counties = ?, active = 1, source = ?, updated_at = datetime('now')
+            WHERE id = ?
+            ''',
+            (counties_str, (source or 'public_account')[:80], existing['id']),
+        )
+    else:
+        conn.execute(
+            '''
+            INSERT INTO subscribers (email, counties, token, source, updated_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+            ''',
+            (normalized_email, counties_str, token, (source or 'public_account')[:80]),
+        )
+
+
+def _load_public_user(user_id, conn=None):
+    if not user_id:
+        return None
+    own_conn = conn is None
+    if own_conn:
+        conn = get_db()
+    try:
+        row = conn.execute(
+            'SELECT * FROM public_users WHERE id = ? AND COALESCE(is_active, 1) = 1',
+            (user_id,),
+        ).fetchone()
+        return PublicUser.from_row(row) if row else None
+    finally:
+        if own_conn:
+            conn.close()
+
+
+def _get_public_user():
+    cached = getattr(g, 'public_user', None)
+    if cached is not None:
+        return cached
+    user_id = session.get(PUBLIC_USER_SESSION_KEY)
+    user = _load_public_user(user_id)
+    g.public_user = user
+    return user
+
+
+def _set_public_user_session(user_id):
+    session[PUBLIC_USER_SESSION_KEY] = int(user_id)
+    g.public_user = None
+
+
+def _clear_public_user_session():
+    session.pop(PUBLIC_USER_SESSION_KEY, None)
+    g.public_user = None
+
+
+def _public_comment_target_exists(conn, content_type, content_id):
+    normalized_type = (content_type or '').strip()
+    normalized_id = str(content_id or '').strip()
+    if not normalized_id or normalized_type not in PUBLIC_COMMENT_TYPES:
+        return False
+
+    if normalized_type == 'record':
+        row = conn.execute('SELECT 1 FROM records WHERE id = ?', (normalized_id,)).fetchone()
+    elif normalized_type == 'case_journey':
+        row = conn.execute(
+            'SELECT 1 FROM case_journeys WHERE id = ? AND is_published = 1',
+            (normalized_id,),
+        ).fetchone()
+    elif normalized_type == 'blog_post':
+        row = conn.execute(
+            'SELECT 1 FROM blog_posts WHERE id = ? AND published = 1',
+            (normalized_id,),
+        ).fetchone()
+    elif normalized_type == 'daily_post':
+        row = conn.execute('SELECT 1 FROM posts WHERE id = ?', (normalized_id,)).fetchone()
+    else:
+        row = None
+    return bool(row)
+
+
+def _public_comments_context(conn, content_type, content_id):
+    rows = conn.execute(
+        '''
+        SELECT
+            public_comments.*,
+            public_users.display_name,
+            public_users.email
+        FROM public_comments
+        JOIN public_users ON public_users.id = public_comments.public_user_id
+        WHERE public_comments.content_type = ?
+          AND public_comments.content_id = ?
+          AND public_comments.status = 'approved'
+        ORDER BY public_comments.created_at ASC, public_comments.id ASC
+        ''',
+        ((content_type or '').strip(), str(content_id)),
+    ).fetchall()
+
+    comments = []
+    for row in rows:
+        comments.append(
+            {
+                'id': row['id'],
+                'display_name': row['display_name'],
+                'created_at': row['created_at'],
+                'body': row['body'],
+            }
+        )
+
+    return {
+        'content_type': (content_type or '').strip(),
+        'content_id': str(content_id),
+        'comments': comments,
+        'comment_count': len(comments),
+    }
+
+
+def _public_comment_target_path(conn, content_type, content_id):
+    normalized_type = (content_type or '').strip()
+    normalized_id = str(content_id or '').strip()
+    if normalized_type == 'record':
+        return f'/record/{normalized_id}'
+    if normalized_type == 'daily_post':
+        return f'/post/{normalized_id}'
+    if normalized_type == 'blog_post':
+        row = conn.execute('SELECT slug FROM blog_posts WHERE id = ?', (normalized_id,)).fetchone()
+        if row and row['slug']:
+            return f"/blog/{row['slug']}"
+    if normalized_type == 'case_journey':
+        row = conn.execute('SELECT slug FROM case_journeys WHERE id = ?', (normalized_id,)).fetchone()
+        if row and row['slug']:
+            return f"/case-journeys/{row['slug']}"
+    return '/'
+
+
+def _request_host_name():
+    return (request.host or '').split(':', 1)[0].strip().lower()
+
+
+def _is_agendas_host():
+    host = _request_host_name()
+    configured = (getattr(config, 'AGENDAS_HOST', '') or '').split(':', 1)[0].strip().lower()
+    if configured:
+        return host == configured
+    return host.startswith('agendas.')
+
+
+def _public_meetings_href():
+    if _is_agendas_host():
+        return '/'
+    external = (getattr(config, 'AGENDAS_BASE_URL', '') or '').strip()
+    return external or '/meetings'
+
+
 def _client_ip():
     forwarded = request.headers.get('X-Forwarded-For', '')
     if forwarded:
@@ -1056,6 +1367,14 @@ def _app_setting_int(key: str, default: int, minimum: int | None = None, maximum
     return value
 
 
+def _app_setting_text(key: str, default: str = '', max_length: int | None = None, conn=None) -> str:
+    raw = _app_setting_raw(key, default=None, conn=conn)
+    value = str(default if raw is None else raw).strip()
+    if max_length is not None:
+        value = value[:max_length]
+    return value
+
+
 def _save_app_setting(conn, key: str, value) -> None:
     if isinstance(value, bool):
         stored_value = '1' if value else '0'
@@ -1102,6 +1421,28 @@ def _donations_enabled(conn=None):
     return _app_setting_bool('donations_enabled', bool(getattr(config, 'DONATIONS_ENABLED', False)), conn=conn)
 
 
+def _winter_storm_banner_config(conn=None):
+    banner = dict(WINTER_STORM_SUPPORT_BANNER_DEFAULTS)
+    banner['enabled'] = _app_setting_bool(
+        'winter_storm_banner_enabled',
+        bool(WINTER_STORM_SUPPORT_BANNER_DEFAULTS['enabled']),
+        conn=conn,
+    )
+    banner['headline'] = _app_setting_text(
+        'winter_storm_banner_headline',
+        WINTER_STORM_SUPPORT_BANNER_DEFAULTS['headline'],
+        max_length=APP_SETTING_SPECS['winter_storm_banner_headline']['max_length'],
+        conn=conn,
+    )
+    banner['body'] = _app_setting_text(
+        'winter_storm_banner_body',
+        WINTER_STORM_SUPPORT_BANNER_DEFAULTS['body'],
+        max_length=APP_SETTING_SPECS['winter_storm_banner_body']['max_length'],
+        conn=conn,
+    )
+    return banner
+
+
 def _apply_runtime_app_settings(conn=None) -> None:
     app.config['MAX_CONTENT_LENGTH'] = _max_upload_mb(conn=conn) * 1024 * 1024
 
@@ -1113,6 +1454,8 @@ def _settings_form_values(conn):
             values[key] = _app_setting_bool(key, spec['default'], conn=conn)
         elif spec['type'] == 'int':
             values[key] = _app_setting_int(key, spec['default'], spec.get('min'), spec.get('max'), conn=conn)
+        elif spec['type'] == 'text':
+            values[key] = _app_setting_text(key, spec['default'], spec.get('max_length'), conn=conn)
     return values
 
 
@@ -1129,6 +1472,11 @@ def _coerce_setting_value(key: str, raw_value):
             raise ValueError(f"{spec['label']} must be at least {spec['min']}.")
         if spec.get('max') is not None and value > spec['max']:
             raise ValueError(f"{spec['label']} must be at most {spec['max']}.")
+        return value
+    if spec['type'] == 'text':
+        value = str(raw_value or '').strip()
+        if spec.get('max_length') is not None and len(value) > spec['max_length']:
+            raise ValueError(f"{spec['label']} must be {spec['max_length']} characters or fewer.")
         return value
     raise ValueError('Unsupported setting type.')
 
@@ -1165,6 +1513,33 @@ def _allowed_donation_amounts():
     if not amounts:
         amounts = [amount for amount in (500, 1500, 2500, 5000) if amount >= _donation_min_cents()]
     return tuple(sorted(set(amounts)))
+
+
+def _donation_campaign_context(raw_campaign=''):
+    campaign = (raw_campaign or '').strip().lower()
+    if campaign == 'winter_storm':
+        return {
+            'key': 'winter_storm',
+            'badge': 'Winter Storm Response',
+            'headline': 'Fund Montana winter storm reporting and emergency follow-up',
+            'description': 'Direct support helps Montana Blotter keep storm-related dispatch coverage, county emergency updates, and public-records follow-up visible statewide.',
+            'funds': [
+                'Dispatch and county emergency monitoring during severe weather',
+                'Storm-related county, road-closure, and response coverage',
+                'Infrastructure costs to keep public pages online during traffic spikes',
+            ],
+        }
+    return {
+        'key': '',
+        'badge': 'Support',
+        'headline': 'Support Independent Montana Public Safety Coverage',
+        'description': 'Your donation helps keep Montana Blotter free, searchable, and available to the public every day.',
+        'funds': [
+            'Daily data ingestion and archive maintenance',
+            'Public search and county-level reporting pages',
+            'Reliability, hosting, and operations costs',
+        ],
+    }
 
 
 def _stripe_keys():
@@ -3483,6 +3858,113 @@ def _annotate_recent_records(conn, recent_records):
     return enriched
 
 
+def _case_journey_status_label(status):
+    return {
+        'open': 'Open follow-up',
+        'arrested': 'Arrest-related follow-up',
+        'monitoring': 'Active timeline',
+        'resolved': 'Resolved',
+    }.get((status or '').strip().lower(), 'Public timeline')
+
+
+def _case_journey_rows(conn, *, featured_only=False, limit=None):
+    sql = '''
+        SELECT cj.*,
+               records.location,
+               records.cfs_number,
+               records.date AS record_date,
+               COALESCE(records.incident_type, records.incident, cj.title) AS incident_type,
+               posts.id AS post_id,
+               posts.title AS post_title,
+               COUNT(cje.id) AS event_count
+        FROM case_journeys cj
+        LEFT JOIN records ON records.id = cj.primary_record_id
+        LEFT JOIN posts ON posts.id = cj.primary_post_id
+        LEFT JOIN case_journey_events cje ON cje.journey_id = cj.id AND cje.is_public = 1
+        WHERE cj.is_published = 1
+    '''
+    params = []
+    if featured_only:
+        sql += ' AND cj.is_featured_homepage = 1'
+    sql += '''
+        GROUP BY cj.id, records.location, records.cfs_number, records.date,
+                 records.incident_type, records.incident, posts.id, posts.title
+        ORDER BY cj.last_event_at DESC, event_count DESC, cj.id DESC
+    '''
+    if limit:
+        sql += ' LIMIT ?'
+        params.append(limit)
+    rows = [dict(row) for row in conn.execute(sql, params).fetchall()]
+    if not rows:
+        return []
+
+    record_rows = []
+    record_ids = []
+    for row in rows:
+        row['status_label'] = _case_journey_status_label(row.get('current_status'))
+        row['county_slug'] = _county_slug_for_name(row.get('county'))
+        row['timeline_step_count'] = int(row.get('event_count') or 0)
+        if row.get('primary_record_id'):
+            record_rows.append({'id': row['primary_record_id']})
+            record_ids.append(int(row['primary_record_id']))
+
+    confidence_map = {}
+    if record_ids:
+        confidence_items = _annotate_recent_records(conn, record_rows)
+        confidence_map = {
+            int(item['id']): item['confidence_badge']
+            for item in confidence_items
+            if item.get('confidence_badge')
+        }
+    for row in rows:
+        row['confidence_badge'] = confidence_map.get(int(row['primary_record_id'])) if row.get('primary_record_id') else None
+    return rows
+
+
+def _featured_case_journeys(conn, limit=3):
+    return _case_journey_rows(conn, featured_only=True, limit=limit)
+
+
+def _case_journey_detail(conn, slug):
+    rows = _case_journey_rows(conn, featured_only=False)
+    journey = next((row for row in rows if row['slug'] == slug), None)
+    if not journey:
+        return None
+
+    journey['events'] = [dict(row) for row in conn.execute(
+        '''
+        SELECT *
+        FROM case_journey_events
+        WHERE journey_id = ? AND is_public = 1
+        ORDER BY sort_order, id
+        ''',
+        (journey['id'],)
+    ).fetchall()]
+    return journey
+
+
+def _case_journey_for_record(conn, record_id):
+    row = conn.execute(
+        '''
+        SELECT slug, title
+        FROM case_journeys
+        WHERE is_published = 1
+          AND (
+            primary_record_id = ?
+            OR id IN (
+                SELECT journey_id
+                FROM case_journey_events
+                WHERE source_table = 'records' AND source_row_id = ?
+            )
+          )
+        ORDER BY is_featured_homepage DESC, last_event_at DESC
+        LIMIT 1
+        ''',
+        (record_id, record_id),
+    ).fetchone()
+    return dict(row) if row else None
+
+
 def _annotate_posts_with_confidence(conn, posts):
     if not posts:
         return []
@@ -4195,23 +4677,187 @@ def _search_console_workflow_context(conn):
     }
 
 
+def _meeting_documents_map(conn, meeting_ids):
+    documents = defaultdict(list)
+    if not meeting_ids:
+        return documents
+
+    placeholders = ','.join('?' for _ in meeting_ids)
+    rows = conn.execute(
+        f'''
+        SELECT meeting_id, label, document_type, url, target_type
+        FROM meeting_documents
+        WHERE meeting_id IN ({placeholders})
+        ORDER BY
+            CASE document_type
+                WHEN 'agenda' THEN 0
+                WHEN 'packet' THEN 1
+                WHEN 'minutes' THEN 2
+                ELSE 3
+            END,
+            id
+        ''',
+        list(meeting_ids),
+    ).fetchall()
+    for row in rows:
+        documents[row['meeting_id']].append(dict(row))
+    return documents
+
+
+def _public_meetings_dashboard_context():
+    q = (request.args.get('q') or '').strip()
+    county = (request.args.get('county') or '').strip()
+    city = (request.args.get('city') or '').strip()
+    conn = get_db()
+    ensure_public_meeting_schema(conn)
+
+    sql = '''
+        SELECT
+            public_meetings.*,
+            meeting_sources.name AS source_name,
+            meeting_sources.source_url AS source_listing_url,
+            meeting_sources.last_success_at AS source_last_success_at,
+            meeting_sources.last_scraped_at AS source_last_scraped_at,
+            meeting_locations.display_name AS location_display_name,
+            meeting_locations.location_type,
+            meeting_locations.county_name,
+            meeting_locations.city_name
+        FROM public_meetings
+        JOIN meeting_sources ON meeting_sources.id = public_meetings.source_id
+        LEFT JOIN meeting_locations ON meeting_locations.id = public_meetings.location_id
+        WHERE public_meetings.is_current = 1
+          AND public_meetings.status = 'upcoming'
+    '''
+    params = []
+    if q:
+        token = f'%{q}%'
+        sql += '''
+          AND (
+              public_meetings.title LIKE ?
+              OR COALESCE(public_meetings.body_name, '') LIKE ?
+              OR COALESCE(public_meetings.location_name, '') LIKE ?
+              OR COALESCE(meeting_locations.county_name, '') LIKE ?
+              OR COALESCE(meeting_locations.city_name, '') LIKE ?
+          )
+        '''
+        params.extend([token, token, token, token, token])
+    if county:
+        sql += ' AND COALESCE(meeting_locations.county_name, "") = ?'
+        params.append(county)
+    if city:
+        sql += ' AND COALESCE(meeting_locations.city_name, "") = ?'
+        params.append(city)
+
+    sql += '''
+        ORDER BY
+            CASE WHEN COALESCE(public_meetings.meeting_date, '') = '' THEN 1 ELSE 0 END,
+            public_meetings.meeting_date ASC,
+            public_meetings.meeting_time ASC,
+            public_meetings.title ASC
+        LIMIT 150
+    '''
+    meetings = conn.execute(sql, params).fetchall()
+    documents_map = _meeting_documents_map(conn, [row['id'] for row in meetings])
+    latest_sync_row = conn.execute(
+        '''
+        SELECT MAX(last_success_at) AS last_success_at
+        FROM meeting_sources
+        WHERE is_active = 1
+        '''
+    ).fetchone()
+    counties = [
+        row['county_name']
+        for row in conn.execute(
+            '''
+            SELECT DISTINCT county_name
+            FROM meeting_locations
+            WHERE county_name IS NOT NULL AND county_name != ''
+            ORDER BY county_name
+            '''
+        ).fetchall()
+    ]
+    cities = [
+        row['city_name']
+        for row in conn.execute(
+            '''
+            SELECT DISTINCT city_name
+            FROM meeting_locations
+            WHERE city_name IS NOT NULL AND city_name != ''
+            ORDER BY city_name
+            '''
+        ).fetchall()
+    ]
+    source_count = conn.execute(
+        'SELECT COUNT(*) AS cnt FROM meeting_sources WHERE is_active = 1'
+    ).fetchone()['cnt']
+    conn.close()
+
+    meeting_cards = []
+    for row in meetings:
+        documents = documents_map.get(row['id'], [])
+        primary_agenda = next((document for document in documents if document['document_type'] == 'agenda'), None)
+        meeting_cards.append(
+            {
+                **dict(row),
+                'documents': documents,
+                'primary_agenda': primary_agenda,
+                'has_documents': bool(documents),
+            }
+        )
+
+    canonical_url = (getattr(config, 'AGENDAS_BASE_URL', '') or '').strip()
+    if not canonical_url:
+        canonical_url = f'{BASE_URL}/meetings'
+
+    return {
+        'meetings': meeting_cards,
+        'meeting_count': len(meeting_cards),
+        'counties': counties,
+        'cities': cities,
+        'selected_county': county,
+        'selected_city': city,
+        'q': q,
+        'source_count': source_count,
+        'latest_sync_at': latest_sync_row['last_success_at'] if latest_sync_row else None,
+        'page_title': 'Public Meetings Dashboard',
+        'meta_description': 'Search Montana city council and county commission agendas, minutes, packets, and upcoming public meeting schedules in one statewide dashboard.',
+        'canonical_url': canonical_url.rstrip('/'),
+        'og_title': 'Montana Public Meetings Dashboard',
+        'og_description': 'Centralized Montana meeting agendas, minutes, and schedules for cities and counties across the state.',
+        'active_nav': 'meetings',
+    }
+
+
 @app.context_processor
 def inject_public_nav():
+    home_href = BASE_URL if _is_agendas_host() else '/'
+    public_user = _get_public_user()
     public_primary_nav_items = [
-        {'id': 'home', 'href': '/', 'label': 'Home'},
+        {'id': 'home', 'href': home_href, 'label': 'Home'},
+        {'id': 'meetings', 'href': _public_meetings_href(), 'label': 'Meetings'},
+        {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
         {'id': 'jail_rosters', 'href': '/jail-rosters', 'label': 'Jail Rosters'},
         {'id': 'advertise', 'href': '/advertise/bail-bonds', 'label': 'Advertise'},
     ]
-    public_secondary_nav_items = []
+    public_secondary_nav_items = [
+        {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys'},
+        {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings'},
+    ]
     public_footer_items = [
-        {'href': '/', 'label': 'Home'},
+        {'href': home_href, 'label': 'Home'},
+        {'href': _public_meetings_href(), 'label': 'Meetings'},
+        {'href': '/courts', 'label': 'Courts'},
+        {'href': '/case-journeys', 'label': 'Case Journeys'},
         {'href': '/arrests', 'label': 'Arrests'},
         {'href': '/counties', 'label': 'Counties'},
         {'href': '/jail-rosters', 'label': 'Jail Rosters'},
+        {'href': '/jail-bookings', 'label': 'New Bookings'},
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
         {'href': '/subscribe', 'label': 'Subscribe'},
+        {'href': '/standards', 'label': 'Standards'},
+        {'href': '/corrections', 'label': 'Corrections'},
         {'href': '/terms-of-use', 'label': 'Terms'},
         {'href': '/privacy', 'label': 'Privacy'},
     ]
@@ -4222,6 +4868,8 @@ def inject_public_nav():
         'public_footer_items': public_footer_items,
         'footer_featured_city_items': footer_featured_city_items,
         'current_year': datetime.now().year,
+        'public_user': public_user,
+        'winter_storm_banner': _winter_storm_banner_config(),
     }
 
 class User(UserMixin):
@@ -4393,6 +5041,67 @@ def _subscriber_email_hash(email):
     return hashlib.sha256(normalized.encode()).hexdigest()[:16]
 
 
+def _table_columns(conn, table_name):
+    try:
+        return {row[1] for row in conn.execute(f'PRAGMA table_info({table_name})').fetchall()}
+    except sqlite3.OperationalError:
+        return set()
+
+
+def _ensure_subscriber_schema(conn):
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS subscribers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            counties TEXT DEFAULT '',
+            token TEXT NOT NULL,
+            active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            source TEXT,
+            notes TEXT
+        )
+        '''
+    )
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(active)')
+    existing_columns = _table_columns(conn, 'subscribers')
+    for col, definition in [
+        ('updated_at', 'TEXT'),
+        ('source', 'TEXT'),
+        ('notes', 'TEXT'),
+    ]:
+        if col not in existing_columns:
+            conn.execute(f'ALTER TABLE subscribers ADD COLUMN {col} {definition}')
+            existing_columns.add(col)
+    if 'updated_at' in existing_columns:
+        conn.execute(
+            '''
+            UPDATE subscribers
+            SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, datetime('now'))
+            WHERE updated_at IS NULL OR updated_at = ''
+            '''
+        )
+
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS subscribe_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            source TEXT,
+            page_path TEXT,
+            ip_hash TEXT,
+            referrer TEXT,
+            email_hash TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_subscribe_events_created ON subscribe_events(created_at)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_subscribe_events_type ON subscribe_events(event_type)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_subscribe_events_source ON subscribe_events(source)')
+
+
 def _digest_target_date(raw_value=''):
     raw_value = (raw_value or '').strip()
     if not raw_value:
@@ -4516,6 +5225,7 @@ def _build_email_ops_preview(target_date):
     preview_html = build_morning_briefing_html(all_posts, target_date) if all_posts else ''
 
     conn = get_db()
+    _ensure_subscriber_schema(conn)
     subscribers = conn.execute(
         '''
         SELECT id, email, counties, created_at
@@ -4622,6 +5332,7 @@ def _build_email_ops_preview(target_date):
 
 
 def _subscriber_admin_context(conn, q='', status_filter='active', county_filter='', source_filter=''):
+    _ensure_subscriber_schema(conn)
     q = (q or '').strip()[:120]
     status_filter = (status_filter or 'active').strip().lower()
     if status_filter not in {'active', 'inactive', 'all'}:
@@ -5250,6 +5961,9 @@ def track_bail_consumer_event():
 @app.route('/')
 def index():
     """Public homepage — daily activity reports with calendar filter"""
+    if _is_agendas_host():
+        return render_template('public_meetings.html', **_public_meetings_dashboard_context())
+
     county       = request.args.get('county', '')
     city         = request.args.get('city', '')
     agency_type  = request.args.get('agency_type', '')
@@ -5318,8 +6032,8 @@ def index():
         "SELECT DISTINCT city FROM posts WHERE city != '' ORDER BY city").fetchall()]
 
     # Agency directory: each agency with last report date and count
-    agencies = conn.execute("""
-        SELECT agency_name, agency_type,
+    agency_rows = conn.execute("""
+        SELECT agency_name, agency_type, MAX(county) AS county,
                MAX(incident_date) AS last_report,
                COUNT(*) AS report_count
         FROM posts
@@ -5327,6 +6041,27 @@ def index():
         GROUP BY agency_name
         ORDER BY last_report DESC
     """).fetchall()
+    agencies = []
+    agency_map = {}
+    for row in agency_rows:
+        normalized_name, normalized_type = normalize_agency_identity(
+            row['agency_name'],
+            row['agency_type'],
+            county=row['county'],
+        )
+        display_name = normalized_name or row['agency_name']
+        display_type = normalized_type or row['agency_type'] or 'other'
+        key = (display_name, display_type)
+        if key not in agency_map:
+            agency_map[key] = {
+                'agency_name': display_name,
+                'agency_type': display_type,
+                'last_report': row['last_report'],
+                'report_count': row['report_count'],
+            }
+            agencies.append(agency_map[key])
+            continue
+        agency_map[key]['report_count'] += row['report_count']
 
     # Calendar: all dates that have at least one post, normalised to YYYY-MM-DD
     dates_with_posts = []
@@ -5386,6 +6121,7 @@ def index():
     latest_weekly_digest = _latest_weekly_digest(conn)
     weekly_snapshot = _weekly_snapshot(conn)
     top_pattern_pages = _top_pattern_pages(conn)
+    featured_case_journeys = _featured_case_journeys(conn)
 
     # Leaderboard: most active agencies this week vs last week
     this_week_rows = conn.execute("""
@@ -5448,8 +6184,94 @@ def index():
                            latest_weekly_digest=latest_weekly_digest,
                            weekly_snapshot=weekly_snapshot,
                            top_pattern_pages=top_pattern_pages,
+                           featured_case_journeys=featured_case_journeys,
                            leaderboard=leaderboard,
                            current_year=datetime.now().year)
+
+
+@app.route('/meetings')
+def public_meetings_dashboard():
+    return render_template('public_meetings.html', **_public_meetings_dashboard_context())
+
+
+@app.route('/courts')
+def public_courts_directory():
+    conn = get_db()
+    ensure_court_tracker_schema(conn)
+    context = court_directory_context(
+        conn,
+        q=request.args.get('q'),
+        county=request.args.get('county'),
+        court_type=request.args.get('court_type'),
+    )
+    conn.close()
+    return render_template(
+        'courts_index.html',
+        **context,
+        page_title='Montana Court Tracker',
+        meta_description='Search Montana courts, upcoming hearings, and public case pages in one statewide court tracker.',
+        canonical_url=f'{BASE_URL}/courts',
+        og_title='Montana Court Tracker',
+        og_description='Search Montana courts, upcoming hearings, and public case pages in one statewide court tracker.',
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/court-hearings')
+@app.route('/court-search')
+def public_court_hearings():
+    search_mode = request.path == '/court-search'
+    conn = get_db()
+    ensure_court_tracker_schema(conn)
+    context = court_hearing_feed_context(
+        conn,
+        q=request.args.get('q'),
+        county=request.args.get('county'),
+        court_type=request.args.get('court_type'),
+        hearing_date=request.args.get('hearing_date'),
+        include_past=search_mode or request.args.get('include_past') in {'1', 'true', 'yes'},
+    )
+    conn.close()
+    page_title = 'Montana Court Search' if search_mode else 'Upcoming Montana Court Hearings'
+    meta_description = (
+        'Search Montana court records, hearings, and opinion filings across official court feeds.'
+        if search_mode
+        else 'Track upcoming public Montana court hearings by county, court type, and case.'
+    )
+    return render_template(
+        'court_hearing_feed.html',
+        **context,
+        search_mode=search_mode,
+        page_title=page_title,
+        meta_description=meta_description,
+        canonical_url=f"{BASE_URL}{'/court-search' if search_mode else '/court-hearings'}",
+        og_title=page_title,
+        og_description=meta_description,
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/court-case/<slug>')
+def public_court_case_detail(slug):
+    conn = get_db()
+    ensure_court_tracker_schema(conn)
+    case = court_case_detail(conn, slug)
+    conn.close()
+    if not case:
+        return render_template('404.html'), 404
+    return render_template(
+        'court_case_detail.html',
+        case=case,
+        page_title=case['caption'],
+        meta_description=f"{case['case_number']} in {case['court_name']} with hearings, filings, and public docket context.",
+        canonical_url=f"{BASE_URL}/court-case/{case['slug']}",
+        og_title=f"{case['caption']} | Montana Court Tracker",
+        og_description=f"{case['case_number']} in {case['court_name']} with hearings, filings, and public docket context.",
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
 
 
 @app.route('/feed.xml')
@@ -5540,6 +6362,11 @@ def _sitemap_static_urls():
         (f'{BASE_URL}/guides/how-to-find-montana-arrest-records', None),
         (f'{BASE_URL}/guides/how-to-find-montana-jail-rosters', None),
         (f'{BASE_URL}/annual-roundups', None),
+        (f'{BASE_URL}/case-journeys', None),
+        (f'{BASE_URL}/meetings', None),
+        (f'{BASE_URL}/courts', None),
+        (f'{BASE_URL}/court-hearings', None),
+        (f'{BASE_URL}/court-search', None),
         (f'{BASE_URL}/counties', None),
         (f'{BASE_URL}/cities', None),
         (f'{BASE_URL}/patterns', None),
@@ -5580,6 +6407,12 @@ def sitemap_index():
     post_lastmod_row = conn.execute(
         'SELECT MAX(created_at) AS lastmod FROM posts'
     ).fetchone()
+    record_lastmod_row = conn.execute(
+        'SELECT MAX(created_at) AS lastmod FROM records'
+    ).fetchone()
+    journey_lastmod_row = conn.execute(
+        'SELECT MAX(COALESCE(updated_at, created_at)) AS lastmod FROM case_journeys WHERE is_published = 1'
+    ).fetchone()
     blog_lastmod_row = conn.execute(
         'SELECT MAX(COALESCE(updated_at, created_at)) AS lastmod FROM blog_posts WHERE published = 1'
     ).fetchone()
@@ -5590,6 +6423,8 @@ def sitemap_index():
         ('locations', None),
         ('patterns', None),
         ('posts', _iso_lastmod(post_lastmod_row['lastmod']) if post_lastmod_row else None),
+        ('case-journeys', _iso_lastmod(journey_lastmod_row['lastmod']) if journey_lastmod_row else None),
+        ('records', _iso_lastmod(record_lastmod_row['lastmod']) if record_lastmod_row else None),
         ('blog', _iso_lastmod(blog_lastmod_row['lastmod']) if blog_lastmod_row else None),
     ]
     items = []
@@ -5636,6 +6471,28 @@ def sitemap_posts():
     ).fetchall()
     conn.close()
     urls = [(f"{BASE_URL}/post/{row['id']}", _iso_lastmod(row['created_at'])) for row in rows]
+    return _render_urlset(urls)
+
+
+@app.route('/sitemap-records.xml')
+def sitemap_records():
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT id, created_at FROM records ORDER BY created_at DESC'
+    ).fetchall()
+    conn.close()
+    urls = [(f"{BASE_URL}/record/{row['id']}", _iso_lastmod(row['created_at'])) for row in rows]
+    return _render_urlset(urls)
+
+
+@app.route('/sitemap-case-journeys.xml')
+def sitemap_case_journeys():
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT slug, COALESCE(updated_at, created_at) AS updated_at FROM case_journeys WHERE is_published = 1 ORDER BY COALESCE(updated_at, created_at) DESC'
+    ).fetchall()
+    conn.close()
+    urls = [(f"{BASE_URL}/case-journeys/{row['slug']}", _iso_lastmod(row['updated_at'])) for row in rows]
     return _render_urlset(urls)
 
 
@@ -5736,6 +6593,7 @@ def donate():
     keys = _stripe_keys()
     source = (request.args.get('source') or '').strip()[:80]
     source = source or 'donate_page'
+    donation_campaign = _donation_campaign_context(request.args.get('campaign'))
     return render_template(
         'donate.html',
         donations_enabled=_donations_enabled(),
@@ -5746,6 +6604,7 @@ def donate():
         donation_max_cents=_donation_max_cents(),
         donation_currency=_donation_currency(),
         donate_source=source,
+        donation_campaign=donation_campaign,
         active_nav='donate',
         current_year=datetime.now().year,
     )
@@ -5990,12 +6849,193 @@ def donate_cancel():
     )
 
 
+@app.route('/register', methods=['GET', 'POST'])
+def public_register():
+    if _get_public_user():
+        return redirect(_safe_next_url(request.values.get('next'), fallback='/'))
+
+    conn = get_db()
+    counties = _all_subscription_counties(conn)
+    next_url = _safe_next_url(request.values.get('next'), fallback='/')
+    form_values = {
+        'display_name': '',
+        'email': '',
+        'subscribe_digest': False,
+        'selected_counties': [],
+    }
+
+    if request.method == 'POST':
+        display_name = (request.form.get('display_name') or '').strip()
+        email = (request.form.get('email') or '').strip().lower()
+        password = request.form.get('password') or ''
+        confirm_password = request.form.get('confirm_password') or ''
+        subscribe_digest = bool(request.form.get('subscribe_digest'))
+        selected_counties = _selected_counties_from_form()
+        form_values = {
+            'display_name': display_name,
+            'email': email,
+            'subscribe_digest': subscribe_digest,
+            'selected_counties': selected_counties,
+        }
+
+        if len(display_name) < 2:
+            flash('Choose a display name with at least 2 characters.', 'error')
+        elif not email or '@' not in email:
+            flash('Enter a valid email address.', 'error')
+        elif len(password) < 8:
+            flash('Use a password with at least 8 characters.', 'error')
+        elif password != confirm_password:
+            flash('Password confirmation does not match.', 'error')
+        else:
+            existing = conn.execute(
+                'SELECT id FROM public_users WHERE email = ?',
+                (email,),
+            ).fetchone()
+            if existing:
+                flash('That email is already registered. Log in instead.', 'error')
+            else:
+                password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+                cursor = conn.execute(
+                    '''
+                    INSERT INTO public_users (
+                        email,
+                        password_hash,
+                        display_name,
+                        subscription_counties,
+                        subscribe_digest
+                    ) VALUES (?, ?, ?, ?, ?)
+                    ''',
+                    (
+                        email,
+                        password_hash,
+                        display_name[:120],
+                        ','.join(selected_counties),
+                        1 if subscribe_digest else 0,
+                    ),
+                )
+                if subscribe_digest:
+                    _upsert_digest_subscription(conn, email, selected_counties, source='account_registration')
+                    _record_subscribe_event('subscribe_success', source='account_registration', page_path=request.path, email=email)
+                conn.commit()
+                _set_public_user_session(cursor.lastrowid)
+                flash('Account created. Your comments will enter moderation before they go live.', 'success')
+                conn.close()
+                return redirect(next_url)
+
+    conn.close()
+    return render_template(
+        'register.html',
+        counties=counties,
+        next_url=next_url,
+        form_values=form_values,
+        page_title='Create Account',
+        meta_description='Create a Montana Blotter account to comment and manage email subscription preferences.',
+        canonical_url=f'{BASE_URL}/register',
+        og_title='Create Account | Montana Blotter',
+        og_description='Create a Montana Blotter account to comment and manage email subscription preferences.',
+        active_nav='register',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def public_login():
+    if _get_public_user():
+        return redirect(_safe_next_url(request.values.get('next'), fallback='/'))
+
+    next_url = _safe_next_url(request.values.get('next'), fallback='/')
+    email_value = (request.form.get('email') or request.args.get('email') or '').strip().lower()
+    if request.method == 'POST':
+        password = request.form.get('password') or ''
+        conn = get_db()
+        row = conn.execute(
+            'SELECT * FROM public_users WHERE email = ?',
+            (email_value,),
+        ).fetchone()
+        password_valid = bool(row and bcrypt.check_password_hash(row['password_hash'], password))
+        is_active_account = bool(row and row['is_active'])
+        if password_valid and is_active_account:
+            conn.execute(
+                'UPDATE public_users SET last_login_at = datetime(\'now\') WHERE id = ?',
+                (row['id'],),
+            )
+            conn.commit()
+            conn.close()
+            _set_public_user_session(row['id'])
+            flash('Signed in successfully.', 'success')
+            return redirect(next_url)
+        conn.close()
+        if password_valid and not is_active_account:
+            flash('This account has been disabled.', 'error')
+        else:
+            flash('Invalid email or password.', 'error')
+
+    return render_template(
+        'login.html',
+        next_url=next_url,
+        email_value=email_value,
+        page_title='Log In',
+        meta_description='Log in to your Montana Blotter account to comment and manage subscriptions.',
+        canonical_url=f'{BASE_URL}/login',
+        og_title='Log In | Montana Blotter',
+        og_description='Log in to your Montana Blotter account to comment and manage subscriptions.',
+        active_nav='login',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/logout')
+def public_logout():
+    _clear_public_user_session()
+    flash('Signed out.', 'success')
+    return redirect(_safe_next_url(request.args.get('next'), fallback='/'))
+
+
+@app.route('/comments', methods=['POST'])
+def create_public_comment():
+    public_user = _get_public_user()
+    content_type = (request.form.get('content_type') or '').strip()
+    content_id = str(request.form.get('content_id') or '').strip()
+    next_url = _safe_next_url(request.form.get('next') or request.referrer, fallback='/')
+
+    if not public_user:
+        flash('Create an account or log in to comment.', 'error')
+        return redirect(url_for('public_login', next=next_url))
+
+    body = (request.form.get('body') or '').replace('\r\n', '\n').replace('\r', '\n').strip()
+    if len(body) < 3:
+        flash('Comments must be at least 3 characters long.', 'error')
+        return redirect(next_url)
+    if len(body) > 5000:
+        flash('Comments must be 5,000 characters or fewer.', 'error')
+        return redirect(next_url)
+
+    conn = get_db()
+    if not _public_comment_target_exists(conn, content_type, content_id):
+        conn.close()
+        flash('That comment target is no longer available.', 'error')
+        return redirect(next_url)
+
+    conn.execute(
+        '''
+        INSERT INTO public_comments (public_user_id, content_type, content_id, body, status, updated_at)
+        VALUES (?, ?, ?, ?, 'pending', datetime('now'))
+        ''',
+        (public_user.id, content_type, content_id, body),
+    )
+    conn.commit()
+    conn.close()
+    flash('Comment submitted for review.', 'success')
+    return redirect(next_url)
+
+
 @app.route('/subscribe', methods=['GET', 'POST'])
 def subscribe():
     """Public email digest subscription."""
     import secrets
 
     conn = get_db()
+    _ensure_subscriber_schema(conn)
     all_counties = [r['county'] for r in conn.execute(
         'SELECT DISTINCT county FROM posts ORDER BY county').fetchall()]
     source = (request.values.get('source') or '').strip()[:80]
@@ -6052,6 +7092,7 @@ def unsubscribe():
     """Unsubscribe via token link in digest emails."""
     token = request.args.get('token', '')
     conn = get_db()
+    _ensure_subscriber_schema(conn)
     row = conn.execute('SELECT email FROM subscribers WHERE token=?', (token,)).fetchone()
     if row:
         conn.execute('UPDATE subscribers SET active=0, updated_at=datetime(\'now\') WHERE token=?', (token,))
@@ -6088,9 +7129,476 @@ def render_markdown(text):
     return _sanitize_html(rendered)
 
 
+def _coerce_jail_booking_datetime(value):
+    if value is None:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+
+    candidates = (
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d %H:%M',
+        '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%dT%H:%M',
+        '%m/%d/%Y %H:%M',
+        '%m/%d/%Y %I:%M %p',
+        '%m/%d/%y %H:%M',
+        '%m/%d/%y %I:%M %p',
+        '%Y-%m-%d',
+    )
+    for fmt in candidates:
+        try:
+            return datetime.strptime(raw, fmt)
+        except (TypeError, ValueError):
+            continue
+
+    try:
+        normalized = raw.replace('Z', '+00:00')
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is not None:
+            return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+        return parsed
+    except ValueError:
+        return None
+
+
+def _normalize_jail_booking_datetime(value):
+    parsed = _coerce_jail_booking_datetime(value)
+    if not parsed:
+        return None
+    return parsed.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def _display_jail_booking_datetime(value):
+    parsed = _coerce_jail_booking_datetime(value)
+    if not parsed:
+        return 'Unknown'
+    label = parsed.strftime('%b %d, %Y %I:%M %p')
+    return label.replace(' 0', ' ')
+
+
+def _normalize_jail_booking_status(value):
+    normalized = (value or 'current').strip().lower()
+    if normalized not in JAIL_BOOKING_STATUS_LABELS:
+        return 'current'
+    return normalized
+
+
+def _sync_jail_booking_sources(conn):
+    for county_slug, meta in COUNTY_DIRECTORY.items():
+        if not meta.get('has_online_roster'):
+            continue
+        facility_name = f"{meta['name']} County Detention Center"
+        coverage_tier = 'major' if county_slug in MAJOR_JAIL_BOOKING_COUNTIES else 'standard'
+        is_featured = 1 if county_slug in MAJOR_JAIL_BOOKING_COUNTIES else 0
+        conn.execute(
+            '''
+            INSERT OR IGNORE INTO jail_booking_sources (
+                county_slug,
+                county_name,
+                facility_name,
+                roster_url,
+                phone,
+                source_type,
+                coverage_tier,
+                is_enabled,
+                is_featured,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, 'official_roster', ?, 1, ?, datetime('now'))
+            ''',
+            (
+                county_slug,
+                meta['name'],
+                facility_name,
+                meta.get('roster_url'),
+                meta.get('phone'),
+                coverage_tier,
+                is_featured,
+            ),
+        )
+        conn.execute(
+            '''
+            UPDATE jail_booking_sources
+            SET county_name = ?,
+                facility_name = ?,
+                roster_url = ?,
+                phone = ?,
+                coverage_tier = ?,
+                is_featured = ?
+            WHERE county_slug = ?
+              AND (
+                COALESCE(county_name, '') != ?
+                OR COALESCE(facility_name, '') != ?
+                OR COALESCE(roster_url, '') != COALESCE(?, '')
+                OR COALESCE(phone, '') != COALESCE(?, '')
+                OR COALESCE(coverage_tier, '') != ?
+                OR COALESCE(is_featured, 0) != ?
+              )
+            ''',
+            (
+                meta['name'],
+                facility_name,
+                meta.get('roster_url'),
+                meta.get('phone'),
+                coverage_tier,
+                is_featured,
+                county_slug,
+                meta['name'],
+                facility_name,
+                meta.get('roster_url'),
+                meta.get('phone'),
+                coverage_tier,
+                is_featured,
+            ),
+        )
+    conn.commit()
+
+
+def _decorate_jail_booking_row(row):
+    item = dict(row)
+    booking_dt = _coerce_jail_booking_datetime(item.get('booking_at') or item.get('first_seen_at') or item.get('created_at'))
+    first_seen_dt = _coerce_jail_booking_datetime(item.get('first_seen_at') or item.get('created_at'))
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    event_dt = booking_dt or first_seen_dt
+    item['booking_status'] = _normalize_jail_booking_status(item.get('booking_status'))
+    item['booking_status_label'] = JAIL_BOOKING_STATUS_LABELS.get(item['booking_status'], 'Current')
+    item['booking_at_label'] = _display_jail_booking_datetime(item.get('booking_at') or item.get('first_seen_at') or item.get('created_at'))
+    item['first_seen_label'] = _display_jail_booking_datetime(item.get('first_seen_at') or item.get('created_at'))
+    item['last_seen_label'] = _display_jail_booking_datetime(item.get('last_seen_at') or item.get('updated_at') or item.get('created_at'))
+    item['is_new_24h'] = bool(event_dt and (now - event_dt) <= timedelta(hours=24))
+    item['is_new_72h'] = bool(event_dt and (now - event_dt) <= timedelta(hours=72))
+    item['charges_summary'] = (item.get('charges_summary') or '').strip()
+    item['notes'] = (item.get('notes') or '').strip()
+    return item
+
+
+def _decorate_jail_booking_source_row(row):
+    item = dict(row)
+    last_checked = _coerce_jail_booking_datetime(item.get('last_checked_at'))
+    last_success = _coerce_jail_booking_datetime(item.get('last_success_at'))
+    item['last_checked_label'] = _display_jail_booking_datetime(item.get('last_checked_at'))
+    item['last_success_label'] = _display_jail_booking_datetime(item.get('last_success_at'))
+    item['public_href'] = f"/jail-bookings/{item['county_slug']}"
+    if last_checked and not last_success:
+        item['sync_state'] = 'attention'
+        item['sync_state_label'] = 'Checked, no success yet'
+    elif last_checked and last_success and last_checked > last_success:
+        item['sync_state'] = 'attention'
+        item['sync_state_label'] = 'Needs review'
+    elif last_success:
+        item['sync_state'] = 'healthy'
+        item['sync_state_label'] = 'Healthy'
+    else:
+        item['sync_state'] = 'pending'
+        item['sync_state_label'] = 'Pending'
+    if last_success and int(item.get('current_count') or 0) > 0:
+        item['coverage_label'] = 'Live feed'
+    elif last_success:
+        item['coverage_label'] = 'Live sync'
+    elif last_checked:
+        item['coverage_label'] = 'Checked source'
+    else:
+        item['coverage_label'] = 'Tracking setup'
+    return item
+
+
+def _decorate_jail_booking_run_row(row):
+    item = dict(row)
+    item['run_type_label'] = (item.get('run_type') or 'manual').replace('_', ' ').title()
+    item['status_label'] = (item.get('status') or 'pending').title()
+    item['started_label'] = _display_jail_booking_datetime(item.get('started_at'))
+    item['completed_label'] = _display_jail_booking_datetime(item.get('completed_at'))
+    return item
+
+
+def _jail_booking_public_context(conn, county_filter='', status_filter='current', q='', county_page=False):
+    _sync_jail_booking_sources(conn)
+    county_filter = (county_filter or '').strip().lower()
+    q = (q or '').strip()[:120]
+    status_filter = (status_filter or 'current').strip().lower()
+    if status_filter not in {'current', 'recent', 'released', 'all'}:
+        status_filter = 'current'
+
+    sources = conn.execute(
+        '''
+        SELECT
+            s.*,
+            (
+                SELECT COUNT(*)
+                FROM jail_bookings jb
+                WHERE jb.source_id = s.id
+                  AND COALESCE(jb.is_current, 1) = 1
+            ) AS current_count,
+            (
+                SELECT COUNT(*)
+                FROM jail_bookings jb
+                WHERE jb.source_id = s.id
+                  AND datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) >= datetime('now', '-24 hours')
+            ) AS new_24h_count
+        FROM jail_booking_sources s
+        WHERE COALESCE(s.is_enabled, 1) = 1
+          AND COALESCE(s.is_featured, 0) = 1
+        ORDER BY COALESCE(s.is_featured, 0) DESC, s.county_name ASC
+        '''
+    ).fetchall()
+
+    valid_counties = {row['county_slug'] for row in sources}
+    if county_filter and county_filter not in valid_counties:
+        county_filter = ''
+
+    where = ['1 = 1']
+    params = []
+    if county_filter:
+        where.append('jb.county_slug = ?')
+        params.append(county_filter)
+    if status_filter == 'current':
+        where.append('COALESCE(jb.is_current, 1) = 1')
+    elif status_filter == 'recent':
+        where.append("datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) >= datetime('now', '-24 hours')")
+    elif status_filter == 'released':
+        where.append("(COALESCE(jb.is_current, 1) = 0 OR jb.booking_status = 'released')")
+    if q:
+        like = f'%{q}%'
+        where.append(
+            '('
+            'jb.person_name LIKE ? OR '
+            'COALESCE(jb.charges_summary, \'\') LIKE ? OR '
+            'COALESCE(jb.booking_number, \'\') LIKE ? OR '
+            'COALESCE(jb.arresting_agency, \'\') LIKE ? OR '
+            'COALESCE(jb.county_name, \'\') LIKE ?'
+            ')'
+        )
+        params.extend([like, like, like, like, like])
+
+    rows = conn.execute(
+        f'''
+        SELECT
+            jb.*,
+            s.roster_url AS roster_url,
+            s.phone AS source_phone,
+            s.last_success_at,
+            s.is_featured
+        FROM jail_bookings jb
+        LEFT JOIN jail_booking_sources s ON s.id = jb.source_id
+        WHERE {' AND '.join(where)}
+        ORDER BY datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) DESC, jb.id DESC
+        LIMIT 150
+        ''',
+        params,
+    ).fetchall()
+
+    selected_source = next((row for row in sources if row['county_slug'] == county_filter), None) if county_filter else None
+
+    current_count_params = []
+    current_count_sql = 'SELECT COUNT(*) FROM jail_bookings WHERE COALESCE(is_current, 1) = 1'
+    if county_filter:
+        current_count_sql += ' AND county_slug = ?'
+        current_count_params.append(county_filter)
+    current_count = conn.execute(current_count_sql, current_count_params).fetchone()[0]
+
+    new_24h_params = []
+    new_24h_sql = """
+        SELECT COUNT(*)
+        FROM jail_bookings
+        WHERE datetime(COALESCE(booking_at, first_seen_at, created_at)) >= datetime('now', '-24 hours')
+    """
+    if county_filter:
+        new_24h_sql += ' AND county_slug = ?'
+        new_24h_params.append(county_filter)
+    new_24h_count = conn.execute(new_24h_sql, new_24h_params).fetchone()[0]
+
+    tracked_counties = 1 if county_page and selected_source else sum(1 for row in sources if row['county_slug'] in MAJOR_JAIL_BOOKING_COUNTIES)
+    recent_runs = conn.execute(
+        '''
+        SELECT
+            r.*,
+            s.county_name
+        FROM jail_booking_runs r
+        LEFT JOIN jail_booking_sources s ON s.id = r.source_id
+        WHERE (? = '' OR s.county_slug = ?)
+        ORDER BY datetime(COALESCE(r.completed_at, r.started_at)) DESC, r.id DESC
+        LIMIT 6
+        ''',
+        (county_filter, county_filter),
+    ).fetchall()
+
+    decorated_sources = [_decorate_jail_booking_source_row(row) for row in sources]
+    decorated_runs = [_decorate_jail_booking_run_row(row) for row in recent_runs]
+    selected_source = next((row for row in decorated_sources if row['county_slug'] == county_filter), None) if county_filter else None
+    page_title = "New Jail Bookings"
+    meta_description = "Track newly posted jail bookings from major Montana county rosters with county filters, booking timestamps, and official source links."
+    canonical_url = f"{BASE_URL}/jail-bookings"
+    og_title = "New Jail Bookings | Montana Blotter"
+    og_description = "Recent Montana jail bookings presented with county context, timestamps, and official source links."
+    hero_kicker = "Daily Booking Monitor"
+    hero_title = "New jail bookings from Montana's largest county rosters"
+    hero_description = (
+        "This page tracks newly published jail roster entries from major Montana counties and presents them in a cleaner statewide feed. "
+        "These records reflect booking or detention status only and do not imply guilt or conviction."
+    )
+    reset_href = "/jail-bookings"
+    breadcrumb_label = "New Jail Bookings"
+    if county_page and selected_source:
+        page_title = f"{selected_source['county_name']} County Jail Bookings"
+        meta_description = (
+            f"Track recent {selected_source['county_name']} County jail bookings with booking timestamps, source freshness, "
+            "and links back to the official county roster."
+        )
+        canonical_url = f"{BASE_URL}/jail-bookings/{selected_source['county_slug']}"
+        og_title = f"{selected_source['county_name']} County Jail Bookings | Montana Blotter"
+        og_description = (
+            f"Recent {selected_source['county_name']} County jail bookings with official roster links and source freshness."
+        )
+        hero_kicker = f"{selected_source['county_name']} County Monitor"
+        hero_title = f"{selected_source['county_name']} County jail bookings"
+        hero_description = (
+            f"This county page tracks newly published jail roster entries from the {selected_source['facility_name']}. "
+            "Booking status does not imply guilt or conviction."
+        )
+        reset_href = selected_source['public_href']
+        breadcrumb_label = f"{selected_source['county_name']} County Jail Bookings"
+
+    return {
+        'rows': [_decorate_jail_booking_row(row) for row in rows],
+        'sources': decorated_sources,
+        'featured_sources': [row for row in decorated_sources if row['county_slug'] in MAJOR_JAIL_BOOKING_COUNTIES],
+        'recent_runs': decorated_runs,
+        'selected_source': selected_source,
+        'county_locked': bool(county_page and selected_source),
+        'county_filter': county_filter,
+        'status_filter': status_filter,
+        'q': q,
+        'page_title': page_title,
+        'meta_description': meta_description,
+        'canonical_url': canonical_url,
+        'og_title': og_title,
+        'og_description': og_description,
+        'hero_kicker': hero_kicker,
+        'hero_title': hero_title,
+        'hero_description': hero_description,
+        'reset_href': reset_href,
+        'breadcrumb_label': breadcrumb_label,
+        'summary': {
+            'tracked_counties': tracked_counties,
+            'current_bookings': current_count,
+            'new_24h': new_24h_count,
+            'featured_sources': len([row for row in sources if row['county_slug'] in MAJOR_JAIL_BOOKING_COUNTIES]),
+        },
+    }
+
+
+def _jail_booking_admin_context(conn, county_filter='', status_filter='current', q=''):
+    public_context = _jail_booking_public_context(
+        conn,
+        county_filter=county_filter,
+        status_filter=status_filter,
+        q=q,
+    )
+    sources = conn.execute(
+        '''
+        SELECT
+            s.*,
+            (
+                SELECT COUNT(*)
+                FROM jail_bookings jb
+                WHERE jb.source_id = s.id
+                  AND COALESCE(jb.is_current, 1) = 1
+            ) AS current_count,
+            (
+                SELECT COUNT(*)
+                FROM jail_bookings jb
+                WHERE jb.source_id = s.id
+                  AND datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) >= datetime('now', '-24 hours')
+            ) AS new_24h_count
+        FROM jail_booking_sources s
+        WHERE COALESCE(s.is_enabled, 1) = 1
+          AND COALESCE(s.is_featured, 0) = 1
+        ORDER BY COALESCE(s.is_featured, 0) DESC, s.county_name ASC
+        '''
+    ).fetchall()
+    public_context['source_rows'] = [_decorate_jail_booking_source_row(row) for row in sources]
+    return public_context
+
+
 @app.route('/jail-rosters')
 def jail_rosters():
     return render_template('jail_rosters.html', current_year=datetime.now().year)
+
+
+@app.route('/jail-bookings')
+def jail_bookings():
+    conn = get_db()
+    context = _jail_booking_public_context(
+        conn,
+        county_filter=request.args.get('county'),
+        status_filter=request.args.get('status'),
+        q=request.args.get('q'),
+    )
+    conn.close()
+    return render_template('jail_bookings.html', **context)
+
+
+@app.route('/jail-bookings/<county_slug>')
+def jail_bookings_county(county_slug):
+    conn = get_db()
+    context = _jail_booking_public_context(
+        conn,
+        county_filter=county_slug,
+        status_filter=request.args.get('status'),
+        q=request.args.get('q'),
+        county_page=True,
+    )
+    conn.close()
+    if not context.get('selected_source'):
+        abort(404)
+    return render_template('jail_bookings.html', **context)
+
+
+@app.route('/api/jail-bookings')
+def api_jail_bookings():
+    conn = get_db()
+    context = _jail_booking_public_context(
+        conn,
+        county_filter=request.args.get('county'),
+        status_filter=request.args.get('status'),
+        q=request.args.get('q'),
+    )
+    conn.close()
+    return jsonify({
+        'bookings': context['rows'],
+        'filters': {
+            'county': context['county_filter'] or None,
+            'status': context['status_filter'],
+            'q': context['q'] or None,
+        },
+        'summary': context['summary'],
+    })
+
+
+@app.route('/api/jail-bookings/<county_slug>')
+def api_jail_bookings_county(county_slug):
+    conn = get_db()
+    context = _jail_booking_public_context(
+        conn,
+        county_filter=county_slug,
+        status_filter=request.args.get('status'),
+        q=request.args.get('q'),
+        county_page=True,
+    )
+    conn.close()
+    if not context.get('selected_source'):
+        abort(404)
+    return jsonify({
+        'bookings': context['rows'],
+        'filters': {
+            'county': context['county_filter'] or None,
+            'status': context['status_filter'],
+            'q': context['q'] or None,
+        },
+        'summary': context['summary'],
+        'source': context['selected_source'],
+    })
 
 
 def _parse_roundup_date(value):
@@ -8902,6 +10410,16 @@ def privacy():
     return render_template('privacy.html', current_year=datetime.now().year)
 
 
+@app.route('/standards')
+def editorial_standards():
+    return render_template('standards.html', current_year=datetime.now().year)
+
+
+@app.route('/corrections')
+def corrections_policy():
+    return render_template('corrections.html', current_year=datetime.now().year)
+
+
 @app.route('/trends')
 def trends():
     conn = get_db()
@@ -8940,10 +10458,13 @@ def blog_post(slug):
     conn = get_db()
     post = conn.execute(
         'SELECT * FROM blog_posts WHERE slug=? AND published=1', (slug,)).fetchone()
-    conn.close()
     if not post:
+        conn.close()
         return render_template('404.html'), 404
+    comment_thread = _public_comments_context(conn, 'blog_post', post['id'])
+    conn.close()
     return render_template('blog_post.html', post=post,
+                           comment_thread=comment_thread,
                            current_year=datetime.now().year)
 
 
@@ -9090,6 +10611,37 @@ def admin_blog_delete(post_id):
     return redirect(url_for('admin_blog'))
 
 
+@app.route('/case-journeys')
+def case_journey_index():
+    conn = get_db()
+    journeys = _case_journey_rows(conn)
+    conn.close()
+    return render_template(
+        'case_journey_index.html',
+        journeys=journeys,
+        current_year=datetime.now().year,
+        active_nav='case_journeys',
+    )
+
+
+@app.route('/case-journeys/<slug>')
+def case_journey_detail(slug):
+    conn = get_db()
+    journey = _case_journey_detail(conn, slug)
+    if not journey:
+        conn.close()
+        return render_template('404.html'), 404
+    comment_thread = _public_comments_context(conn, 'case_journey', journey['id'])
+    conn.close()
+    return render_template(
+        'case_journey_detail.html',
+        journey=journey,
+        comment_thread=comment_thread,
+        current_year=datetime.now().year,
+        active_nav='case_journeys',
+    )
+
+
 @app.route('/record/<int:record_id>')
 def view_record(record_id):
     """Public view of individual record"""
@@ -9158,6 +10710,8 @@ def view_record(record_id):
     ).fetchall()
 
     provenance_card = _build_record_provenance_card(conn, record, blotter_records)
+    linked_case_journey = _case_journey_for_record(conn, record_id)
+    comment_thread = _public_comments_context(conn, 'record', record_id)
     
     conn.close()
 
@@ -9171,6 +10725,8 @@ def view_record(record_id):
         logs=logs,
         sibling_records=sibling_records,
         provenance_card=provenance_card,
+        linked_case_journey=linked_case_journey,
+        comment_thread=comment_thread,
         county_slug=_county_slug_for_name(record['county']),
         source_pdf_name=source_pdf_name,
         current_year=datetime.now().year,
@@ -9232,6 +10788,7 @@ def view_post(post_id):
     provenance_card = _build_provenance_card(conn, post, records)
     county_slug = _county_slug_for_name(post['county'])
     related_pattern_pages = _related_pattern_pages_for_post(records, county_slug=county_slug)
+    comment_thread = _public_comments_context(conn, 'daily_post', post_id)
     conn.close()
 
     city_slug = _city_slug_for_name(post['city'])
@@ -9250,6 +10807,7 @@ def view_post(post_id):
         related_pattern_pages=related_pattern_pages,
         provenance_card=provenance_card,
         summary_lines=_summary_lines(post['summary']),
+        comment_thread=comment_thread,
         county_slug=county_slug,
         city_slug=city_slug,
         county_page=county_page,
@@ -9435,6 +10993,22 @@ def admin_dashboard():
     recent_audit_actions = conn.execute(
         "SELECT COUNT(*) FROM audit_logs WHERE timestamp >= datetime('now', '-7 days')"
     ).fetchone()[0]
+    alert_rollup = {
+        'ingestion': conn.execute(
+            "SELECT COUNT(*) FROM ingestion_source_alerts WHERE state = 'open'"
+        ).fetchone()[0],
+        'courts': conn.execute(
+            "SELECT COUNT(*) FROM court_source_alerts WHERE state = 'open'"
+        ).fetchone()[0],
+        'meetings': conn.execute(
+            "SELECT COUNT(*) FROM meeting_source_alerts WHERE state = 'open'"
+        ).fetchone()[0],
+    }
+    alert_rollup['total'] = (
+        alert_rollup['ingestion']
+        + alert_rollup['courts']
+        + alert_rollup['meetings']
+    )
     
     conn.close()
     
@@ -9445,6 +11019,7 @@ def admin_dashboard():
                          failed_ingestions=failed_ingestions,
                          active_admin_users=active_admin_users,
                          recent_audit_actions=recent_audit_actions,
+                         alert_rollup=alert_rollup,
                          source_coverage=source_coverage,
                          recent_blotters=recent_blotters,
                          county_stats=county_stats)
@@ -9498,6 +11073,239 @@ def admin_sources():
         category_filter=category_filter,
         health_filter=health_filter,
     )
+
+
+@app.route('/admin/operations/courts')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_courts():
+    conn = get_db()
+    ensure_court_tracker_schema(conn)
+    context = court_admin_context(conn)
+    conn.close()
+    return render_template('admin_courts.html', **context)
+
+
+@app.route('/admin/operations/meetings')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_meetings():
+    conn = get_db()
+    ensure_public_meeting_schema(conn)
+    context = meeting_admin_context(conn)
+    conn.close()
+    return render_template('admin_meetings.html', **context)
+
+
+@app.route('/admin/operations/jail-bookings')
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_jail_bookings():
+    conn = get_db()
+    context = _jail_booking_admin_context(
+        conn,
+        county_filter=request.args.get('county'),
+        status_filter=request.args.get('status'),
+        q=request.args.get('q'),
+    )
+    conn.close()
+    return render_template('admin_jail_bookings.html', **context)
+
+
+@app.route('/admin/operations/jail-bookings/create', methods=['POST'])
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_jail_booking_create():
+    source_id_raw = (request.form.get('source_id') or '').strip()
+    person_name = (request.form.get('person_name') or '').strip()
+    booking_status = _normalize_jail_booking_status(request.form.get('booking_status'))
+    booking_number = (request.form.get('booking_number') or '').strip()[:120]
+    charges_summary = (request.form.get('charges_summary') or '').strip()[:1200]
+    arresting_agency = (request.form.get('arresting_agency') or '').strip()[:160]
+    source_url = (request.form.get('source_url') or '').strip()[:500]
+    notes = (request.form.get('notes') or '').strip()[:1000]
+    booking_at = _normalize_jail_booking_datetime(request.form.get('booking_at'))
+    age = None
+    age_raw = (request.form.get('age') or '').strip()
+    if age_raw:
+        try:
+            age = int(age_raw)
+        except ValueError:
+            flash('Age must be a whole number.', 'error')
+            return redirect(url_for('admin_jail_bookings'))
+
+    if not source_id_raw.isdigit():
+        flash('Choose a valid county source.', 'error')
+        return redirect(url_for('admin_jail_bookings'))
+    if len(person_name) < 2:
+        flash('Enter the booked person name.', 'error')
+        return redirect(url_for('admin_jail_bookings'))
+
+    conn = get_db()
+    _sync_jail_booking_sources(conn)
+    source = conn.execute(
+        'SELECT * FROM jail_booking_sources WHERE id = ? AND COALESCE(is_enabled, 1) = 1',
+        (int(source_id_raw),),
+    ).fetchone()
+    if not source:
+        conn.close()
+        flash('Jail booking source not found.', 'error')
+        return redirect(url_for('admin_jail_bookings'))
+
+    is_current = 0 if booking_status in {'released', 'archived'} else 1
+    conn.execute(
+        '''
+        INSERT INTO jail_bookings (
+            source_id,
+            county_slug,
+            county_name,
+            facility_name,
+            person_name,
+            age,
+            booking_number,
+            booking_at,
+            charges_summary,
+            arresting_agency,
+            source_url,
+            booking_status,
+            is_current,
+            first_seen_at,
+            last_seen_at,
+            notes,
+            created_at,
+            updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, datetime('now'), datetime('now'))
+        ''',
+        (
+            source['id'],
+            source['county_slug'],
+            source['county_name'],
+            source['facility_name'],
+            person_name[:200],
+            age,
+            booking_number or None,
+            booking_at,
+            charges_summary,
+            arresting_agency or None,
+            source_url or source['roster_url'],
+            booking_status,
+            is_current,
+            notes,
+        ),
+    )
+    booking_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    conn.execute(
+        '''
+        INSERT INTO jail_booking_runs (
+            source_id,
+            run_type,
+            status,
+            fetched_count,
+            new_count,
+            updated_count,
+            missing_count,
+            started_at,
+            completed_at,
+            notes
+        ) VALUES (?, 'manual_entry', 'success', 1, 1, 0, 0, datetime('now'), datetime('now'), ?)
+        ''',
+        (source['id'], f'Manual booking entry for {person_name[:120]}'),
+    )
+    conn.execute(
+        "UPDATE jail_booking_sources SET last_checked_at = datetime('now'), last_success_at = datetime('now') WHERE id = ?",
+        (source['id'],),
+    )
+    _log_admin_action(
+        'jail_booking.created',
+        target_type='jail_booking',
+        target_id=booking_id,
+        metadata={
+            'county_slug': source['county_slug'],
+            'person_name': person_name[:120],
+            'status': booking_status,
+        },
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash(f'Added jail booking entry for {person_name}.', 'success')
+    return redirect(url_for('admin_jail_bookings'))
+
+
+@app.route('/admin/operations/jail-bookings/<int:booking_id>/status', methods=['POST'])
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_jail_booking_status(booking_id):
+    new_status = _normalize_jail_booking_status(request.form.get('booking_status'))
+    conn = get_db()
+    booking = conn.execute(
+        '''
+        SELECT
+            jb.id,
+            jb.person_name,
+            jb.booking_status,
+            jb.is_current,
+            jb.release_at,
+            jb.source_id,
+            jb.county_slug
+        FROM jail_bookings jb
+        WHERE jb.id = ?
+        ''',
+        (booking_id,),
+    ).fetchone()
+    if not booking:
+        conn.close()
+        flash('Booking not found.', 'error')
+        return redirect(url_for('admin_jail_bookings'))
+
+    new_is_current = 0 if new_status in {'released', 'archived'} else 1
+    release_at = booking['release_at']
+    if new_is_current == 0 and not release_at:
+        release_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    if new_is_current == 1:
+        release_at = None
+
+    conn.execute(
+        '''
+        UPDATE jail_bookings
+        SET booking_status = ?, is_current = ?, release_at = ?, last_seen_at = datetime('now'), updated_at = datetime('now')
+        WHERE id = ?
+        ''',
+        (new_status, new_is_current, release_at, booking_id),
+    )
+    conn.execute(
+        '''
+        INSERT INTO jail_booking_runs (
+            source_id,
+            run_type,
+            status,
+            fetched_count,
+            new_count,
+            updated_count,
+            missing_count,
+            started_at,
+            completed_at,
+            notes
+        ) VALUES (?, 'status_update', 'success', 1, 0, 1, 0, datetime('now'), datetime('now'), ?)
+        ''',
+        (booking['source_id'], f'Status set to {new_status} for {booking["person_name"][:120]}'),
+    )
+    _log_admin_action(
+        'jail_booking.status_changed',
+        target_type='jail_booking',
+        target_id=booking_id,
+        metadata={
+            'county_slug': booking['county_slug'],
+            'person_name': booking['person_name'],
+            'from': booking['booking_status'],
+            'to': new_status,
+        },
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash(f'Updated {booking["person_name"]} to {JAIL_BOOKING_STATUS_LABELS.get(new_status, new_status.title())}.', 'success')
+    return redirect(url_for('admin_jail_bookings'))
 
 
 @app.route('/admin/operations/redaction')
@@ -9653,6 +11461,89 @@ def admin_redaction_queue_reset(post_id):
     return redirect(url_for('admin_redaction_queue'))
 
 
+def _public_comment_admin_context(conn, q='', status_filter='pending', content_type_filter=''):
+    normalized_status = (status_filter or 'pending').strip().lower()
+    if normalized_status not in PUBLIC_COMMENT_STATUSES and normalized_status != 'all':
+        normalized_status = 'pending'
+
+    normalized_type = (content_type_filter or '').strip()
+    if normalized_type and normalized_type not in PUBLIC_COMMENT_TYPES:
+        normalized_type = ''
+
+    search_term = (q or '').strip()
+    sql = '''
+        SELECT
+            public_comments.*,
+            public_users.display_name,
+            public_users.email
+        FROM public_comments
+        JOIN public_users ON public_users.id = public_comments.public_user_id
+        WHERE 1 = 1
+    '''
+    params = []
+    if normalized_status != 'all':
+        sql += ' AND public_comments.status = ?'
+        params.append(normalized_status)
+    if normalized_type:
+        sql += ' AND public_comments.content_type = ?'
+        params.append(normalized_type)
+    if search_term:
+        token = f'%{search_term}%'
+        sql += '''
+            AND (
+                public_comments.body LIKE ?
+                OR public_users.display_name LIKE ?
+                OR public_users.email LIKE ?
+            )
+        '''
+        params.extend([token, token, token])
+    sql += '''
+        ORDER BY
+            CASE public_comments.status
+                WHEN 'pending' THEN 0
+                WHEN 'approved' THEN 1
+                WHEN 'rejected' THEN 2
+                ELSE 3
+            END,
+            COALESCE(public_comments.updated_at, public_comments.created_at) DESC,
+            public_comments.id DESC
+        LIMIT 250
+    '''
+    rows = conn.execute(sql, params).fetchall()
+    summary_rows = conn.execute(
+        '''
+        SELECT status, COUNT(*) AS total
+        FROM public_comments
+        GROUP BY status
+        '''
+    ).fetchall()
+    summary = {'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0, 'spam': 0}
+    for row in summary_rows:
+        status = (row['status'] or '').strip()
+        summary['total'] += int(row['total'] or 0)
+        if status in summary:
+            summary[status] = int(row['total'] or 0)
+
+    comment_rows = []
+    for row in rows:
+        comment_rows.append(
+            {
+                **dict(row),
+                'content_label': PUBLIC_COMMENT_TYPES.get(row['content_type'], row['content_type']),
+                'target_path': _public_comment_target_path(conn, row['content_type'], row['content_id']),
+            }
+        )
+
+    return {
+        'rows': comment_rows,
+        'summary': summary,
+        'q': search_term,
+        'status_filter': normalized_status,
+        'content_type_filter': normalized_type,
+        'content_types': [{'value': key, 'label': label} for key, label in PUBLIC_COMMENT_TYPES.items()],
+    }
+
+
 @app.route('/admin/audience/subscribers')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
@@ -9669,6 +11560,75 @@ def admin_subscribers():
     return render_template('admin_subscribers.html', **context)
 
 
+@app.route('/admin/audience/comments')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_comments():
+    conn = get_db()
+    context = _public_comment_admin_context(
+        conn,
+        q=request.args.get('q'),
+        status_filter=request.args.get('status'),
+        content_type_filter=request.args.get('content_type'),
+    )
+    conn.close()
+    return render_template('admin_comments.html', **context)
+
+
+@app.route('/admin/audience/comments/<int:comment_id>/status', methods=['POST'])
+@login_required
+@require_role(*AUDIENCE_MANAGEMENT_ROLES)
+def admin_comment_status(comment_id):
+    new_status = (request.form.get('status') or '').strip().lower()
+    moderation_note = (request.form.get('moderation_note') or '').strip()[:1000]
+    if new_status not in PUBLIC_COMMENT_STATUSES:
+        flash('Invalid comment status.', 'error')
+        return redirect(url_for('admin_comments'))
+
+    conn = get_db()
+    comment = conn.execute(
+        '''
+        SELECT
+            public_comments.*,
+            public_users.email
+        FROM public_comments
+        JOIN public_users ON public_users.id = public_comments.public_user_id
+        WHERE public_comments.id = ?
+        ''',
+        (comment_id,),
+    ).fetchone()
+    if not comment:
+        conn.close()
+        flash('Comment not found.', 'error')
+        return redirect(url_for('admin_comments'))
+
+    conn.execute(
+        '''
+        UPDATE public_comments
+        SET status = ?, moderation_note = ?, updated_at = datetime('now')
+        WHERE id = ?
+        ''',
+        (new_status, moderation_note, comment_id),
+    )
+    _log_admin_action(
+        'public_comment.status_changed',
+        target_type='public_comment',
+        target_id=comment_id,
+        metadata={
+            'from': comment['status'],
+            'to': new_status,
+            'content_type': comment['content_type'],
+            'content_id': comment['content_id'],
+            'email': comment['email'],
+        },
+        conn=conn,
+    )
+    conn.commit()
+    conn.close()
+    flash(f'Comment marked {new_status}.', 'success')
+    return redirect(url_for('admin_comments'))
+
+
 @app.route('/admin/audience/subscribers/<int:subscriber_id>/status', methods=['POST'])
 @login_required
 @require_role(*AUDIENCE_MANAGEMENT_ROLES)
@@ -9676,6 +11636,7 @@ def admin_subscriber_status(subscriber_id):
     requested = (request.form.get('active') or '').strip()
     new_active = 1 if requested == '1' else 0
     conn = get_db()
+    _ensure_subscriber_schema(conn)
     subscriber = conn.execute(
         'SELECT id, email, counties, COALESCE(active, 1) AS active FROM subscribers WHERE id = ?',
         (subscriber_id,),
@@ -9715,6 +11676,7 @@ def admin_subscriber_counties(subscriber_id):
     counties = [part.strip() for part in raw_counties.split(',') if part.strip()]
     counties_value = ','.join(dict.fromkeys(counties))
     conn = get_db()
+    _ensure_subscriber_schema(conn)
     subscriber = conn.execute(
         'SELECT id, email, counties FROM subscribers WHERE id = ?',
         (subscriber_id,),
@@ -9746,6 +11708,7 @@ def admin_subscriber_counties(subscriber_id):
 def admin_subscriber_notes(subscriber_id):
     notes = (request.form.get('notes') or '').strip()[:2000]
     conn = get_db()
+    _ensure_subscriber_schema(conn)
     subscriber = conn.execute(
         'SELECT id, email, COALESCE(notes, \'\') AS notes FROM subscribers WHERE id = ?',
         (subscriber_id,),
@@ -10737,12 +12700,20 @@ def admin_settings():
                 _apply_runtime_app_settings(conn=conn)
                 flash('Ingestion settings saved.', 'success')
             elif action == 'save_revenue_settings':
-                enabled = _coerce_setting_value('donations_enabled', request.form.get('donations_enabled'))
-                _save_app_setting(conn, 'donations_enabled', enabled)
+                updates = {}
+                for key in (
+                    'donations_enabled',
+                    'winter_storm_banner_enabled',
+                    'winter_storm_banner_headline',
+                    'winter_storm_banner_body',
+                ):
+                    value = _coerce_setting_value(key, request.form.get(key))
+                    _save_app_setting(conn, key, value)
+                    updates[key] = value
                 _log_admin_action(
                     'settings.revenue_updated',
                     target_type='app_settings',
-                    metadata={'donations_enabled': enabled},
+                    metadata=updates,
                     conn=conn,
                 )
                 conn.commit()

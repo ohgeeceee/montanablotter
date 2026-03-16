@@ -7,6 +7,64 @@
 {% set og_title = record_title ~ " | Montana Blotter" %}
 {% set og_description = meta_description %}
 
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": {{ (record_title ~ " incident record | Montana Blotter") | tojson }},
+  "description": {{ meta_description | tojson }},
+  "url": {{ canonical_url | tojson }},
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com/"
+  },
+  "about": {
+    "@type": "Thing",
+    "name": {{ record_title | tojson }}
+  },
+  "datePublished": {{ record.date | tojson }},
+  "dateModified": {{ provenance_card.source.received_at or record.date | tojson }}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Montana Blotter",
+      "item": "https://montanablotter.com/"
+    }
+    {% if county_slug %},
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ (record.county ~ " County") | tojson }},
+      "item": {{ ("https://montanablotter.com/county/" ~ county_slug) | tojson }}
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ record_title | tojson }},
+      "item": {{ canonical_url | tojson }}
+    }
+    {% else %},
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": {{ record_title | tojson }},
+      "item": {{ canonical_url | tojson }}
+    }
+    {% endif %}
+  ]
+}
+</script>
+{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
 {% if county_slug %}
@@ -149,6 +207,11 @@
                     <i class="fas fa-file-pdf mr-2"></i>Open Source PDF
                 </a>
                 {% endif %}
+                {% if linked_case_journey %}
+                <a href="/case-journeys/{{ linked_case_journey.slug }}" class="block rounded-xl px-4 py-3 font-bold text-sm transition border" style="border-color:#35302A; color:#F0E8D8;">
+                    <i class="fas fa-route mr-2" style="color:#D4892A;"></i>Open Case Journey
+                </a>
+                {% endif %}
                 {% if record.post_id %}
                 <a href="/post/{{ record.post_id }}" class="block rounded-xl px-4 py-3 font-bold text-sm transition border" style="border-color:#35302A; color:#F0E8D8;">
                     <i class="fas fa-newspaper mr-2" style="color:#D4892A;"></i>View Full Daily Report
@@ -171,6 +234,36 @@
             </div>
         </section>
         {% endif %}
+
+        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+            <h2 class="text-xs font-black uppercase tracking-[0.18em] mb-4" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Keep Researching</h2>
+            <div class="space-y-2">
+                {% if county_slug %}
+                <a href="/county/{{ county_slug }}" class="block rounded-xl px-4 py-3 transition" style="background:#1A1815;">
+                    <p class="text-xs uppercase tracking-widest font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">County archive</p>
+                    <p class="mt-1 text-sm font-semibold" style="color:#F0E8D8;">More {{ record.county }} County blotter coverage</p>
+                </a>
+                <a href="/arrests?county={{ record.county | urlencode }}" class="block rounded-xl px-4 py-3 transition" style="background:#1A1815;">
+                    <p class="text-xs uppercase tracking-widest font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Arrest coverage</p>
+                    <p class="mt-1 text-sm font-semibold" style="color:#F0E8D8;">Search arrest-focused records in {{ record.county }} County</p>
+                </a>
+                <a href="/warrants/{{ county_slug }}" class="block rounded-xl px-4 py-3 transition" style="background:#1A1815;">
+                    <p class="text-xs uppercase tracking-widest font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Warrant guide</p>
+                    <p class="mt-1 text-sm font-semibold" style="color:#F0E8D8;">County warrant resources and follow-up steps</p>
+                </a>
+                {% endif %}
+                <a href="/jail-rosters" class="block rounded-xl px-4 py-3 transition" style="background:#1A1815;">
+                    <p class="text-xs uppercase tracking-widest font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Jail rosters</p>
+                    <p class="mt-1 text-sm font-semibold" style="color:#F0E8D8;">Open Montana county jail roster links</p>
+                </a>
+                {% if linked_case_journey %}
+                <a href="/case-journeys/{{ linked_case_journey.slug }}" class="block rounded-xl px-4 py-3 transition" style="background:#1A1815;">
+                    <p class="text-xs uppercase tracking-widest font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Case journey</p>
+                    <p class="mt-1 text-sm font-semibold" style="color:#F0E8D8;">Follow the timeline for {{ linked_case_journey.title }}</p>
+                </a>
+                {% endif %}
+            </div>
+        </section>
     </aside>
 </main>
 {% endblock %}

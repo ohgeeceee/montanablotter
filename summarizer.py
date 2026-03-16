@@ -7,6 +7,7 @@ from typing import Optional
 
 import requests
 
+from agency_normalization import normalize_agency_identity, normalize_post_title
 import config
 from dedupe import incident_key_set
 from historical_context import append_historical_perspective
@@ -223,6 +224,11 @@ def generate_posts(
     agency_type, agency_name = _detect_agency(
         combined_text, sender_email, filename=blotter_filename, county=county
     )
+    agency_name, agency_type = normalize_agency_identity(
+        agency_name,
+        agency_type,
+        county=county,
+    )
 
     incident_lines = []
     for r in rows:
@@ -261,11 +267,23 @@ def generate_posts(
         if post_data:
             summary_method = {'method': 'ai_generated', 'provider': 'anthropic', 'generated': True}
 
-    final_agency_type = post_data.get("agency_type") or agency_type
-    final_agency_name = post_data.get("agency_name") or agency_name
     city = post_data.get("city") or ""
+    final_agency_name, final_agency_type = normalize_agency_identity(
+        post_data.get("agency_name") or agency_name,
+        post_data.get("agency_type") or agency_type,
+        county=county,
+        city=city,
+    )
+    final_title = normalize_post_title(
+        post_data.get("title") or f"Daily Activity Report - {final_agency_name or county}",
+        post_data.get("agency_name") or agency_name,
+        final_agency_name,
+        county=county,
+        city=city,
+        agency_type=final_agency_type,
+    )
     final_summary = append_historical_perspective(
-        post_data.get("summary") or _fallback_summary(agency_name, rows),
+        post_data.get("summary") or _fallback_summary(final_agency_name, rows),
         records=rows,
         county=county,
         agency_name=final_agency_name,
@@ -281,7 +299,7 @@ def generate_posts(
         """,
         (
             blotter_id,
-            post_data.get("title") or f"Daily Activity Report – {final_agency_name or county}",
+            final_title,
             final_summary,
             city,
             county,
