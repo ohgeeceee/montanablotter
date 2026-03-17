@@ -17,3 +17,5 @@ db_backups/
 backup.log
 .sisyphus/
 crime-extractor/
+=1.54.0
+reports/pattern_conversion_*.csv
