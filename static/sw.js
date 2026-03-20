@@ -4,15 +4,15 @@ const OFFLINE_URL = '/offline';
 
 const STATIC_ASSETS = [
   '/offline',
-  '/static/manifest.json',
 ];
 
 // Install: pre-cache the offline fallback page
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => cache.addAll(STATIC_ASSETS))
+    caches.open(STATIC_CACHE)
+      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 // Activate: clean up old caches
@@ -51,7 +51,7 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(() =>
-        caches.match(OFFLINE_URL).then(fallback => fallback || new Response('Offline', { status: 503 }))
+        caches.match(OFFLINE_URL).then(fallback => fallback || new Response('<h1>You are offline</h1>', { status: 200, headers: { 'Content-Type': 'text/html' } }))
       )
     );
     return;
