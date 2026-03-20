@@ -49,7 +49,7 @@ class MeetingSourceAlertsTests(unittest.TestCase):
         conn.close()
 
     @mock.patch('meeting_source_alerts._send_plaintext_email', return_value=True)
-    @mock.patch('meeting_source_alerts._collect_recipients', return_value=['alerts@example.com'])
+    @mock.patch('meeting_source_alerts.collect_alert_recipients', return_value=['alerts@example.com'])
     def test_run_creates_open_alert_for_failing_source(self, _collect_recipients: mock.Mock, _send_email: mock.Mock) -> None:
         self._seed_source(slug='broken-meeting-source', last_success_sql="datetime('now')", last_error='HTTP 500')
 
@@ -68,7 +68,7 @@ class MeetingSourceAlertsTests(unittest.TestCase):
         self.assertTrue(row['last_sent_at'])
 
     @mock.patch('meeting_source_alerts._send_plaintext_email', return_value=True)
-    @mock.patch('meeting_source_alerts._collect_recipients', return_value=['alerts@example.com'])
+    @mock.patch('meeting_source_alerts.collect_alert_recipients', return_value=['alerts@example.com'])
     def test_run_resolves_alert_when_source_recovers(self, _collect_recipients: mock.Mock, send_email: mock.Mock) -> None:
         self._seed_source(slug='stale-meeting-source', last_success_sql="datetime('now', '-4 days')")
 

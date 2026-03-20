@@ -11,7 +11,8 @@ from datetime import UTC, datetime, timedelta
 
 import config
 from court_tracker import court_admin_context, ensure_court_tracker_schema
-from ingestion_alerts import _app_setting_int, _collect_recipients, _send_plaintext_email
+from ingestion_alerts import _app_setting_int
+from alerting import collect_alert_recipients, send_plaintext_email as _send_plaintext_email
 from init_db import _configure_sqlite
 
 
@@ -170,7 +171,7 @@ def run(*, dry_run: bool = False, force_reminder: bool = False) -> int:
                 (row['id'],),
             )
 
-    recipients = _collect_recipients(conn)
+    recipients = collect_alert_recipients(conn)
     sent_active = False
     sent_resolved = False
 
