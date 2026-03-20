@@ -29,7 +29,7 @@
     {% include "includes/google_analytics.html" %}
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#D4892A">
-    <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/static/sw.js'); }</script>
+    <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
     {% block extra_head %}{% endblock %}
 </head>
 <body style="background:#0D0C0B; color:#E8DFD0; font-family:'Spectral',Georgia,serif; min-height:100vh;">
