@@ -44,7 +44,9 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("crimemapping_fetcher", ROOT / "crimemapping.log", 14, "twice daily"),
     MonitoredJob("missoula_public_report_fetcher", ROOT / "missoula_fetcher.log", 2, "hourly"),
     MonitoredJob("whitefish_blotter_fetcher", ROOT / "whitefish_fetcher.log", 8, "every 6 hours"),
-    MonitoredJob("jail_booking_ingest", ROOT / "jail_booking_ingest.log", 4, "every 2 hours"),
+    # Both jail counties share one log file; this monitors log freshness only.
+    # DB state is tracked per-county: jail_booking_ingest_yellowstone / jail_booking_ingest_missoula
+    MonitoredJob("jail_booking", ROOT / "jail_booking_ingest.log", 4, "every 2 hours"),
     MonitoredJob("bozeman_police_calls", ROOT / "bozeman_calls.log", 2, "hourly"),
     MonitoredJob("bozeman_police_crime", ROOT / "bozeman_crime.log", 8, "every 6 hours"),
     MonitoredJob("ingestion_alerts", ROOT / "ingestion_alerts.log", 2, "every 30 minutes"),
