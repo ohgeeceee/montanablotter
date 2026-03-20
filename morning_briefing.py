@@ -14,6 +14,7 @@ import smtplib
 import sqlite3
 
 import config
+from alerting import collect_alert_recipients, send_plaintext_email as _send_admin_alert
 
 ADMIN_EMAIL = "ohjoncurrie@gmail.com"
 BASE_URL = "https://montanablotter.com"
@@ -257,6 +258,17 @@ def run_briefing():
             print(f"Admin briefing sent ({len(posts)} posts)")
         except Exception as e:
             print(f"Admin briefing failed: {e}")
+            try:
+                conn = get_db()
+                recipients = collect_alert_recipients(conn)
+                conn.close()
+            except Exception:
+                recipients = [ADMIN_EMAIL] if ADMIN_EMAIL else []
+            _send_admin_alert(
+                recipients,
+                "[Montana Blotter] Morning briefing failed",
+                f"morning_briefing.py failed to send the admin briefing.\n\nError: {e}",
+            )
     else:
         print(f"No posts for {yesterday} — skipping admin briefing.")
 
