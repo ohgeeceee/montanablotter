@@ -4,7 +4,7 @@ SHELL=/bin/bash
 BASH_ENV=/root/montanablotter/.env
 
 # Cleanup old files daily at midnight
-0 0 * * * /root/montanablotter/cleanup.sh
+0 0 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name cleanup --log /root/montanablotter/cleanup.log --workdir /root/montanablotter -- /root/montanablotter/cleanup.sh
 
 # Fetch and process blotter emails every 15 minutes
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_worker --log /root/montanablotter/mail.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py
