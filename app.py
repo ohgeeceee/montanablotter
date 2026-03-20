@@ -7648,6 +7648,24 @@ def manifest_json():
     return response
 
 
+@app.route('/offline')
+def offline_page():
+    return render_template('offline.html',
+        page_title='Offline',
+        meta_description='You are offline.',
+        canonical_url=None,
+    ), 200
+
+
+@app.route('/sw.js')
+def service_worker():
+    response = send_from_directory(app.static_folder, 'sw.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Service-Worker-Allowed'] = '/'
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+
 @app.route('/robots.txt')
 def robots_txt():
     body = "\n".join([

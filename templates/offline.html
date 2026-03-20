@@ -1,0 +1,15 @@
+{% extends "public_page_base.html" %}
+{% block title %}Offline — Montana Blotter{% endblock %}
+{% block content %}
+<div style="max-width:480px; margin:80px auto; padding:0 24px; text-align:center;">
+    <div style="width:56px; height:56px; background:#D4892A; border-radius:8px; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; color:#0D0C0B;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+    </div>
+    <h1 style="font-family:'Playfair Display',Georgia,serif; font-size:1.5rem; font-weight:900; color:#E8DFD0; margin:0 0 12px;">You're offline</h1>
+    <p style="font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:#8A7F72; margin:0 0 32px; line-height:1.6;">
+        Montana Blotter needs a network connection to load fresh reports.<br>
+        Check your connection and try again.
+    </p>
+    <a href="/" style="font-family:'IBM Plex Mono',monospace; font-size:0.7rem; background:#D4892A; color:#0D0C0B; padding:10px 20px; border-radius:4px; text-decoration:none; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;">Try Again</a>
+</div>
+{% endblock %}
