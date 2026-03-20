@@ -6,13 +6,11 @@ Admin alerts for stale or failing ingestion sources.
 from __future__ import annotations
 
 import argparse
-import smtplib
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from email.mime.text import MIMEText
-from typing import Iterable
 
 import config
+from alerting import collect_alert_recipients, send_plaintext_email as _send_alert_email
 from ingestion_monitoring import build_ingestion_health_dashboard
 
 
@@ -80,69 +78,6 @@ def _parse_timestamp(value: str | None) -> datetime | None:
     except ValueError:
         return None
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
-def _collect_recipients(conn: sqlite3.Connection) -> list[str]:
-    recipients: list[str] = []
-
-    configured = getattr(config, 'ADMIN_ALERT_EMAILS', ()) or ()
-    if isinstance(configured, str):
-        configured = [part.strip() for part in configured.split(',') if part.strip()]
-    for entry in configured:
-        email = (entry or '').strip().lower()
-        if email and '@' in email and email not in recipients:
-            recipients.append(email)
-
-    try:
-        user_columns = {
-            row['name']
-            for row in conn.execute("PRAGMA table_info('users')").fetchall()
-        }
-        if 'email' in user_columns:
-            for row in conn.execute(
-                """
-                SELECT DISTINCT lower(email) AS email
-                FROM users
-                WHERE membership = 'pro'
-                  AND email IS NOT NULL
-                  AND trim(email) != ''
-                """
-            ).fetchall():
-                email = (row['email'] or '').strip().lower()
-                if email and '@' in email and email not in recipients:
-                    recipients.append(email)
-    except sqlite3.DatabaseError:
-        pass
-
-    fallback = (getattr(config, 'SMTP_USER', '') or '').strip().lower()
-    if fallback and '@' in fallback and fallback not in recipients:
-        recipients.append(fallback)
-
-    return recipients
-
-
-def _send_plaintext_email(recipients: Iterable[str], subject: str, body: str) -> bool:
-    smtp_user = (getattr(config, 'SMTP_USER', '') or '').strip()
-    smtp_password = (getattr(config, 'SMTP_PASSWORD', '') or '').strip()
-    smtp_server = (getattr(config, 'SMTP_SERVER', '') or '').strip()
-    smtp_port = int(getattr(config, 'SMTP_PORT', 587) or 587)
-    target_list = [value.strip().lower() for value in recipients if value and '@' in value]
-    if not target_list or not (smtp_user and smtp_password and smtp_server):
-        return False
-
-    msg = MIMEText(body, 'plain', 'utf-8')
-    msg['Subject'] = subject
-    msg['From'] = smtp_user
-    msg['To'] = ', '.join(target_list)
-    try:
-        smtp = smtplib.SMTP(smtp_server, smtp_port, timeout=20)
-        smtp.starttls()
-        smtp.login(smtp_user, smtp_password)
-        smtp.sendmail(smtp_user, target_list, msg.as_string())
-        smtp.quit()
-        return True
-    except Exception:
-        return False
 
 
 def _active_alerts(conn: sqlite3.Connection) -> dict[tuple[str, str], dict]:
@@ -287,7 +222,7 @@ def run(*, dry_run: bool = False, force_reminder: bool = False) -> int:
                 (row['id'],),
             )
 
-    recipients = _collect_recipients(conn)
+    recipients = collect_alert_recipients(conn)
     sent_active = False
     sent_resolved = False
 
@@ -301,7 +236,7 @@ def run(*, dry_run: bool = False, force_reminder: bool = False) -> int:
         if dry_run:
             sent_active = True
         else:
-            sent_active = _send_plaintext_email(recipients, subject, '\n'.join(body_parts))
+            sent_active = _send_alert_email(recipients, subject, '\n'.join(body_parts))
         if sent_active and not dry_run:
             for alert in [*new_alerts, *reminder_alerts]:
                 conn.execute(
@@ -318,7 +253,7 @@ def run(*, dry_run: bool = False, force_reminder: bool = False) -> int:
         if dry_run:
             sent_resolved = True
         else:
-            sent_resolved = _send_plaintext_email(recipients, subject, _format_resolved_body(resolved_alerts))
+            sent_resolved = _send_alert_email(recipients, subject, _format_resolved_body(resolved_alerts))
 
     conn.commit()
     conn.close()
