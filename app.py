@@ -20,7 +20,7 @@ from html.parser import HTMLParser
 from email.mime.text import MIMEText
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, session, abort, g, has_request_context
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, session, abort, g, has_request_context, current_app
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
@@ -7636,11 +7636,12 @@ def _sitemap_static_urls():
 
 @app.route('/manifest.json')
 def manifest_json():
-    import json as _json
-    from flask import current_app
     manifest_path = os.path.join(current_app.static_folder, 'manifest.json')
-    with open(manifest_path, 'r', encoding='utf-8') as f:
-        data = _json.load(f)
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        abort(404)
     response = jsonify(data)
     response.headers['Content-Type'] = 'application/manifest+json'
     response.headers['Cache-Control'] = 'public, max-age=86400'
