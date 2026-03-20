@@ -1,6 +1,5 @@
 """
-Montana Blotter - Simplified Free & Open Source Version
-Public browse + Admin panel only (no memberships)
+Montana Blotter - Public browse, subscriber tools, and admin operations.
 """
 
 import os
@@ -21,13 +20,14 @@ from html.parser import HTMLParser
 from email.mime.text import MIMEText
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, session, abort, g
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response, session, abort, g, has_request_context
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
 from agency_normalization import normalize_agency_identity
 import config
+from blueprints.detention import register_detention_blueprint
 from court_tracker import (
     court_admin_context,
     court_case_detail,
@@ -35,6 +35,7 @@ from court_tracker import (
     court_hearing_feed_context,
     ensure_court_tracker_schema,
 )
+from db import connect_db
 from dedupe import incident_key_set
 from morning_briefing import (
     build_html as build_morning_briefing_html,
@@ -51,6 +52,7 @@ from facebook_publisher import (
     run_facebook_queue,
     save_facebook_settings,
 )
+from bondsman_command_center import register_bondsman_command_center
 
 try:
     import stripe
@@ -575,7 +577,7 @@ COUNTY_DIRECTORY = {
     'carter': {'name': 'Carter', 'roster_url': None, 'phone': '406-775-8741', 'has_online_roster': False},
     'cascade': {'name': 'Cascade', 'roster_url': 'https://www.cascadecountymt.gov/314/Inmate-Roster', 'phone': '406-454-6840', 'has_online_roster': True},
     'chouteau': {'name': 'Chouteau', 'roster_url': None, 'phone': '406-622-3660', 'has_online_roster': False},
-    'custer': {'name': 'Custer', 'roster_url': 'https://www.custercountysheriff.com/inmate-search', 'phone': '406-874-3300', 'has_online_roster': True},
+    'custer': {'name': 'Custer', 'roster_url': None, 'phone': '406-874-3300', 'has_online_roster': False},
     'daniels': {'name': 'Daniels', 'roster_url': None, 'phone': '406-487-2691', 'has_online_roster': False},
     'dawson': {'name': 'Dawson', 'roster_url': 'https://www.dawsoncountymontana.com/sheriff', 'phone': '406-377-7600', 'has_online_roster': True},
     'deer-lodge': {'name': 'Deer Lodge', 'roster_url': None, 'phone': '406-563-5421', 'has_online_roster': False},
@@ -587,14 +589,14 @@ COUNTY_DIRECTORY = {
     'glacier': {'name': 'Glacier', 'roster_url': 'https://glaciercountymt.gov/category/jail-roster/', 'phone': '406-873-4600', 'has_online_roster': True},
     'golden-valley': {'name': 'Golden Valley', 'roster_url': None, 'phone': '406-568-2321', 'has_online_roster': False},
     'granite': {'name': 'Granite', 'roster_url': 'https://granitecountyjail.org/', 'phone': '406-859-3771', 'has_online_roster': True},
-    'hill': {'name': 'Hill', 'roster_url': 'https://vinelink.vineapps.com/state/mt', 'phone': '406-265-5481', 'has_online_roster': True},
-    'jefferson': {'name': 'Jefferson', 'roster_url': 'https://www.jeffersoncountysheriffmt.gov/', 'phone': '406-225-4075', 'has_online_roster': True},
+    'hill': {'name': 'Hill', 'roster_url': None, 'phone': '406-265-5481', 'has_online_roster': False},
+    'jefferson': {'name': 'Jefferson', 'roster_url': 'https://jefferson-so-mt.zuercherportal.com/#/inmates', 'phone': '406-225-4075', 'has_online_roster': True},
     'judith-basin': {'name': 'Judith Basin', 'roster_url': None, 'phone': '406-535-3860', 'has_online_roster': False},
     'lake': {'name': 'Lake', 'roster_url': None, 'phone': '406-883-7301', 'has_online_roster': False},
     'lewis-and-clark': {'name': 'Lewis and Clark', 'roster_url': 'https://www.lccountymt.gov/Sheriff/Detention-Center', 'phone': '406-447-8270', 'has_online_roster': True},
     'liberty': {'name': 'Liberty', 'roster_url': None, 'phone': '406-759-5171', 'has_online_roster': False},
-    'lincoln': {'name': 'Lincoln', 'roster_url': 'http://inmateroster.lincolncountysheriff.us/', 'phone': '406-293-0242', 'has_online_roster': True},
-    'madison': {'name': 'Madison', 'roster_url': 'https://webportal.mcits.site/NewWorld.InmateInquiry/MadisonCountyJail', 'phone': '406-843-5351', 'has_online_roster': True},
+    'lincoln': {'name': 'Lincoln', 'roster_url': None, 'phone': '406-293-0242', 'has_online_roster': False},
+    'madison': {'name': 'Madison', 'roster_url': None, 'phone': '406-843-5351', 'has_online_roster': False},
     'mccone': {'name': 'McCone', 'roster_url': None, 'phone': '406-485-3405', 'has_online_roster': False},
     'meagher': {'name': 'Meagher', 'roster_url': None, 'phone': '406-547-3397', 'has_online_roster': False},
     'mineral': {'name': 'Mineral', 'roster_url': 'https://co.mineral.mt.us/departments/sheriff/', 'phone': '406-822-3534', 'has_online_roster': True},
@@ -973,13 +975,7 @@ def to_iso_date(date_str):
     return date_str or ''
 
 def get_db():
-    timeout_seconds = float(getattr(config, 'DB_TIMEOUT_SECONDS', 30))
-    busy_timeout_ms = int(getattr(config, 'DB_BUSY_TIMEOUT_MS', 30000))
-    conn = sqlite3.connect(config.DB_PATH, timeout=timeout_seconds)
-    conn.execute('PRAGMA foreign_keys = ON')
-    conn.execute(f'PRAGMA busy_timeout = {busy_timeout_ms}')
-    conn.row_factory = sqlite3.Row
-    return conn
+    return connect_db()
 
 
 PUBLIC_USER_SESSION_KEY = 'public_user_id'
@@ -1000,6 +996,12 @@ class PublicUser:
         display_name,
         subscribe_digest=False,
         subscription_counties='',
+        is_subscribed=False,
+        subscriber_plan='free',
+        stripe_subscription_id='',
+        subscription_status='',
+        subscription_activated_at=None,
+        subscription_canceled_at=None,
         is_active=True,
         last_login_at=None,
     ):
@@ -1008,6 +1010,12 @@ class PublicUser:
         self.display_name = display_name or ''
         self.subscribe_digest = bool(subscribe_digest)
         self.subscription_counties = subscription_counties or ''
+        self.is_subscribed = bool(is_subscribed)
+        self.subscriber_plan = (subscriber_plan or 'free').strip() or 'free'
+        self.stripe_subscription_id = stripe_subscription_id or ''
+        self.subscription_status = (subscription_status or '').strip()
+        self.subscription_activated_at = subscription_activated_at
+        self.subscription_canceled_at = subscription_canceled_at
         self.is_active = bool(is_active)
         self.last_login_at = last_login_at
 
@@ -1023,6 +1031,12 @@ class PublicUser:
             row['display_name'],
             subscribe_digest=bool(row['subscribe_digest']) if 'subscribe_digest' in row.keys() else False,
             subscription_counties=row['subscription_counties'] if 'subscription_counties' in row.keys() else '',
+            is_subscribed=bool(row['is_subscribed']) if 'is_subscribed' in row.keys() else False,
+            subscriber_plan=row['subscriber_plan'] if 'subscriber_plan' in row.keys() else 'free',
+            stripe_subscription_id=row['stripe_subscription_id'] if 'stripe_subscription_id' in row.keys() else '',
+            subscription_status=row['subscription_status'] if 'subscription_status' in row.keys() else '',
+            subscription_activated_at=row['subscription_activated_at'] if 'subscription_activated_at' in row.keys() else None,
+            subscription_canceled_at=row['subscription_canceled_at'] if 'subscription_canceled_at' in row.keys() else None,
             is_active=bool(row['is_active']) if 'is_active' in row.keys() else True,
             last_login_at=row['last_login_at'] if 'last_login_at' in row.keys() else None,
         )
@@ -1133,6 +1147,14 @@ def _set_public_user_session(user_id):
 def _clear_public_user_session():
     session.pop(PUBLIC_USER_SESSION_KEY, None)
     g.public_user = None
+
+
+register_bondsman_command_center(
+    app,
+    get_db=get_db,
+    get_public_user=_get_public_user,
+    base_url=BASE_URL,
+)
 
 
 def _public_comment_target_exists(conn, content_type, content_id):
@@ -1517,6 +1539,18 @@ def _allowed_donation_amounts():
 
 def _donation_campaign_context(raw_campaign=''):
     campaign = (raw_campaign or '').strip().lower()
+    if campaign == 'bondsman_command_center':
+        return {
+            'key': 'bondsman_command_center',
+            'badge': 'Bondsman Pro',
+            'headline': 'Unlock the Bondsman Command Center',
+            'description': 'Activate the subscriber-only bondsman workspace for defendant watchlists, booking alerts, lead claiming, and client check-ins.',
+            'funds': [
+                'Live defendant watchlist matching against fresh jail bookings',
+                'Private lead claiming and active case management',
+                'Hosted client check-in links with selfie and GPS collection',
+            ],
+        }
     if campaign == 'winter_storm':
         return {
             'key': 'winter_storm',
@@ -1567,70 +1601,175 @@ def _donation_email_hash(email):
     return hashlib.sha256(normalized.encode()).hexdigest()[:16]
 
 
+def _is_bondsman_subscription_source(source):
+    normalized = (source or '').strip().lower()
+    return normalized in {
+        'bondsman_command_center',
+        'bondsman_account',
+        'bondsman_upgrade',
+    }
+
+
+def _set_public_user_subscription_state(
+    conn,
+    *,
+    public_user_id=None,
+    email='',
+    is_subscribed=False,
+    subscriber_plan='free',
+    stripe_subscription_id='',
+    subscription_status='',
+):
+    target_user_id = int(public_user_id) if public_user_id else None
+    normalized_email = (email or '').strip().lower()
+    if target_user_id is None and normalized_email:
+        row = conn.execute(
+            'SELECT id FROM public_users WHERE email = ?',
+            (normalized_email,),
+        ).fetchone()
+        if row:
+            target_user_id = int(row['id'])
+    if target_user_id is None:
+        return
+
+    conn.execute(
+        '''
+        UPDATE public_users
+        SET is_subscribed = ?,
+            subscriber_plan = ?,
+            stripe_subscription_id = CASE
+                WHEN ? != '' THEN ?
+                WHEN ? = 0 THEN ''
+                ELSE stripe_subscription_id
+            END,
+            subscription_status = ?,
+            subscription_activated_at = CASE
+                WHEN ? = 1 THEN COALESCE(subscription_activated_at, datetime('now'))
+                ELSE subscription_activated_at
+            END,
+            subscription_canceled_at = CASE
+                WHEN ? = 0 THEN datetime('now')
+                ELSE NULL
+            END
+        WHERE id = ?
+        ''',
+        (
+            1 if is_subscribed else 0,
+            (subscriber_plan or 'free').strip() or 'free',
+            (stripe_subscription_id or '').strip(),
+            (stripe_subscription_id or '').strip(),
+            1 if is_subscribed else 0,
+            (subscription_status or '').strip()[:40],
+            1 if is_subscribed else 0,
+            1 if is_subscribed else 0,
+            target_user_id,
+        ),
+    )
+
+
+def _sync_public_user_subscription_from_donations(conn, public_user_id, email):
+    email_hash = _donation_email_hash(email)
+    if not email_hash:
+        return
+    row = conn.execute(
+        '''
+        SELECT provider_subscription_id, status, source
+        FROM donations
+        WHERE email_hash = ?
+          AND mode = 'monthly'
+          AND status = 'succeeded'
+        ORDER BY datetime(updated_at) DESC, datetime(created_at) DESC
+        LIMIT 1
+        ''',
+        (email_hash,),
+    ).fetchone()
+    if row and _is_bondsman_subscription_source(row['source']):
+        _set_public_user_subscription_state(
+            conn,
+            public_user_id=public_user_id,
+            email=email,
+            is_subscribed=True,
+            subscriber_plan='bondsman_pro',
+            stripe_subscription_id=row['provider_subscription_id'] or '',
+            subscription_status=row['status'] or 'active',
+        )
+
+
 def _bail_ad_packages():
     return [
         {
+            'id': 'exclusive_county_sponsorship',
+            'name': 'The Horizon Exclusive',
+            'type': 'County Sponsorship',
+            'price_monthly_cents': 15000,
+            'price_annual_cents': 180000,
+            'county_slots': 1,
+            'badge': 'County Sponsorship',
+            'price_label_monthly': '$150 - $350',
+            'short_description': 'Exclusive county feed sponsorship with hyper-local branding.',
+            'full_description': 'Reserve a single county feed for one agency only and own the local arrest audience in that market.',
+            'pricing_model': 'county_tiered',
+            'features': [
+                'Exclusive county feed sponsorship',
+                'Single agency per county',
+                'Hyper-local branding',
+            ],
+            'cta': 'Select County',
+            'highlight': False,
+        },
+        {
+            'id': 'emergency_call_sidebar',
+            'name': 'The Summit Sidebar',
+            'type': 'Emergency Call Sidebar',
+            'price_monthly_cents': 30000,
+            'price_annual_cents': 360000,
+            'county_slots': 0,
+            'badge': 'Emergency Call Sidebar',
+            'short_description': 'Sticky 300x600 visibility built for emergency response traffic.',
+            'full_description': 'Stay visible through long scroll sessions with a persistent sidebar unit optimized for immediate mobile action.',
+            'features': [
+                '300x600 sticky sidebar unit',
+                'Persistent visibility on scroll',
+                'Mobile-first tap-to-call',
+            ],
+            'cta': 'Claim Sidebar',
+            'highlight': False,
+        },
+        {
             'id': 'featured_bondsman_banner',
-            'name': 'Featured Bondsman',
+            'name': 'The Big Sky Header',
+            'type': 'Top Banner Placement',
             'price_monthly_cents': 45000,
             'price_annual_cents': 540000,
             'county_slots': 0,
             'badge': 'Top Banner Placement',
-            'short_description': 'Premium header placement on all arrest feeds.',
-            'full_description': 'Secure the most prominent real estate on MontanaBlotter.com. This 970x250 header banner keeps your agency first in view for visitors checking the latest arrests, including mobile click-to-call support.',
+            'short_description': 'Premium statewide header built for first-view visibility.',
+            'full_description': 'Own the first thing readers see with a 970x250 placement spanning MontanaBlotter arrest coverage.',
             'features': [
-                '970x250 premium header inventory',
-                'Top-of-feed visibility across arrest pages',
-                'Mobile-first click-to-call CTA',
+                '970x250 premium header',
+                'Top-of-feed statewide visibility',
+                'First-view real estate',
             ],
-        },
-        {
-            'id': 'emergency_call_sidebar',
-            'name': 'Emergency Call Sidebar',
-            'price_monthly_cents': 30000,
-            'price_annual_cents': 360000,
-            'county_slots': 0,
-            'badge': 'Sticky Sidebar Placement',
-            'short_description': 'Persistent sidebar placement that stays visible as users scroll.',
-            'full_description': 'Stay top of mind on individual arrest records. This 300x600 sticky unit remains visible during scroll and is optimized for mobile tap-to-call conversion.',
-            'features': [
-                '300x600 sticky sidebar inventory',
-                'Persistent exposure while readers scroll',
-                'High-intent call conversion placement',
-            ],
-        },
-        {
-            'id': 'exclusive_county_sponsorship',
-            'name': 'Exclusive County Sponsorship',
-            'price_monthly_cents': 15000,
-            'price_annual_cents': 180000,
-            'county_slots': 1,
-            'badge': 'Exclusive County Placement',
-            'price_label_monthly': '$150-$350/month (tiered by county)',
-            'short_description': 'Dedicated sponsorship of a specific Montana County feed.',
-            'full_description': 'Own the local conversation in one county feed with exclusive sponsorship placement above county arrests. One agency per county, with hyper-local reach to residents searching in their community.',
-            'pricing_model': 'county_tiered',
-            'features': [
-                'One county feed sponsorship slot',
-                'County-level exclusive share of voice',
-                'Localized contact and branding placement',
-            ],
+            'cta': 'Secure Header',
+            'highlight': False,
         },
         {
             'id': 'gold_bond_bundle',
             'name': 'The Gold Bond Bundle',
+            'type': 'Market Dominance',
             'price_monthly_cents': 65000,
             'price_annual_cents': 780000,
             'county_slots': 2,
-            'badge': 'Top Banner + Sidebar + 2 Counties',
-            'short_description': 'The ultimate visibility package: Top Banner + Sidebar + 2 Counties.',
-            'full_description': 'Dominate MontanaBlotter with multi-touch placement. Includes Featured Bondsman top banner, Emergency Call sticky sidebar, and exclusive sponsorship in two counties of your choice, with bundled pricing built in.',
+            'badge': 'Market Dominance',
+            'short_description': 'Header, sidebar, and county exclusivity bundled into one featured package.',
+            'full_description': 'Take over the highest-intent surfaces across MontanaBlotter with bundled pricing and multi-touch coverage.',
             'features': [
-                'Featured Bondsman top banner placement',
-                'Emergency Call sticky sidebar placement',
-                'Exclusive sponsorship in two county feeds',
-                'Includes 15% bundled discount value',
+                'Includes Header + Sidebar',
+                'Plus 2 Exclusive Counties',
+                '15% bundled discount applied',
             ],
+            'cta': 'Dominate Market',
+            'highlight': True,
         },
         {
             'id': 'silver_link',
@@ -1683,6 +1822,58 @@ def _bail_ad_packages():
 
 def _bail_ad_public_packages():
     return [pkg for pkg in _bail_ad_packages() if pkg.get('active', True)]
+
+
+def _format_bail_ad_currency(cents):
+    return f"${int(cents or 0) / 100:,.0f}"
+
+
+def _safe_bail_ad_simulator_image_url(raw_value):
+    value = (raw_value or '').strip()[:1000]
+    if not value:
+        return ''
+    parsed = urlparse(value)
+    if parsed.scheme in {'http', 'https'} and parsed.netloc:
+        return value
+    if not parsed.scheme and value.startswith('/'):
+        return value
+    return ''
+
+
+def _bail_ad_pricing_cards(package_options):
+    cards = []
+    for pkg in package_options:
+        cards.append(
+            {
+                'id': pkg['id'],
+                'name': pkg.get('name') or '',
+                'type': pkg.get('type') or pkg.get('badge') or '',
+                'price': pkg.get('price_label_monthly') or _format_bail_ad_currency(pkg.get('price_monthly_cents')),
+                'annual': f"{_format_bail_ad_currency(pkg.get('price_annual_cents'))}/yr",
+                'features': list(pkg.get('features') or []),
+                'cta': pkg.get('cta') or 'Select Package',
+                'highlight': bool(pkg.get('highlight')),
+                'checkoutUrl': url_for('advertise_bail_bonds_checkout', package=pkg['id'], source='package_card'),
+            }
+        )
+    return cards
+
+
+def _bail_ad_package_id_for_simulator_view(view_name=''):
+    return 'emergency_call_sidebar' if (view_name or '').strip().lower() == 'sidebar' else 'featured_bondsman_banner'
+
+
+def _bail_ad_simulator_view_for_package(package_id=''):
+    return 'sidebar' if _normalize_bail_ad_package_id(package_id) == 'emergency_call_sidebar' else 'banner'
+
+
+def _bail_ad_simulator_preview(order):
+    return {
+        'logo_path': _safe_bail_ad_simulator_image_url((order or {}).get('simulator_logo_path') or ''),
+        'target_url': ((order or {}).get('simulator_target_url') or '').strip()[:300],
+        'share_url': ((order or {}).get('simulator_share_url') or '').strip()[:500],
+        'view': ((order or {}).get('simulator_view') or '').strip().lower()[:24],
+    }
 
 
 def _bail_ad_package_aliases():
@@ -1764,6 +1955,82 @@ def _bail_ad_allowed_asset(filename):
         return False
     ext = filename.rsplit('.', 1)[1].lower()
     return ext in {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+
+
+def _ensure_bail_ad_simulator_order_columns(conn):
+    columns = {
+        (row['name'] if isinstance(row, sqlite3.Row) else row[1])
+        for row in conn.execute("PRAGMA table_info('bail_ad_orders')").fetchall()
+    }
+    additions = [
+        ('simulator_logo_path', "ALTER TABLE bail_ad_orders ADD COLUMN simulator_logo_path TEXT NOT NULL DEFAULT ''"),
+        ('simulator_target_url', "ALTER TABLE bail_ad_orders ADD COLUMN simulator_target_url TEXT NOT NULL DEFAULT ''"),
+        ('simulator_share_url', "ALTER TABLE bail_ad_orders ADD COLUMN simulator_share_url TEXT NOT NULL DEFAULT ''"),
+        ('simulator_view', "ALTER TABLE bail_ad_orders ADD COLUMN simulator_view TEXT NOT NULL DEFAULT ''"),
+    ]
+    for column_name, sql in additions:
+        if column_name not in columns:
+            conn.execute(sql)
+
+
+def _ensure_bail_ad_simulator_event_schema(conn):
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS bail_ad_simulator_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            source TEXT NOT NULL DEFAULT '',
+            sim_view TEXT NOT NULL DEFAULT '',
+            county TEXT NOT NULL DEFAULT '',
+            agency_name TEXT NOT NULL DEFAULT '',
+            asset_path TEXT NOT NULL DEFAULT '',
+            share_url TEXT NOT NULL DEFAULT '',
+            internal_mode INTEGER NOT NULL DEFAULT 0,
+            ip_hash TEXT NOT NULL DEFAULT '',
+            referrer TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        '''
+    )
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_ad_simulator_events_created ON bail_ad_simulator_events(created_at)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_ad_simulator_events_type ON bail_ad_simulator_events(event_type)')
+
+
+def _record_bail_ad_simulator_event(
+    conn,
+    event_type,
+    source='',
+    sim_view='',
+    county='',
+    agency_name='',
+    asset_path='',
+    share_url='',
+    internal_mode=False,
+):
+    if not event_type:
+        return
+    _ensure_bail_ad_simulator_event_schema(conn)
+    ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
+    referrer = (request.referrer or '')[:500]
+    conn.execute(
+        '''
+        INSERT INTO bail_ad_simulator_events (
+            event_type, source, sim_view, county, agency_name, asset_path, share_url, internal_mode, ip_hash, referrer
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            (event_type or '').strip()[:40],
+            (source or '').strip()[:80],
+            (sim_view or '').strip()[:24],
+            (county or '').strip()[:80],
+            (agency_name or '').strip()[:120],
+            (asset_path or '').strip()[:500],
+            (share_url or '').strip()[:500],
+            1 if internal_mode else 0,
+            ip_hash,
+            referrer,
+        ),
+    )
 
 
 def _parse_county_targets(raw_value):
@@ -1856,6 +2123,30 @@ def _bail_help_contact(default_phone=''):
         'tel_href': f'tel:{tel_href}' if tel_href else '',
         'sms_href': f'sms:{sms_href}' if sms_href else '',
         'chat_url': chat_url,
+    }
+
+
+def _bail_ad_contract_context():
+    configured_url = (getattr(config, 'LETSBAIL_AD_CONTRACT_URL', '') or '').strip()
+    support_email = (
+        (getattr(config, 'SMTP_USER', '') or '').strip()
+        or (getattr(config, 'EMAIL_USER', '') or '').strip()
+        or 'support@montanablotter.com'
+    )
+    contract_url = configured_url or url_for('advertise_bail_contract')
+    return {
+        'title': "Let's Bail Advertising Contract",
+        'partner_name': "Let's Bail",
+        'url': contract_url,
+        'external': bool(configured_url),
+        'updated_label': 'Updated March 19, 2026',
+        'summary': 'Review placement terms, recurring billing, creative standards, county inventory rules, and cancellation timing before launch.',
+        'support_email': support_email,
+        'highlights': [
+            'All creative is subject to Montana Blotter compliance and quality review before launch.',
+            'Subscriptions renew automatically on the selected billing cycle until canceled.',
+            'County exclusives and bundled placements remain subject to inventory availability.',
+        ],
     }
 
 
@@ -2010,6 +2301,8 @@ def _active_bail_ad_listings(conn):
             bail_ad_orders.county_targets,
             bail_ad_orders.package_id,
             bail_ad_orders.status,
+            bail_ad_orders.simulator_logo_path,
+            bail_ad_orders.simulator_target_url,
             bail_ad_creatives.headline,
             bail_ad_creatives.body_copy,
             bail_ad_creatives.cta_text,
@@ -2017,7 +2310,7 @@ def _active_bail_ad_listings(conn):
             bail_ad_creatives.logo_path
         FROM bail_ad_orders
         LEFT JOIN bail_ad_creatives ON bail_ad_creatives.order_id = bail_ad_orders.id
-        WHERE bail_ad_orders.status IN ('active', 'active_pending_creative_review')
+        WHERE bail_ad_orders.status = 'active'
           AND (bail_ad_creatives.status = 'approved' OR bail_ad_creatives.status IS NULL)
         ORDER BY datetime(bail_ad_orders.paid_at) DESC, datetime(bail_ad_orders.created_at) DESC
         '''
@@ -2042,10 +2335,90 @@ def _active_bail_ad_listings(conn):
             'headline': row['headline'] or f"{row['business_name']} Bail Bonds",
             'body_copy': row['body_copy'] or 'Licensed local bail bond support available.',
             'cta_text': row['cta_text'] or 'Contact Now',
-            'target_url': row['target_url'] or row['website_url'] or '',
-            'logo_path': row['logo_path'] or '',
+            'target_url': row['target_url'] or row['simulator_target_url'] or row['website_url'] or '',
+            'logo_path': row['logo_path'] or row['simulator_logo_path'] or '',
         })
     return listings
+
+
+def _bail_ad_package_supports_banner(package_id=''):
+    return _normalize_bail_ad_package_id(package_id) in {
+        'featured_bondsman_banner',
+        'gold_bond_bundle',
+        'state_power',
+        'gold_bond',
+    }
+
+
+def _bail_ad_package_supports_sidebar(package_id=''):
+    return _normalize_bail_ad_package_id(package_id) in {
+        'emergency_call_sidebar',
+        'gold_bond_bundle',
+        'silver_link',
+        'state_power',
+        'gold_bond',
+    }
+
+
+def _bail_ad_package_supports_county(package_id=''):
+    return _normalize_bail_ad_package_id(package_id) in {
+        'exclusive_county_sponsorship',
+        'gold_bond_bundle',
+        'silver_link',
+        'gold_bond',
+        'state_power',
+    }
+
+
+def _bail_ad_clone_for_surface(listing, surface, county=''):
+    if not listing:
+        return None
+    item = dict(listing)
+    normalized_county = _normalize_bail_county(county)
+    item['surface'] = surface
+    item['tracking_county'] = normalized_county or (item.get('counties') or [''])[0]
+    if surface == 'banner':
+        item['surface_label'] = 'Featured Bondsman Banner'
+        item['surface_note'] = 'Sponsored statewide placement'
+        item['cta_text'] = item.get('cta_text') or 'Visit Sponsor'
+    elif surface == 'county':
+        item['surface_label'] = f"{normalized_county or 'County'} Sponsor"
+        item['surface_note'] = 'Exclusive local sponsor'
+        item['cta_text'] = item.get('cta_text') or 'Call Local Sponsor'
+    else:
+        item['surface_label'] = 'Emergency Call Sidebar'
+        item['surface_note'] = 'Persistent sponsored placement'
+        item['cta_text'] = item.get('cta_text') or 'Call Now'
+    return item
+
+
+def _bail_ad_public_placements(conn, county=''):
+    listings = _active_bail_ad_listings(conn)
+    normalized_county = _normalize_bail_county(county)
+
+    def _pick(predicate):
+        for listing in listings:
+            if predicate(listing):
+                return listing
+        return None
+
+    county_sponsor = None
+    if normalized_county:
+        county_sponsor = _pick(
+            lambda item: (
+                _bail_ad_package_supports_county(item.get('package_id'))
+                and normalized_county in (item.get('counties') or [])
+            )
+        )
+
+    banner = _pick(lambda item: _bail_ad_package_supports_banner(item.get('package_id')))
+    sidebar = county_sponsor or _pick(lambda item: _bail_ad_package_supports_sidebar(item.get('package_id')))
+
+    return {
+        'banner': _bail_ad_clone_for_surface(banner, 'banner', county=normalized_county),
+        'sidebar': _bail_ad_clone_for_surface(sidebar, 'county' if county_sponsor else 'sidebar', county=normalized_county),
+        'county_sponsor': _bail_ad_clone_for_surface(county_sponsor, 'county', county=normalized_county),
+    }
 
 
 def _bail_county_sections(listings, selected_county=''):
@@ -2176,6 +2549,444 @@ def _bail_advertiser_attribution_30d(conn, limit=120):
         reverse=True,
     )
     return out[:max(1, int(limit or 120))]
+
+
+def _humanize_bail_ad_status(status):
+    mapping = {
+        'checkout_pending': 'Checkout Pending',
+        'active': 'Active',
+        'active_pending_creative_review': 'Active Pending Creative Review',
+        'payment_failed': 'Payment Failed',
+        'canceled': 'Canceled',
+        'paused': 'Paused',
+        'pending': 'Pending',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+    }
+    normalized = (status or '').strip().lower()
+    return mapping.get(normalized, normalized.replace('_', ' ').title() or 'Unknown')
+
+
+def _format_bail_ad_datetime(value, include_time=False, fallback='Pending'):
+    parsed = _parse_sqlite_timestamp(value)
+    if not parsed:
+        return fallback
+    fmt = '%b %d, %Y %I:%M %p UTC' if include_time else '%b %d, %Y'
+    return parsed.strftime(fmt).replace(' 0', ' ')
+
+
+def _bail_ad_control_panel_context(conn, token, session_id=''):
+    _ensure_bail_ad_simulator_order_columns(conn)
+    safe_token = (token or '').strip()[:128]
+    if not safe_token:
+        return None
+
+    order_row = conn.execute(
+        '''
+        SELECT
+            id,
+            business_name,
+            contact_name,
+            email,
+            phone,
+            website_url,
+            license_number,
+            county_targets,
+            package_id,
+            billing_cycle,
+            amount_cents,
+            currency,
+            status,
+            add_on_ids,
+            onboarding_token,
+            notes,
+            simulator_logo_path,
+            simulator_target_url,
+            simulator_share_url,
+            simulator_view,
+            paid_at,
+            created_at,
+            updated_at,
+            provider_session_id,
+            provider_subscription_id
+        FROM bail_ad_orders
+        WHERE onboarding_token = ?
+        LIMIT 1
+        ''',
+        (safe_token,),
+    ).fetchone()
+    if not order_row:
+        return None
+
+    package_lookup = _bail_ad_package_lookup()
+    addon_lookup = _bail_ad_addon_lookup()
+    order = dict(order_row)
+    package = package_lookup.get(order.get('package_id') or '') or {}
+    order['package_name'] = (package.get('name') if package else '') or (order.get('package_id') or '').replace('_', ' ').title()
+    order['status_label'] = _humanize_bail_ad_status(order.get('status'))
+    order['billing_label'] = ((order.get('billing_cycle') or 'monthly').replace('_', ' ')).title()
+    order['amount_display'] = f"${(int(order.get('amount_cents') or 0) / 100):,.2f}"
+    order['currency_display'] = (order.get('currency') or 'usd').upper()
+    order['county_list'] = _bail_ad_county_list(order.get('county_targets') or '')
+    order['county_count'] = len(order['county_list'])
+    order['package_badge'] = package.get('badge') or 'Advertiser Account'
+    order['package_features'] = package.get('features') or []
+    order['county_slots'] = int(package.get('county_slots') or 0)
+    order['add_on_labels'] = [
+        addon_lookup[addon_id]['name']
+        for addon_id in _parse_addon_ids((order.get('add_on_ids') or '').split(','))
+        if addon_id in addon_lookup
+    ]
+    order['created_label'] = _format_bail_ad_datetime(order.get('created_at'), include_time=True)
+    order['updated_label'] = _format_bail_ad_datetime(order.get('updated_at'), include_time=True)
+    order['paid_label'] = _format_bail_ad_datetime(
+        order.get('paid_at') or order.get('created_at'),
+        include_time=True,
+        fallback='Pending',
+    )
+
+    paid_at = _parse_sqlite_timestamp(order.get('paid_at') or order.get('created_at'))
+    cycle = (order.get('billing_cycle') or 'monthly').strip().lower()
+    renewal_days = 365 if cycle == 'annual' else 30
+    next_renewal_dt = paid_at + timedelta(days=renewal_days) if paid_at else None
+    days_to_renewal = None
+    if next_renewal_dt:
+        days_to_renewal = int((next_renewal_dt - datetime.utcnow()).total_seconds() // 86400)
+    order['next_renewal'] = next_renewal_dt.strftime('%b %d, %Y') if next_renewal_dt else 'Pending'
+    order['days_to_renewal'] = max(days_to_renewal, 0) if days_to_renewal is not None else None
+
+    creative_row = conn.execute(
+        '''
+        SELECT
+            id,
+            headline,
+            body_copy,
+            cta_text,
+            target_url,
+            logo_path,
+            status,
+            review_notes,
+            created_at,
+            updated_at
+        FROM bail_ad_creatives
+        WHERE order_id = ?
+        LIMIT 1
+        ''',
+        (order['id'],),
+    ).fetchone()
+    creative = dict(creative_row) if creative_row else None
+    if creative:
+        creative['status_label'] = _humanize_bail_ad_status(creative.get('status'))
+        creative['updated_label'] = _format_bail_ad_datetime(creative.get('updated_at'), include_time=True)
+        creative['created_label'] = _format_bail_ad_datetime(creative.get('created_at'), include_time=True)
+    simulator_preview = _bail_ad_simulator_preview(order)
+
+    slot_rows = conn.execute(
+        '''
+        SELECT county, slot_type, status, starts_at, ends_at, updated_at
+        FROM bail_ad_slots
+        WHERE order_id = ?
+        ORDER BY county ASC, slot_type ASC
+        ''',
+        (order['id'],),
+    ).fetchall()
+    slots = []
+    for row in slot_rows:
+        slot = dict(row)
+        slot['status_label'] = _humanize_bail_ad_status(slot.get('status'))
+        slot['starts_label'] = _format_bail_ad_datetime(slot.get('starts_at'), fallback='Pending')
+        slot['ends_label'] = _format_bail_ad_datetime(slot.get('ends_at'), fallback='Open')
+        slots.append(slot)
+
+    perf_row = conn.execute(
+        '''
+        SELECT
+            COALESCE(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) AS impressions,
+            COALESCE(SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END), 0) AS clicks,
+            COALESCE(SUM(CASE WHEN event_type = 'lead' THEN 1 ELSE 0 END), 0) AS leads,
+            COALESCE(SUM(CASE WHEN event_type = 'call' THEN 1 ELSE 0 END), 0) AS calls,
+            COALESCE(SUM(CASE WHEN event_type = 'text' THEN 1 ELSE 0 END), 0) AS texts
+        FROM bail_ad_events
+        WHERE order_id = ?
+          AND created_at >= date('now', '-30 days')
+        ''',
+        (order['id'],),
+    ).fetchone()
+    performance_30d = dict(perf_row) if perf_row else {
+        'impressions': 0,
+        'clicks': 0,
+        'leads': 0,
+        'calls': 0,
+        'texts': 0,
+    }
+    impressions = float(performance_30d.get('impressions') or 0)
+    clicks = float(performance_30d.get('clicks') or 0)
+    leads = float(performance_30d.get('leads') or 0)
+    calls = float(performance_30d.get('calls') or 0)
+    texts = float(performance_30d.get('texts') or 0)
+    performance_30d['ctr_pct'] = (clicks / impressions * 100.0) if impressions else 0.0
+    performance_30d['lead_rate_pct'] = (leads / clicks * 100.0) if clicks else 0.0
+    performance_30d['contact_actions'] = int(calls + texts + leads)
+
+    county_rows = conn.execute(
+        '''
+        SELECT
+            COALESCE(NULLIF(county, ''), 'Statewide') AS county,
+            COALESCE(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) AS impressions,
+            COALESCE(SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END), 0) AS clicks,
+            COALESCE(SUM(CASE WHEN event_type = 'lead' THEN 1 ELSE 0 END), 0) AS leads,
+            COALESCE(SUM(CASE WHEN event_type = 'call' THEN 1 ELSE 0 END), 0) AS calls,
+            COALESCE(SUM(CASE WHEN event_type = 'text' THEN 1 ELSE 0 END), 0) AS texts
+        FROM bail_ad_events
+        WHERE order_id = ?
+          AND created_at >= date('now', '-30 days')
+        GROUP BY COALESCE(NULLIF(county, ''), 'Statewide')
+        ORDER BY clicks DESC, impressions DESC, county ASC
+        ''',
+        (order['id'],),
+    ).fetchall()
+    county_performance_30d = []
+    for row in county_rows:
+        county_metrics = dict(row)
+        county_impressions = float(county_metrics.get('impressions') or 0)
+        county_clicks = float(county_metrics.get('clicks') or 0)
+        county_metrics['ctr_pct'] = (county_clicks / county_impressions * 100.0) if county_impressions else 0.0
+        county_performance_30d.append(county_metrics)
+
+    attribution = {
+        'calls': 0,
+        'texts': 0,
+        'routed_leads': 0,
+        'qualified_leads': 0,
+        'booked_bonds': 0,
+        'qualified_rate_pct': 0.0,
+        'booked_rate_pct': 0.0,
+    }
+    for item in _bail_advertiser_attribution_30d(conn, limit=10000):
+        if int(item.get('order_id') or 0) == int(order['id']):
+            attribution.update(item)
+            break
+
+    benchmark_row = conn.execute(
+        '''
+        SELECT
+            COUNT(DISTINCT order_id) AS advertiser_count,
+            COALESCE(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) AS impressions,
+            COALESCE(SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END), 0) AS clicks,
+            COALESCE(SUM(CASE WHEN event_type = 'lead' THEN 1 ELSE 0 END), 0) AS leads,
+            COALESCE(SUM(CASE WHEN event_type = 'call' THEN 1 ELSE 0 END), 0) AS calls,
+            COALESCE(SUM(CASE WHEN event_type = 'text' THEN 1 ELSE 0 END), 0) AS texts
+        FROM bail_ad_events
+        WHERE order_id IS NOT NULL
+          AND created_at >= date('now', '-30 days')
+        '''
+    ).fetchone()
+    benchmarks = dict(benchmark_row) if benchmark_row else {
+        'advertiser_count': 0,
+        'impressions': 0,
+        'clicks': 0,
+        'leads': 0,
+        'calls': 0,
+        'texts': 0,
+    }
+    advertiser_count = max(1, int(benchmarks.get('advertiser_count') or 0))
+    benchmarks['avg_clicks'] = float(benchmarks.get('clicks') or 0) / advertiser_count
+    benchmarks['avg_impressions'] = float(benchmarks.get('impressions') or 0) / advertiser_count
+    benchmarks['avg_contact_actions'] = (
+        float(benchmarks.get('calls') or 0)
+        + float(benchmarks.get('texts') or 0)
+        + float(benchmarks.get('leads') or 0)
+    ) / advertiser_count
+    benchmarks['click_index_pct'] = (
+        (float(performance_30d.get('clicks') or 0) / benchmarks['avg_clicks']) * 100.0
+        if benchmarks['avg_clicks'] else 0.0
+    )
+    benchmarks['contact_index_pct'] = (
+        (float(performance_30d.get('contact_actions') or 0) / benchmarks['avg_contact_actions']) * 100.0
+        if benchmarks['avg_contact_actions'] else 0.0
+    )
+
+    top_county = county_performance_30d[0] if county_performance_30d else None
+    top_county_share = (
+        (float(top_county.get('clicks') or 0) / clicks * 100.0)
+        if top_county and clicks else 0.0
+    )
+
+    booking_signal_score = min(
+        100,
+        int(
+            float(performance_30d.get('clicks') or 0) * 2
+            + float(attribution.get('calls') or 0) * 8
+            + float(attribution.get('texts') or 0) * 6
+            + float(attribution.get('qualified_leads') or 0) * 18
+            + float(attribution.get('booked_bonds') or 0) * 28
+        ),
+    )
+    if booking_signal_score >= 80:
+        signal_label = 'Booked'
+    elif booking_signal_score >= 55:
+        signal_label = 'High Intent'
+    elif booking_signal_score >= 30:
+        signal_label = 'Active'
+    elif booking_signal_score >= 10:
+        signal_label = 'Warming'
+    else:
+        signal_label = 'Cold Start'
+
+    launch_checklist = [
+        {
+            'title': 'Payment Confirmed',
+            'detail': f"{order['amount_display']} {order['currency_display']} recorded on {order['paid_label']}.",
+            'complete': bool(order.get('provider_session_id') or session_id),
+        },
+        {
+            'title': 'Creative Submitted',
+            'detail': (
+                f"Latest submission updated {creative['updated_label']}."
+                if creative else
+                'Headline, CTA, landing page, and logo still need to be submitted.'
+            ),
+            'complete': bool(creative),
+        },
+        {
+            'title': 'Compliance Review',
+            'detail': (
+                'Approved and ready for live placement.'
+                if creative and (creative.get('status') or '').lower() == 'approved' else
+                'Waiting on review or revisions before full rollout.'
+            ),
+            'complete': bool(creative and (creative.get('status') or '').lower() == 'approved'),
+        },
+        {
+            'title': 'Tracking Live',
+            'detail': (
+                f"{int(performance_30d.get('impressions') or 0)} tracked impressions in the last 30 days."
+                if performance_30d.get('impressions') else
+                'No live delivery recorded yet.'
+            ),
+            'complete': bool(performance_30d.get('impressions')),
+        },
+    ]
+
+    priority_actions = []
+    if not creative:
+        priority_actions.append({
+            'title': 'Submit creative assets',
+            'detail': 'The account is paid, but ad copy and destination details still need to be loaded before review can finish.',
+            'href': url_for('advertise_bail_onboarding', token=safe_token),
+            'label': 'Open Onboarding',
+        })
+    elif (creative.get('status') or '').lower() == 'pending':
+        priority_actions.append({
+            'title': 'Review queue is in progress',
+            'detail': 'Your latest creative is pending moderation. Keep the control panel link handy for notes or revisions.',
+            'href': url_for('advertise_bail_onboarding', token=safe_token),
+            'label': 'Review Submission',
+        })
+    elif (creative.get('status') or '').lower() == 'rejected':
+        priority_actions.append({
+            'title': 'Revise creative now',
+            'detail': 'The ad is blocked on compliance notes. Update the headline, copy, or destination to get back into rotation.',
+            'href': url_for('advertise_bail_onboarding', token=safe_token),
+            'label': 'Fix Creative',
+        })
+
+    if performance_30d.get('clicks') and not attribution.get('routed_leads'):
+        priority_actions.append({
+            'title': 'Tighten your landing path',
+            'detail': 'Traffic is clicking but not routing into tracked leads. A direct call page or prefilled SMS path should convert harder.',
+            'href': url_for('advertise_bail_onboarding', token=safe_token),
+            'label': 'Update CTA',
+        })
+
+    if days_to_renewal is not None and days_to_renewal <= 14:
+        priority_actions.append({
+            'title': 'Renewal window is close',
+            'detail': f"Next billing cycle lands in {max(days_to_renewal, 0)} day{'s' if days_to_renewal != 1 else ''}. Review ROI now before the next charge.",
+            'href': url_for('advertise_bail_control_panel', token=safe_token),
+            'label': 'Check ROI',
+        })
+
+    if not priority_actions:
+        priority_actions.append({
+            'title': 'Account is in a holding pattern',
+            'detail': 'No urgent blockers are showing. Use the county radar and booking score below to decide whether to expand coverage.',
+            'href': url_for('advertise_bail_control_panel', token=safe_token),
+            'label': 'Review Signals',
+        })
+
+    if top_county:
+        county_radar_body = (
+            f"{top_county['county']} is driving {int(round(top_county_share))}% of your 30-day clicks."
+            if clicks else
+            f"{top_county['county']} is the first county showing live ad delivery."
+        )
+        county_radar_value = top_county.get('county') or 'Statewide'
+    else:
+        county_radar_body = 'No county-level delivery is recorded yet. Once impressions start, this radar will isolate the hottest local pocket.'
+        county_radar_value = 'Standby'
+
+    if order['county_slots'] > 0 and order['county_list']:
+        exclusivity_value = f"{len(order['county_list'])} county lane{'s' if len(order['county_list']) != 1 else ''}"
+        exclusivity_body = f"Current county footprint: {', '.join(order['county_list'])}. This package is built to defend local share of voice, not just generate generic clicks."
+        exclusivity_title = 'Exclusivity Watch'
+    else:
+        exclusivity_value = f"{int(performance_30d.get('contact_actions') or 0)} response actions"
+        exclusivity_body = 'This placement leans on immediate tap-to-call behavior. Calls, texts, and form leads are grouped here to show buyer urgency, not just page traffic.'
+        exclusivity_title = 'Response Pressure'
+
+    if creative and (creative.get('status') or '').lower() == 'approved':
+        creative_value = 'Approved'
+        creative_body = 'Your ad creative has cleared review and is eligible for full placement rotation.'
+    elif creative and (creative.get('status') or '').lower() == 'pending':
+        creative_value = 'In Review'
+        creative_body = 'Creative is submitted and waiting on moderation. Keep the CTA and landing path stable until review finishes.'
+    elif creative and (creative.get('status') or '').lower() == 'rejected':
+        creative_value = 'Needs Revision'
+        creative_body = 'The current creative is blocked on review notes. Update it before traffic scaling makes sense.'
+    else:
+        creative_value = 'Not Started'
+        creative_body = 'No creative package is attached yet. Payment is complete, but launch is still blocked on onboarding.'
+
+    signature_features = [
+        {
+            'title': 'County Saturation Radar',
+            'value': county_radar_value,
+            'body': county_radar_body,
+        },
+        {
+            'title': 'Booking Signal Score',
+            'value': f'{booking_signal_score}/100',
+            'body': f"{signal_label} demand signal based on clicks, calls, texts, qualified leads, and booked bonds in the last 30 days.",
+        },
+        {
+            'title': exclusivity_title,
+            'value': exclusivity_value,
+            'body': exclusivity_body,
+        },
+        {
+            'title': 'Creative Approval Pulse',
+            'value': creative_value,
+            'body': creative_body,
+        },
+    ]
+
+    return {
+        'order': order,
+        'package': package,
+        'creative': creative,
+        'slots': slots,
+        'performance_30d': performance_30d,
+        'county_performance_30d': county_performance_30d,
+        'attribution': attribution,
+        'benchmarks': benchmarks,
+        'signature_features': signature_features,
+        'priority_actions': priority_actions[:3],
+        'launch_checklist': launch_checklist,
+        'booking_signal_score': booking_signal_score,
+        'signal_label': signal_label,
+        'simulator_preview': simulator_preview,
+    }
 
 
 _BAIL_OUTREACH_STATUSES = {
@@ -2525,6 +3336,7 @@ def _upsert_bail_ad_slot_assignments(conn, order_id, county_targets, slot_count)
 
 
 def _apply_stripe_bail_ad_event(conn, event):
+    _ensure_bail_ad_simulator_order_columns(conn)
     event_type = (event.get('type') or '').strip()
     data_object = (event.get('data') or {}).get('object') or {}
     metadata = data_object.get('metadata') or {}
@@ -2572,6 +3384,12 @@ def _apply_stripe_bail_ad_event(conn, event):
     source = (metadata.get('source') or 'bail_ad_checkout').strip()[:80]
     add_on_ids = ','.join(_parse_addon_ids((metadata.get('add_on_ids') or '').split(',')))
     onboarding_token = (metadata.get('onboarding_token') or '').strip()[:64]
+    simulator_logo_path = _safe_bail_ad_simulator_image_url(metadata.get('simulator_logo_path') or '')
+    simulator_target_url = (metadata.get('simulator_target_url') or '').strip()[:300]
+    simulator_share_url = (metadata.get('simulator_share_url') or '').strip()[:500]
+    simulator_view = (metadata.get('simulator_view') or '').strip().lower()[:24]
+    if simulator_view not in {'banner', 'sidebar'}:
+        simulator_view = ''
     provider_subscription_id = data_object.get('subscription')
     provider_customer_id = data_object.get('customer')
 
@@ -2595,8 +3413,8 @@ def _apply_stripe_bail_ad_event(conn, event):
             business_name, contact_name, email, phone, website_url, license_number,
             county_targets, package_id, billing_cycle, amount_cents, currency, source,
             add_on_ids, status, provider, provider_session_id, provider_subscription_id, provider_customer_id,
-            onboarding_token, paid_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'stripe', ?, ?, ?, ?, ?)
+            onboarding_token, paid_at, simulator_logo_path, simulator_target_url, simulator_share_url, simulator_view
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'stripe', ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(provider_session_id) DO UPDATE SET
             business_name = excluded.business_name,
             contact_name = excluded.contact_name,
@@ -2616,6 +3434,10 @@ def _apply_stripe_bail_ad_event(conn, event):
             provider_customer_id = COALESCE(excluded.provider_customer_id, bail_ad_orders.provider_customer_id),
             onboarding_token = CASE WHEN excluded.onboarding_token != '' THEN excluded.onboarding_token ELSE bail_ad_orders.onboarding_token END,
             paid_at = CASE WHEN excluded.paid_at IS NOT NULL THEN excluded.paid_at ELSE bail_ad_orders.paid_at END,
+            simulator_logo_path = CASE WHEN excluded.simulator_logo_path != '' THEN excluded.simulator_logo_path ELSE bail_ad_orders.simulator_logo_path END,
+            simulator_target_url = CASE WHEN excluded.simulator_target_url != '' THEN excluded.simulator_target_url ELSE bail_ad_orders.simulator_target_url END,
+            simulator_share_url = CASE WHEN excluded.simulator_share_url != '' THEN excluded.simulator_share_url ELSE bail_ad_orders.simulator_share_url END,
+            simulator_view = CASE WHEN excluded.simulator_view != '' THEN excluded.simulator_view ELSE bail_ad_orders.simulator_view END,
             updated_at = datetime('now')
         ''',
         (
@@ -2638,6 +3460,10 @@ def _apply_stripe_bail_ad_event(conn, event):
             provider_customer_id,
             onboarding_token,
             datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') if mapped_status == 'active' else None,
+            simulator_logo_path,
+            simulator_target_url,
+            simulator_share_url,
+            simulator_view,
         ),
     )
 
@@ -2727,7 +3553,9 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
             metadata = data_object.get('metadata') or {}
             source = (metadata.get('source') or '').strip()[:80]
             donor_name = (metadata.get('donor_name') or '').strip()[:120]
+            public_user_id = (metadata.get('public_user_id') or '').strip()
             customer_details = data_object.get('customer_details') or {}
+            customer_email = (customer_details.get('email') or '').strip().lower()
             email_hash = _donation_email_hash(customer_details.get('email') or '')
             payment_intent_id = data_object.get('payment_intent')
             subscription_id = data_object.get('subscription')
@@ -2784,6 +3612,28 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
                 ),
             )
 
+            if mode == 'monthly' and _is_bondsman_subscription_source(source):
+                if mapped_status == 'succeeded':
+                    _set_public_user_subscription_state(
+                        conn,
+                        public_user_id=int(public_user_id) if public_user_id.isdigit() else None,
+                        email=customer_email,
+                        is_subscribed=True,
+                        subscriber_plan='bondsman_pro',
+                        stripe_subscription_id=subscription_id or '',
+                        subscription_status='active',
+                    )
+                elif mapped_status in {'failed', 'canceled'}:
+                    _set_public_user_subscription_state(
+                        conn,
+                        public_user_id=int(public_user_id) if public_user_id.isdigit() else None,
+                        email=customer_email,
+                        is_subscribed=False,
+                        subscriber_plan='free',
+                        stripe_subscription_id='',
+                        subscription_status=mapped_status,
+                    )
+
             if mapped_status in {'succeeded', 'failed', 'canceled'}:
                 conn.execute(
                     '''
@@ -2799,6 +3649,45 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
                         (event_referrer or '')[:500],
                         amount_cents if amount_cents > 0 else None,
                     ),
+                )
+
+    elif event_type in {'customer.subscription.updated', 'customer.subscription.deleted'}:
+        subscription_id = (data_object.get('id') or '').strip()
+        status = (data_object.get('status') or '').strip().lower()
+        if subscription_id:
+            mapped_status = 'succeeded' if status in {'active', 'trialing', 'past_due'} else 'canceled'
+            conn.execute(
+                '''
+                UPDATE donations
+                SET status = ?, updated_at = datetime('now')
+                WHERE provider = 'stripe' AND provider_subscription_id = ?
+                ''',
+                (mapped_status, subscription_id),
+            )
+            if mapped_status == 'canceled':
+                conn.execute(
+                    '''
+                    UPDATE public_users
+                    SET is_subscribed = 0,
+                        subscriber_plan = 'free',
+                        stripe_subscription_id = '',
+                        subscription_status = ?,
+                        subscription_canceled_at = datetime('now')
+                    WHERE stripe_subscription_id = ?
+                    ''',
+                    (status or 'canceled', subscription_id),
+                )
+            else:
+                conn.execute(
+                    '''
+                    UPDATE public_users
+                    SET is_subscribed = 1,
+                        subscriber_plan = 'bondsman_pro',
+                        subscription_status = ?,
+                        subscription_activated_at = COALESCE(subscription_activated_at, datetime('now'))
+                    WHERE stripe_subscription_id = ?
+                    ''',
+                    (status or 'active', subscription_id),
                 )
 
     elif event_type == 'charge.refunded':
@@ -4838,13 +5727,18 @@ def inject_public_nav():
         {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
-        {'id': 'jail_rosters', 'href': '/jail-rosters', 'label': 'Jail Rosters'},
+        {'id': 'jail_rosters', 'href': '/detention', 'label': 'Detention'},
+        {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds'},
         {'id': 'advertise', 'href': '/advertise/bail-bonds', 'label': 'Advertise'},
     ]
     public_secondary_nav_items = [
         {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys'},
         {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings'},
     ]
+    if public_user and getattr(public_user, 'is_subscribed', False):
+        public_secondary_nav_items.append(
+            {'id': 'bondsman_command_center', 'href': '/bondsman/command-center', 'label': 'Command Center'}
+        )
     public_footer_items = [
         {'href': home_href, 'label': 'Home'},
         {'href': _public_meetings_href(), 'label': 'Meetings'},
@@ -4853,7 +5747,9 @@ def inject_public_nav():
         {'href': '/arrests', 'label': 'Arrests'},
         {'href': '/counties', 'label': 'Counties'},
         {'href': '/jail-rosters', 'label': 'Jail Rosters'},
+        {'href': '/bail-bonds', 'label': 'Bail Bonds'},
         {'href': '/jail-bookings', 'label': 'New Bookings'},
+        {'href': '/bondsman/command-center', 'label': 'Command Center'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
         {'href': '/subscribe', 'label': 'Subscribe'},
         {'href': '/standards', 'label': 'Standards'},
@@ -4865,7 +5761,7 @@ def inject_public_nav():
     return {
         'public_primary_nav_items': public_primary_nav_items,
         'public_secondary_nav_items': public_secondary_nav_items,
-        'public_footer_items': public_footer_items,
+        'public_footer_items': [item for item in public_footer_items if item],
         'footer_featured_city_items': footer_featured_city_items,
         'current_year': datetime.now().year,
         'public_user': public_user,
@@ -4938,7 +5834,7 @@ def _log_admin_action(action: str, target_type: str = '', target_id=None, metada
 
     try:
         actor_id = user_id
-        if actor_id is None and current_user.is_authenticated:
+        if actor_id is None and getattr(current_user, 'is_authenticated', False):
             actor_id = current_user.id
         conn.execute(
             '''
@@ -4950,7 +5846,7 @@ def _log_admin_action(action: str, target_type: str = '', target_id=None, metada
                 (action or '').strip()[:120],
                 (target_type or '').strip()[:80] or None,
                 str(target_id)[:120] if target_id is not None else None,
-                _client_ip()[:128],
+                _client_ip()[:128] if has_request_context() else None,
                 json.dumps(metadata or {}, sort_keys=True)[:4000] if metadata is not None else None,
             ),
         )
@@ -5070,6 +5966,9 @@ def _ensure_subscriber_schema(conn):
         ('updated_at', 'TEXT'),
         ('source', 'TEXT'),
         ('notes', 'TEXT'),
+        ('phone', 'TEXT'),
+        ('wants_notifications', 'INTEGER NOT NULL DEFAULT 0'),
+        ('notification_channels', "TEXT NOT NULL DEFAULT 'email'"),
     ]:
         if col not in existing_columns:
             conn.execute(f'ALTER TABLE subscribers ADD COLUMN {col} {definition}')
@@ -5118,9 +6017,16 @@ def _digest_support_email():
         getattr(config, 'SMTP_USER', ''),
         getattr(config, 'EMAIL_USER', ''),
     ):
-        email = (candidate or '').strip().lower()
-        if email and '@' in email:
+        email = _normalize_email_ops_recipient(candidate)
+        if email:
             return email
+    return ''
+
+
+def _normalize_email_ops_recipient(raw_value):
+    email = (raw_value or '').strip().lower()
+    if email and '@' in email:
+        return email[:160]
     return ''
 
 
@@ -5220,7 +6126,7 @@ def _digest_subject_for_date(target_date):
     return f'Montana Blotter Briefing - {display}'
 
 
-def _build_email_ops_preview(target_date):
+def _build_email_ops_preview(target_date, selected_run_id=None):
     all_posts = get_morning_briefing_posts(target_date)
     preview_html = build_morning_briefing_html(all_posts, target_date) if all_posts else ''
 
@@ -5308,6 +6214,72 @@ def _build_email_ops_preview(target_date):
         LIMIT 30
         '''
     ).fetchall()
+    selected_run = None
+    selected_run_recipients = []
+    if selected_run_id:
+        selected_run = conn.execute(
+            '''
+            SELECT
+                dr.id,
+                dr.kind,
+                dr.target_date,
+                dr.audience,
+                dr.status,
+                dr.subject,
+                dr.preview_posts,
+                dr.preview_subscribers,
+                dr.sent_count,
+                dr.skipped_count,
+                dr.failed_count,
+                dr.initiated_by,
+                dr.notes,
+                dr.started_at,
+                dr.finished_at,
+                dr.created_at,
+                u.username AS created_by_username
+            FROM digest_runs dr
+            LEFT JOIN users u ON u.id = dr.created_by_user_id
+            WHERE dr.id = ?
+            ''',
+            (int(selected_run_id),),
+        ).fetchone()
+        if selected_run:
+            selected_run_recipients = conn.execute(
+                '''
+                SELECT recipient_email, counties, status, post_count, error_message, created_at
+                FROM digest_run_recipients
+                WHERE run_id = ?
+                ORDER BY
+                    CASE status
+                        WHEN 'failed' THEN 0
+                        WHEN 'skipped' THEN 1
+                        ELSE 2
+                    END,
+                    datetime(created_at) DESC,
+                    id DESC
+                LIMIT 150
+                ''',
+                (int(selected_run_id),),
+            ).fetchall()
+    recent_failures = conn.execute(
+        '''
+        SELECT
+            drr.run_id,
+            drr.recipient_email,
+            drr.counties,
+            drr.post_count,
+            drr.error_message,
+            drr.created_at,
+            dr.target_date,
+            dr.audience,
+            dr.status AS run_status
+        FROM digest_run_recipients drr
+        JOIN digest_runs dr ON dr.id = drr.run_id
+        WHERE drr.status = 'failed'
+        ORDER BY datetime(drr.created_at) DESC, drr.id DESC
+        LIMIT 40
+        '''
+    ).fetchall()
     conn.close()
 
     unsubscribe_rate = 0.0
@@ -5328,6 +6300,9 @@ def _build_email_ops_preview(target_date):
         'unsubscribe_rate_30d': unsubscribe_rate,
         'recent_runs': recent_runs,
         'recent_events': recent_events,
+        'selected_run': selected_run,
+        'selected_run_recipients': selected_run_recipients,
+        'recent_failures': recent_failures,
     }
 
 
@@ -5754,6 +6729,186 @@ def _send_digest_to_active_subscribers(target_date, initiated_by):
     return {'sent_count': sent_count, 'skipped_count': skipped_count, 'failed_count': failed_count}
 
 
+def _retry_failed_digest_recipients(original_run_id, initiated_by):
+    conn = get_db()
+    original_run = conn.execute(
+        '''
+        SELECT id, target_date, subject, failed_count
+        FROM digest_runs
+        WHERE id = ?
+        ''',
+        (int(original_run_id),),
+    ).fetchone()
+    if not original_run:
+        conn.close()
+        raise ValueError('Digest run not found.')
+    if int(original_run['failed_count'] or 0) <= 0:
+        conn.close()
+        raise ValueError('This digest run has no failed recipients to retry.')
+
+    failed_rows = conn.execute(
+        '''
+        SELECT DISTINCT lower(recipient_email) AS recipient_email
+        FROM digest_run_recipients
+        WHERE run_id = ? AND status = 'failed'
+        ORDER BY lower(recipient_email) ASC
+        ''',
+        (int(original_run_id),),
+    ).fetchall()
+    if not failed_rows:
+        conn.close()
+        raise ValueError('No failed recipients were recorded for this digest run.')
+
+    preview = _build_email_ops_preview(original_run['target_date'])
+    if not preview['all_posts']:
+        conn.close()
+        raise ValueError(f"No posts are available for {original_run['target_date']}.")
+
+    target_emails = [row['recipient_email'] for row in failed_rows if row['recipient_email']]
+    subscribers = []
+    if target_emails:
+        placeholders = ','.join('?' * len(target_emails))
+        subscribers = conn.execute(
+            f'''
+            SELECT email, counties, token, active
+            FROM subscribers
+            WHERE lower(email) IN ({placeholders})
+            ORDER BY datetime(created_at) DESC, email ASC
+            ''',
+            target_emails,
+        ).fetchall()
+    subscriber_map = {str(row['email']).strip().lower(): row for row in subscribers}
+
+    actor_user_id = getattr(current_user, 'id', None) if getattr(current_user, 'is_authenticated', False) else None
+    run_id = _record_digest_run(
+        conn,
+        kind='morning_briefing',
+        target_date=original_run['target_date'],
+        audience='retry_failed',
+        status='running',
+        subject=original_run['subject'],
+        preview_posts=len(preview['all_posts']),
+        preview_subscribers=len(target_emails),
+        initiated_by=initiated_by,
+        notes=f"Retry failed recipients from digest run #{int(original_run_id)}.",
+        created_by_user_id=actor_user_id,
+    )
+    run_notes = f"Retry failed recipients from digest run #{int(original_run_id)}."
+    conn.commit()
+
+    sent_count = 0
+    skipped_count = 0
+    failed_count = 0
+    posts_cache = {'': preview['all_posts']}
+    try:
+        for row in failed_rows:
+            recipient_email = row['recipient_email']
+            subscriber = subscriber_map.get(recipient_email)
+            if not subscriber or not int(subscriber['active'] or 0):
+                skipped_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    recipient_email,
+                    '',
+                    'skipped',
+                    post_count=0,
+                    error_message='Subscriber inactive or missing.',
+                )
+                continue
+
+            counties_raw = subscriber['counties'] or ''
+            if counties_raw not in posts_cache:
+                posts_cache[counties_raw] = get_morning_briefing_posts(
+                    original_run['target_date'],
+                    _subscriber_counties_list(counties_raw) or None,
+                )
+            subscriber_posts = posts_cache[counties_raw]
+            if not subscriber_posts:
+                skipped_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    recipient_email,
+                    counties_raw,
+                    'skipped',
+                    post_count=0,
+                    error_message='No matching posts for subscriber counties.',
+                )
+                continue
+
+            unsubscribe_url = f"{BASE_URL}/unsubscribe?token={subscriber['token']}"
+            html = build_morning_briefing_html(
+                subscriber_posts,
+                original_run['target_date'],
+                unsubscribe_url=unsubscribe_url,
+            )
+            try:
+                send_morning_briefing_email(recipient_email, original_run['subject'], html)
+                sent_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    recipient_email,
+                    counties_raw,
+                    'sent',
+                    post_count=len(subscriber_posts),
+                )
+            except Exception as exc:
+                failed_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    recipient_email,
+                    counties_raw,
+                    'failed',
+                    post_count=len(subscriber_posts),
+                    error_message=str(exc),
+                )
+
+        final_status = 'completed'
+        if failed_count and sent_count:
+            final_status = 'completed_with_errors'
+        elif failed_count and not sent_count:
+            final_status = 'failed'
+        _finish_digest_run(
+            conn,
+            run_id,
+            status=final_status,
+            sent_count=sent_count,
+            skipped_count=skipped_count,
+            failed_count=failed_count,
+            notes=run_notes,
+        )
+        _log_admin_action(
+            'email_ops.retry_failed',
+            target_type='digest_run',
+            target_id=run_id,
+            metadata={
+                'original_run_id': int(original_run_id),
+                'target_date': original_run['target_date'],
+                'sent_count': sent_count,
+                'skipped_count': skipped_count,
+                'failed_count': failed_count,
+            },
+            conn=conn,
+        )
+        conn.commit()
+    except Exception:
+        _finish_digest_run(conn, run_id, status='failed', failed_count=failed_count, notes=run_notes)
+        conn.commit()
+        conn.close()
+        raise
+    conn.close()
+    return {
+        'run_id': run_id,
+        'target_date': original_run['target_date'],
+        'sent_count': sent_count,
+        'skipped_count': skipped_count,
+        'failed_count': failed_count,
+    }
+
+
 def _record_donation_event(event_type, source='', page_path='', amount_cents=None):
     event_type = (event_type or '').strip()[:40]
     if not event_type:
@@ -5922,6 +7077,95 @@ def track_bail_ad_event():
     except Exception:
         pass
     return ('', 204)
+
+
+@app.route('/api/bail-ads/simulator-event', methods=['POST'])
+def track_bail_ad_simulator_event():
+    payload = request.get_json(silent=True)
+    if payload is None:
+        raw = request.get_data(as_text=True)
+        try:
+            payload = json.loads(raw) if raw else {}
+        except (TypeError, ValueError):
+            payload = {}
+
+    event_type = (payload.get('event_type') or '').strip().lower()
+    allowed = {
+        'page_view',
+        'logo_upload',
+        'view_switch',
+        'mobile_toggle',
+        'county_switch',
+        'inquiry_sync',
+        'checkout_click',
+        'share_link',
+        'public_preview_open',
+    }
+    if event_type not in allowed:
+        return ('', 204)
+
+    try:
+        conn = get_db()
+        _record_bail_ad_simulator_event(
+            conn,
+            event_type=event_type,
+            source=(payload.get('source') or '').strip()[:80],
+            sim_view=(payload.get('sim_view') or '').strip()[:24],
+            county=(payload.get('county') or '').strip()[:80],
+            agency_name=(payload.get('agency_name') or '').strip()[:120],
+            asset_path=(payload.get('asset_path') or '').strip()[:500],
+            share_url=(payload.get('share_url') or '').strip()[:500],
+            internal_mode=bool(payload.get('internal_mode')),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+    return ('', 204)
+
+
+@app.route('/api/bail-ads/simulator-upload', methods=['POST'])
+def upload_bail_ad_simulator_asset():
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'error': 'Image file is required.'}), 400
+    if not _bail_ad_allowed_asset(file.filename):
+        return jsonify({'error': 'Logo file must be PNG, JPG, JPEG, WEBP, or GIF.'}), 400
+
+    content_length = request.content_length or 0
+    if content_length > 5 * 1024 * 1024:
+        return jsonify({'error': 'Logo file must be 5MB or smaller.'}), 413
+
+    safe_name = secure_filename(file.filename)
+    if not safe_name:
+        return jsonify({'error': 'Invalid file name.'}), 400
+
+    token = secrets.token_urlsafe(12)
+    storage_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{token}_{safe_name}"
+    sim_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'bail_ads_simulator')
+    os.makedirs(sim_dir, exist_ok=True)
+    abs_path = os.path.join(sim_dir, storage_name)
+    file.save(abs_path)
+    asset_url = f"/uploads/bail_ads_simulator/{storage_name}"
+
+    try:
+        conn = get_db()
+        _record_bail_ad_simulator_event(
+            conn,
+            event_type='logo_upload',
+            source=(request.form.get('source') or 'ad_simulator').strip()[:80],
+            sim_view=(request.form.get('sim_view') or '').strip()[:24],
+            county=(request.form.get('county') or '').strip()[:80],
+            agency_name=(request.form.get('agency_name') or '').strip()[:120],
+            asset_path=asset_url,
+            internal_mode=(request.form.get('internal_mode') or '').strip().lower() in {'1', 'true', 'yes'},
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+    return jsonify({'ok': True, 'asset_url': asset_url})
 
 
 @app.route('/api/bail-leads/event', methods=['POST'])
@@ -6122,6 +7366,7 @@ def index():
     weekly_snapshot = _weekly_snapshot(conn)
     top_pattern_pages = _top_pattern_pages(conn)
     featured_case_journeys = _featured_case_journeys(conn)
+    bail_ad_placements = _bail_ad_public_placements(conn, county=county)
 
     # Leaderboard: most active agencies this week vs last week
     this_week_rows = conn.execute("""
@@ -6185,6 +7430,7 @@ def index():
                            weekly_snapshot=weekly_snapshot,
                            top_pattern_pages=top_pattern_pages,
                            featured_case_journeys=featured_case_journeys,
+                           bail_ad_placements=bail_ad_placements,
                            leaderboard=leaderboard,
                            current_year=datetime.now().year)
 
@@ -6386,6 +7632,19 @@ def _sitemap_static_urls():
         (f'{BASE_URL}/warrants', None),
         (f'{BASE_URL}/feed.xml', None),
     ]
+
+
+@app.route('/manifest.json')
+def manifest_json():
+    import json as _json
+    from flask import current_app
+    manifest_path = os.path.join(current_app.static_folder, 'manifest.json')
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        data = _json.load(f)
+    response = jsonify(data)
+    response.headers['Content-Type'] = 'application/manifest+json'
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    return response
 
 
 @app.route('/robots.txt')
@@ -6635,9 +7894,14 @@ def donate_create_checkout_session():
     if amount_cents < min_cents or amount_cents > max_cents:
         return jsonify({'error': 'Donation amount out of allowed range'}), 400
 
+    public_user = _get_public_user()
     source = (payload.get('source') or 'donate_page').strip()[:80]
     donor_name = (payload.get('name') or '').strip()[:120]
     email = (payload.get('email') or '').strip().lower()
+    if not donor_name and public_user:
+        donor_name = (public_user.display_name or '').strip()[:120]
+    if not email and public_user:
+        email = (public_user.email or '').strip().lower()
     if email and '@' not in email:
         email = ''
 
@@ -6668,6 +7932,8 @@ def donate_create_checkout_session():
             'mode': mode,
             'amount_cents': str(amount_cents),
             'donor_name': donor_name,
+            'public_user_id': str(public_user.id) if public_user else '',
+            'feature_gate': 'bondsman_command_center' if _is_bondsman_subscription_source(source) else '',
         },
     }
     if email:
@@ -6913,6 +8179,7 @@ def public_register():
                         1 if subscribe_digest else 0,
                     ),
                 )
+                _sync_public_user_subscription_from_donations(conn, cursor.lastrowid, email)
                 if subscribe_digest:
                     _upsert_digest_subscription(conn, email, selected_counties, source='account_registration')
                     _record_subscribe_event('subscribe_success', source='account_registration', page_path=request.path, email=email)
@@ -6955,6 +8222,7 @@ def public_login():
         password_valid = bool(row and bcrypt.check_password_hash(row['password_hash'], password))
         is_active_account = bool(row and row['is_active'])
         if password_valid and is_active_account:
+            _sync_public_user_subscription_from_donations(conn, row['id'], email_value)
             conn.execute(
                 'UPDATE public_users SET last_login_at = datetime(\'now\') WHERE id = ?',
                 (row['id'],),
@@ -6989,6 +8257,118 @@ def public_logout():
     _clear_public_user_session()
     flash('Signed out.', 'success')
     return redirect(_safe_next_url(request.args.get('next'), fallback='/'))
+
+
+@app.route('/dashboard')
+def public_dashboard():
+    public_user = _get_public_user()
+    admin_user = current_user if getattr(current_user, 'is_authenticated', False) else None
+    if not public_user and not admin_user:
+        return redirect(url_for('public_login', next=request.full_path))
+
+    county = (request.args.get('county') or '').strip()[:80]
+    q = (request.args.get('q') or '').strip()[:120]
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 50
+
+    conn = get_db()
+    where = []
+    params = []
+    if county:
+        where.append('records.county = ?')
+        params.append(county)
+    if q:
+        term = f'%{q}%'
+        where.append(
+            '('
+            'COALESCE(records.incident_type, \'\') LIKE ? OR '
+            'COALESCE(records.incident, \'\') LIKE ? OR '
+            'COALESCE(records.details, \'\') LIKE ? OR '
+            'COALESCE(records.location, \'\') LIKE ? OR '
+            'COALESCE(records.county, \'\') LIKE ?'
+            ')'
+        )
+        params.extend([term, term, term, term, term])
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ''
+    total = conn.execute(
+        f'SELECT COUNT(*) FROM records {where_sql}',
+        params,
+    ).fetchone()[0]
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
+    records = conn.execute(
+        f'''
+        SELECT records.*,
+               COALESCE(blotters.filename, '') AS filename
+        FROM records
+        LEFT JOIN blotters ON records.blotter_id = blotters.id
+        {where_sql}
+        ORDER BY datetime(records.created_at) DESC, records.date DESC, records.id DESC
+        LIMIT ? OFFSET ?
+        ''',
+        params + [per_page, (page - 1) * per_page],
+    ).fetchall()
+    county_rows = conn.execute(
+        '''
+        SELECT county, COUNT(*) AS record_count
+        FROM records
+        WHERE county IS NOT NULL AND trim(county) != ''
+        GROUP BY county
+        ORDER BY record_count DESC, county ASC
+        LIMIT 16
+        '''
+    ).fetchall()
+    conn.close()
+
+    county_options = [row['county'] for row in county_rows]
+    can_manage_uploads = bool(admin_user and getattr(admin_user, 'can_access_admin', False))
+    can_view_full_details = can_manage_uploads or bool(public_user and getattr(public_user, 'is_subscribed', False))
+    logout_url = '/admin/logout' if can_manage_uploads else '/logout'
+
+    return render_template(
+        'dashboard.html',
+        county=county,
+        q=q,
+        page=page,
+        per_page=per_page,
+        records=records,
+        total=total,
+        total_pages=total_pages,
+        county_options=county_options,
+        can_manage_uploads=can_manage_uploads,
+        can_view_full_details=can_view_full_details,
+        logout_url=logout_url,
+        public_user=public_user,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/account')
+def public_account():
+    public_user = _get_public_user()
+    if not public_user:
+        return redirect(url_for('public_login', next=request.full_path))
+
+    conn = get_db()
+    _sync_public_user_subscription_from_donations(conn, public_user.id, public_user.email)
+    refreshed_user = _load_public_user(public_user.id, conn=conn)
+    conn.commit()
+    conn.close()
+    g.public_user = refreshed_user
+
+    return render_template(
+        'public_account.html',
+        account_user=refreshed_user,
+        page_title='Account',
+        meta_description='Review your Montana Blotter account and subscriber access status.',
+        canonical_url=f'{BASE_URL}/account',
+        og_title='Account | Montana Blotter',
+        og_description='Review your Montana Blotter account and subscriber access status.',
+        active_nav='account',
+        current_year=datetime.now().year,
+    )
 
 
 @app.route('/comments', methods=['POST'])
@@ -7188,6 +8568,22 @@ def _normalize_jail_booking_status(value):
 def _sync_jail_booking_sources(conn):
     for county_slug, meta in COUNTY_DIRECTORY.items():
         if not meta.get('has_online_roster'):
+            conn.execute(
+                '''
+                UPDATE jail_booking_sources
+                SET roster_url = NULL,
+                    phone = ?,
+                    is_enabled = 0,
+                    notes = CASE
+                        WHEN COALESCE(notes, '') = '' OR notes = 'No automated county adapter has been added yet.'
+                        THEN 'Online roster unavailable or unverified.'
+                        ELSE notes
+                    END,
+                    updated_at = datetime('now')
+                WHERE county_slug = ?
+                ''',
+                (meta.get('phone'), county_slug),
+            )
             continue
         facility_name = f"{meta['name']} County Detention Center"
         coverage_tier = 'major' if county_slug in MAJOR_JAIL_BOOKING_COUNTIES else 'standard'
@@ -7225,7 +8621,8 @@ def _sync_jail_booking_sources(conn):
                 roster_url = ?,
                 phone = ?,
                 coverage_tier = ?,
-                is_featured = ?
+                is_featured = ?,
+                is_enabled = 1
             WHERE county_slug = ?
               AND (
                 COALESCE(county_name, '') != ?
@@ -7234,6 +8631,7 @@ def _sync_jail_booking_sources(conn):
                 OR COALESCE(phone, '') != COALESCE(?, '')
                 OR COALESCE(coverage_tier, '') != ?
                 OR COALESCE(is_featured, 0) != ?
+                OR COALESCE(is_enabled, 1) != 1
               )
             ''',
             (
@@ -7521,84 +8919,37 @@ def _jail_booking_admin_context(conn, county_filter='', status_filter='current',
     return public_context
 
 
-@app.route('/jail-rosters')
-def jail_rosters():
-    return render_template('jail_rosters.html', current_year=datetime.now().year)
+def _jail_roster_directory_cards():
+    counties = []
+    for slug, meta in COUNTY_DIRECTORY.items():
+        roster_url = (meta.get('roster_url') or '').strip()
+        counties.append({
+            'slug': slug,
+            'name': meta['name'],
+            'roster_url': roster_url or None,
+            'phone': meta.get('phone') or 'Call county detention center',
+            'has_online_roster': bool(meta.get('has_online_roster')),
+            'public_bookings_href': (
+                url_for('detention.jail_bookings_county', county_slug=slug)
+                if slug in MAJOR_JAIL_BOOKING_COUNTIES
+                else None
+            ),
+        })
+    counties.sort(key=lambda item: item['name'])
+    online_count = sum(1 for item in counties if item['has_online_roster'])
+    return {
+        'counties': counties,
+        'online_count': online_count,
+        'phone_only_count': len(counties) - online_count,
+    }
 
 
-@app.route('/jail-bookings')
-def jail_bookings():
-    conn = get_db()
-    context = _jail_booking_public_context(
-        conn,
-        county_filter=request.args.get('county'),
-        status_filter=request.args.get('status'),
-        q=request.args.get('q'),
-    )
-    conn.close()
-    return render_template('jail_bookings.html', **context)
-
-
-@app.route('/jail-bookings/<county_slug>')
-def jail_bookings_county(county_slug):
-    conn = get_db()
-    context = _jail_booking_public_context(
-        conn,
-        county_filter=county_slug,
-        status_filter=request.args.get('status'),
-        q=request.args.get('q'),
-        county_page=True,
-    )
-    conn.close()
-    if not context.get('selected_source'):
-        abort(404)
-    return render_template('jail_bookings.html', **context)
-
-
-@app.route('/api/jail-bookings')
-def api_jail_bookings():
-    conn = get_db()
-    context = _jail_booking_public_context(
-        conn,
-        county_filter=request.args.get('county'),
-        status_filter=request.args.get('status'),
-        q=request.args.get('q'),
-    )
-    conn.close()
-    return jsonify({
-        'bookings': context['rows'],
-        'filters': {
-            'county': context['county_filter'] or None,
-            'status': context['status_filter'],
-            'q': context['q'] or None,
-        },
-        'summary': context['summary'],
-    })
-
-
-@app.route('/api/jail-bookings/<county_slug>')
-def api_jail_bookings_county(county_slug):
-    conn = get_db()
-    context = _jail_booking_public_context(
-        conn,
-        county_filter=county_slug,
-        status_filter=request.args.get('status'),
-        q=request.args.get('q'),
-        county_page=True,
-    )
-    conn.close()
-    if not context.get('selected_source'):
-        abort(404)
-    return jsonify({
-        'bookings': context['rows'],
-        'filters': {
-            'county': context['county_filter'] or None,
-            'status': context['status_filter'],
-            'q': context['q'] or None,
-        },
-        'summary': context['summary'],
-        'source': context['selected_source'],
-    })
+register_detention_blueprint(
+    app,
+    get_db=get_db,
+    booking_context_loader=_jail_booking_public_context,
+    roster_directory_loader=_jail_roster_directory_cards,
+)
 
 
 def _parse_roundup_date(value):
@@ -8120,7 +9471,7 @@ COUNTY_DATA = {
         'name': 'Hill',
         'seat': 'Havre',
         'phone': '406-265-5481',
-        'roster_url': 'https://vinelink.vineapps.com/state/mt',
+        'roster_url': None,
         'warrant_url': None,
         'seo_title': 'Hill County Arrests, Havre Police Blotter, and Jail Roster',
         'og_title': 'Hill County Arrests, Havre Police Blotter, and Jail Roster',
@@ -8686,6 +10037,7 @@ def county_page(slug):
     ).fetchone()
     last_report = last_row['incident_date'] if last_row else None
     latest_weekly_digest = _latest_weekly_digest(conn)
+    bail_ad_placements = _bail_ad_public_placements(conn, county=county['name'])
 
     conn.close()
 
@@ -8712,6 +10064,7 @@ def county_page(slug):
         county_cities=county_cities,
         pattern_links=_pattern_links_for_county(county['slug']),
         linked_neighbors=linked_neighbors,
+        bail_ad_placements=bail_ad_placements,
         last_report=last_report,
         page_last_updated=last_report,
         latest_weekly_digest=latest_weekly_digest,
@@ -9547,6 +10900,7 @@ def city_page(slug):
         params_count
     ).fetchone()
     last_report = last_row['incident_date'] if last_row else None
+    bail_ad_placements = _bail_ad_public_placements(conn, county=city['county'])
 
     conn.close()
 
@@ -9568,6 +10922,7 @@ def city_page(slug):
         source_methods=_source_method_rollup(source_method_rows),
         pattern_links=_pattern_links_for_county(city['county_slug']),
         linked_nearby=linked_nearby,
+        bail_ad_placements=bail_ad_placements,
         last_report=last_report,
         page_last_updated=last_report,
         page=page,
@@ -9756,7 +11111,7 @@ def _render_bail_bonds_directory(selected_county=''):
         canonical_url=canonical_url,
         og_title=f'{page_title} | Montana Blotter',
         og_description=meta_description,
-        active_nav='advertise',
+        active_nav='bail_bonds',
         current_year=datetime.now().year,
     )
 
@@ -9894,6 +11249,9 @@ def advertise_redirect():
 def advertise_bail_bonds():
     package_options = _bail_ad_public_packages()
     package_ids = {pkg['id'] for pkg in package_options}
+    pricing_cards = _bail_ad_pricing_cards(package_options)
+    help_contact = _bail_help_contact()
+    contract_info = _bail_ad_contract_context()
 
     form_data = {
         'business_name': '',
@@ -9940,6 +11298,8 @@ def advertise_bail_bonds():
             errors.append('Selected package is invalid.')
         if request.form.get('policy_ack') != 'yes':
             errors.append('You must confirm the advertising policy.')
+        if request.form.get('contract_ack') != 'yes':
+            errors.append("You must review the Let's Bail advertising contract.")
 
         budget_cents = _parse_budget_cents(form_data['monthly_budget'])
         source = (request.form.get('source') or request.args.get('source') or 'bail_ad_page').strip()[:80]
@@ -9976,9 +11336,32 @@ def advertise_bail_bonds():
             conn.close()
             return redirect(url_for('advertise_bail_bonds', submitted='1'))
 
+    simulator_view = (request.args.get('sim_view') or '').strip().lower()
+    if not simulator_view:
+        simulator_view = 'sidebar' if form_data.get('package_interest') == 'emergency_call_sidebar' else 'banner'
+    if simulator_view not in {'banner', 'sidebar'}:
+        simulator_view = 'banner'
+    simulator_bootstrap = {
+        'agencyName': (request.args.get('agency_name') or request.args.get('agency') or form_data.get('business_name') or 'Your Agency').strip()[:80] or 'Your Agency',
+        'initialImageUrl': _safe_bail_ad_simulator_image_url(request.args.get('logo_url') or request.args.get('logo') or ''),
+        'initialView': simulator_view,
+        'initialCounty': (request.args.get('sim_county') or 'Cascade County').strip()[:80] or 'Cascade County',
+        'initialTargetUrl': (request.args.get('target_url') or request.args.get('website_url') or form_data.get('website_url') or '').strip()[:300],
+        'publicPreviewBaseUrl': url_for('advertise_bail_bonds'),
+        'checkoutBaseUrl': url_for('advertise_bail_bonds_checkout'),
+        'uploadEndpoint': url_for('upload_bail_ad_simulator_asset'),
+        'eventEndpoint': url_for('track_bail_ad_simulator_event'),
+        'internalMode': False,
+        'allowInquirySync': True,
+    }
+
     return render_template(
         'advertise_bail_bonds.html',
         package_options=package_options,
+        pricing_cards=pricing_cards,
+        simulator_bootstrap=simulator_bootstrap,
+        help_contact=help_contact,
+        contract_info=contract_info,
         form_data=form_data,
         form_errors=errors,
         submitted=submitted,
@@ -9989,17 +11372,23 @@ def advertise_bail_bonds():
 
 @app.route('/advertise/bail-bonds/checkout', methods=['GET', 'POST'])
 def advertise_bail_bonds_checkout():
+    conn = get_db()
+    _ensure_bail_ad_simulator_order_columns(conn)
+    conn.commit()
+    conn.close()
     package_map = _bail_ad_package_lookup()
     package_options = _bail_ad_public_packages()
     package_ids = {pkg['id'] for pkg in package_options}
     addon_options = _bail_ad_addons()
     addon_lookup = _bail_ad_addon_lookup()
+    contract_info = _bail_ad_contract_context()
     if not _bail_ad_checkout_ready():
         return render_template(
             'advertise_bail_checkout.html',
             package_options=package_options,
             addon_options=addon_options,
             addon_lookup=addon_lookup,
+            contract_info=contract_info,
             form_data={},
             form_errors=['Secure checkout is not configured yet. Please contact support.'],
             checkout_ready=False,
@@ -10007,22 +11396,29 @@ def advertise_bail_bonds_checkout():
             active_nav='advertise',
         ), 503
 
+    simulator_view_prefill = (request.values.get('simulator_view') or request.values.get('sim_view') or '').strip().lower()
     prefill_package = _normalize_bail_ad_package_id(request.values.get('package'))
+    if not prefill_package and simulator_view_prefill in {'banner', 'sidebar'}:
+        prefill_package = _bail_ad_package_id_for_simulator_view(simulator_view_prefill)
     if prefill_package not in package_ids:
         prefill_package = ''
 
     form_data = {
-        'business_name': (request.values.get('business_name') or '').strip()[:120],
+        'business_name': (request.values.get('business_name') or request.values.get('agency_name') or '').strip()[:120],
         'contact_name': (request.values.get('contact_name') or '').strip()[:120],
         'email': (request.values.get('email') or '').strip().lower()[:160],
         'phone': (request.values.get('phone') or '').strip()[:40],
-        'website_url': (request.values.get('website_url') or '').strip()[:300],
+        'website_url': (request.values.get('website_url') or request.values.get('target_url') or '').strip()[:300],
         'license_number': (request.values.get('license_number') or '').strip()[:80],
         'county_targets': (request.values.get('county_targets') or '').strip()[:500],
         'package_id': prefill_package,
         'billing_cycle': 'monthly',
         'source': (request.args.get('source') or 'bail_ad_checkout').strip()[:80],
         'add_on_ids': [],
+        'simulator_logo_path': _safe_bail_ad_simulator_image_url(request.values.get('simulator_logo_path') or request.values.get('logo_url') or request.values.get('logo') or ''),
+        'simulator_target_url': (request.values.get('simulator_target_url') or request.values.get('target_url') or request.values.get('website_url') or '').strip()[:300],
+        'simulator_share_url': (request.values.get('simulator_share_url') or '').strip()[:500],
+        'simulator_view': simulator_view_prefill if simulator_view_prefill in {'banner', 'sidebar'} else '',
     }
     errors = []
 
@@ -10039,7 +11435,13 @@ def advertise_bail_bonds_checkout():
             'billing_cycle': (request.form.get('billing_cycle') or 'monthly').strip().lower()[:16],
             'source': (request.form.get('source') or 'bail_ad_checkout').strip()[:80],
             'add_on_ids': _parse_addon_ids(request.form.getlist('add_on_ids')),
+            'simulator_logo_path': _safe_bail_ad_simulator_image_url(request.form.get('simulator_logo_path') or ''),
+            'simulator_target_url': (request.form.get('simulator_target_url') or '').strip()[:300],
+            'simulator_share_url': (request.form.get('simulator_share_url') or '').strip()[:500],
+            'simulator_view': (request.form.get('simulator_view') or '').strip().lower()[:24],
         }
+        if form_data['simulator_view'] not in {'banner', 'sidebar'}:
+            form_data['simulator_view'] = ''
         if not form_data['business_name']:
             errors.append('Business name is required.')
         if not form_data['contact_name']:
@@ -10072,6 +11474,8 @@ def advertise_bail_bonds_checkout():
 
         if request.form.get('policy_ack') != 'yes':
             errors.append('Advertising policy acknowledgement is required.')
+        if request.form.get('contract_ack') != 'yes':
+            errors.append("You must review and accept the Let's Bail advertising contract.")
         if request.form.get('terms_ack') != 'yes':
             errors.append('You must accept billing terms to continue.')
 
@@ -10127,7 +11531,13 @@ def advertise_bail_bonds_checkout():
                         'county_targets': metadata_county_targets,
                         'source': form_data['source'],
                         'add_on_ids': ','.join(form_data['add_on_ids']),
+                        'contract_url': contract_info['url'],
+                        'contract_version': contract_info['updated_label'],
                         'onboarding_token': onboarding_token,
+                        'simulator_logo_path': form_data['simulator_logo_path'],
+                        'simulator_target_url': form_data['simulator_target_url'],
+                        'simulator_share_url': form_data['simulator_share_url'],
+                        'simulator_view': form_data['simulator_view'],
                     },
                 }
                 try:
@@ -10143,9 +11553,9 @@ def advertise_bail_bonds_checkout():
                         INSERT INTO bail_ad_orders (
                             business_name, contact_name, email, phone, website_url, license_number,
                             county_targets, package_id, billing_cycle, amount_cents, currency, source,
-                            add_on_ids, status, provider, provider_session_id, provider_subscription_id, provider_customer_id,
-                            onboarding_token
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, ?, 'checkout_pending', 'stripe', ?, ?, ?, ?)
+                            add_on_ids, notes, status, provider, provider_session_id, provider_subscription_id, provider_customer_id,
+                            onboarding_token, simulator_logo_path, simulator_target_url, simulator_share_url, simulator_view
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, ?, ?, 'checkout_pending', 'stripe', ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(provider_session_id) DO UPDATE SET
                             business_name = excluded.business_name,
                             contact_name = excluded.contact_name,
@@ -10159,7 +11569,12 @@ def advertise_bail_bonds_checkout():
                             amount_cents = excluded.amount_cents,
                             source = excluded.source,
                             add_on_ids = excluded.add_on_ids,
+                            notes = excluded.notes,
                             onboarding_token = excluded.onboarding_token,
+                            simulator_logo_path = excluded.simulator_logo_path,
+                            simulator_target_url = excluded.simulator_target_url,
+                            simulator_share_url = excluded.simulator_share_url,
+                            simulator_view = excluded.simulator_view,
                             updated_at = datetime('now')
                         ''',
                         (
@@ -10175,10 +11590,15 @@ def advertise_bail_bonds_checkout():
                             amount_cents,
                             form_data['source'],
                             ','.join(form_data['add_on_ids']),
+                            'Imported from ad simulator' if form_data['simulator_logo_path'] else '',
                             checkout_session.get('id'),
                             checkout_session.get('subscription'),
                             checkout_session.get('customer'),
                             onboarding_token,
+                            form_data['simulator_logo_path'],
+                            form_data['simulator_target_url'],
+                            form_data['simulator_share_url'],
+                            form_data['simulator_view'],
                         ),
                     )
                     conn.commit()
@@ -10191,6 +11611,7 @@ def advertise_bail_bonds_checkout():
         package_options=package_options,
         addon_options=addon_options,
         addon_lookup=addon_lookup,
+        contract_info=contract_info,
         selected_package=selected_package,
         form_data=form_data,
         form_errors=errors,
@@ -10239,11 +11660,62 @@ def advertise_bail_checkout_success():
             order = dict(row)
             package = package_map.get(order.get('package_id') or '')
             order['package_name'] = (package.get('name') if package else '') or (order.get('package_id') or '').replace('_', ' ').title()
+            if order.get('onboarding_token'):
+                return redirect(
+                    url_for(
+                        'advertise_bail_control_panel',
+                        token=order['onboarding_token'],
+                        welcome='1',
+                        session_id=session_id,
+                    )
+                )
     return render_template(
         'advertise_bail_checkout_success.html',
         order=order,
         session_id=session_id,
         support_email=support_email,
+        contract_info=_bail_ad_contract_context(),
+        active_nav='advertise',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/advertise/bail-bonds/control-panel/<token>')
+def advertise_bail_control_panel(token):
+    safe_token = (token or '').strip()[:128]
+    session_id = (request.args.get('session_id') or '').strip()[:255]
+    welcome = request.args.get('welcome') == '1'
+    conn = get_db()
+    context = _bail_ad_control_panel_context(conn, safe_token, session_id=session_id)
+    conn.close()
+    if not context:
+        return render_template('404.html'), 404
+
+    order = context['order']
+    return render_template(
+        'advertise_bail_control_panel.html',
+        order=order,
+        package=context['package'],
+        creative=context['creative'],
+        simulator_preview=context['simulator_preview'],
+        slots=context['slots'],
+        performance_30d=context['performance_30d'],
+        county_performance_30d=context['county_performance_30d'],
+        attribution=context['attribution'],
+        benchmarks=context['benchmarks'],
+        signature_features=context['signature_features'],
+        priority_actions=context['priority_actions'],
+        launch_checklist=context['launch_checklist'],
+        booking_signal_score=context['booking_signal_score'],
+        signal_label=context['signal_label'],
+        welcome=welcome,
+        session_id=session_id,
+        contract_info=_bail_ad_contract_context(),
+        page_title=f"{order['business_name']} Control Panel",
+        meta_description='Private control panel for bail bonds advertisers after payment.',
+        canonical_url='',
+        og_title=f"{order['business_name']} Control Panel",
+        og_description='Track creative approval, county coverage, performance, and renewal timing in one place.',
         active_nav='advertise',
         current_year=datetime.now().year,
     )
@@ -10253,6 +11725,23 @@ def advertise_bail_checkout_success():
 def advertise_bail_checkout_cancel():
     return render_template(
         'advertise_bail_checkout_cancel.html',
+        contract_info=_bail_ad_contract_context(),
+        active_nav='advertise',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/advertise/bail-bonds/contract')
+def advertise_bail_contract():
+    contract_info = _bail_ad_contract_context()
+    return render_template(
+        'advertise_bail_contract.html',
+        contract_info=contract_info,
+        page_title=contract_info['title'],
+        meta_description='Review the Let\'s Bail advertising contract for Montana Blotter placements, billing, creative review, and cancellation terms.',
+        canonical_url=f'{BASE_URL}/advertise/bail-bonds/contract',
+        og_title=contract_info['title'],
+        og_description=contract_info['summary'],
         active_nav='advertise',
         current_year=datetime.now().year,
     )
@@ -10262,9 +11751,21 @@ def advertise_bail_checkout_cancel():
 def advertise_bail_onboarding(token):
     safe_token = (token or '').strip()[:128]
     conn = get_db()
+    _ensure_bail_ad_simulator_order_columns(conn)
     row = conn.execute(
         '''
-        SELECT id, business_name, package_id, billing_cycle, status, county_targets, onboarding_token
+        SELECT
+            id,
+            business_name,
+            package_id,
+            billing_cycle,
+            status,
+            county_targets,
+            onboarding_token,
+            simulator_logo_path,
+            simulator_target_url,
+            simulator_share_url,
+            simulator_view
         FROM bail_ad_orders
         WHERE onboarding_token = ?
         LIMIT 1
@@ -10278,6 +11779,7 @@ def advertise_bail_onboarding(token):
     order = dict(row)
     package = _bail_ad_package_lookup().get(order.get('package_id') or '')
     order['package_name'] = (package.get('name') if package else '') or (order.get('package_id') or '').replace('_', ' ').title()
+    simulator_preview = _bail_ad_simulator_preview(order)
     creative_row = conn.execute(
         '''
         SELECT id, headline, body_copy, cta_text, target_url, logo_path, status, review_notes, created_at, updated_at
@@ -10293,7 +11795,7 @@ def advertise_bail_onboarding(token):
         'headline': (creative.get('headline') if creative else '') or '',
         'body_copy': (creative.get('body_copy') if creative else '') or '',
         'cta_text': (creative.get('cta_text') if creative else '') or '',
-        'target_url': (creative.get('target_url') if creative else '') or '',
+        'target_url': (creative.get('target_url') if creative else '') or simulator_preview.get('target_url') or '',
     }
     errors = []
     submitted = request.args.get('submitted') == '1'
@@ -10376,6 +11878,8 @@ def advertise_bail_onboarding(token):
         'advertise_bail_onboarding.html',
         order=order,
         creative=creative,
+        simulator_preview=simulator_preview,
+        contract_info=_bail_ad_contract_context(),
         form_data=form_data,
         form_errors=errors,
         submitted=submitted,
@@ -10789,6 +12293,7 @@ def view_post(post_id):
     county_slug = _county_slug_for_name(post['county'])
     related_pattern_pages = _related_pattern_pages_for_post(records, county_slug=county_slug)
     comment_thread = _public_comments_context(conn, 'daily_post', post_id)
+    bail_ad_placements = _bail_ad_public_placements(conn, county=post['county'])
     conn.close()
 
     city_slug = _city_slug_for_name(post['city'])
@@ -10811,6 +12316,7 @@ def view_post(post_id):
         county_slug=county_slug,
         city_slug=city_slug,
         county_page=county_page,
+        bail_ad_placements=bail_ad_placements,
         source_pdf_name=source_pdf_name,
         current_year=datetime.now().year,
     )
@@ -12583,13 +14089,23 @@ def admin_facebook():
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_email_ops():
+    selected_run_id = None
     try:
         target_date = _digest_target_date(request.args.get('target_date'))
     except ValueError as exc:
         flash(str(exc), 'error')
         target_date = _digest_target_date('')
+    run_id_raw = (request.args.get('run_id') or '').strip()
+    if run_id_raw:
+        try:
+            selected_run_id = int(run_id_raw)
+            if selected_run_id <= 0:
+                raise ValueError
+        except ValueError:
+            flash('Choose a valid digest run to inspect.', 'error')
+            selected_run_id = None
 
-    preview = _build_email_ops_preview(target_date)
+    preview = _build_email_ops_preview(target_date, selected_run_id=selected_run_id)
     test_recipient = _digest_support_email()
     return render_template(
         'admin_email_ops.html',
@@ -12606,7 +14122,10 @@ def admin_email_ops():
 def admin_email_ops_send_test():
     try:
         target_date = _digest_target_date(request.form.get('target_date'))
-        recipient_email = _digest_support_email()
+        custom_recipient = _normalize_email_ops_recipient(request.form.get('recipient_email'))
+        if (request.form.get('recipient_email') or '').strip() and not custom_recipient:
+            raise ValueError('Enter a valid test recipient email.')
+        recipient_email = custom_recipient or _digest_support_email()
         _send_test_digest(
             target_date,
             recipient_email=recipient_email,
@@ -12640,6 +14159,31 @@ def admin_email_ops_send_now():
     except Exception as exc:
         flash(f'Digest send failed: {str(exc)[:200]}', 'error')
     return redirect(url_for('admin_email_ops', target_date=request.form.get('target_date') or ''))
+
+
+@app.route('/admin/audience/email-ops/retry-failures', methods=['POST'])
+@login_required
+@require_role(*EMAIL_OPS_SEND_ROLES)
+def admin_email_ops_retry_failures():
+    target_date = request.form.get('target_date') or ''
+    run_id_raw = (request.form.get('run_id') or '').strip()
+    selected_run_id = ''
+    try:
+        if not run_id_raw:
+            raise ValueError('Choose a digest run to retry.')
+        selected_run_id = str(int(run_id_raw))
+        results = _retry_failed_digest_recipients(int(run_id_raw), initiated_by=current_user.username)
+        flash(
+            f"Retry complete: {results['sent_count']} sent, "
+            f"{results['skipped_count']} skipped, {results['failed_count']} failed.",
+            'success' if results['failed_count'] == 0 else 'warning',
+        )
+        target_date = results['target_date']
+    except ValueError as exc:
+        flash(str(exc), 'error')
+    except Exception as exc:
+        flash(f'Retry failed: {str(exc)[:200]}', 'error')
+    return redirect(url_for('admin_email_ops', target_date=target_date, run_id=selected_run_id))
 
 
 @app.route('/admin/settings', methods=['GET', 'POST'])
@@ -13489,10 +15033,19 @@ def admin_bail_ads():
     email_logs = []
     status_counts = {status: 0 for status in sorted(_BAIL_OUTREACH_STATUSES)}
     total_count = 0
+    simulator_stats = {
+        'page_views': 0,
+        'logo_uploads': 0,
+        'share_links': 0,
+        'inquiry_syncs': 0,
+        'checkout_clicks': 0,
+    }
     schema_ready = True
 
     conn = get_db()
     try:
+        _ensure_bail_ad_simulator_order_columns(conn)
+        _ensure_bail_ad_simulator_event_schema(conn)
         stats_row = conn.execute(
             '''
             SELECT
@@ -13537,7 +15090,8 @@ def admin_bail_ads():
         orders = conn.execute(
             '''
             SELECT
-                id, business_name, email, package_id, billing_cycle, amount_cents, currency,
+                id, business_name, contact_name, email, phone, website_url, license_number,
+                package_id, billing_cycle, amount_cents, currency,
                 status, county_targets, add_on_ids, notes, provider_session_id, provider_subscription_id,
                 onboarding_token, paid_at, created_at
             FROM bail_ad_orders
@@ -13837,6 +15391,21 @@ def admin_bail_ads():
             LIMIT 120
             '''
         ).fetchall()
+
+        simulator_row = conn.execute(
+            '''
+            SELECT
+                COALESCE(SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END), 0) AS page_views,
+                COALESCE(SUM(CASE WHEN event_type = 'logo_upload' THEN 1 ELSE 0 END), 0) AS logo_uploads,
+                COALESCE(SUM(CASE WHEN event_type = 'share_link' THEN 1 ELSE 0 END), 0) AS share_links,
+                COALESCE(SUM(CASE WHEN event_type = 'inquiry_sync' THEN 1 ELSE 0 END), 0) AS inquiry_syncs,
+                COALESCE(SUM(CASE WHEN event_type = 'checkout_click' THEN 1 ELSE 0 END), 0) AS checkout_clicks
+            FROM bail_ad_simulator_events
+            WHERE created_at >= date('now', '-30 days')
+            '''
+        ).fetchone()
+        if simulator_row:
+            simulator_stats.update(dict(simulator_row))
     except sqlite3.OperationalError:
         schema_ready = False
     finally:
@@ -13866,6 +15435,7 @@ def admin_bail_ads():
         outreach_statuses=sorted(_BAIL_OUTREACH_STATUSES),
         default_test_email=_default_bail_test_email(),
         email_logs=email_logs,
+        simulator_stats=simulator_stats,
         package_map=package_map,
     )
 
@@ -13879,6 +15449,132 @@ def admin_bail_agency_cms():
         status_filter = 'all'
     target = url_for('admin_bail_ads', q=q, status=status_filter)
     return redirect(f'{target}#agency-cms')
+
+
+@app.route('/admin/bail-ads/simulator')
+@login_required
+def admin_bail_ads_simulator():
+    conn = get_db()
+    sales_agencies = []
+    recent_creatives = []
+    simulator_stats = {
+        'page_views': 0,
+        'logo_uploads': 0,
+        'share_links': 0,
+        'inquiry_syncs': 0,
+        'checkout_clicks': 0,
+    }
+    try:
+        _ensure_bail_agency_outreach_schema(conn)
+        _ensure_bail_ad_simulator_order_columns(conn)
+        _ensure_bail_ad_simulator_event_schema(conn)
+        conn.commit()
+
+        simulator_row = conn.execute(
+            '''
+            SELECT
+                COALESCE(SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END), 0) AS page_views,
+                COALESCE(SUM(CASE WHEN event_type = 'logo_upload' THEN 1 ELSE 0 END), 0) AS logo_uploads,
+                COALESCE(SUM(CASE WHEN event_type = 'share_link' THEN 1 ELSE 0 END), 0) AS share_links,
+                COALESCE(SUM(CASE WHEN event_type = 'inquiry_sync' THEN 1 ELSE 0 END), 0) AS inquiry_syncs,
+                COALESCE(SUM(CASE WHEN event_type = 'checkout_click' THEN 1 ELSE 0 END), 0) AS checkout_clicks
+            FROM bail_ad_simulator_events
+            WHERE created_at >= date('now', '-30 days')
+            '''
+        ).fetchone()
+        if simulator_row:
+            simulator_stats.update(dict(simulator_row))
+
+        sales_agencies = conn.execute(
+            '''
+            SELECT
+                a.id,
+                a.agency_name,
+                a.contact_name,
+                a.email,
+                a.phone,
+                a.counties,
+                a.outreach_status,
+                COALESCE((
+                    SELECT c.logo_path
+                    FROM bail_ad_orders o
+                    LEFT JOIN bail_ad_creatives c ON c.order_id = o.id
+                    WHERE lower(o.business_name) = lower(a.agency_name)
+                      AND COALESCE(c.logo_path, '') != ''
+                    ORDER BY datetime(o.created_at) DESC
+                    LIMIT 1
+                ), (
+                    SELECT o.simulator_logo_path
+                    FROM bail_ad_orders o
+                    WHERE lower(o.business_name) = lower(a.agency_name)
+                      AND COALESCE(o.simulator_logo_path, '') != ''
+                    ORDER BY datetime(o.created_at) DESC
+                    LIMIT 1
+                ), '') AS logo_path,
+                COALESCE((
+                    SELECT c.target_url
+                    FROM bail_ad_orders o
+                    LEFT JOIN bail_ad_creatives c ON c.order_id = o.id
+                    WHERE lower(o.business_name) = lower(a.agency_name)
+                      AND COALESCE(c.target_url, '') != ''
+                    ORDER BY datetime(o.created_at) DESC
+                    LIMIT 1
+                ), (
+                    SELECT o.simulator_target_url
+                    FROM bail_ad_orders o
+                    WHERE lower(o.business_name) = lower(a.agency_name)
+                      AND COALESCE(o.simulator_target_url, '') != ''
+                    ORDER BY datetime(o.created_at) DESC
+                    LIMIT 1
+                ), '') AS target_url
+            FROM bail_agency_outreach a
+            ORDER BY datetime(a.updated_at) DESC
+            LIMIT 40
+            '''
+        ).fetchall()
+
+        recent_creatives = conn.execute(
+            '''
+            SELECT
+                o.business_name AS agency_name,
+                COALESCE(c.logo_path, o.simulator_logo_path, '') AS logo_path,
+                COALESCE(c.target_url, o.simulator_target_url, o.website_url, '') AS target_url,
+                o.package_id,
+                o.created_at
+            FROM bail_ad_orders o
+            LEFT JOIN bail_ad_creatives c ON c.order_id = o.id
+            WHERE COALESCE(c.logo_path, o.simulator_logo_path, '') != ''
+            ORDER BY datetime(o.created_at) DESC
+            LIMIT 24
+            '''
+        ).fetchall()
+    finally:
+        conn.close()
+
+    simulator_view = (request.args.get('sim_view') or '').strip().lower()
+    if simulator_view not in {'banner', 'sidebar'}:
+        simulator_view = 'banner'
+    simulator_bootstrap = {
+        'agencyName': (request.args.get('agency_name') or request.args.get('agency') or 'Your Agency').strip()[:80] or 'Your Agency',
+        'initialImageUrl': _safe_bail_ad_simulator_image_url(request.args.get('logo_url') or request.args.get('logo') or ''),
+        'initialView': simulator_view,
+        'initialCounty': (request.args.get('sim_county') or 'Cascade County').strip()[:80] or 'Cascade County',
+        'initialTargetUrl': (request.args.get('target_url') or '').strip()[:300],
+        'publicPreviewBaseUrl': url_for('advertise_bail_bonds'),
+        'checkoutBaseUrl': url_for('advertise_bail_bonds_checkout'),
+        'uploadEndpoint': url_for('upload_bail_ad_simulator_asset'),
+        'eventEndpoint': url_for('track_bail_ad_simulator_event'),
+        'internalMode': True,
+        'allowInquirySync': False,
+    }
+
+    return render_template(
+        'admin_bail_ad_simulator.html',
+        simulator_bootstrap=simulator_bootstrap,
+        simulator_stats=simulator_stats,
+        sales_agencies=sales_agencies,
+        recent_creatives=recent_creatives,
+    )
 
 
 @app.route('/admin/bail-ads/agencies/create', methods=['POST'])
@@ -14125,6 +15821,30 @@ def admin_bail_agency_cms_update(agency_id):
     return redirect(f"{url_for('admin_bail_ads')}#agency-cms")
 
 
+@app.route('/admin/bail-ads/agencies/<int:agency_id>/delete', methods=['POST'])
+@login_required
+def admin_bail_agency_cms_delete(agency_id):
+    conn = get_db()
+    try:
+        _ensure_bail_agency_outreach_schema(conn)
+        row = conn.execute(
+            'SELECT agency_name FROM bail_agency_outreach WHERE id = ? LIMIT 1',
+            (agency_id,),
+        ).fetchone()
+        if not row:
+            flash('Agency record not found.', 'warning')
+            return redirect(f"{url_for('admin_bail_ads')}#agency-cms")
+        agency_name = (row['agency_name'] or f'Agency #{agency_id}').strip()
+        conn.execute('DELETE FROM bail_agency_outreach WHERE id = ?', (agency_id,))
+        conn.commit()
+        flash(f'{agency_name} deleted.', 'success')
+    except sqlite3.OperationalError:
+        flash('Bail agency CMS table is not available. Run migration first.', 'error')
+    finally:
+        conn.close()
+    return redirect(f"{url_for('admin_bail_ads')}#agency-cms")
+
+
 @app.route('/admin/bail-ads/attribution/export.csv')
 @login_required
 def admin_bail_ads_attribution_export():
@@ -14267,11 +15987,23 @@ def admin_bail_ads_creative_status(creative_id):
 @app.route('/admin/bail-ads/orders/<int:order_id>/status', methods=['POST'])
 @login_required
 def admin_bail_ads_order_status(order_id):
+    business_name = (request.form.get('business_name') or '').strip()[:120]
+    contact_name = (request.form.get('contact_name') or '').strip()[:120]
+    email = (request.form.get('email') or '').strip().lower()[:160]
+    phone = (request.form.get('phone') or '').strip()[:40]
+    website_url = (request.form.get('website_url') or '').strip()[:300]
+    county_targets = (request.form.get('county_targets') or '').strip()[:500]
     next_status = (request.form.get('status') or '').strip().lower()
     notes = (request.form.get('notes') or '').strip()[:1200]
     allowed_statuses = {'checkout_pending', 'active', 'active_pending_creative_review', 'payment_failed', 'canceled', 'paused'}
     if next_status not in allowed_statuses:
         flash('Invalid order status.', 'error')
+        return redirect(url_for('admin_bail_ads'))
+    if not business_name:
+        flash('Business name is required.', 'warning')
+        return redirect(url_for('admin_bail_ads'))
+    if email and '@' not in email:
+        flash('Order email must be valid or left blank.', 'warning')
         return redirect(url_for('admin_bail_ads'))
 
     conn = get_db()
@@ -14279,16 +16011,40 @@ def admin_bail_ads_order_status(order_id):
         result = conn.execute(
             '''
             UPDATE bail_ad_orders
-            SET status = ?, notes = ?, updated_at = datetime('now')
+            SET business_name = ?, contact_name = ?, email = ?, phone = ?, website_url = ?, county_targets = ?,
+                status = ?, notes = ?, updated_at = datetime('now')
             WHERE id = ?
             ''',
-            (next_status, notes, order_id),
+            (business_name, contact_name, email, phone, website_url, county_targets, next_status, notes, order_id),
         )
         conn.commit()
         if result.rowcount <= 0:
             flash('Order not found.', 'error')
         else:
-            flash(f'Order #{order_id} updated to {next_status}.', 'success')
+            flash(f'{business_name} updated.', 'success')
+    except sqlite3.OperationalError:
+        flash('Bail ad order table is not available. Run migration first.', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin_bail_ads'))
+
+
+@app.route('/admin/bail-ads/orders/<int:order_id>/delete', methods=['POST'])
+@login_required
+def admin_bail_ads_order_delete(order_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            'SELECT business_name FROM bail_ad_orders WHERE id = ? LIMIT 1',
+            (order_id,),
+        ).fetchone()
+        if not row:
+            flash('Advertiser record not found.', 'warning')
+            return redirect(url_for('admin_bail_ads'))
+        business_name = (row['business_name'] or f'Order #{order_id}').strip()
+        conn.execute('DELETE FROM bail_ad_orders WHERE id = ?', (order_id,))
+        conn.commit()
+        flash(f'{business_name} deleted.', 'success')
     except sqlite3.OperationalError:
         flash('Bail ad order table is not available. Run migration first.', 'error')
     finally:

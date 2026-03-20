@@ -27,6 +27,9 @@
     <meta name="twitter:card" content="{{ twitter_card or 'summary_large_image' }}">
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
     {% include "includes/google_analytics.html" %}
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#D4892A">
+    <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/static/sw.js'); }</script>
     {% block extra_head %}{% endblock %}
 </head>
 <body style="background:#0D0C0B; color:#E8DFD0; font-family:'Spectral',Georgia,serif; min-height:100vh;">
@@ -55,7 +58,7 @@
                 {% endfor %}
                 <a href="/subscribe" class="pnav-link" style="margin-left:8px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A;">Subscribe</a>
                 {% if public_user %}
-                <span class="pnav-link" style="margin-left:8px; color:#E8DFD0;">{{ public_user.display_name }}</span>
+                <a href="/account" class="pnav-link" style="margin-left:8px; color:#E8DFD0;">{{ public_user.display_name }}</a>
                 <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link">Log Out</a>
                 {% else %}
                 <a href="/login?next={{ request.full_path | urlencode }}" class="pnav-link" style="margin-left:8px;">Log In</a>
@@ -88,7 +91,7 @@
             <a href="/subscribe" class="pnav-link" style="display:block; padding:8px 12px; color:#D4892A;">Subscribe</a>
             {% if public_user %}
             <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Account</p>
-            <span class="pnav-link" style="display:block; padding:8px 12px; color:#E8DFD0;">{{ public_user.display_name }}</span>
+            <a href="/account" class="pnav-link" style="display:block; padding:8px 12px; color:#E8DFD0;">{{ public_user.display_name }}</a>
             <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link" style="display:block; padding:8px 12px;">Log Out</a>
             {% else %}
             <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Account</p>
