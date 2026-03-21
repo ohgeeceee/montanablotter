@@ -5752,8 +5752,8 @@ def inject_public_nav():
         {'href': '/bondsman/command-center', 'label': 'Command Center'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
         {'href': '/subscribe', 'label': 'Subscribe'},
-        {'href': '/standards', 'label': 'Standards'},
-        {'href': '/corrections', 'label': 'Corrections'},
+        {'href': '#modal-standards', 'label': 'Standards'},
+        {'href': '#modal-corrections', 'label': 'Corrections'},
         {'href': '/terms-of-use', 'label': 'Terms'},
         {'href': '/privacy', 'label': 'Privacy'},
     ]
