@@ -341,6 +341,194 @@
     </script>
     {% block extra_scripts %}{% endblock %}
 
+<!-- ═══════════════════════════ FOOTER MODALS ═══ -->
+
+<!-- Standards modal -->
+<dialog id="modal-standards" style="max-width:600px; width:90%; background:#161513; border:1px solid #282420; border-radius:8px; color:#E8DFD0; padding:0;">
+  <div style="padding:20px 24px 8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #282420;">
+    <span style="font-family:'Playfair Display',serif; font-size:1rem; font-weight:900;">Editorial Standards</span>
+    <button onclick="document.getElementById('modal-standards').close()" style="background:none;border:none;color:#5F564C;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+  </div>
+  <div style="padding:20px 24px 24px; font-family:'Spectral',Georgia,serif; font-size:0.875rem; line-height:1.7; color:#C8BFB0; max-height:65vh; overflow-y:auto;">
+    <p>Montana Blotter is designed to make public records and public meeting information easier to access. It is not a government office, and it does not replace official notice, clerk records, court files, or agency databases.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">1. Primary Source Rule</strong><br>We prefer direct links to official county, city, court, sheriff, police, and state judiciary pages. Where possible, each page should point readers back to the original public record, agenda, minutes page, or official document listing.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">2. What We Standardize</strong><br>Date and time formatting &mdash; location and body-name labeling &mdash; document labels such as agenda, packet, or minutes &mdash; searchable statewide filters and metadata.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">3. What We Do Not Claim</strong><br>We do not claim to be the official keeper of public records. We do not guarantee that a third-party government site is complete, current, or correctly maintained. We do not treat summaries or extracted text as a substitute for the official source file.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">4. Update Cadence</strong><br>Automated sources are checked on a recurring basis. If a source is stale, broken, or moved, the originating public body remains the authoritative reference until the source is repaired.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">5. Provenance and Visibility</strong><br>We aim to show where information came from, when it was last refreshed, and how users can verify it.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">6. Redactions and Sensitive Material</strong><br>We may review records for obvious sensitivity, legal restrictions, or redaction issues. The existence of a public record does not automatically mean every field or derivative presentation should be amplified without review.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">7. Corrections</strong><br>If a source link breaks, a meeting is mislabeled, a record is duplicated, or a page needs clarification, see the <a href="/corrections" style="color:#D4892A;">Corrections Policy</a> for the reporting workflow.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">8. Government and Clerk Communications</strong><br>If you work for a Montana public body and need a source updated, corrected, or removed, contact us directly. We prefer exact URLs, dates, and a brief explanation of the change.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">9. Contact</strong><br>Montana Blotter &mdash; <a href="mailto:records@montanablotter.com?subject=Montana%20Blotter%20source%20update" style="color:#D4892A;">records@montanablotter.com</a></p>
+    <p style="margin-top:16px;"><a href="/standards" style="color:#D4892A; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em;">Read full standards &rarr;</a></p>
+  </div>
+</dialog>
+
+<!-- Corrections modal -->
+<dialog id="modal-corrections" style="max-width:600px; width:90%; background:#161513; border:1px solid #282420; border-radius:8px; color:#E8DFD0; padding:0;">
+  <div style="padding:20px 24px 8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #282420;">
+    <span style="font-family:'Playfair Display',serif; font-size:1rem; font-weight:900;">Corrections Policy</span>
+    <button onclick="document.getElementById('modal-corrections').close()" style="background:none;border:none;color:#5F564C;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+  </div>
+  <div style="padding:20px 24px 24px; font-family:'Spectral',Georgia,serif; font-size:0.875rem; line-height:1.7; color:#C8BFB0; max-height:65vh; overflow-y:auto;">
+    <p>We want corrections requests to be specific, easy to verify, and fast to act on. The more concrete the report, the faster it can be reviewed.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">1. What To Report</strong><br>Broken official source links &mdash; moved agenda or minutes pages &mdash; incorrect meeting date, body name, or location label &mdash; duplicate records or meetings &mdash; stale source pages &mdash; material factual errors in a summary or description.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">2. What To Include</strong><br>The exact Montana Blotter URL &mdash; the exact official source URL that should be used &mdash; a short description of what is wrong &mdash; if timing matters, the date and time the official source changed.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">3. Where To Send It</strong><br>Email <a href="mailto:records@montanablotter.com?subject=Correction%20Request" style="color:#D4892A;">records@montanablotter.com</a> with subject line <strong style="color:#E8DFD0;">Correction Request</strong> or <strong style="color:#E8DFD0;">Source Update</strong>. If you represent a government office, say so in the message.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">4. Review Standard</strong><br>We review corrections against the official source when available. If a report cannot be verified, we may ask for a clarifying URL, screenshot, or exact document reference before changing the page.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">5. Response Goal</strong><br>Our goal is to review straightforward source and labeling issues within two business days. Complex disputes, legal issues, and record-sensitivity questions may take longer.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">6. How Fixes Are Handled</strong><br>Broken or moved source URLs are updated at the source-config level when possible. Mislabeled dates, titles, or locations are corrected in the public presentation. If a government source removes or replaces a document, the official source controls.</p>
+    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">7. Limits</strong><br>A correction request does not automatically guarantee removal. Montana Blotter may preserve accurate public-record references while updating labels, links, timestamps, or explanatory text.</p>
+    <p style="margin-top:16px;"><a href="/corrections" style="color:#D4892A; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em;">Read full corrections policy &rarr;</a></p>
+  </div>
+</dialog>
+
+<!-- Laws modal -->
+<dialog id="modal-laws" style="max-width:700px; width:92%; background:#161513; border:1px solid #282420; border-radius:8px; color:#E8DFD0; padding:0;">
+  <div style="padding:20px 24px 8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #282420;">
+    <span style="font-family:'Playfair Display',serif; font-size:1rem; font-weight:900;">Montana Laws Reference</span>
+    <button onclick="document.getElementById('modal-laws').close()" style="background:none;border:none;color:#5F564C;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+  </div>
+  <div style="padding:12px 24px 8px; border-bottom:1px solid #282420;">
+    <input id="modal-laws-search" type="search" placeholder="Search statutes…" oninput="filterLawsModal(this.value)"
+      style="width:100%; background:#0D0C0B; border:1px solid #282420; border-radius:4px; padding:8px 12px; color:#E8DFD0; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; box-sizing:border-box;">
+  </div>
+  <div id="modal-laws-list" style="padding:8px 0 24px; max-height:60vh; overflow-y:auto;">
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-5-201</span> Assault
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-5-101 to 103</span> Homicide
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-6-301</span> Theft
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-6-204</span> Burglary
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-9</span> Drug Offenses
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 61-8-401</span> DUI / Impaired Driving
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-5-502</span> Sexual Assault
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-5-206</span> Domestic Violence
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 61-8-303</span> Speed Limits
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 61-9-409</span> Seat Belt Law
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 61-8-1011</span> Distracted Driving
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 61-8-301</span> Reckless Driving
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 61-6-301</span> Insurance Requirements
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 61-8-460</span> Open Container
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 61-8-316</span> Fleeing or Eluding
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 87-2-102</span> Hunting / Fishing License Requirements
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 87-6-414</span> Hunter Orange
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 87-6-206</span> Trespassing to Hunt
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 87-6-901</span> Poaching
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 87-6-209</span> Baiting &amp; Feeding Wildlife
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 87-3-101</span> Fishing Regulations
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 87-6-401</span> Firearm Use While Hunting
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">Art. II §12</span> Right to Keep and Bear Arms (Montana Constitution)
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-8-316</span> Concealed Carry (Constitutional Carry)
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-3-102</span> Self-Defense / Stand Your Ground
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-6-203</span> Trespassing
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-5-624</span> Public Intoxication
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 45-8-213</span> Montana Privacy Law
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 16-12</span> Marijuana Laws
+    </div>
+    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
+      <span style="color:#D4892A; margin-right:8px;">§ 81-4-101</span> Property Rights &amp; Open Range
+    </div>
+    <p style="padding:12px 24px; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#8A7F72;">
+      Full reference at <a href="/laws" style="color:#D4892A;">/laws</a>.
+    </p>
+  </div>
+</dialog>
+
+<script>
+/* Open modal from URL hash (e.g. /#modal-standards) */
+(function () {
+  var MODALS = ['modal-standards', 'modal-corrections', 'modal-laws'];
+  function openFromHash() {
+    var id = location.hash.replace('#', '');
+    if (MODALS.indexOf(id) !== -1) {
+      var el = document.getElementById(id);
+      if (el && el.showModal) { el.showModal(); }
+    }
+  }
+  openFromHash();
+  window.addEventListener('hashchange', openFromHash);
+
+  /* Close on backdrop click (click outside dialog box) */
+  MODALS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', function(e) {
+      var r = el.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+        el.close();
+      }
+    });
+  });
+})();
+
+function filterLawsModal(query) {
+  var list = document.getElementById('modal-laws-list');
+  if (!list) return;
+  var rows = list.querySelectorAll('[data-law-row]');
+  var q = query.toLowerCase();
+  rows.forEach(function(row) {
+    row.style.display = (!q || row.textContent.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+</script>
+<!-- ═══════════════════════════ END FOOTER MODALS ═══ -->
+
 {% include "includes/mobile_tab_bar.html" %}
 </body>
 </html>
