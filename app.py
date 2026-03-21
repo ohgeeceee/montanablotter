@@ -9164,67 +9164,7 @@ def _annual_roundup_context(conn, year: int):
 
 @app.route('/guides')
 def guides_hub():
-    conn = get_db()
-    featured_counties = _ranked_county_cards(conn, limit=6)
-    annual_years = _annual_roundup_years(conn)
-    conn.close()
-
-    guide_cards = [
-        {
-            'href': '/guides/how-to-find-montana-police-blotters',
-            'label': 'How to Find Montana Police Blotters',
-            'description': 'Evergreen guide for city pages, county blotter archives, daily activity reports, and local record follow-up.',
-        },
-        {
-            'href': '/guides/yellowstone-county-arrests-jail-roster-and-warrant-guide',
-            'label': 'Yellowstone County Guide',
-            'description': 'County-specific guide for Billings, Yellowstone arrests, jail roster lookups, and warrant follow-up.',
-        },
-        {
-            'href': '/guides/montana-county-guides',
-            'label': 'Montana County Guides',
-            'description': 'Editorial county-guide hub linking blotters, arrests, warrants, jail rosters, and city pages.',
-        },
-        {
-            'href': '/guides/flathead-county-police-blotter-warrant-and-jail-guide',
-            'label': 'Flathead County Guide',
-            'description': 'County-specific guide for Kalispell, Whitefish, Flathead warrants, and jail roster searches.',
-        },
-        {
-            'href': '/guides/lewis-and-clark-county-blotter-warrant-and-jail-guide',
-            'label': 'Lewis and Clark County Guide',
-            'description': 'County-specific guide for Helena, East Helena, county warrants, and detention follow-up.',
-        },
-        {
-            'href': '/guides/how-to-find-montana-warrants',
-            'label': 'How to Find Montana Warrants',
-            'description': 'Evergreen guide that routes users into county warrant pages and court lookup tools.',
-        },
-        {
-            'href': '/guides/how-to-find-montana-arrest-records',
-            'label': 'How to Find Montana Arrest Records',
-            'description': 'Evergreen guide for county pages, arrest coverage, city pages, detention, and court follow-up.',
-        },
-        {
-            'href': '/guides/how-to-find-montana-jail-rosters',
-            'label': 'How to Find Montana Jail Rosters',
-            'description': 'Evergreen guide for official inmate lookup pages and county detention resources.',
-        },
-        {
-            'href': '/annual-roundups',
-            'label': 'Annual Roundups',
-            'description': 'Year-based roundup pages with top counties, incident types, and pattern links.',
-        },
-    ]
-
-    return render_template(
-        'guides_hub.html',
-        guide_cards=guide_cards,
-        featured_counties=featured_counties,
-        annual_years=annual_years,
-        active_nav='blog',
-        current_year=datetime.now().year,
-    )
+    return redirect('/blog?category=guide', 301)
 
 
 @app.route('/guides/<slug>')
@@ -11963,15 +11903,32 @@ def blog():
     page = max(1, request.args.get('page', 1, type=int))
     per_page = 10
     latest_weekly_digest = _latest_weekly_digest(conn)
-    total = conn.execute(
-        'SELECT COUNT(*) FROM blog_posts WHERE published=1').fetchone()[0]
+    category = request.args.get('category', '').strip().lower()
+
+    # Check whether the category column exists (it may not be migrated yet)
+    bp_columns = {row[1] for row in conn.execute('PRAGMA table_info(blog_posts)')}
+    has_category = 'category' in bp_columns
+
+    if category and has_category:
+        total = conn.execute(
+            'SELECT COUNT(*) FROM blog_posts WHERE published=1 AND lower(category)=?',
+            (category,)).fetchone()[0]
+        posts = conn.execute(
+            'SELECT * FROM blog_posts WHERE published=1 AND lower(category)=? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+            (category, per_page, (page - 1) * per_page)).fetchall()
+    else:
+        category = ''  # normalise so template gets empty string when no-op
+        total = conn.execute(
+            'SELECT COUNT(*) FROM blog_posts WHERE published=1').fetchone()[0]
+        posts = conn.execute(
+            'SELECT * FROM blog_posts WHERE published=1 ORDER BY created_at DESC LIMIT ? OFFSET ?',
+            (per_page, (page - 1) * per_page)).fetchall()
+
     total_pages = max(1, (total + per_page - 1) // per_page)
-    posts = conn.execute(
-        'SELECT * FROM blog_posts WHERE published=1 ORDER BY created_at DESC LIMIT ? OFFSET ?',
-        (per_page, (page - 1) * per_page)).fetchall()
     conn.close()
     return render_template('blog.html', posts=posts, total=total,
                            page=page, total_pages=total_pages,
+                           active_category=category,
                            latest_weekly_digest=latest_weekly_digest,
                            current_year=datetime.now().year)
 

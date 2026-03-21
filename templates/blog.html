@@ -78,6 +78,11 @@
     </section>
     {% endif %}
 
+    <div style="margin-bottom:20px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <a href="/blog" style="font-family:'IBM Plex Mono',monospace; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; padding:5px 12px; border-radius:3px; text-decoration:none; {% if not active_category %}background:#D4892A; color:#0D0C0B;{% else %}color:#8A7F72; border:1px solid #282420;{% endif %}">All Posts</a>
+      <a href="/blog?category=guide" style="font-family:'IBM Plex Mono',monospace; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; padding:5px 12px; border-radius:3px; text-decoration:none; {% if active_category == 'guide' %}background:#D4892A; color:#0D0C0B;{% else %}color:#8A7F72; border:1px solid #282420;{% endif %}">Guides</a>
+    </div>
+
     {% if posts %}
         <p class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-6">{{ total }} post{{ 's' if total != 1 else '' }}</p>
 
