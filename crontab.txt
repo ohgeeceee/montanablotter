@@ -21,6 +21,15 @@ BASH_ENV=/root/montanablotter/.env
 # Weekly county digest every Monday at 7:25am
 25 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_county_digest --log /root/montanablotter/weekly_county_digest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/weekly_county_digest.py
 
+# Weekly per-county safety trend reports every Monday at 7:30am (charge_category analytics + Claude)
+30 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_safety_report --log /root/montanablotter/weekly_safety_report.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/weekly_safety_report.py
+
+# Charge explainer pages — generate for any new charge types seen in blotters (Monday 7:35am)
+35 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name charge_explainer_worker --log /root/montanablotter/charge_explainer.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/charge_explainer_worker.py --new-only
+
+# Weekly Cascade County safety snapshot blog draft — every Monday at 7:40am
+40 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_snapshot --log /root/montanablotter/weekly_snapshot.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/weekly_snapshot.py --county Cascade
+
 # Daily pattern conversion report at 7:35am
 35 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name pattern_conversion_report --log /root/montanablotter/cron.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/pattern_conversion_report.py
 
@@ -58,6 +67,15 @@ BASH_ENV=/root/montanablotter/.env
 
 # Missoula County jail roster — poll every 2 hours; requests the full ALL roster view
 50 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_missoula --log /root/montanablotter/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county missoula
+
+# Flathead County jail roster — poll every 2 hours
+05 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_flathead --log /root/montanablotter/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county flathead
+
+# Jefferson County jail roster — poll every 2 hours
+15 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_jefferson --log /root/montanablotter/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county jefferson
+
+# Sanders County jail roster — poll every 2 hours
+35 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_sanders --log /root/montanablotter/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county sanders
 
 # Bozeman Police Department calls-for-service dashboard — poll hourly with 2-day overlap
 40 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bozeman_police_calls --log /root/montanablotter/bozeman_calls.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/bozeman_police_fetcher.py --dataset calls
