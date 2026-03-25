@@ -35,7 +35,7 @@ from court_tracker import (
     court_hearing_feed_context,
     ensure_court_tracker_schema,
 )
-from db import connect_db
+from db import connect_db, get_db
 from dedupe import incident_key_set
 from morning_briefing import (
     build_html as build_morning_briefing_html,
@@ -706,6 +706,91 @@ PATTERN_DEFINITIONS = {
         'faq_name': 'What counts as domestic disturbance activity here?',
         'faq_answer': 'It includes visible records that reference domestic disturbances, domestic violence, partner or family-related assault language, or PFMA-related terminology in the indexed archive.',
     },
+    'theft-and-burglary': {
+        'slug': 'theft-and-burglary',
+        'label': 'Theft & Burglary',
+        'short_label': 'Theft',
+        'hero_label': 'Montana Theft & Burglary Pattern Page',
+        'description': 'Browse theft, burglary, and shoplifting-related public records from Montana law enforcement agencies.',
+        'title_statewide': 'Montana Theft and Burglary Records',
+        'title_county': '{county} County Theft and Burglary Records',
+        'meta_statewide': 'Browse Montana theft and burglary public records with top counties, recent entries, and direct links into county-level property crime archives.',
+        'meta_county': 'Browse theft and burglary records in {county} County with recent incidents, related coverage, and links to county-level Montana public safety pages.',
+        'intro': 'These pages collect theft, burglary, and property-crime-related records into a focused archive for readers tracking property crime trends across Montana counties.',
+        'terms': ['theft', 'burglary', 'shoplifting', 'robbery', 'larceny', 'stolen', 'burglary of a vehicle'],
+        'search_targets': ['theft arrests', 'burglary reports', 'shoplifting blotter', 'property crime records', 'robbery blotter'],
+        'source_note': 'These pages surface property-crime-related records from the indexed archive. They do not replace official court records or law enforcement case files.',
+        'faq_name': 'What types of property crimes appear on this page?',
+        'faq_answer': 'It includes visible records referencing theft, burglary, shoplifting, robbery, larceny, or vehicle burglary in the indexed archive.',
+    },
+    'drug-charges': {
+        'slug': 'drug-charges',
+        'label': 'Drug Charges',
+        'short_label': 'Drugs',
+        'hero_label': 'Montana Drug Charges Pattern Page',
+        'description': 'Track drug possession, distribution, and paraphernalia-related enforcement records across Montana counties.',
+        'title_statewide': 'Montana Drug Charge Records and Enforcement Activity',
+        'title_county': '{county} County Drug Charge Records and Enforcement Activity',
+        'meta_statewide': 'Track Montana drug charge records including possession, distribution, and paraphernalia cases with county-level pages and recent linked incidents.',
+        'meta_county': 'Track drug charge records in {county} County with recent incidents, enforcement activity, and direct links into county-level Montana public safety archives.',
+        'intro': 'These pages group drug-related enforcement records into a focused archive so readers can follow controlled-substance activity without searching the full county blotter.',
+        'terms': ['drug', 'possession', 'controlled substance', 'paraphernalia', 'meth', 'methamphetamine', 'heroin', 'fentanyl', 'marijuana', 'distribution of'],
+        'search_targets': ['drug arrests', 'drug possession blotter', 'controlled substance records', 'drug enforcement activity'],
+        'source_note': 'These pages index drug-related records visible in the public archive. Charges are not convictions and records reflect law enforcement activity only.',
+        'faq_name': 'What drug-related records appear on this page?',
+        'faq_answer': 'It includes visible records referencing drug possession, controlled substances, paraphernalia, or distribution-related charges in the indexed archive.',
+    },
+    'weapons-charges': {
+        'slug': 'weapons-charges',
+        'label': 'Weapons Charges',
+        'short_label': 'Weapons',
+        'hero_label': 'Montana Weapons Charges Pattern Page',
+        'description': 'Find weapons-related enforcement records including unlawful possession, carry violations, and firearm-related incidents across Montana.',
+        'title_statewide': 'Montana Weapons Charge Records and Firearm Incidents',
+        'title_county': '{county} County Weapons Charge Records and Firearm Incidents',
+        'meta_statewide': 'Browse Montana weapons charge records including firearm possession, unlawful carry, and weapons-related incidents with county archive pages.',
+        'meta_county': 'Browse weapons charge records in {county} County with recent incidents, firearm-related activity, and links to county-level Montana public safety pages.',
+        'intro': 'These pages bring together weapons-related enforcement records from across Montana, making it easier to track firearm and weapons charge activity at the county level.',
+        'terms': ['weapon', 'firearm', 'unlawful possession of a weapon', 'carrying concealed', 'felon in possession', 'gun', 'rifle', 'shotgun', 'knife'],
+        'search_targets': ['weapons charges', 'firearm arrests', 'unlawful weapon possession', 'gun charges blotter'],
+        'source_note': 'These pages index weapons-related records visible in the public archive. Charges are not convictions and records reflect law enforcement activity only.',
+        'faq_name': 'What weapons records appear on this page?',
+        'faq_answer': 'It includes visible records referencing weapons charges, firearm possession, unlawful carry, or weapons-related incidents in the indexed archive.',
+    },
+    'assault': {
+        'slug': 'assault',
+        'label': 'Assault',
+        'short_label': 'Assault',
+        'hero_label': 'Montana Assault Pattern Page',
+        'description': 'Track assault and battery-related public records from Montana law enforcement agencies and county blotters.',
+        'title_statewide': 'Montana Assault Records and Incident Activity',
+        'title_county': '{county} County Assault Records and Incident Activity',
+        'meta_statewide': 'Track Montana assault records including simple assault, aggravated assault, and battery incidents with county-level pages and recent linked blotter entries.',
+        'meta_county': 'Track assault records in {county} County with recent incidents, related blotter entries, and direct links to county-level Montana public safety archives.',
+        'intro': 'These pages collect assault-related records into a focused archive so readers can follow violent-incident trends without searching the full county blotter feed.',
+        'terms': ['assault', 'battery', 'aggravated assault', 'simple assault', 'strangulation', 'intimidation'],
+        'search_targets': ['assault arrests', 'assault blotter', 'aggravated assault records', 'battery charges Montana'],
+        'source_note': 'These pages index assault-related records visible in the public archive. Charges are not convictions and records reflect law enforcement activity only.',
+        'faq_name': 'What assault records appear on this page?',
+        'faq_answer': 'It includes visible records referencing assault, battery, aggravated assault, or related violent-incident charges in the indexed archive.',
+    },
+    'traffic-violations': {
+        'slug': 'traffic-violations',
+        'label': 'Traffic Violations',
+        'short_label': 'Traffic',
+        'hero_label': 'Montana Traffic Violations Pattern Page',
+        'description': 'Follow traffic stop, reckless driving, and moving violation records from Montana law enforcement agencies.',
+        'title_statewide': 'Montana Traffic Violation Records and Enforcement Activity',
+        'title_county': '{county} County Traffic Violation Records and Enforcement Activity',
+        'meta_statewide': 'Browse Montana traffic violation records including reckless driving, speeding, and suspended license cases with county pages and recent blotter entries.',
+        'meta_county': 'Browse traffic violation records in {county} County with recent incidents, enforcement activity, and links to county-level Montana public safety archives.',
+        'intro': 'These pages group traffic-enforcement records into a focused archive for readers following road safety and traffic stop activity across Montana counties.',
+        'terms': ['reckless driving', 'reckless endangerment', 'speeding', 'suspended license', 'no insurance', 'traffic stop', 'careless driving', 'hit and run', 'fleeing'],
+        'search_targets': ['reckless driving blotter', 'traffic violation records', 'suspended license arrests', 'traffic stop activity Montana'],
+        'source_note': 'These pages surface traffic-enforcement records from the indexed archive. They do not replace official court records or DMV data.',
+        'faq_name': 'What traffic records appear on this page?',
+        'faq_answer': 'It includes visible records referencing reckless driving, speeding, suspended license, hit and run, or other traffic enforcement activity in the indexed archive.',
+    },
 }
 
 # Apply DB migrations at startup
@@ -973,9 +1058,6 @@ def to_iso_date(date_str):
         except (ValueError, TypeError):
             pass
     return date_str or ''
-
-def get_db():
-    return connect_db()
 
 
 PUBLIC_USER_SESSION_KEY = 'public_user_id'
@@ -5886,6 +5968,7 @@ def track_page_view():
         '/sitemap-locations.xml',
         '/sitemap-posts.xml',
         '/sitemap-blog.xml',
+        '/sitemap-charges.xml',
     ):
         return
     ip_hash = hashlib.sha256((request.remote_addr or '').encode()).hexdigest()[:16]
@@ -7628,6 +7711,7 @@ def _sitemap_static_urls():
         (f'{BASE_URL}/privacy', None),
         (f'{BASE_URL}/developers/api', None),
         (f'{BASE_URL}/laws', None),
+        (f'{BASE_URL}/alerts', None),
         (f'{BASE_URL}/blog', None),
         (f'{BASE_URL}/warrants', None),
         (f'{BASE_URL}/feed.xml', None),
@@ -7694,6 +7778,9 @@ def sitemap_index():
     blog_lastmod_row = conn.execute(
         'SELECT MAX(COALESCE(updated_at, created_at)) AS lastmod FROM blog_posts WHERE published = 1'
     ).fetchone()
+    charges_lastmod_row = conn.execute(
+        'SELECT MAX(COALESCE(updated_at, created_at)) AS lastmod FROM charge_explainers WHERE published = 1'
+    ).fetchone()
     conn.close()
 
     sections = [
@@ -7704,6 +7791,7 @@ def sitemap_index():
         ('case-journeys', _iso_lastmod(journey_lastmod_row['lastmod']) if journey_lastmod_row else None),
         ('records', _iso_lastmod(record_lastmod_row['lastmod']) if record_lastmod_row else None),
         ('blog', _iso_lastmod(blog_lastmod_row['lastmod']) if blog_lastmod_row else None),
+        ('charges', _iso_lastmod(charges_lastmod_row['lastmod']) if charges_lastmod_row else None),
     ]
     items = []
     for name, lastmod in sections:
@@ -7809,6 +7897,17 @@ def sitemap_blog():
     ).fetchall()
     conn.close()
     urls = [(f"{BASE_URL}/blog/{row['slug']}", _iso_lastmod(row['updated_at'])) for row in rows]
+    return _render_urlset(urls)
+
+
+@app.route('/sitemap-charges.xml')
+def sitemap_charges():
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT slug, COALESCE(updated_at, created_at) AS updated_at FROM charge_explainers WHERE published = 1 ORDER BY view_count DESC, updated_at DESC'
+    ).fetchall()
+    conn.close()
+    urls = [(f"{BASE_URL}/laws/charge/{row['slug']}", _iso_lastmod(row['updated_at'])) for row in rows]
     return _render_urlset(urls)
 
 
@@ -8505,6 +8604,93 @@ def unsubscribe():
     return render_template('subscribe.html', counties=[],
                            error='Invalid or expired unsubscribe link.',
                            current_year=datetime.now().year)
+
+
+# ==========================================
+# COUNTY ALERTS & NAME WATCH
+# ==========================================
+
+@app.route('/alerts', methods=['GET', 'POST'])
+def alerts_signup():
+    """County alert and Name Watch subscription page."""
+    from alert_dispatcher import subscribe_county_alert, subscribe_name_watch
+    conn = get_db()
+    counties = sorted({
+        r['county'] for r in conn.execute(
+            "SELECT DISTINCT county FROM records WHERE county NOT IN ('Unknown','','45','47') ORDER BY county"
+        ).fetchall()
+    })
+    conn.close()
+
+    source = (request.values.get('source') or 'alerts_page').strip()[:80]
+    prefill_county = (request.args.get('county') or '').strip()
+    success_type = None
+    error = None
+
+    if request.method == 'POST':
+        form_type = request.form.get('form_type', 'county_alert')
+        email = request.form.get('email', '').strip().lower()
+
+        if not email or '@' not in email:
+            error = 'Please enter a valid email address.'
+        elif form_type == 'county_alert':
+            county = request.form.get('county', '').strip()
+            if not county:
+                error = 'Please select a county.'
+            else:
+                raw_types = request.form.getlist('alert_types')
+                alert_types = raw_types if raw_types else ['all']
+                subscribe_county_alert(email, county, alert_types, source=source)
+                success_type = 'county_alert'
+                prefill_county = county
+        elif form_type == 'name_watch':
+            watch_name = request.form.get('watch_name', '').strip()
+            county = request.form.get('watch_county', '').strip() or None
+            if not watch_name:
+                error = 'Please enter a name to watch.'
+            elif len(watch_name) < 2:
+                error = 'Name must be at least 2 characters.'
+            else:
+                subscribe_name_watch(email, watch_name, county)
+                success_type = 'name_watch'
+
+    return render_template(
+        'alerts.html',
+        counties=counties,
+        prefill_county=prefill_county,
+        success_type=success_type,
+        error=error,
+        source=source,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/alerts/unsubscribe')
+def alerts_unsubscribe():
+    from alert_dispatcher import cancel_alert_subscription
+    token = request.args.get('token', '')
+    email = cancel_alert_subscription(token) if token else None
+    return render_template(
+        'alerts.html',
+        counties=[],
+        unsubscribed=True,
+        unsubscribed_email=email,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/alerts/name-watch/cancel')
+def name_watch_cancel():
+    from alert_dispatcher import cancel_name_watch
+    token = request.args.get('token', '')
+    email = cancel_name_watch(token) if token else None
+    return render_template(
+        'alerts.html',
+        counties=[],
+        watch_cancelled=True,
+        unsubscribed_email=email,
+        current_year=datetime.now().year,
+    )
 
 
 # ==========================================
@@ -11004,7 +11190,66 @@ def warrant_county(slug):
 
 @app.route('/laws')
 def montana_laws():
-    return render_template('laws.html', current_year=datetime.now().year)
+    conn = get_db()
+    explainers = conn.execute(
+        """SELECT slug, title, excerpt, charge_category, incident_type, view_count
+           FROM charge_explainers WHERE published=1
+           ORDER BY view_count DESC, charge_category, incident_type"""
+    ).fetchall()
+    conn.close()
+    return render_template('laws.html', explainers=explainers, current_year=datetime.now().year)
+
+
+def _md_to_html_lines(body: str) -> list[str]:
+    """Convert markdown body to a list of pre-rendered HTML strings for Jinja."""
+    import re as _re
+    lines = body.split('\n')
+    rendered = []
+    for line in lines:
+        if line.startswith('## '):
+            rendered.append(('h2', escape(line[3:])))
+        elif line.startswith('### '):
+            rendered.append(('h3', escape(line[4:])))
+        elif line.startswith('- '):
+            text = _re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', escape(line[2:]))
+            rendered.append(('li', text))
+        elif line.strip() == '':
+            rendered.append(('br', ''))
+        else:
+            text = _re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', escape(line))
+            rendered.append(('p', text))
+    return rendered
+
+
+@app.route('/laws/charge/<slug>')
+def charge_explainer(slug):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM charge_explainers WHERE slug=? AND published=1", (slug,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return render_template('404.html'), 404
+    conn.execute(
+        "UPDATE charge_explainers SET view_count = view_count + 1 WHERE slug=?", (slug,)
+    )
+    conn.commit()
+    recent = conn.execute(
+        """SELECT records.id, records.date, records.county, records.location, records.details
+           FROM records
+           WHERE incident_type = ?
+           ORDER BY records.id DESC LIMIT 6""",
+        (row['incident_type'],),
+    ).fetchall()
+    conn.close()
+    body_lines = _md_to_html_lines(row['body'] or '')
+    return render_template(
+        'charge_explainer.html',
+        explainer=row,
+        body_lines=body_lines,
+        recent_records=recent,
+        current_year=datetime.now().year,
+    )
 
 
 @app.route('/bail-bonds')
@@ -12270,6 +12515,16 @@ def view_post(post_id):
     related_pattern_pages = _related_pattern_pages_for_post(records, county_slug=county_slug)
     comment_thread = _public_comments_context(conn, 'daily_post', post_id)
     bail_ad_placements = _bail_ad_public_placements(conn, county=post['county'])
+    # Charge explainer slug lookup: incident_type → slug
+    incident_types = list({r['incident_type'] for r in records if r['incident_type']})
+    explainer_slugs: dict = {}
+    if incident_types:
+        placeholders = ','.join('?' for _ in incident_types)
+        for row in conn.execute(
+            f"SELECT incident_type, slug FROM charge_explainers WHERE incident_type IN ({placeholders}) AND published=1",
+            incident_types,
+        ).fetchall():
+            explainer_slugs[row[0]] = row[1]
     conn.close()
 
     city_slug = _city_slug_for_name(post['city'])
@@ -12294,6 +12549,7 @@ def view_post(post_id):
         county_page=county_page,
         bail_ad_placements=bail_ad_placements,
         source_pdf_name=source_pdf_name,
+        explainer_slugs=explainer_slugs,
         current_year=datetime.now().year,
     )
 
@@ -13040,6 +13296,104 @@ def admin_subscribers():
     )
     conn.close()
     return render_template('admin_subscribers.html', **context)
+
+
+@app.route('/admin/audience/alerts')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_alerts():
+    conn = get_db()
+    q = (request.args.get('q') or '').strip().lower()
+    county_filter = (request.args.get('county') or '').strip()
+    status_filter = request.args.get('status', 'active')
+
+    # Summary stats
+    summary = conn.execute('''
+        SELECT
+            COUNT(*) AS total_subs,
+            SUM(active) AS active_subs,
+            COUNT(DISTINCT county) AS counties_covered,
+            (SELECT COUNT(*) FROM name_watches WHERE active=1) AS active_watches,
+            (SELECT COUNT(*) FROM name_watches) AS total_watches
+        FROM alert_subscriptions
+    ''').fetchone()
+
+    # County breakdown
+    county_counts = conn.execute('''
+        SELECT county, COUNT(*) as total, SUM(active) as active
+        FROM alert_subscriptions
+        GROUP BY county
+        ORDER BY active DESC, total DESC
+    ''').fetchall()
+
+    # Subscriber rows with filters
+    where_clauses = []
+    params = []
+    if status_filter == 'active':
+        where_clauses.append('a.active = 1')
+    elif status_filter == 'inactive':
+        where_clauses.append('a.active = 0')
+    if county_filter:
+        where_clauses.append('a.county LIKE ?')
+        params.append(f'%{county_filter}%')
+    if q:
+        where_clauses.append('(lower(a.email) LIKE ? OR lower(a.county) LIKE ?)')
+        params.extend([f'%{q}%', f'%{q}%'])
+
+    where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
+    subs = conn.execute(
+        f'''SELECT a.id, a.email, a.county, a.alert_types, a.active,
+                   a.source, a.last_alerted_at, a.created_at
+            FROM alert_subscriptions a
+            {where_sql}
+            ORDER BY a.created_at DESC
+            LIMIT 200''',
+        params,
+    ).fetchall()
+
+    # Name watch rows
+    watches = conn.execute(
+        '''SELECT id, email, watch_name, county, active, last_alerted_at, created_at
+           FROM name_watches
+           ORDER BY created_at DESC LIMIT 200'''
+    ).fetchall()
+
+    conn.close()
+    return render_template(
+        'admin_alerts.html',
+        summary=summary,
+        county_counts=county_counts,
+        subs=subs,
+        watches=watches,
+        q=q,
+        county_filter=county_filter,
+        status_filter=status_filter,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/admin/audience/alerts/<int:sub_id>/deactivate', methods=['POST'])
+@login_required
+@require_role(*AUDIENCE_MANAGEMENT_ROLES)
+def admin_alert_deactivate(sub_id):
+    conn = get_db()
+    conn.execute('UPDATE alert_subscriptions SET active=0 WHERE id=?', (sub_id,))
+    conn.commit()
+    conn.close()
+    flash('Alert subscription deactivated.', 'success')
+    return redirect(url_for('admin_alerts'))
+
+
+@app.route('/admin/audience/alerts/watch/<int:watch_id>/deactivate', methods=['POST'])
+@login_required
+@require_role(*AUDIENCE_MANAGEMENT_ROLES)
+def admin_watch_deactivate(watch_id):
+    conn = get_db()
+    conn.execute('UPDATE name_watches SET active=0 WHERE id=?', (watch_id,))
+    conn.commit()
+    conn.close()
+    flash('Name watch deactivated.', 'success')
+    return redirect(url_for('admin_alerts'))
 
 
 @app.route('/admin/audience/comments')
