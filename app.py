@@ -800,19 +800,15 @@ bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'admin_login'
 
-ADMIN_ACCESS_ROLES = ('super_admin', 'ops', 'editor', 'revenue', 'read_only')
-ADMIN_MANAGEMENT_ROLES = ('super_admin',)
-EMAIL_OPS_SEND_ROLES = ('super_admin', 'ops', 'revenue')
-OPERATIONS_ROLES = ('super_admin', 'ops')
-CONTENT_REVIEW_ROLES = ('super_admin', 'ops', 'editor')
-AUDIENCE_MANAGEMENT_ROLES = ('super_admin', 'ops', 'revenue')
-ROLE_LABELS = {
-    'super_admin': 'Super Admin',
-    'ops': 'Operations',
-    'editor': 'Editor',
-    'revenue': 'Revenue',
-    'read_only': 'Read Only',
-}
+from utils.auth_constants import (  # moved to utils/auth_constants.py
+    ADMIN_ACCESS_ROLES,
+    ADMIN_MANAGEMENT_ROLES,
+    EMAIL_OPS_SEND_ROLES,
+    OPERATIONS_ROLES,
+    CONTENT_REVIEW_ROLES,
+    AUDIENCE_MANAGEMENT_ROLES,
+    ROLE_LABELS,
+)
 APP_SETTING_SPECS = {
     'admin_login_max_attempts': {
         'label': 'Max failed logins',
