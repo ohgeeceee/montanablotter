@@ -158,7 +158,7 @@ def admin_login():
             session['_csrf_token'] = secrets.token_urlsafe(32)
             from app import User
             login_user(User.from_row(user_row))
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('admin.admin_dashboard'))
 
         conn.close()
         if password_valid and not is_active_account:
