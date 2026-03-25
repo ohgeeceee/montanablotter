@@ -27,6 +27,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
 from agency_normalization import normalize_agency_identity
 import config
+from blueprints.api import register_api_blueprint
 from blueprints.detention import register_detention_blueprint
 from court_tracker import (
     court_admin_context,
@@ -6944,261 +6945,6 @@ def _record_donation_event(event_type, source='', page_path='', amount_cents=Non
         pass
 
 
-@app.route('/api/pattern-click', methods=['POST'])
-def track_pattern_click():
-    payload = request.get_json(silent=True)
-    if payload is None:
-        raw = request.get_data(as_text=True)
-        try:
-            payload = json.loads(raw) if raw else {}
-        except (TypeError, ValueError):
-            payload = {}
-
-    placement = (payload.get('placement') or '').strip()[:80]
-    meta = _pattern_target_meta(payload.get('target_path') or '')
-    if not placement or not meta:
-        return ('', 204)
-
-    ip_hash = hashlib.sha256((request.remote_addr or '').encode()).hexdigest()[:16]
-    referrer = (request.referrer or '')[:500]
-    source_path = (payload.get('source_path') or request.headers.get('X-Source-Path') or '')[:255]
-
-    try:
-        conn = get_db()
-        conn.execute(
-            '''
-            INSERT INTO pattern_clicks (
-                pattern_slug, county_slug, target_path, placement, source_path, ip_hash, referrer
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''',
-            (
-                meta['pattern_slug'],
-                meta['county_slug'],
-                meta['target_path'],
-                placement,
-                source_path,
-                ip_hash,
-                referrer,
-            ),
-        )
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-    return ('', 204)
-
-
-@app.route('/api/subscribe-event', methods=['POST'])
-def track_subscribe_event():
-    payload = request.get_json(silent=True)
-    if payload is None:
-        raw = request.get_data(as_text=True)
-        try:
-            payload = json.loads(raw) if raw else {}
-        except (TypeError, ValueError):
-            payload = {}
-
-    event_type = (payload.get('event_type') or '').strip()
-    if event_type not in {'cta_click', 'form_submit'}:
-        return ('', 204)
-
-    source = payload.get('source') or ''
-    page_path = payload.get('page_path') or request.path
-    _record_subscribe_event(event_type, source=source, page_path=page_path)
-    return ('', 204)
-
-
-@app.route('/api/donate-event', methods=['POST'])
-def track_donate_event():
-    payload = request.get_json(silent=True)
-    if payload is None:
-        raw = request.get_data(as_text=True)
-        try:
-            payload = json.loads(raw) if raw else {}
-        except (TypeError, ValueError):
-            payload = {}
-
-    event_type = (payload.get('event_type') or '').strip()
-    if event_type not in {'donate_view', 'cta_click', 'checkout_start', 'checkout_success', 'checkout_cancel'}:
-        return ('', 204)
-
-    source = payload.get('source') or ''
-    page_path = payload.get('page_path') or request.path
-    amount_cents = payload.get('amount_cents')
-    _record_donation_event(event_type, source=source, page_path=page_path, amount_cents=amount_cents)
-    return ('', 204)
-
-
-@app.route('/api/bail-ads/event', methods=['POST'])
-def track_bail_ad_event():
-    payload = request.get_json(silent=True)
-    if payload is None:
-        raw = request.get_data(as_text=True)
-        try:
-            payload = json.loads(raw) if raw else {}
-        except (TypeError, ValueError):
-            payload = {}
-
-    event_type = (payload.get('event_type') or '').strip().lower()
-    if event_type not in {'impression', 'click', 'lead', 'call', 'text'}:
-        return ('', 204)
-
-    try:
-        order_id = int(payload.get('order_id') or 0)
-    except (TypeError, ValueError):
-        order_id = 0
-    try:
-        slot_id = int(payload.get('slot_id') or 0)
-    except (TypeError, ValueError):
-        slot_id = 0
-    county = (payload.get('county') or '').strip()[:80]
-    source = (payload.get('source') or '').strip()[:80]
-    ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
-    referrer = (request.referrer or '')[:500]
-
-    try:
-        conn = get_db()
-        conn.execute(
-            '''
-            INSERT INTO bail_ad_events (order_id, slot_id, event_type, county, source, ip_hash, referrer)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''',
-            (
-                order_id if order_id > 0 else None,
-                slot_id if slot_id > 0 else None,
-                event_type,
-                county,
-                source,
-                ip_hash,
-                referrer,
-            ),
-        )
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-    return ('', 204)
-
-
-@app.route('/api/bail-ads/simulator-event', methods=['POST'])
-def track_bail_ad_simulator_event():
-    payload = request.get_json(silent=True)
-    if payload is None:
-        raw = request.get_data(as_text=True)
-        try:
-            payload = json.loads(raw) if raw else {}
-        except (TypeError, ValueError):
-            payload = {}
-
-    event_type = (payload.get('event_type') or '').strip().lower()
-    allowed = {
-        'page_view',
-        'logo_upload',
-        'view_switch',
-        'mobile_toggle',
-        'county_switch',
-        'inquiry_sync',
-        'checkout_click',
-        'share_link',
-        'public_preview_open',
-    }
-    if event_type not in allowed:
-        return ('', 204)
-
-    try:
-        conn = get_db()
-        _record_bail_ad_simulator_event(
-            conn,
-            event_type=event_type,
-            source=(payload.get('source') or '').strip()[:80],
-            sim_view=(payload.get('sim_view') or '').strip()[:24],
-            county=(payload.get('county') or '').strip()[:80],
-            agency_name=(payload.get('agency_name') or '').strip()[:120],
-            asset_path=(payload.get('asset_path') or '').strip()[:500],
-            share_url=(payload.get('share_url') or '').strip()[:500],
-            internal_mode=bool(payload.get('internal_mode')),
-        )
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-    return ('', 204)
-
-
-@app.route('/api/bail-ads/simulator-upload', methods=['POST'])
-def upload_bail_ad_simulator_asset():
-    file = request.files.get('file')
-    if not file or not file.filename:
-        return jsonify({'error': 'Image file is required.'}), 400
-    if not _bail_ad_allowed_asset(file.filename):
-        return jsonify({'error': 'Logo file must be PNG, JPG, JPEG, WEBP, or GIF.'}), 400
-
-    content_length = request.content_length or 0
-    if content_length > 5 * 1024 * 1024:
-        return jsonify({'error': 'Logo file must be 5MB or smaller.'}), 413
-
-    safe_name = secure_filename(file.filename)
-    if not safe_name:
-        return jsonify({'error': 'Invalid file name.'}), 400
-
-    token = secrets.token_urlsafe(12)
-    storage_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{token}_{safe_name}"
-    sim_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'bail_ads_simulator')
-    os.makedirs(sim_dir, exist_ok=True)
-    abs_path = os.path.join(sim_dir, storage_name)
-    file.save(abs_path)
-    asset_url = f"/uploads/bail_ads_simulator/{storage_name}"
-
-    try:
-        conn = get_db()
-        _record_bail_ad_simulator_event(
-            conn,
-            event_type='logo_upload',
-            source=(request.form.get('source') or 'ad_simulator').strip()[:80],
-            sim_view=(request.form.get('sim_view') or '').strip()[:24],
-            county=(request.form.get('county') or '').strip()[:80],
-            agency_name=(request.form.get('agency_name') or '').strip()[:120],
-            asset_path=asset_url,
-            internal_mode=(request.form.get('internal_mode') or '').strip().lower() in {'1', 'true', 'yes'},
-        )
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-
-    return jsonify({'ok': True, 'asset_url': asset_url})
-
-
-@app.route('/api/bail-leads/event', methods=['POST'])
-def track_bail_consumer_event():
-    payload = request.get_json(silent=True)
-    if payload is None:
-        raw = request.get_data(as_text=True)
-        try:
-            payload = json.loads(raw) if raw else {}
-        except (TypeError, ValueError):
-            payload = {}
-
-    event_type = (payload.get('event_type') or '').strip().lower()
-    if event_type not in {'directory_view', 'form_view', 'form_submit', 'call_click', 'text_click', 'chat_click'}:
-        return ('', 204)
-
-    county = _normalize_bail_county((payload.get('county') or '').strip()[:80])
-    source = (payload.get('source') or '').strip()[:80]
-    conn = None
-    try:
-        conn = get_db()
-        _ensure_bail_consumer_lead_schema(conn)
-        _record_bail_consumer_event(conn, event_type, county=county, source=source)
-        conn.commit()
-    except Exception:
-        pass
-    finally:
-        if conn is not None:
-            conn.close()
-    return ('', 204)
-
-
 # ==========================================
 # PUBLIC ROUTES (No Login Required)
 # ==========================================
@@ -7903,127 +7649,6 @@ def donate():
         active_nav='donate',
         current_year=datetime.now().year,
     )
-
-
-@app.route('/api/donate/create-checkout-session', methods=['POST'])
-def donate_create_checkout_session():
-    if not _donations_enabled():
-        return jsonify({'error': 'Donations are currently unavailable'}), 503
-    if not _stripe_ready_for_checkout():
-        return jsonify({'error': 'Payment provider is not configured'}), 503
-
-    payload = request.get_json(silent=True)
-    if payload is None:
-        payload = request.form.to_dict() if request.form else {}
-
-    mode = (payload.get('mode') or 'one_time').strip().lower()
-    if mode not in {'one_time', 'monthly'}:
-        return jsonify({'error': 'Invalid donation mode'}), 400
-
-    try:
-        amount_cents = int(payload.get('amount_cents'))
-    except (TypeError, ValueError):
-        return jsonify({'error': 'Invalid donation amount'}), 400
-
-    min_cents = _donation_min_cents()
-    max_cents = _donation_max_cents()
-    if amount_cents < min_cents or amount_cents > max_cents:
-        return jsonify({'error': 'Donation amount out of allowed range'}), 400
-
-    public_user = _get_public_user()
-    source = (payload.get('source') or 'donate_page').strip()[:80]
-    donor_name = (payload.get('name') or '').strip()[:120]
-    email = (payload.get('email') or '').strip().lower()
-    if not donor_name and public_user:
-        donor_name = (public_user.display_name or '').strip()[:120]
-    if not email and public_user:
-        email = (public_user.email or '').strip().lower()
-    if email and '@' not in email:
-        email = ''
-
-    currency = _donation_currency()
-    stripe_keys = _stripe_keys()
-    stripe.api_key = stripe_keys['secret_key']
-
-    line_item = {
-        'price_data': {
-            'currency': currency,
-            'product_data': {'name': 'Montana Blotter Donation'},
-            'unit_amount': amount_cents,
-        },
-        'quantity': 1,
-    }
-    if mode == 'monthly':
-        line_item['price_data']['recurring'] = {'interval': 'month'}
-
-    checkout_params = {
-        'mode': 'subscription' if mode == 'monthly' else 'payment',
-        'line_items': [line_item],
-        'success_url': f'{BASE_URL}/donate/success?session_id={{CHECKOUT_SESSION_ID}}',
-        'cancel_url': f'{BASE_URL}/donate/cancel',
-        'billing_address_collection': 'auto',
-        'allow_promotion_codes': True,
-        'metadata': {
-            'source': source,
-            'mode': mode,
-            'amount_cents': str(amount_cents),
-            'donor_name': donor_name,
-            'public_user_id': str(public_user.id) if public_user else '',
-            'feature_gate': 'bondsman_command_center' if _is_bondsman_subscription_source(source) else '',
-        },
-    }
-    if email:
-        checkout_params['customer_email'] = email
-
-    try:
-        checkout_session = stripe.checkout.Session.create(**checkout_params)
-    except Exception:
-        return jsonify({'error': 'Unable to start secure checkout'}), 502
-
-    try:
-        conn = get_db()
-        conn.execute(
-            '''
-            INSERT INTO donations (
-                provider, mode, status, amount_cents, currency, email_hash, donor_name,
-                source, provider_session_id, provider_payment_intent_id, provider_subscription_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(provider_session_id) DO UPDATE SET
-                mode = excluded.mode,
-                status = excluded.status,
-                amount_cents = excluded.amount_cents,
-                currency = excluded.currency,
-                email_hash = excluded.email_hash,
-                donor_name = excluded.donor_name,
-                source = excluded.source,
-                provider_payment_intent_id = excluded.provider_payment_intent_id,
-                provider_subscription_id = excluded.provider_subscription_id,
-                updated_at = datetime('now')
-            ''',
-            (
-                'stripe',
-                mode,
-                'pending',
-                amount_cents,
-                currency,
-                _donation_email_hash(email),
-                donor_name,
-                source,
-                checkout_session.get('id'),
-                checkout_session.get('payment_intent'),
-                checkout_session.get('subscription'),
-            ),
-        )
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-
-    _record_donation_event('checkout_start', source=source, page_path='/donate', amount_cents=amount_cents)
-    return jsonify({
-        'checkout_url': checkout_session.get('url'),
-        'session_id': checkout_session.get('id'),
-    })
 
 
 @app.route('/webhooks/stripe', methods=['POST'])
@@ -11471,8 +11096,8 @@ def advertise_bail_bonds():
         'initialTargetUrl': (request.args.get('target_url') or request.args.get('website_url') or form_data.get('website_url') or '').strip()[:300],
         'publicPreviewBaseUrl': url_for('advertise_bail_bonds'),
         'checkoutBaseUrl': url_for('advertise_bail_bonds_checkout'),
-        'uploadEndpoint': url_for('upload_bail_ad_simulator_asset'),
-        'eventEndpoint': url_for('track_bail_ad_simulator_event'),
+        'uploadEndpoint': url_for('api.upload_bail_ad_simulator_asset'),
+        'eventEndpoint': url_for('api.track_bail_ad_simulator_event'),
         'internalMode': False,
         'allowInquirySync': True,
     }
@@ -12010,17 +11635,6 @@ def advertise_bail_onboarding(token):
     )
 
 
-@app.route('/developers/api')
-@app.route('/api/docs')
-def developers_api():
-    return render_template(
-        'api_docs.html',
-        base_url=BASE_URL.rstrip('/'),
-        active_nav='api',
-        current_year=datetime.now().year,
-    )
-
-
 @app.route('/terms')
 def terms():
     return redirect(url_for('terms_of_use'), code=301)
@@ -12116,6 +11730,7 @@ def blog_post(slug):
 # ==========================================
 from blueprints.admin import register_admin_blueprint
 register_admin_blueprint(app)
+register_api_blueprint(app)
 
 
 
