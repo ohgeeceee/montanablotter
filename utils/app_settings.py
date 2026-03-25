@@ -65,7 +65,7 @@ def _save_app_setting(conn, key: str, value) -> None:
         VALUES (?, ?, datetime('now'))
         ON CONFLICT(key) DO UPDATE SET
             value = excluded.value,
-            updated_at = datetime('now')
+            updated_at = excluded.updated_at
         ''',
         (key, stored_value),
     )
