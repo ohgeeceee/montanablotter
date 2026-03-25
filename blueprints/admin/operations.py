@@ -27,12 +27,6 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 # These helpers live in app.py and will be moved out in a later phase.
 # ---------------------------------------------------------------------------
 
-def _app_helpers():
-    """Return a dict of helpers borrowed from app.py."""
-    import app as _app_module
-    return _app_module
-
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
