@@ -7,7 +7,7 @@ from flask import Blueprint, abort, has_request_context, redirect, request, url_
 from flask_login import current_user
 
 from db import get_db
-from utils.auth_constants import ADMIN_ACCESS_ROLES
+from utils.auth_constants import ADMIN_ACCESS_ROLES  # noqa: F401 — re-exported for sub-modules
 
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
