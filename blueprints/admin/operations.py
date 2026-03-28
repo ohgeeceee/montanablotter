@@ -399,11 +399,8 @@ def admin_jail_booking_status(booking_id):
 @admin_bp.route('/facebook', methods=['GET', 'POST'])
 @login_required
 def admin_facebook():
-    import app as _app_module
-
     if request.method == 'POST':
         action = (request.form.get('action') or '').strip()
-        next_target = _app_module._safe_redirect_target(request.form.get('next') or '')
 
         if action == 'save_settings':
             settings = save_facebook_settings({
@@ -528,7 +525,7 @@ def admin_facebook():
         else:
             flash('Unknown Facebook action.')
 
-        return redirect(next_target or url_for('admin.admin_facebook'))
+        return redirect(url_for('admin.admin_facebook'))
 
     conn = get_db()
     settings = load_facebook_settings(conn)
