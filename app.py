@@ -32,6 +32,7 @@ from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
 from blueprints.detention import register_detention_blueprint
+from blueprints.recovery_ads import recovery_ads_bp
 from court_tracker import (
     court_admin_context,
     court_case_detail,
@@ -67,7 +68,7 @@ app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 BASE_URL = config.BASE_URL
 WINTER_STORM_SUPPORT_BANNER_DEFAULTS = {
-    'enabled': True,
+    'enabled': False,
     'label': 'Winter Storm Support',
     'headline': 'Help fund Montana winter storm coverage',
     'body': 'Support dispatch monitoring, county emergency follow-up, and fast public-records coverage during severe weather.',
@@ -10757,10 +10758,7 @@ register_admin_blueprint(app)
 register_api_blueprint(app)
 register_auth_blueprint(app)
 register_payments_blueprint(app)
-
-from blueprints.recovery_ads import recovery_ads_bp
 app.register_blueprint(recovery_ads_bp)
-
 
 
 @app.route('/admin/analytics')
