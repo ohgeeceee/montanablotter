@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="facebook-domain-verification" content="hov8m0bh6slqwz6y1guh07p5cect0h" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,6 +32,9 @@
     <meta name="theme-color" content="#D4892A">
     <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
     {% block extra_head %}{% endblock %}
+    {% if recaptcha_site_key %}
+    <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
+    {% endif %}
 </head>
 <body style="background:#0D0C0B; color:#E8DFD0; font-family:'Spectral',Georgia,serif; min-height:100vh;">
     {% include "includes/public_official_banner.html" %}
@@ -177,27 +181,34 @@
     {% block content %}{% endblock %}
     </div>
 
-    <footer class="bg-slate-900 text-slate-400 text-center text-xs py-6 mt-10">
-        <div class="max-w-6xl mx-auto px-4">
-            {% if footer_featured_city_items %}
-            <div class="mb-5">
-                <p class="text-[10px] font-black uppercase tracking-[0.22em] text-blue-300 mb-3">New City Pages</p>
-                <div class="flex flex-wrap justify-center gap-2.5">
-                    {% for item in footer_featured_city_items %}
-                    <a href="{{ item.href }}" class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 hover:border-blue-400 hover:text-white transition">
-                        <span>{{ item.label }}</span>
-                        <span class="text-slate-500">{{ item.county }}</span>
-                    </a>
+    <footer style="background:#161513; border-top:1px solid #282420; margin-top:32px;">
+        <div class="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row md:justify-between gap-6 items-start">
+            <div>
+                <h4 style="font-family:'Playfair Display',Georgia,serif; font-weight:700; color:#E8DFD0; font-size:1.1rem; margin-bottom:8px;">The Montana Blotter</h4>
+                <p style="color:#B1A28E; font-size:0.8rem; line-height:1.6; max-width:280px;">
+                    Free aggregation of Montana law enforcement blotters. Public safety information for everyone.
+                </p>
+                {% if footer_featured_city_items %}
+                <div style="margin-top:16px;">
+                    <p style="font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.2em; color:#D4892A; font-size:0.55rem; font-weight:700; margin-bottom:10px;">New City Pages</p>
+                    <div class="flex flex-wrap gap-2">
+                        {% for item in footer_featured_city_items %}
+                        <a href="{{ item.href }}" style="font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.1em; background:rgba(255,255,255,0.03); border:1px solid #282420; color:#8A7F72; font-size:0.52rem; text-decoration:none; padding:4px 10px; border-radius:4px; transition:opacity .15s;">{{ item.label }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="flex flex-col gap-3 items-start md:items-end">
+                <div class="flex flex-wrap gap-4">
+                    {% for item in public_footer_items %}
+                    <a href="{{ item.href }}" style="font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.1em; color:#8A7F72; font-size:0.6rem; text-decoration:none; transition:opacity .15s;" onmouseover="this.style.color='#E8DFD0'" onmouseout="this.style.color='#8A7F72'">{{ item.label }}</a>
                     {% endfor %}
                 </div>
+                <p style="font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.1em; color:#5F564C; font-size:0.55rem;">
+                    &copy; {{ current_year }} Montana Blotter &middot; Free Public Records
+                </p>
             </div>
-            {% endif %}
-        <p>&copy; {{ current_year }} Montana Blotter &mdash; Public safety transparency for Montana communities.</p>
-        <div class="flex justify-center gap-6 mt-3 flex-wrap">
-            {% for item in public_footer_items %}
-            <a href="{{ item.href }}" class="hover:text-white transition">{{ item.label }}</a>
-            {% endfor %}
-        </div>
         </div>
     </footer>
 
