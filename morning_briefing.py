@@ -11,9 +11,12 @@ from email.mime.text import MIMEText
 from html import escape
 import re
 import smtplib
+import json
 import sqlite3
 
 import config
+import anthropic
+from utils.app_settings import _save_app_setting
 from alerting import collect_alert_recipients, send_plaintext_email as _send_admin_alert
 
 ADMIN_EMAIL = "ohjoncurrie@gmail.com"
@@ -245,9 +248,105 @@ def send_email(to_addr, subject, html_body):
         server.sendmail(smtp_user, to_addr, msg.as_string())
 
 
+_CRISIS_BANNER_EVERGREEN_HEADLINE = "Support Montana public safety journalism"
+_CRISIS_BANNER_EVERGREEN_BODY = (
+    "Help fund ongoing dispatch monitoring, records coverage, "
+    "and county-by-county reporting across Montana."
+)
+
+_CRISIS_BANNER_PROMPT = """\
+You are an editor for Montana Blotter, a Montana public safety news site.
+
+Review these law enforcement blotter summaries from yesterday and determine if \
+there is an active public safety crisis that readers should know about. \
+Crises include: wildfires, floods, winter storms, major search-and-rescue \
+operations, missing persons, or other significant public safety emergencies \
+affecting Montana communities.
+
+Respond ONLY with valid JSON in this exact format:
+{{
+  "crisis_detected": true or false,
+  "crisis_type": "brief crisis type or null",
+  "headline": "Banner headline, max 80 characters",
+  "body": "Banner body, max 160 characters"
+}}
+
+If no crisis is detected, set crisis_detected to false and write an evergreen \
+message encouraging readers to support Montana public safety coverage.
+
+Blotter summaries:
+{summaries}"""
+
+
+def _update_crisis_banner(posts, conn=None):
+    """Call Claude to detect crises in yesterday's posts and update the banner settings.
+
+    If posts is empty, writes the evergreen message without calling the API.
+    If the API call fails or returns bad JSON, leaves existing settings unchanged.
+    Always sets winter_storm_banner_enabled to '1'.
+    """
+    own_conn = conn is None
+    if own_conn:
+        conn = get_db()
+
+    try:
+        if not posts:
+            _save_app_setting(conn, "winter_storm_banner_enabled", "1")
+            _save_app_setting(conn, "winter_storm_banner_headline", _CRISIS_BANNER_EVERGREEN_HEADLINE)
+            _save_app_setting(conn, "winter_storm_banner_body", _CRISIS_BANNER_EVERGREEN_BODY)
+            conn.commit()
+            print("Banner updated: no posts — wrote evergreen message.")
+            return
+
+        # Build compact text blob (cap at 3000 chars to stay within token budget)
+        lines = []
+        for p in posts:
+            title = (p["title"] or "").strip()
+            summary = (p["summary"] or "").strip()
+            if title or summary:
+                lines.append(f"- {title}: {summary}" if title else f"- {summary}")
+        summaries_text = "\n".join(lines)[:3000]
+
+        api_key = getattr(config, "ANTHROPIC_API_KEY", None)
+        if not api_key:
+            print("Banner update skipped: no ANTHROPIC_API_KEY configured.")
+            return
+
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=256,
+            messages=[
+                {
+                    "role": "user",
+                    "content": _CRISIS_BANNER_PROMPT.format(summaries=summaries_text),
+                }
+            ],
+        )
+        raw = message.content[0].text.strip()
+        data = json.loads(raw)
+
+        headline = str(data.get("headline") or _CRISIS_BANNER_EVERGREEN_HEADLINE)[:80]
+        body = str(data.get("body") or _CRISIS_BANNER_EVERGREEN_BODY)[:160]
+
+        _save_app_setting(conn, "winter_storm_banner_enabled", "1")
+        _save_app_setting(conn, "winter_storm_banner_headline", headline)
+        _save_app_setting(conn, "winter_storm_banner_body", body)
+        conn.commit()
+
+        crisis_type = data.get("crisis_type") or "none"
+        print(f"Banner updated: crisis_detected={data.get('crisis_detected')}, type={crisis_type}")
+
+    except Exception as e:
+        print(f"Banner update failed (settings unchanged): {e}")
+    finally:
+        if own_conn:
+            conn.close()
+
+
 def run_briefing():
     yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    subject = f"Montana Blotter Briefing – {datetime.now().strftime('%b %d, %Y')}"
+    subject = f"Montana Blotter Briefing – {datetime.now().strftime('%b %d, %Y')}".replace('\r', '').replace('\n', '')
 
     # --- Admin briefing (all counties) ---
     posts = get_posts_for_date(yesterday)
@@ -320,6 +419,7 @@ def run_briefing():
                 post_count=len(sub_posts),
             )
         except Exception as e:
+            logging.error(f"Failed to send briefing to {sub['email']}: {e}")
             print(f"Failed to send to {sub['email']}: {e}")
             failed += 1
             _record_digest_recipient(
@@ -350,6 +450,9 @@ def run_briefing():
     run_conn.close()
 
     print(f"Subscriber briefings: {sent} sent, {skipped} skipped, {failed} failed")
+
+    # Update the top-of-site banner based on today's blotter content
+    _update_crisis_banner(posts)
 
 
 if __name__ == "__main__":
