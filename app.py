@@ -12,6 +12,7 @@ import hmac
 import secrets
 import smtplib
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import defaultdict
 from functools import wraps
@@ -1043,7 +1044,10 @@ def apply_security_headers(response):
 
 @app.context_processor
 def inject_csrf_token():
-    return {'csrf_token': _csrf_token}
+    return {
+        'csrf_token': _csrf_token,
+        'recaptcha_site_key': config.RECAPTCHA_SITE_KEY if config.RECAPTCHA_ENABLED else '',
+    }
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -1121,6 +1125,42 @@ class PublicUser:
             is_active=bool(row['is_active']) if 'is_active' in row.keys() else True,
             last_login_at=row['last_login_at'] if 'last_login_at' in row.keys() else None,
         )
+
+
+def verify_recaptcha(token: str, action: str = '') -> bool:
+    """Verify a reCAPTCHA v3 token.  Returns True when verification passes or reCAPTCHA is disabled."""
+    if not config.RECAPTCHA_ENABLED:
+        return True
+    if not token:
+        return False
+    try:
+        payload = urllib.parse.urlencode({
+            'secret': config.RECAPTCHA_SECRET_KEY,
+            'response': token,
+        }).encode()
+        req = urllib.request.Request(
+            'https://www.google.com/recaptcha/api/siteverify',
+            data=payload,
+            method='POST',
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            result = json.loads(resp.read().decode())
+        if not result.get('success'):
+            app.logger.warning('reCAPTCHA verification failed: %s', result.get('error-codes'))
+            return False
+        score = result.get('score', 0)
+        if score < config.RECAPTCHA_SCORE_THRESHOLD:
+            app.logger.info('reCAPTCHA score %.2f below threshold %.2f (action=%s)',
+                            score, config.RECAPTCHA_SCORE_THRESHOLD, action)
+            return False
+        if action and result.get('action') != action:
+            app.logger.warning('reCAPTCHA action mismatch: expected=%s got=%s', action, result.get('action'))
+            return False
+        return True
+    except Exception as e:
+        app.logger.error('reCAPTCHA verification error: %s', e)
+        # Fail open — don't block users if Google is unreachable
+        return True
 
 
 def _safe_next_url(raw_value, fallback='/'):
@@ -1337,6 +1377,10 @@ def _public_meetings_href():
 
 
 def _client_ip():
+    # Cloudflare sets CF-Connecting-IP to the real visitor IP
+    cf_ip = request.headers.get('CF-Connecting-IP', '').strip()
+    if cf_ip:
+        return cf_ip
     forwarded = request.headers.get('X-Forwarded-For', '')
     if forwarded:
         return forwarded.split(',')[0].strip()
@@ -5775,6 +5819,7 @@ def inject_public_nav():
         {'href': '/jail-bookings', 'label': 'New Bookings'},
         {'href': '/bondsman/command-center', 'label': 'Command Center'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
+        {'href': '/recovery-centers', 'label': 'Recovery Centers'},
         {'href': '/subscribe', 'label': 'Subscribe'},
         {'href': '#modal-standards', 'label': 'Standards'},
         {'href': '#modal-corrections', 'label': 'Corrections'},
@@ -5892,7 +5937,7 @@ def track_page_view():
         '/sitemap-charges.xml',
     ):
         return
-    ip_hash = hashlib.sha256((request.remote_addr or '').encode()).hexdigest()[:16]
+    ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
     referrer = (request.referrer or '')[:500]
     try:
         conn = get_db()
@@ -5913,7 +5958,7 @@ def _record_subscribe_event(event_type, source='', page_path='', email=''):
     safe_source = (source or '').strip()[:80]
     safe_path = (page_path or request.path or '')[:255]
     referrer = (request.referrer or '')[:500]
-    ip_hash = hashlib.sha256((request.remote_addr or '').encode()).hexdigest()[:16]
+    ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
     email_hash = ''
     if email:
         email_hash = hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]
@@ -6404,29 +6449,36 @@ def _subscriber_admin_context(conn, q='', status_filter='active', county_filter=
 
 
 def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
+    import logging
+    log = logging.getLogger(__name__)
+
     date_from = (date_from or '').strip()
     date_to = (date_to or '').strip()
     path_prefix = (path_prefix or '').strip()[:120]
 
+    # --- Build WHERE clauses ---
+    # Use raw created_at comparisons (no date() wrapper) so indexes work.
+    # Default to 7 days for page_views (table is very large) and 30 days for records.
     date_where = []
     date_params = []
     if date_from:
-        date_where.append("date(created_at) >= date(?)")
+        date_where.append("created_at >= ?")
         date_params.append(date_from)
     if date_to:
-        date_where.append("date(created_at) <= date(?)")
+        date_where.append("created_at < date(?, '+1 day')")
         date_params.append(date_to)
 
     record_where_sql = f"WHERE {' AND '.join(date_where)}" if date_where else "WHERE created_at >= date('now', '-30 days')"
     page_view_where = list(date_where)
     page_view_params = list(date_params)
     if not date_where:
-        page_view_where.append("created_at >= date('now', '-30 days')")
+        page_view_where.append("created_at >= date('now', '-7 days')")
     if path_prefix:
         page_view_where.append("path LIKE ?")
         page_view_params.append(f'{path_prefix}%')
     page_view_where_sql = f"WHERE {' AND '.join(page_view_where)}"
 
+    # --- Content queries (records/posts/blotters — small tables, always safe) ---
     daily_rows = conn.execute(
         f'''
         SELECT date(created_at) AS day, COUNT(*) AS cnt
@@ -6462,41 +6514,53 @@ def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
         LIMIT 12
         '''
     ).fetchall()
-    page_daily_rows = conn.execute(
-        f'''
-        SELECT date(created_at) AS day, COUNT(*) AS cnt
-        FROM page_views
-        {page_view_where_sql}
-        GROUP BY day ORDER BY day
-        ''',
-        page_view_params,
-    ).fetchall()
-    top_pages = conn.execute(
-        f'''
-        SELECT path, COUNT(*) AS cnt
-        FROM page_views
-        {page_view_where_sql}
-        GROUP BY path ORDER BY cnt DESC, path ASC LIMIT 12
-        ''',
-        page_view_params,
-    ).fetchall()
-    top_referrers = conn.execute(
-        f'''
-        SELECT referrer, COUNT(*) AS cnt
-        FROM page_views
-        {page_view_where_sql} AND referrer != ''
-        GROUP BY referrer ORDER BY cnt DESC, referrer ASC LIMIT 12
-        ''',
-        page_view_params,
-    ).fetchall()
-    total_page_views = conn.execute(
-        f'SELECT COUNT(*) FROM page_views {page_view_where_sql}',
-        page_view_params,
-    ).fetchone()[0]
-    unique_visitors = conn.execute(
-        f"SELECT COUNT(DISTINCT ip_hash) FROM page_views {page_view_where_sql}",
-        page_view_params,
-    ).fetchone()[0]
+
+    # --- Traffic queries (page_views — large table, wrapped in try/except) ---
+    page_daily_rows = []
+    top_pages = []
+    top_referrers = []
+    total_page_views = 0
+    unique_visitors = 0
+    try:
+        total_page_views = conn.execute(
+            f'SELECT COUNT(*) FROM page_views {page_view_where_sql}',
+            page_view_params,
+        ).fetchone()[0]
+        page_daily_rows = conn.execute(
+            f'''
+            SELECT date(created_at) AS day, COUNT(*) AS cnt
+            FROM page_views
+            {page_view_where_sql}
+            GROUP BY day ORDER BY day
+            ''',
+            page_view_params,
+        ).fetchall()
+        top_pages = conn.execute(
+            f'''
+            SELECT path, COUNT(*) AS cnt
+            FROM page_views INDEXED BY idx_page_views_created_path
+            {page_view_where_sql}
+            GROUP BY path ORDER BY cnt DESC, path ASC LIMIT 12
+            ''',
+            page_view_params,
+        ).fetchall()
+        top_referrers = conn.execute(
+            f'''
+            SELECT referrer, COUNT(*) AS cnt
+            FROM page_views INDEXED BY idx_page_views_created_referrer
+            {page_view_where_sql} AND referrer != ''
+            GROUP BY referrer ORDER BY cnt DESC, referrer ASC LIMIT 12
+            ''',
+            page_view_params,
+        ).fetchall()
+        unique_visitors = conn.execute(
+            f"SELECT COUNT(DISTINCT ip_hash) FROM page_views INDEXED BY idx_page_views_created_ip {page_view_where_sql}",
+            page_view_params,
+        ).fetchone()[0]
+    except Exception as e:
+        log.error("Analytics traffic query failed: %s", e)
+
+    # --- Pattern queries ---
     pattern_rows = conn.execute(
         '''
         SELECT placement, COUNT(*) AS cnt
@@ -6507,10 +6571,10 @@ def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
         ''',
     ).fetchall()
     homepage_page_views_30d = conn.execute(
-        "SELECT COUNT(*) FROM page_views WHERE path = '/' AND created_at >= date('now', '-30 days')"
+        "SELECT COUNT(*) FROM page_views WHERE path = '/' AND created_at >= date('now', '-7 days')"
     ).fetchone()[0]
     homepage_pattern_clicks_30d = conn.execute(
-        "SELECT COUNT(*) FROM pattern_clicks WHERE placement = 'homepage_pattern_promos' AND created_at >= date('now', '-30 days')"
+        "SELECT COUNT(*) FROM pattern_clicks WHERE placement = 'homepage_pattern_promos' AND created_at >= date('now', '-7 days')"
     ).fetchone()[0]
 
     return {
@@ -6921,7 +6985,7 @@ def _record_donation_event(event_type, source='', page_path='', amount_cents=Non
     safe_source = (source or '').strip()[:80]
     safe_path = (page_path or request.path or '')[:255]
     referrer = (request.referrer or '')[:500]
-    ip_hash = hashlib.sha256((request.remote_addr or '').encode()).hexdigest()[:16]
+    ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
     amount_value = None
     if amount_cents is not None:
         try:
@@ -7682,6 +7746,15 @@ def subscribe():
     source = source or 'subscribe_page'
 
     if request.method == 'POST':
+        # reCAPTCHA v3 verification
+        recaptcha_token = request.form.get('g-recaptcha-response', '')
+        if not verify_recaptcha(recaptcha_token, action='subscribe'):
+            conn.close()
+            return render_template('subscribe.html', counties=all_counties,
+                                   source=source,
+                                   error='Security verification failed. Please try again.',
+                                   current_year=datetime.now().year)
+
         email = request.form.get('email', '').strip().lower()
         selected = request.form.getlist('counties')  # empty list = all counties
         _record_subscribe_event('form_submit', source=source, page_path=request.path, email=email)
@@ -10684,6 +10757,9 @@ register_admin_blueprint(app)
 register_api_blueprint(app)
 register_auth_blueprint(app)
 register_payments_blueprint(app)
+
+from blueprints.recovery_ads import recovery_ads_bp
+app.register_blueprint(recovery_ads_bp)
 
 
 
