@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Recovery Center Ads — Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <h1>Recovery Center Advertising</h1>
+
+  <div style="display:flex;gap:1.5rem;margin-bottom:2rem;flex-wrap:wrap;">
+    <div style="background:#f0f7f4;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#1a6b3c;">{{ active_count }}</div>
+      <div style="color:#666;font-size:.85rem;">Active Listings</div>
+    </div>
+    <div style="background:#f0f7f4;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#1a6b3c;">${{ '{:,.0f}'.format(mrr_cents / 100) }}</div>
+      <div style="color:#666;font-size:.85rem;">MRR</div>
+    </div>
+    {% for tier, count in tier_counts.items() %}
+    <div style="background:#f8f8f8;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:100px;">
+      <div style="font-size:1.5rem;font-weight:700;">{{ count }}</div>
+      <div style="color:#666;font-size:.85rem;">{{ tier|capitalize }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <form method="GET" style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search center, email..." style="padding:.5rem .75rem;border:1px solid #ccc;border-radius:4px;flex:1;min-width:200px;">
+    <select name="status" style="padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      <option value="all" {% if status_filter=='all' %}selected{% endif %}>All statuses</option>
+      <option value="active" {% if status_filter=='active' %}selected{% endif %}>Active</option>
+      <option value="pending" {% if status_filter=='pending' %}selected{% endif %}>Pending</option>
+      <option value="cancelled" {% if status_filter=='cancelled' %}selected{% endif %}>Cancelled</option>
+      <option value="inactive" {% if status_filter=='inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+    <button type="submit" style="padding:.5rem 1rem;background:#1a6b3c;color:#fff;border:none;border-radius:4px;cursor:pointer;">Filter</button>
+  </form>
+
+  <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+    <thead>
+      <tr style="border-bottom:2px solid #ddd;text-align:left;">
+        <th style="padding:.5rem;">Center</th>
+        <th>Package</th>
+        <th>Status</th>
+        <th>Signed Up</th>
+        <th>Impr / Clicks</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:.6rem .5rem;">
+          <strong>{{ order.center_name }}</strong><br>
+          <small style="color:#666;">{{ order.email }}</small>
+        </td>
+        <td>{{ package_lookup.get(order.package_id, {}).get('name', order.package_id) }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('admin.admin_recovery_ads_order_status', order_id=order.id) }}" style="display:inline;">
+            <select name="status" onchange="this.form.submit()" style="font-size:.85rem;padding:.2rem;">
+              {% for s in ['pending','active','inactive','cancelled'] %}
+              <option value="{{ s }}" {% if order.status==s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+        <td style="font-size:.85rem;color:#666;">{{ order.created_at[:10] if order.created_at else '—' }}</td>
+        <td style="font-size:.85rem;">{{ order.impressions or 0 }} / {{ order.clicks or 0 }}</td>
+        <td>
+          <a href="{{ url_for('admin.admin_recovery_ads_cms', order_id=order.id) }}" style="color:#1a6b3c;font-size:.85rem;">Edit listing</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="padding:2rem;text-align:center;color:#666;">No orders found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

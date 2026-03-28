@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Recovery Center Listing Checkout — Montana Blotter{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:600px;margin:0 auto;padding:2rem 1rem;">
+  <h1 style="margin-bottom:1.5rem;">Complete Your Listing</h1>
+
+  {% if form_errors %}
+  <div style="background:#fff0f0;border:1px solid #f00;border-radius:4px;padding:1rem;margin-bottom:1.5rem;">
+    {% for e in form_errors %}<p style="margin:.25rem 0;color:#c00;">{{ e }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="POST">
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Recovery Center Name *</label>
+      <input type="text" name="center_name" value="{{ form_data.center_name }}" required maxlength="120" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Contact Name *</label>
+      <input type="text" name="contact_name" value="{{ form_data.contact_name }}" required maxlength="120" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Email *</label>
+      <input type="email" name="email" value="{{ form_data.email }}" required maxlength="160" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Phone *</label>
+      <input type="tel" name="phone" value="{{ form_data.phone }}" required maxlength="40" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Website</label>
+      <input type="url" name="website" value="{{ form_data.website }}" maxlength="300" placeholder="https://" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.5rem;">Package *</label>
+      {% for pkg in packages %}
+      <label style="display:flex;align-items:center;gap:.75rem;padding:.75rem;border:1px solid #ddd;border-radius:4px;margin-bottom:.5rem;cursor:pointer;">
+        <input type="radio" name="package_id" value="{{ pkg.id }}" {% if form_data.package_id == pkg.id %}checked{% endif %} required>
+        <span><strong>{{ pkg.name }}</strong> — {{ pkg.price_label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.5rem;">Billing Cycle</label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="radio" name="billing_cycle" value="monthly" {% if form_data.billing_cycle != 'annual' %}checked{% endif %}> Monthly
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+        <input type="radio" name="billing_cycle" value="annual"> Annual (save ~15%)
+      </label>
+    </div>
+
+    <div style="margin-bottom:1.5rem;padding:1rem;background:#f8f8f8;border-radius:4px;">
+      <label style="display:flex;align-items:flex-start;gap:.5rem;cursor:pointer;">
+        <input type="checkbox" name="terms_ack" value="yes" style="margin-top:.2rem;" required>
+        <span style="font-size:.9rem;">I accept the Montana Blotter advertising terms and authorize recurring billing for the selected package.</span>
+      </label>
+    </div>
+
+    <button type="submit" style="width:100%;padding:.875rem;background:#1a6b3c;color:#fff;border:none;border-radius:4px;font-size:1rem;font-weight:600;cursor:pointer;">Continue to Secure Payment →</button>
+  </form>
+
+  <p style="text-align:center;margin-top:1.5rem;">
+    <a href="{{ url_for('recovery_ads.advertise_recovery') }}" style="color:#1a6b3c;">← Back to packages</a>
+  </p>
+</div>
+{% endblock %}

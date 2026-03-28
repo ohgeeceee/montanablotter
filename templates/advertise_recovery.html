@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Advertise Your Recovery Center — Montana Blotter{% endblock %}
+{% block meta_description %}Reach families and individuals seeking recovery support in Montana. List your treatment center in the Montana Blotter recovery directory.{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:860px;margin:0 auto;padding:2rem 1rem;">
+  <h1 style="margin-bottom:.5rem;">Reach People Seeking Recovery in Montana</h1>
+  <p style="color:#555;margin-bottom:2.5rem;">Montana Blotter serves families and individuals navigating the criminal justice system. Many are actively looking for treatment and recovery resources. List your center and be found when it matters most.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-bottom:3rem;">
+    {% for pkg in packages %}
+    <div style="border:{% if pkg.highlight %}2px solid #c9a227{% else %}1px solid #ddd{% endif %};border-radius:8px;padding:1.5rem;background:{% if pkg.highlight %}#fffdf0{% else %}#fff{% endif %};position:relative;">
+      {% if pkg.highlight %}<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#c9a227;color:#fff;padding:.2rem .8rem;border-radius:12px;font-size:.8rem;font-weight:600;">MOST POPULAR</div>{% endif %}
+      <h3 style="margin:0 0 .5rem;">{{ pkg.name }}</h3>
+      <p style="font-size:1.5rem;font-weight:700;margin:.5rem 0;">{{ pkg.price_label }}</p>
+      <p style="font-size:.8rem;color:#888;margin-bottom:1rem;">or {{ pkg.price_label_annual }} billed annually</p>
+      <p style="color:#555;font-size:.9rem;margin-bottom:1rem;">{{ pkg.short_description }}</p>
+      <ul style="list-style:none;padding:0;margin:0 0 1.5rem;font-size:.9rem;">
+        {% for f in pkg.features %}
+        <li style="padding:.3rem 0;border-bottom:1px solid #f0f0f0;">✓ {{ f }}</li>
+        {% endfor %}
+      </ul>
+      <a href="{{ url_for('recovery_ads.advertise_recovery_checkout', package=pkg.id) }}" style="display:block;text-align:center;background:#1a6b3c;color:#fff;padding:.75rem 1rem;border-radius:4px;text-decoration:none;font-weight:600;">Get Started</a>
+    </div>
+    {% endfor %}
+  </div>
+
+  <p style="text-align:center;color:#666;font-size:.9rem;">Questions? Contact us at <a href="mailto:{{ support_email }}" style="color:#1a6b3c;">{{ support_email }}</a></p>
+</div>
+{% endblock %}

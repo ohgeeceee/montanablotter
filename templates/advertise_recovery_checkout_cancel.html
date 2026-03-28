@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Checkout Cancelled — Montana Blotter{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:600px;margin:0 auto;padding:3rem 1rem;text-align:center;">
+  <h1 style="color:#555;">Checkout Cancelled</h1>
+  <p style="color:#666;margin-bottom:2rem;">No charge was made. You can review packages and try again whenever you're ready.</p>
+  <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+    <a href="{{ url_for('recovery_ads.advertise_recovery') }}" style="background:#1a6b3c;color:#fff;padding:.75rem 2rem;border-radius:4px;text-decoration:none;">View Packages</a>
+    <a href="{{ url_for('recovery_ads.recovery_centers_directory') }}" style="border:1px solid #ccc;color:#555;padding:.75rem 2rem;border-radius:4px;text-decoration:none;">View Directory</a>
+  </div>
+</div>
+{% endblock %}
