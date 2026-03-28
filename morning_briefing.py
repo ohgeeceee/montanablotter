@@ -264,12 +264,12 @@ operations, missing persons, or other significant public safety emergencies \
 affecting Montana communities.
 
 Respond ONLY with valid JSON in this exact format:
-{{
+{
   "crisis_detected": true or false,
   "crisis_type": "brief crisis type or null",
   "headline": "Banner headline, max 80 characters",
   "body": "Banner body, max 160 characters"
-}}
+}
 
 If no crisis is detected, set crisis_detected to false and write an evergreen \
 message encouraging readers to support Montana public safety coverage.
@@ -319,11 +319,15 @@ def _update_crisis_banner(posts, conn=None):
             messages=[
                 {
                     "role": "user",
-                    "content": _CRISIS_BANNER_PROMPT.format(summaries=summaries_text),
+                    "content": _CRISIS_BANNER_PROMPT.replace("{summaries}", summaries_text),
                 }
             ],
         )
         raw = message.content[0].text.strip()
+        # Claude sometimes wraps JSON in markdown code fences — strip them
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1]
+            raw = raw.rsplit("```", 1)[0].strip()
         data = json.loads(raw)
 
         headline = str(data.get("headline") or _CRISIS_BANNER_EVERGREEN_HEADLINE)[:80]
@@ -419,7 +423,6 @@ def run_briefing():
                 post_count=len(sub_posts),
             )
         except Exception as e:
-            logging.error(f"Failed to send briefing to {sub['email']}: {e}")
             print(f"Failed to send to {sub['email']}: {e}")
             failed += 1
             _record_digest_recipient(
