@@ -141,7 +141,7 @@ class RecoveryAdEventHandlerTests(unittest.TestCase):
         ).fetchone()
         self.assertIsNone(row)
 
-    def test_expired_event_sets_pending(self):
+    def test_expired_event_sets_expired(self):
         from blueprints.recovery_ads import apply_stripe_recovery_ad_event
         event = self._make_event('checkout.session.expired', 'cs_test_004')
         apply_stripe_recovery_ad_event(self.conn, event)
@@ -162,6 +162,45 @@ class RecoveryAdEventHandlerTests(unittest.TestCase):
             ('cs_test_005',),
         ).fetchone()[0]
         self.assertEqual(count, 1)
+
+    def test_subscription_deleted_cancels_active_order(self):
+        from blueprints.recovery_ads import apply_stripe_recovery_ad_event
+        # First activate an order
+        activate_event = self._make_event('checkout.session.completed', 'cs_test_006')
+        apply_stripe_recovery_ad_event(self.conn, activate_event)
+        # Get the subscription ID that was stored
+        order = self.conn.execute(
+            "SELECT id, stripe_subscription_id FROM recovery_ad_orders WHERE stripe_session_id = ?",
+            ('cs_test_006',),
+        ).fetchone()
+        self.assertEqual(order['stripe_subscription_id'], 'sub_test123')
+        # Now fire a subscription.deleted event
+        deleted_event = {
+            'type': 'customer.subscription.deleted',
+            'data': {
+                'object': {
+                    'id': 'sub_test123',
+                    'metadata': {'flow': 'recovery_ad'},
+                }
+            },
+        }
+        apply_stripe_recovery_ad_event(self.conn, deleted_event)
+        row = self.conn.execute(
+            "SELECT status FROM recovery_ad_orders WHERE id = ?",
+            (order['id'],),
+        ).fetchone()
+        self.assertEqual(row['status'], 'cancelled')
+
+    def test_async_payment_failed_sets_payment_failed(self):
+        from blueprints.recovery_ads import apply_stripe_recovery_ad_event
+        event = self._make_event('checkout.session.async_payment_failed', 'cs_test_007')
+        apply_stripe_recovery_ad_event(self.conn, event)
+        row = self.conn.execute(
+            "SELECT status FROM recovery_ad_orders WHERE stripe_session_id = ?",
+            ('cs_test_007',),
+        ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row['status'], 'payment_failed')
 
 
 if __name__ == '__main__':
