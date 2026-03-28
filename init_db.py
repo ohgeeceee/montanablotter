@@ -414,6 +414,10 @@ def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     ''')
+    conn.execute(
+        '''CREATE INDEX IF NOT EXISTS idx_recovery_ad_orders_status
+           ON recovery_ad_orders(status)'''
+    )
     conn.commit()
 
 
