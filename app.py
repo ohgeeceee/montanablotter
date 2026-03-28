@@ -69,7 +69,7 @@ app.secret_key = config.SECRET_KEY
 BASE_URL = config.BASE_URL
 WINTER_STORM_SUPPORT_BANNER_DEFAULTS = {
     'enabled': False,
-    'label': 'Winter Storm Support',
+    'label': 'Public Safety Alert',
     'headline': 'Help fund Montana winter storm coverage',
     'body': 'Support dispatch monitoring, county emergency follow-up, and fast public-records coverage during severe weather.',
     'donate_href': '/donate?source=winter_storm_banner&campaign=winter_storm',
