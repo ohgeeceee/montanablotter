@@ -50,6 +50,17 @@
             {% endfor %}
             <a href="/subscribe" class="mono uppercase tracking-widest px-3 py-1.5 rounded ml-2 transition hover:opacity-90"
                style="background: var(--amber); color: var(--bg); font-size: 0.58rem; font-weight: 700;">Subscribe</a>
+            {% if public_user %}
+            <a href="/account" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
+               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600; margin-left:4px;">{{ public_user.display_name }}</a>
+            <a href="/logout?next={{ request.full_path | urlencode }}" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
+               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600;">Log Out</a>
+            {% else %}
+            <a href="/login?next={{ request.full_path | urlencode }}" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
+               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600; margin-left:4px;">Log In</a>
+            <a href="/register?next={{ request.full_path | urlencode }}" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
+               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600;">Register</a>
+            {% endif %}
             <a href="/terms-of-use" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
                style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600;">Terms</a>
         </nav>
@@ -92,6 +103,13 @@
         <a href="{{ item.href }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition"
            style="color: {{ 'var(--amber)' if is_active else 'var(--text-muted)' }}; font-size: 0.66rem;">{{ item.label }}</a>
         {% endfor %}
-        <a href="/admin/login" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Admin</a>
+        <p class="mono uppercase tracking-widest px-3 pt-3 pb-1" style="color: var(--text-dim); font-size: 0.56rem; font-weight: 700;">Account</p>
+        {% if public_user %}
+        <a href="/account" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">{{ public_user.display_name }}</a>
+        <a href="/logout?next={{ request.full_path | urlencode }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Log Out</a>
+        {% else %}
+        <a href="/login?next={{ request.full_path | urlencode }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Log In</a>
+        <a href="/register?next={{ request.full_path | urlencode }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Register</a>
+        {% endif %}
     </div>
 </header>
