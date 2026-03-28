@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:900px;margin:0 auto;padding:2rem 1rem;">
+  <h1 style="margin-bottom:.5rem;">Montana Recovery Centers</h1>
+  <p style="color:#555;margin-bottom:2rem;">Find addiction treatment and recovery support across Montana.</p>
+
+  {% if not gold_listings and not silver_listings and not bronze_listings %}
+    <div style="text-align:center;padding:4rem 1rem;background:#f8f8f8;border-radius:8px;">
+      <h2 style="color:#444;">Be the First to List Your Center</h2>
+      <p style="color:#666;margin-bottom:1.5rem;">Help families in Montana find your recovery services.</p>
+      <a href="{{ url_for('recovery_ads.advertise_recovery') }}" class="btn btn-primary" style="background:#1a6b3c;color:#fff;padding:.75rem 2rem;border-radius:4px;text-decoration:none;">Advertise Your Center</a>
+    </div>
+  {% endif %}
+
+  {% if gold_listings %}
+    <h2 style="border-bottom:2px solid #c9a227;padding-bottom:.5rem;margin-bottom:1.5rem;color:#7a5c00;">Featured Centers</h2>
+    {% for r in gold_listings %}
+    <div style="border:2px solid #c9a227;border-radius:8px;padding:1.5rem;margin-bottom:1.5rem;background:#fffdf0;">
+      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+        {% if r.logo_path %}
+          <img src="{{ r.logo_path }}" alt="{{ r.center_name }} logo" style="width:80px;height:80px;object-fit:contain;border-radius:4px;">
+        {% endif %}
+        <div style="flex:1;min-width:200px;">
+          <h3 style="margin:0 0 .25rem;">{{ r.center_name }}</h3>
+          {% if r.city or r.county %}<p style="color:#666;margin:0 0 .5rem;font-size:.9rem;">{{ [r.city, r.county]|select|join(', ') }}</p>{% endif %}
+          {% if r.tagline %}<p style="color:#555;font-style:italic;margin-bottom:.5rem;">{{ r.tagline }}</p>{% endif %}
+          {% if r.description %}<p style="margin-bottom:.75rem;">{{ r.description }}</p>{% endif %}
+        </div>
+      </div>
+      {% if r.photo_path %}
+        <img src="{{ r.photo_path }}" alt="{{ r.center_name }}" style="width:100%;max-height:220px;object-fit:cover;border-radius:4px;margin-top:1rem;">
+      {% endif %}
+      {% if r.services_list %}
+        <p style="margin-top:.75rem;">{% for s in r.services_list %}<span style="background:#e8f5e9;padding:.2rem .6rem;border-radius:12px;font-size:.85rem;margin-right:.4rem;">{{ s }}</span>{% endfor %}</p>
+      {% endif %}
+      <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap;">
+        {% if r.phone %}<a href="tel:{{ r.phone }}" style="background:#1a6b3c;color:#fff;padding:.5rem 1.25rem;border-radius:4px;text-decoration:none;">Call {{ r.phone }}</a>{% endif %}
+        {% if r.website %}<a href="{{ url_for('recovery_ads.recovery_center_click', order_id=r.id) }}" rel="noopener" style="background:#fff;border:1px solid #1a6b3c;color:#1a6b3c;padding:.5rem 1.25rem;border-radius:4px;text-decoration:none;">Visit Website</a>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if silver_listings %}
+    <h2 style="border-bottom:2px solid #999;padding-bottom:.5rem;margin-bottom:1.5rem;color:#444;">More Centers</h2>
+    {% for r in silver_listings %}
+    <div style="border:1px solid #ddd;border-radius:8px;padding:1.25rem;margin-bottom:1rem;background:#fff;">
+      <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+        {% if r.logo_path %}<img src="{{ r.logo_path }}" alt="{{ r.center_name }} logo" style="width:56px;height:56px;object-fit:contain;border-radius:4px;">{% endif %}
+        <div style="flex:1;">
+          <h3 style="margin:0 0 .2rem;">{{ r.center_name }}</h3>
+          {% if r.city or r.county %}<p style="color:#666;margin:0 0 .4rem;font-size:.85rem;">{{ [r.city, r.county]|select|join(', ') }}</p>{% endif %}
+          {% if r.tagline %}<p style="color:#555;font-style:italic;margin-bottom:.4rem;font-size:.9rem;">{{ r.tagline }}</p>{% endif %}
+          {% if r.description %}<p style="font-size:.9rem;">{{ r.description }}</p>{% endif %}
+          <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+            {% if r.phone %}<a href="tel:{{ r.phone }}" style="background:#1a6b3c;color:#fff;padding:.4rem 1rem;border-radius:4px;text-decoration:none;font-size:.9rem;">{{ r.phone }}</a>{% endif %}
+            {% if r.website %}<a href="{{ url_for('recovery_ads.recovery_center_click', order_id=r.id) }}" rel="noopener" style="color:#1a6b3c;text-decoration:underline;font-size:.9rem;">Website</a>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if bronze_listings %}
+    <h2 style="border-bottom:1px solid #ddd;padding-bottom:.5rem;margin-bottom:1rem;color:#555;font-size:1.1rem;">Directory</h2>
+    {% for r in bronze_listings %}
+    <div style="padding:.75rem 0;border-bottom:1px solid #eee;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+      <span style="font-weight:600;">{{ r.center_name }}</span>
+      {% if r.city %}<span style="color:#666;font-size:.9rem;">{{ r.city }}{% if r.county %}, {{ r.county }}{% endif %}</span>{% endif %}
+      {% if r.phone %}<a href="tel:{{ r.phone }}" style="color:#1a6b3c;">{{ r.phone }}</a>{% endif %}
+      {% if r.website %}<a href="{{ url_for('recovery_ads.recovery_center_click', order_id=r.id) }}" rel="noopener" style="color:#1a6b3c;font-size:.9rem;">Website</a>{% endif %}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div style="margin-top:3rem;padding:1.5rem;background:#f0f7f4;border-radius:8px;text-align:center;">
+    <strong>Are you a recovery center in Montana?</strong>
+    <a href="{{ url_for('recovery_ads.advertise_recovery') }}" style="color:#1a6b3c;margin-left:.5rem;">List your center →</a>
+  </div>
+</div>
+{% endblock %}

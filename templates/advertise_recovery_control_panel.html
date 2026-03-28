@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:760px;margin:0 auto;padding:2rem 1rem;">
+  {% if welcome %}
+  <div style="background:#f0f7f4;border:1px solid #1a6b3c;border-radius:6px;padding:1.25rem;margin-bottom:2rem;">
+    <strong>Welcome!</strong> Your listing is now active. Complete your profile below to appear in the directory.
+  </div>
+  {% endif %}
+
+  <h1 style="margin-bottom:.25rem;">{{ order.center_name }}</h1>
+  <p style="color:#666;margin-bottom:2rem;">
+    <span style="background:#e8f5e9;padding:.2rem .6rem;border-radius:12px;font-size:.85rem;">{{ package.name or order.package_id }}</span>
+    &nbsp;·&nbsp;
+    <span style="color:{% if order.status == 'active' %}#1a6b3c{% else %}#c00{% endif %};">{{ order.status|capitalize }}</span>
+  </p>
+
+  {% if order.status == 'active' and order.package_id == 'gold' %}
+  <div style="display:flex;gap:2rem;margin-bottom:2rem;flex-wrap:wrap;">
+    <div style="background:#f8f8f8;border-radius:6px;padding:1rem 1.5rem;text-align:center;">
+      <div style="font-size:2rem;font-weight:700;color:#1a6b3c;">{{ order.impressions or 0 }}</div>
+      <div style="color:#666;font-size:.85rem;">Impressions this month</div>
+    </div>
+    <div style="background:#f8f8f8;border-radius:6px;padding:1rem 1.5rem;text-align:center;">
+      <div style="font-size:2rem;font-weight:700;color:#1a6b3c;">{{ order.clicks or 0 }}</div>
+      <div style="color:#666;font-size:.85rem;">Website clicks this month</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('recovery_ads.advertise_recovery_control_panel_update', token=token) }}" enctype="multipart/form-data">
+    <h2 style="font-size:1.1rem;border-bottom:1px solid #eee;padding-bottom:.5rem;margin-bottom:1rem;">Your Listing</h2>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Website URL</label>
+      <input type="url" name="website" value="{{ order.website or '' }}" maxlength="300" placeholder="https://" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">City</label>
+      <input type="text" name="city" value="{{ order.city or '' }}" maxlength="80" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">County</label>
+      <input type="text" name="county" value="{{ order.county or '' }}" maxlength="80" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+
+    {% if package.logo %}
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Logo (JPG/PNG/WebP, max 2MB)</label>
+      {% if order.logo_path %}<img src="{{ order.logo_path }}" style="height:60px;display:block;margin-bottom:.5rem;border-radius:4px;">{% endif %}
+      <input type="file" name="logo" accept=".jpg,.jpeg,.png,.webp">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Tagline</label>
+      <input type="text" name="tagline" value="{{ order.tagline or '' }}" maxlength="120" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Description ({{ package.description_limit }} chars max)</label>
+      <textarea name="description" maxlength="{{ package.description_limit }}" rows="4" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">{{ order.description or '' }}</textarea>
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Services (comma-separated)</label>
+      <input type="text" name="services" value="{{ services_list|join(', ') }}" maxlength="500" placeholder="Detox, Residential, Outpatient, MAT" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    {% endif %}
+
+    {% if package.photo %}
+    <div style="margin-bottom:1.5rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Hero Photo (JPG/PNG/WebP, max 2MB)</label>
+      {% if order.photo_path %}<img src="{{ order.photo_path }}" style="width:100%;max-height:180px;object-fit:cover;border-radius:4px;margin-bottom:.5rem;">{% endif %}
+      <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp">
+    </div>
+    {% endif %}
+
+    <button type="submit" style="background:#1a6b3c;color:#fff;padding:.75rem 2rem;border:none;border-radius:4px;font-size:1rem;cursor:pointer;font-weight:600;">Save Changes</button>
+  </form>
+
+  <p style="margin-top:2rem;color:#666;font-size:.9rem;">
+    <a href="{{ url_for('recovery_ads.recovery_centers_directory') }}" style="color:#1a6b3c;">View your listing in the directory →</a>
+  </p>
+</div>
+{% endblock %}
