@@ -150,6 +150,8 @@ def stripe_webhook():
     webhook_referrer = (request.referrer or '')[:500]
     try:
         m._apply_stripe_bail_ad_event(conn, event)
+        from blueprints.recovery_ads import apply_stripe_recovery_ad_event
+        apply_stripe_recovery_ad_event(conn, event)
         m._apply_stripe_event(
             conn,
             event,
