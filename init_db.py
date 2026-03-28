@@ -9,6 +9,8 @@ from datetime import datetime
 
 from case_journeys import ensure_case_journey_schema, seed_case_journeys
 from court_tracker import ensure_court_tracker_schema
+from bondsman_command_center import ensure_bondsman_command_center_schema
+from incident_notifications import ensure_incident_notification_schema
 from public_meetings import ensure_public_meeting_schema
 
 def _env_int(name: str, default: int) -> int:
@@ -357,7 +359,9 @@ def init_database():
     _create_core_tables(cursor)
     ensure_public_meeting_schema(conn)
     ensure_public_engagement_schema(conn)
+    ensure_incident_notification_schema(conn)
     ensure_jail_booking_schema(conn)
+    ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
     
     conn.commit()
@@ -371,6 +375,48 @@ def init_database():
     print("  - records (individual incidents)")
     print("  - command_logs (detailed event logs)")
 
+
+def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
+    """Create recovery_ad_orders and recovery_ad_listings tables if not present."""
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS recovery_ad_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            center_name TEXT NOT NULL,
+            contact_name TEXT,
+            email TEXT NOT NULL,
+            phone TEXT,
+            website TEXT,
+            package_id TEXT NOT NULL,
+            billing_cycle TEXT NOT NULL DEFAULT 'monthly',
+            stripe_customer_id TEXT,
+            stripe_subscription_id TEXT,
+            stripe_session_id TEXT UNIQUE,
+            status TEXT NOT NULL DEFAULT 'pending',
+            token TEXT UNIQUE NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            activated_at TEXT,
+            cancelled_at TEXT
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS recovery_ad_listings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER UNIQUE NOT NULL REFERENCES recovery_ad_orders(id),
+            tagline TEXT,
+            description TEXT,
+            services TEXT,
+            city TEXT,
+            county TEXT,
+            logo_path TEXT,
+            photo_path TEXT,
+            impressions INTEGER NOT NULL DEFAULT 0,
+            clicks INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.commit()
+
+
 def migrate():
     """Safely apply schema changes to an existing DB without data loss"""
     conn = sqlite3.connect(DB_PATH)
@@ -381,7 +427,9 @@ def migrate():
     ensure_public_meeting_schema(conn)
     ensure_public_engagement_schema(conn)
     ensure_jail_booking_schema(conn)
+    ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
+    ensure_recovery_ad_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -391,6 +439,8 @@ def migrate():
         pass  # Column already exists
 
     for col, definition in [
+        ('email', 'TEXT'),
+        ('created_at', 'TEXT'),
         ('role', "TEXT NOT NULL DEFAULT 'super_admin'"),
         ('is_active', 'INTEGER NOT NULL DEFAULT 1'),
         ('last_login_at', 'TEXT'),
@@ -404,6 +454,12 @@ def migrate():
             pass  # Column already exists
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)')
+    try:
+        cursor.execute(
+            "UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL OR trim(created_at) = ''"
+        )
+    except sqlite3.OperationalError:
+        pass
 
     for col, definition in [
         ('target_type', 'TEXT'),
@@ -551,6 +607,7 @@ def migrate():
         )
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(active)')
+    ensure_incident_notification_schema(conn)
 
     # Emailed agencies — tracks which agencies have been contacted so duplicates are skipped
     cursor.execute('''
@@ -1088,6 +1145,72 @@ def migrate():
             print(f'✅ Normalized agency metadata for {normalized_posts} posts')
     except Exception as exc:
         print(f'⚠️ Skipped post agency normalization: {exc}')
+
+    # Add charge_category column to records for analytics/heatmaps
+    try:
+        cursor.execute("ALTER TABLE records ADD COLUMN charge_category TEXT")
+        print("✅ Added records.charge_category")
+    except sqlite3.OperationalError:
+        pass  # Already exists
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_charge_category ON records(charge_category)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_records_county_date ON records(county, date)")
+
+    # Alert subscriptions — county-targeted immediate alerts (separate from morning digest)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS alert_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            county TEXT NOT NULL,
+            alert_types TEXT NOT NULL DEFAULT '["all"]',
+            token TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 1,
+            verified INTEGER NOT NULL DEFAULT 0,
+            last_alerted_at TEXT,
+            source TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alert_subs_email ON alert_subscriptions(email)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alert_subs_county ON alert_subscriptions(county)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alert_subs_active ON alert_subscriptions(active)')
+
+    # Name watches — alert when a person's name appears in a new blotter record
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS name_watches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            watch_name TEXT NOT NULL,
+            county TEXT,
+            token TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 1,
+            last_alerted_at TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_name_watches_email ON name_watches(email)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_name_watches_active ON name_watches(active)')
+
+    # Charge explainer pages — evergreen SEO content per incident type
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS charge_explainers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            incident_type TEXT NOT NULL,
+            slug TEXT UNIQUE NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            excerpt TEXT NOT NULL,
+            statute_ref TEXT,
+            charge_category TEXT,
+            published INTEGER NOT NULL DEFAULT 1,
+            generated_by TEXT DEFAULT 'claude',
+            view_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_explainers_slug ON charge_explainers(slug)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_explainers_category ON charge_explainers(charge_category)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_explainers_published ON charge_explainers(published)')
 
     conn.commit()
     conn.close()
