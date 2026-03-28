@@ -158,6 +158,8 @@ class TestUpdateCrisisBannerNoCrisis(unittest.TestCase):
         assert _read_setting(conn, "winter_storm_banner_enabled") == "1"
         headline = _read_setting(conn, "winter_storm_banner_headline")
         assert headline == "Support Montana public safety journalism"
+        body = _read_setting(conn, "winter_storm_banner_body")
+        assert "dispatch monitoring" in body
 
     def test_writes_evergreen_when_posts_empty(self):
         conn = _make_db()
@@ -169,16 +171,23 @@ class TestUpdateCrisisBannerNoCrisis(unittest.TestCase):
 
         assert _read_setting(conn, "winter_storm_banner_enabled") == "1"
         headline = _read_setting(conn, "winter_storm_banner_headline")
-        assert headline is not None and len(headline) > 0
+        assert headline == "Support Montana public safety journalism"
 
 
 class TestUpdateCrisisBannerApiFailure(unittest.TestCase):
     def test_leaves_settings_unchanged_on_api_error(self):
         conn = _make_db()
-        # Pre-set a value that should survive the failure
+        conn.execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
+            ("winter_storm_banner_enabled", "1"),
+        )
         conn.execute(
             "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
             ("winter_storm_banner_headline", "Existing headline"),
+        )
+        conn.execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
+            ("winter_storm_banner_body", "Existing body"),
         )
         conn.commit()
 
@@ -186,17 +195,25 @@ class TestUpdateCrisisBannerApiFailure(unittest.TestCase):
             mock_client = MagicMock()
             mock_client.messages.create.side_effect = Exception("API down")
             mock_anthropic.Anthropic.return_value = mock_client
-            # Should not raise
             _update_crisis_banner(SAMPLE_POSTS, conn=conn)
 
-        headline = _read_setting(conn, "winter_storm_banner_headline")
-        assert headline == "Existing headline"
+        assert _read_setting(conn, "winter_storm_banner_enabled") == "1"
+        assert _read_setting(conn, "winter_storm_banner_headline") == "Existing headline"
+        assert _read_setting(conn, "winter_storm_banner_body") == "Existing body"
 
     def test_leaves_settings_unchanged_on_bad_json(self):
         conn = _make_db()
         conn.execute(
             "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
+            ("winter_storm_banner_enabled", "1"),
+        )
+        conn.execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
             ("winter_storm_banner_headline", "Keep this"),
+        )
+        conn.execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))",
+            ("winter_storm_banner_body", "Keep this body"),
         )
         conn.commit()
 
@@ -209,8 +226,9 @@ class TestUpdateCrisisBannerApiFailure(unittest.TestCase):
             mock_anthropic.Anthropic.return_value = mock_client
             _update_crisis_banner(SAMPLE_POSTS, conn=conn)
 
-        headline = _read_setting(conn, "winter_storm_banner_headline")
-        assert headline == "Keep this"
+        assert _read_setting(conn, "winter_storm_banner_enabled") == "1"
+        assert _read_setting(conn, "winter_storm_banner_headline") == "Keep this"
+        assert _read_setting(conn, "winter_storm_banner_body") == "Keep this body"
 
 
 if __name__ == "__main__":
