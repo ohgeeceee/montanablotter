@@ -1412,7 +1412,7 @@
             <div>
                 <h4 class="serif font-bold" style="color: var(--text); font-size: 1.1rem; margin-bottom: 8px;">The Montana Blotter</h4>
                 <p style="color: var(--text-dim); font-size: 0.8rem; line-height: 1.6; max-width: 280px;">
-                    Free, open-source aggregation of Montana law enforcement blotters. Public safety information for everyone.
+                    Free aggregation of Montana law enforcement blotters. Public safety information for everyone.
                 </p>
                 {% if footer_featured_city_items %}
                 <div style="margin-top: 16px;">
@@ -1430,16 +1430,12 @@
             </div>
             <div class="flex flex-col gap-3 items-start md:items-end">
                 <div class="flex flex-wrap gap-4">
-                    <a href="/arrests"      class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Arrests</a>
-                    <a href="/counties"     class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Counties</a>
-                    <a href="/jail-rosters" class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Jail Rosters</a>
-                    <a href="/advertise/bail-bonds" class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Advertise</a>
-                    <a href="/subscribe"    class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Subscribe</a>
-                    <a href="/terms-of-use" class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Terms</a>
-                    <a href="/privacy"      class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem;">Privacy</a>
+                    {% for item in public_footer_items %}
+                    <a href="{{ item.href }}" class="mono uppercase tracking-widest hover:opacity-100 transition" style="color: var(--text-muted); font-size: 0.6rem; text-decoration: none;">{{ item.label }}</a>
+                    {% endfor %}
                 </div>
                 <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.55rem;">
-                    © 2026 Montana Blotter · Free Public Records
+                    &copy; {{ current_year }} Montana Blotter &middot; Free Public Records
                 </p>
             </div>
         </div>
