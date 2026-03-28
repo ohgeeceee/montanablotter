@@ -90,11 +90,15 @@ CREATE TABLE IF NOT EXISTS recovery_ad_badges (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id INTEGER NOT NULL REFERENCES recovery_ad_orders(id),
     badge_type TEXT NOT NULL,
+    verified INTEGER NOT NULL DEFAULT 0,
+    self_attested_at TEXT,
     awarded_by_user_id INTEGER REFERENCES users(id),
-    awarded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    awarded_at TEXT,
     UNIQUE(order_id, badge_type)
 )
 -- badge_type values: samhsa | state_licensed | sliding_scale | scholarship | 24_7_intake | peer_support
+-- verified=0 + self_attested_at set = pending (advertiser self-attested, awaiting admin)
+-- verified=1 + awarded_by_user_id set = admin-verified
 ```
 
 ### New Table: `recovery_ad_copy_log`
@@ -188,7 +192,7 @@ Rate limit: max 5 generations per order per day (checked before calling Claude).
 - Optional contact hint: "How can they reach you? (optional)" (max 200 chars — no validation, completely free-form)
 - Submit button: "Send Anonymously"
 - POST to `/recovery-centers/<order_id>/inquire`
-- No CAPTCHA (low abuse risk), rate-limited to 3 per IP per hour
+- No CAPTCHA (low abuse risk), rate-limited to 5 submissions per order per 24 hours (checked via COUNT on `recovery_ad_inquiries` where `created_at > datetime('now', '-1 day')`)
 
 **Storage:** Saved to `recovery_ad_inquiries`. No IP address stored. `notified_at` set when email is sent.
 
