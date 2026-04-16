@@ -1286,6 +1286,8 @@ def _sync_records(
                 current["id"],
             ),
         )
+        if not changed:
+            continue
         stats.alert_candidates.append(
             {
                 'booking_id': current['id'],
