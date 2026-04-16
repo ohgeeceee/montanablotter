@@ -481,22 +481,25 @@ def dispatch_telegram_booking_alerts(
     *,
     send_telegram: Any = None,
 ) -> dict[str, int]:
+    """Send felony booking alerts to Telegram county channels (one message per booking, not per subscriber)."""
     ensure_bail_bonds_alert_schema(conn)
     sender = send_telegram or send_telegram_message
     alerts = check_for_felony_bookings(new_data, conn=conn)
 
     # Deduplicate to one alert per booking_id (Telegram is per-channel, not per-subscriber)
+    sent = 0
+    failed = 0
+    skipped = 0
     seen_booking_ids: set[int] = set()
     unique_alerts: list[dict[str, Any]] = []
     for alert in alerts:
         bid = alert.get('booking_id')
-        if bid and bid not in seen_booking_ids:
+        if bid is None:
+            skipped += 1
+            continue
+        if bid not in seen_booking_ids:
             seen_booking_ids.add(bid)
             unique_alerts.append(alert)
-
-    sent = 0
-    failed = 0
-    skipped = 0
 
     for alert in unique_alerts:
         booking_id = alert['booking_id']
