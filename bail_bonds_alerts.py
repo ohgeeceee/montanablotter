@@ -473,3 +473,85 @@ def dispatch_felony_booking_alerts(
         'failed': failed,
         'skipped': skipped,
     }
+
+
+def dispatch_telegram_booking_alerts(
+    conn: sqlite3.Connection,
+    new_data: list[dict[str, Any]],
+    *,
+    send_telegram: Any = None,
+) -> dict[str, int]:
+    ensure_bail_bonds_alert_schema(conn)
+    sender = send_telegram or send_telegram_message
+    alerts = check_for_felony_bookings(new_data, conn=conn)
+
+    # Deduplicate to one alert per booking_id (Telegram is per-channel, not per-subscriber)
+    seen_booking_ids: set[int] = set()
+    unique_alerts: list[dict[str, Any]] = []
+    for alert in alerts:
+        bid = alert.get('booking_id')
+        if bid and bid not in seen_booking_ids:
+            seen_booking_ids.add(bid)
+            unique_alerts.append(alert)
+
+    sent = 0
+    failed = 0
+    skipped = 0
+
+    for alert in unique_alerts:
+        booking_id = alert['booking_id']
+        booking = alert['booking']
+        county_slug = alert.get('county_slug', '')
+        chat_id = get_telegram_chat_id(county_slug)
+        if not chat_id:
+            skipped += 1
+            continue
+
+        existing = conn.execute(
+            'SELECT id, delivery_status FROM telegram_deliveries WHERE chat_id = ? AND booking_id = ?',
+            (chat_id, booking_id),
+        ).fetchone()
+        if existing and existing['delivery_status'] == 'sent':
+            skipped += 1
+            continue
+
+        text = build_telegram_alert(booking, alert['matched_keywords'])
+        was_sent, telegram_message_id, error_message = sender(chat_id, text)
+        delivery_status = 'sent' if was_sent else 'failed'
+
+        if existing:
+            conn.execute(
+                '''
+                UPDATE telegram_deliveries
+                SET county_slug = ?, message_text = ?, delivery_status = ?,
+                    telegram_message_id = ?, error_message = ?,
+                    delivered_at = CASE WHEN ? = 'sent' THEN datetime('now') ELSE NULL END
+                WHERE id = ?
+                ''',
+                (county_slug, text, delivery_status, telegram_message_id,
+                 error_message, delivery_status, existing['id']),
+            )
+        else:
+            conn.execute(
+                '''
+                INSERT INTO telegram_deliveries (
+                    chat_id, booking_id, county_slug, message_text,
+                    delivery_status, telegram_message_id, error_message,
+                    delivered_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'sent' THEN datetime('now') ELSE NULL END)
+                ''',
+                (chat_id, booking_id, county_slug, text,
+                 delivery_status, telegram_message_id, error_message, delivery_status),
+            )
+
+        if was_sent:
+            sent += 1
+        else:
+            failed += 1
+
+    return {
+        'matched': len(unique_alerts),
+        'sent': sent,
+        'failed': failed,
+        'skipped': skipped,
+    }
