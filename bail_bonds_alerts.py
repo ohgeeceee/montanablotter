@@ -86,9 +86,20 @@ def ensure_bail_bonds_alert_schema(conn: sqlite3.Connection) -> None:
             telegram_message_id INTEGER,
             error_message TEXT NOT NULL DEFAULT '',
             created_at TEXT DEFAULT (datetime('now')),
-            delivered_at TEXT,
-            UNIQUE(chat_id, booking_id)
+            delivered_at TEXT
         )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_telegram_deliveries_unique
+        ON telegram_deliveries(chat_id, booking_id)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_telegram_deliveries_status
+        ON telegram_deliveries(delivery_status, created_at)
         '''
     )
 

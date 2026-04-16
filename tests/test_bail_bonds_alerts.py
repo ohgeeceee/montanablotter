@@ -261,6 +261,15 @@ class BailBondsAlertTests(unittest.TestCase):
                         'created_at', 'delivered_at'):
                 self.assertIn(col, cols)
 
+            # Verify UNIQUE(chat_id, booking_id) is enforced
+            conn.execute(
+                "INSERT INTO telegram_deliveries (chat_id, booking_id) VALUES ('x', 1)"
+            )
+            with self.assertRaises(sqlite3.IntegrityError):
+                conn.execute(
+                    "INSERT INTO telegram_deliveries (chat_id, booking_id) VALUES ('x', 1)"
+                )
+
             conn.close()
         finally:
             os.remove(path)
