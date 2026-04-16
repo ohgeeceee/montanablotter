@@ -366,5 +366,95 @@ class BailBondsAlertTests(unittest.TestCase):
             self.assertIn('timeout', error)
 
 
+    def test_dispatch_telegram_sends_to_channel_and_dedupes(self) -> None:
+        import unittest.mock as mock
+        path = self._make_db()
+        sent_calls: list[tuple[str, str]] = []
+
+        def fake_send(chat_id: str, text: str) -> tuple[bool, int | None, str]:
+            sent_calls.append((chat_id, text))
+            return True, 99, ''
+
+        try:
+            conn = sqlite3.connect(path)
+            conn.row_factory = sqlite3.Row
+            ensure_bail_bonds_alert_schema(conn)
+            conn.execute(
+                '''
+                INSERT INTO subscribers (
+                    email, token, phone_number_sms, agency_name,
+                    counties_of_interest, charge_types_of_interest, subscription_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''',
+                ('a@b.com', 'tok', '4065551234', 'Bonds Inc',
+                 '["cascade"]', '["felony"]', 'active'),
+            )
+            conn.commit()
+
+            payload = [{
+                'booking_id': 55,
+                'county_slug': 'cascade',
+                'county_name': 'Cascade',
+                'person_name': 'Jane Doe',
+                'booking_at': '2026-04-16 10:00:00',
+                'charges_summary': 'Felony Assault',
+            }]
+
+            with mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_CASCADE', '-1001111'), \
+                 mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_YELLOWSTONE', ''), \
+                 mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_DEFAULT', '-1009999'), \
+                 mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'tok:ABC'):
+                from bail_bonds_alerts import dispatch_telegram_booking_alerts
+                first = dispatch_telegram_booking_alerts(conn, payload, send_telegram=fake_send)
+                second = dispatch_telegram_booking_alerts(conn, payload, send_telegram=fake_send)
+
+            conn.commit()
+            row = conn.execute(
+                "SELECT delivery_status, telegram_message_id FROM telegram_deliveries WHERE booking_id = 55"
+            ).fetchone()
+            conn.close()
+
+            self.assertEqual(first['sent'], 1)
+            self.assertEqual(second['skipped'], 1)
+            self.assertEqual(len(sent_calls), 1)
+            self.assertEqual(sent_calls[0][0], '-1001111')
+            self.assertIn('Jane Doe', sent_calls[0][1])
+            self.assertEqual(row['delivery_status'], 'sent')
+            self.assertEqual(row['telegram_message_id'], 99)
+        finally:
+            os.remove(path)
+
+    def test_dispatch_telegram_skips_when_no_matching_charges(self) -> None:
+        import unittest.mock as mock
+        path = self._make_db()
+        try:
+            conn = sqlite3.connect(path)
+            conn.row_factory = sqlite3.Row
+            ensure_bail_bonds_alert_schema(conn)
+            conn.commit()
+
+            payload = [{
+                'booking_id': 66,
+                'county_slug': 'cascade',
+                'county_name': 'Cascade',
+                'person_name': 'Nobody',
+                'booking_at': '2026-04-16 11:00:00',
+                'charges_summary': 'Jaywalking',
+            }]
+
+            with mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_CASCADE', '-1001111'), \
+                 mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_YELLOWSTONE', ''), \
+                 mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_DEFAULT', '-1009999'), \
+                 mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'tok:ABC'):
+                from bail_bonds_alerts import dispatch_telegram_booking_alerts
+                result = dispatch_telegram_booking_alerts(conn, payload)
+
+            conn.close()
+            self.assertEqual(result['matched'], 0)
+            self.assertEqual(result['sent'], 0)
+        finally:
+            os.remove(path)
+
+
 if __name__ == '__main__':
     unittest.main()
