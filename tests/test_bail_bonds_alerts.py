@@ -256,8 +256,9 @@ class BailBondsAlertTests(unittest.TestCase):
                     "PRAGMA table_info('telegram_deliveries')"
                 ).fetchall()
             }
-            for col in ('id', 'chat_id', 'booking_id', 'delivery_status',
-                        'telegram_message_id', 'error_message', 'created_at', 'delivered_at'):
+            for col in ('id', 'chat_id', 'booking_id', 'county_slug', 'message_text',
+                        'delivery_status', 'telegram_message_id', 'error_message',
+                        'created_at', 'delivered_at'):
                 self.assertIn(col, cols)
 
             conn.close()
