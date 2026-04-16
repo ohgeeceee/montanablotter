@@ -274,6 +274,44 @@ class BailBondsAlertTests(unittest.TestCase):
         finally:
             os.remove(path)
 
+    def test_get_telegram_chat_id_routes_by_county(self) -> None:
+        import unittest.mock as mock
+        with mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_CASCADE', '-1001111111111'), \
+             mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_YELLOWSTONE', '-1002222222222'), \
+             mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_DEFAULT', '-1003333333333'):
+            from bail_bonds_alerts import get_telegram_chat_id
+            self.assertEqual(get_telegram_chat_id('cascade'), '-1001111111111')
+            self.assertEqual(get_telegram_chat_id('yellowstone'), '-1002222222222')
+            self.assertEqual(get_telegram_chat_id('missoula'), '-1003333333333')
+            self.assertEqual(get_telegram_chat_id('flathead'), '-1003333333333')
+
+    def test_get_telegram_chat_id_returns_none_when_target_unset(self) -> None:
+        import unittest.mock as mock
+        with mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_DEFAULT', ''), \
+             mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_CASCADE', ''), \
+             mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_YELLOWSTONE', ''):
+            from bail_bonds_alerts import get_telegram_chat_id
+            self.assertIsNone(get_telegram_chat_id('cascade'))
+            self.assertIsNone(get_telegram_chat_id('missoula'))
+
+    def test_build_telegram_alert_contains_key_fields(self) -> None:
+        from bail_bonds_alerts import build_telegram_alert
+        booking = {
+            'county_name': 'Cascade',
+            'county_slug': 'cascade',
+            'person_name': 'John Smith',
+            'booking_at': '2026-04-16 14:32:00',
+            'charges_summary': 'Felony Burglary',
+        }
+        matched_keywords = ['felony', 'burglary']
+        text = build_telegram_alert(booking, matched_keywords)
+        self.assertIn('Cascade', text)
+        self.assertIn('John Smith', text)
+        self.assertIn('felony', text)
+        self.assertIn('burglary', text)
+        self.assertIn('2026-04-16', text)
+        self.assertIn('<b>', text)
+
 
 if __name__ == '__main__':
     unittest.main()

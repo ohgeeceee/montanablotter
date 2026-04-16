@@ -194,6 +194,31 @@ def build_sms_alert(alert: dict[str, Any]) -> str:
     )
 
 
+def get_telegram_chat_id(county_slug: str) -> str | None:
+    mapping = {
+        'cascade': (getattr(config, 'TELEGRAM_TARGET_CASCADE', '') or '').strip(),
+        'yellowstone': (getattr(config, 'TELEGRAM_TARGET_YELLOWSTONE', '') or '').strip(),
+    }
+    chat_id = mapping.get(county_slug) or (getattr(config, 'TELEGRAM_TARGET_DEFAULT', '') or '').strip()
+    return chat_id or None
+
+
+def build_telegram_alert(booking: dict[str, Any], matched_keywords: list[str]) -> str:
+    county = booking.get('county_name') or booking.get('county_slug', '').title()
+    name = booking.get('person_name', 'Unknown')
+    charges = ', '.join(matched_keywords) or 'felony booking'
+    booked_at = booking.get('booking_at') or 'recently'
+    agency = booking.get('agency') or f'{county} County'
+    return (
+        f'🚨 <b>{county} County Booking Alert</b>\n\n'
+        f'<b>Name:</b> {name}\n'
+        f'<b>Charges:</b> {charges}\n'
+        f'<b>Booked:</b> {booked_at}\n'
+        f'<b>Agency:</b> {agency}\n\n'
+        f'Montana Blotter — 4-hour bail window'
+    )
+
+
 def check_for_felony_bookings(
     new_data: list[dict[str, Any]],
     *,
