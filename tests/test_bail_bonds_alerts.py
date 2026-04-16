@@ -3,6 +3,8 @@ import sqlite3
 import tempfile
 import unittest
 
+import requests
+
 from bail_bonds_alerts import (
     check_for_felony_bookings,
     dispatch_felony_booking_alerts,
@@ -352,6 +354,16 @@ class BailBondsAlertTests(unittest.TestCase):
             self.assertFalse(success)
             self.assertIsNone(message_id)
             self.assertIn('chat not found', error)
+
+    def test_send_telegram_message_returns_false_on_network_error(self) -> None:
+        import unittest.mock as mock
+        with mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'bot123:ABC'), \
+             mock.patch('bail_bonds_alerts.requests.post', side_effect=requests.ConnectionError('timeout')):
+            from bail_bonds_alerts import send_telegram_message
+            success, message_id, error = send_telegram_message('-1001111111111', 'test')
+            self.assertFalse(success)
+            self.assertIsNone(message_id)
+            self.assertIn('timeout', error)
 
 
 if __name__ == '__main__':
