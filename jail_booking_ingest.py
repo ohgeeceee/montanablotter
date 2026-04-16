@@ -16,11 +16,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import json
 import logging
 import re
 import sqlite3
 import string
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from typing import Iterable
@@ -30,6 +31,7 @@ import requests
 import urllib3
 
 import config
+from bail_bonds_alerts import dispatch_felony_booking_alerts, dispatch_telegram_booking_alerts
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,6 @@ MISSOULA_CHARGE_LOOKBACK_DAYS = int(getattr(config, "MISSOULA_CHARGE_LOOKBACK_DA
 SUPPORTED_ADAPTERS = {"broadwater", "flathead", "jefferson", "missoula", "sanders", "yellowstone"}
 SKIPPED_SOURCES = {
     "broadwater": "Official roster host is timing out from the ingest machine.",
-    "gallatin": "Official roster portal is currently unavailable or in maintenance mode.",
 }
 TRACKED_SOURCES = {
     "yellowstone": {
@@ -119,6 +120,61 @@ class SyncStats:
     new_count: int = 0
     updated_count: int = 0
     missing_count: int = 0
+    alert_candidates: list[dict[str, object]] = field(default_factory=list)
+
+
+def _normalize_hash_value(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return " ".join(value.strip().lower().split())
+    return str(value).strip().lower()
+
+
+
+def _compute_booking_hash(payload: dict[str, object]) -> str:
+    fields = {
+        "county_slug": _normalize_hash_value(payload.get("county_slug")),
+        "county_name": _normalize_hash_value(payload.get("county_name")),
+        "facility_name": _normalize_hash_value(payload.get("facility_name")),
+        "person_name": _normalize_hash_value(payload.get("person_name")),
+        "booking_number": _normalize_hash_value(payload.get("booking_number")),
+        "booking_at": _normalize_hash_value(payload.get("booking_at")),
+        "charges_summary": _normalize_hash_value(payload.get("charges_summary")),
+        "source_url": _normalize_hash_value(payload.get("source_url")),
+        "source_record_id": _normalize_hash_value(payload.get("source_record_id")),
+    }
+    blob = json.dumps(fields, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
+
+
+def _build_booking_payload(source: sqlite3.Row, record: JailBookingRecord) -> tuple[str, str]:
+    payload = {
+        "county_slug": source["county_slug"],
+        "county_name": source["county_name"],
+        "facility_name": source["facility_name"],
+        "person_name": record.person_name,
+        "booking_number": record.booking_number,
+        "booking_at": record.booking_at,
+        "charges_summary": record.charges_summary,
+        "source_url": record.source_url or source["roster_url"],
+        "source_record_id": record.source_record_id,
+    }
+    hash_id = _compute_booking_hash(payload)
+    raw_json = json.dumps(
+        {
+            "source_record_id": record.source_record_id,
+            "person_name": record.person_name,
+            "age": record.age,
+            "booking_number": record.booking_number,
+            "booking_at": record.booking_at,
+            "charges_summary": record.charges_summary,
+            "source_url": record.source_url,
+        },
+        ensure_ascii=False,
+    )
+    return hash_id, raw_json
 
 
 class _RosterTextExtractor(HTMLParser):
@@ -769,7 +825,7 @@ def fetch_flathead_bookings(source_url: str) -> list[JailBookingRecord]:
     return _parse_flathead_roster(page_html, source_url)
 
 
-def _summarize_jefferson_hold_reasons(raw_value: str) -> str:
+def _summarize_zuercher_hold_reasons(raw_value: str) -> str:
     raw = (raw_value or "").strip()
     if not raw:
         return "Charge details available on the official Jefferson County inmate portal."
@@ -781,6 +837,10 @@ def _summarize_jefferson_hold_reasons(raw_value: str) -> str:
     if not parts:
         return "Charge details available on the official Jefferson County inmate portal."
     return "; ".join(parts[:4])
+
+
+def _summarize_jefferson_hold_reasons(raw_value: str) -> str:
+    return _summarize_zuercher_hold_reasons(raw_value)
 
 
 def fetch_jefferson_bookings(source_url: str) -> list[JailBookingRecord]:
@@ -822,7 +882,7 @@ def fetch_jefferson_bookings(source_url: str) -> list[JailBookingRecord]:
         rows = payload.get("records") or []
 
         for row in rows:
-            charges_summary = _summarize_jefferson_hold_reasons(row.get("hold_reasons", ""))
+            charges_summary = _summarize_zuercher_hold_reasons(row.get("hold_reasons", ""))
             arrest_date = _normalize_datetime(f"{row.get('arrest_date', '')} 00:00")
             identity_parts = [
                 (row.get("name") or "").strip().upper(),
@@ -1110,7 +1170,7 @@ def _sync_records(
 
     existing_rows = conn.execute(
         '''
-        SELECT id, source_record_id, person_name, booking_at, charges_summary, is_current
+        SELECT id, source_record_id, person_name, booking_at, charges_summary, is_current, hash_id, raw_json
         FROM jail_bookings
         WHERE source_id = ?
         ''',
@@ -1122,11 +1182,12 @@ def _sync_records(
     for record in payload:
         seen_ids.add(record.source_record_id)
         current = existing_by_key.get(record.source_record_id)
+        hash_id, raw_json = _build_booking_payload(source, record)
         if current is None:
             stats.new_count += 1
             if dry_run:
                 continue
-            conn.execute(
+            cursor = conn.execute(
                 '''
                 INSERT INTO jail_bookings (
                     source_id,
@@ -1140,6 +1201,8 @@ def _sync_records(
                     charges_summary,
                     source_url,
                     source_record_id,
+                    hash_id,
+                    raw_json,
                     booking_status,
                     is_current,
                     first_seen_at,
@@ -1160,7 +1223,21 @@ def _sync_records(
                     record.charges_summary,
                     record.source_url or source["roster_url"],
                     record.source_record_id,
+                    hash_id,
+                    raw_json,
                 ),
+            )
+            stats.alert_candidates.append(
+                {
+                    'booking_id': cursor.lastrowid,
+                    'county_slug': source['county_slug'],
+                    'county_name': source['county_name'],
+                    'person_name': record.person_name,
+                    'booking_at': record.booking_at,
+                    'charges_summary': record.charges_summary,
+                    'source_url': record.source_url or source['roster_url'],
+                    'source_record_id': record.source_record_id,
+                }
             )
             continue
 
@@ -1169,6 +1246,7 @@ def _sync_records(
                 (current["person_name"] or "") != record.person_name,
                 (current["booking_at"] or "") != (record.booking_at or ""),
                 (current["charges_summary"] or "") != record.charges_summary,
+                (current["hash_id"] or "") != hash_id,
                 int(current["is_current"] or 0) != 1,
             ]
         )
@@ -1185,6 +1263,8 @@ def _sync_records(
                 booking_at = ?,
                 charges_summary = ?,
                 source_url = ?,
+                hash_id = ?,
+                raw_json = ?,
                 booking_status = 'current',
                 is_current = 1,
                 release_at = NULL,
@@ -1199,10 +1279,24 @@ def _sync_records(
                 record.booking_at,
                 record.charges_summary,
                 record.source_url or source["roster_url"],
+                hash_id,
+                raw_json,
                 now_sql,
                 now_sql,
                 current["id"],
             ),
+        )
+        stats.alert_candidates.append(
+            {
+                'booking_id': current['id'],
+                'county_slug': source['county_slug'],
+                'county_name': source['county_name'],
+                'person_name': record.person_name,
+                'booking_at': record.booking_at,
+                'charges_summary': record.charges_summary,
+                'source_url': record.source_url or source['roster_url'],
+                'source_record_id': record.source_record_id,
+            }
         )
 
     for row in existing_rows:
@@ -1257,7 +1351,19 @@ def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool 
         raise RuntimeError(f"No adapter for county slug: {county_slug}")
 
     stats = _sync_records(conn, source, records, dry_run=dry_run)
+    alert_summary = {'matched': 0, 'sent': 0, 'failed': 0, 'skipped': 0}
+    telegram_summary = {'matched': 0, 'sent': 0, 'failed': 0, 'skipped': 0}
+    if not dry_run and getattr(config, 'BAIL_BONDS_ALERTS_ENABLED', True) and stats.alert_candidates:
+        alert_summary = dispatch_felony_booking_alerts(conn, stats.alert_candidates)
+        telegram_summary = dispatch_telegram_booking_alerts(conn, stats.alert_candidates)
     note = f"Fetched {stats.fetched_count} records from {source['county_name']}."
+    if stats.alert_candidates:
+        note += (
+            f" Bondsman SMS matched={alert_summary['matched']} sent={alert_summary['sent']} "
+            f"failed={alert_summary['failed']} skipped={alert_summary['skipped']}."
+            f" Telegram matched={telegram_summary['matched']} sent={telegram_summary['sent']} "
+            f"failed={telegram_summary['failed']} skipped={telegram_summary['skipped']}."
+        )
     _record_run(
         conn,
         source_id=source["id"],
