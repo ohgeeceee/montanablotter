@@ -219,6 +219,35 @@ def build_telegram_alert(booking: dict[str, Any], matched_keywords: list[str]) -
     )
 
 
+def send_telegram_message(chat_id: str, text: str) -> tuple[bool, int | None, str]:
+    token = (getattr(config, 'TELEGRAM_BOT_TOKEN', '') or '').strip()
+    if not token:
+        return False, None, 'missing_telegram_config'
+
+    try:
+        response = requests.post(
+            f'https://api.telegram.org/bot{token}/sendMessage',
+            json={'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'},
+            timeout=20,
+        )
+    except requests.RequestException as exc:
+        logger.warning('Telegram request failed for chat %s: %s', chat_id, exc)
+        return False, None, str(exc)[:300]
+
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+
+    if response.status_code >= 400:
+        error_message = str(payload.get('description') or response.text or 'telegram_http_error')
+        logger.warning('Telegram returned HTTP %s for chat %s: %s', response.status_code, chat_id, error_message)
+        return False, None, error_message[:300]
+
+    message_id = payload.get('result', {}).get('message_id')
+    return True, message_id, ''
+
+
 def check_for_felony_bookings(
     new_data: list[dict[str, Any]],
     *,

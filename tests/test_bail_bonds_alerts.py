@@ -312,6 +312,47 @@ class BailBondsAlertTests(unittest.TestCase):
         self.assertIn('2026-04-16', text)
         self.assertIn('<b>', text)
 
+    def test_send_telegram_message_returns_false_when_token_unset(self) -> None:
+        import unittest.mock as mock
+        with mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', ''):
+            from bail_bonds_alerts import send_telegram_message
+            success, message_id, error = send_telegram_message('-1001111111111', 'hello')
+            self.assertFalse(success)
+            self.assertIsNone(message_id)
+            self.assertEqual(error, 'missing_telegram_config')
+
+    def test_send_telegram_message_posts_to_bot_api(self) -> None:
+        import unittest.mock as mock
+        fake_response = mock.Mock()
+        fake_response.status_code = 200
+        fake_response.json.return_value = {'ok': True, 'result': {'message_id': 42}}
+
+        with mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'bot123:ABC'), \
+             mock.patch('bail_bonds_alerts.requests.post', return_value=fake_response) as mock_post:
+            from bail_bonds_alerts import send_telegram_message
+            success, message_id, error = send_telegram_message('-1001111111111', '<b>Alert</b>')
+            self.assertTrue(success)
+            self.assertEqual(message_id, 42)
+            self.assertEqual(error, '')
+            call_kwargs = mock_post.call_args
+            self.assertIn('bot123:ABC', call_kwargs[0][0])
+            self.assertEqual(call_kwargs[1]['json']['chat_id'], '-1001111111111')
+            self.assertEqual(call_kwargs[1]['json']['parse_mode'], 'HTML')
+
+    def test_send_telegram_message_returns_false_on_api_error(self) -> None:
+        import unittest.mock as mock
+        fake_response = mock.Mock()
+        fake_response.status_code = 400
+        fake_response.json.return_value = {'ok': False, 'description': 'Bad Request: chat not found'}
+
+        with mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'bot123:ABC'), \
+             mock.patch('bail_bonds_alerts.requests.post', return_value=fake_response):
+            from bail_bonds_alerts import send_telegram_message
+            success, message_id, error = send_telegram_message('-9999', 'test')
+            self.assertFalse(success)
+            self.assertIsNone(message_id)
+            self.assertIn('chat not found', error)
+
 
 if __name__ == '__main__':
     unittest.main()
