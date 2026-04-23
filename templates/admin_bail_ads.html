@@ -9,10 +9,16 @@
                 <h1 class="text-3xl font-black text-slate-900 mt-2">Bail Bonds Ad System</h1>
                 <p class="text-sm text-slate-600 mt-2">Inquiries, paid placements, creative review, consumer leads, and agency outreach now live in one admin surface.</p>
             </div>
-            <a href="#agency-cms"
-               class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
-                Jump to Agency CRM
-            </a>
+            <div class="flex gap-2 flex-wrap">
+                <a href="/admin/bail-ads/simulator"
+                   class="inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                    Open Sales Simulator
+                </a>
+                <a href="#agency-cms"
+                   class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                    Jump to Agency CRM
+                </a>
+            </div>
         </div>
     </div>
 
@@ -173,6 +179,29 @@
         <article class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
             <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Orders Total</p>
             <p class="text-2xl font-black text-slate-900 mt-2">{{ order_stats.total or 0 }}</p>
+        </article>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <article class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Simulator Views (30d)</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.page_views or 0 }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Logo Uploads</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.logo_uploads or 0 }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Share Links</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.share_links or 0 }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Inquiry Syncs</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.inquiry_syncs or 0 }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Checkout Clicks</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.checkout_clicks or 0 }}</p>
         </article>
     </div>
 
@@ -467,6 +496,13 @@
                                     class="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
                                 Send Test Email
                             </button>
+                            <button type="submit"
+                                    formaction="/admin/bail-ads/agencies/{{ agency.id }}/delete"
+                                    formmethod="post"
+                                    onclick="return confirm('Delete this agency from the CRM?');"
+                                    class="inline-flex items-center justify-center rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                                Delete Agency
+                            </button>
                             <span class="text-xs text-slate-500">Updated: {{ agency.updated_at or '-' }}</span>
                         </div>
                     </form>
@@ -586,7 +622,12 @@
                         <td class="px-4 py-3 text-slate-700 align-top">{{ order.created_at }}</td>
                         <td class="px-4 py-3 text-slate-700 align-top">
                             <p class="font-semibold text-slate-900">{{ order.business_name }}</p>
-                            <p class="text-xs text-slate-500">{{ order.email }}</p>
+                            <p class="text-xs text-slate-500">{{ order.contact_name or 'No contact name' }}</p>
+                            <p class="text-xs text-slate-500">{{ order.email or 'No email' }}</p>
+                            <p class="text-xs text-slate-500">{{ order.phone or 'No phone' }}</p>
+                            {% if order.website_url %}
+                            <a href="{{ order.website_url }}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-700 underline">Website</a>
+                            {% endif %}
                             {% if order.onboarding_token %}
                             <a href="/advertise/bail-bonds/onboarding/{{ order.onboarding_token }}" class="text-xs text-blue-700 underline" target="_blank" rel="noopener noreferrer">Onboarding Link</a>
                             {% endif %}
@@ -612,13 +653,26 @@
                         <td class="px-4 py-3 align-top min-w-[260px]">
                             <form method="post" action="/admin/bail-ads/orders/{{ order.id }}/status" class="space-y-2">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="text" name="business_name" value="{{ order.business_name or '' }}" placeholder="Business name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                                <input type="text" name="contact_name" value="{{ order.contact_name or '' }}" placeholder="Contact name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                                <input type="email" name="email" value="{{ order.email or '' }}" placeholder="Contact email" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                                <input type="text" name="phone" value="{{ order.phone or '' }}" placeholder="Contact phone" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                                <input type="url" name="website_url" value="{{ order.website_url or '' }}" placeholder="Website URL" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                                <textarea name="county_targets" rows="2" placeholder="County coverage" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">{{ order.county_targets or '' }}</textarea>
                                 <select name="status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
                                     {% for state in ['checkout_pending', 'active', 'active_pending_creative_review', 'payment_failed', 'canceled', 'paused'] %}
                                     <option value="{{ state }}" {% if order.status == state %}selected{% endif %}>{{ state }}</option>
                                     {% endfor %}
                                 </select>
                                 <textarea name="notes" rows="2" placeholder="Order notes" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">{{ order.notes or '' }}</textarea>
-                                <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Update Order</button>
+                                <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Save Advertiser</button>
+                                <button type="submit"
+                                        formaction="/admin/bail-ads/orders/{{ order.id }}/delete"
+                                        formmethod="post"
+                                        onclick="return confirm('Delete this paid advertiser? This removes the advertiser record, creatives, and live placements.');"
+                                        class="w-full inline-flex items-center justify-center rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                                    Delete Advertiser
+                                </button>
                             </form>
                         </td>
                     </tr>

@@ -5,19 +5,24 @@ Runs daily at 7am via cron.
 """
 
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from html import escape
+import argparse
 import re
 import smtplib
 import json
 import sqlite3
 
 import config
-import anthropic
 from utils.app_settings import _save_app_setting
 from alerting import collect_alert_recipients, send_plaintext_email as _send_admin_alert
+
+try:
+    import anthropic
+except ImportError:  # pragma: no cover - optional at runtime
+    anthropic = None
 
 ADMIN_EMAIL = "ohjoncurrie@gmail.com"
 BASE_URL = "https://montanablotter.com"
@@ -279,6 +284,9 @@ Blotter summaries:
 
 
 def _update_crisis_banner(posts, conn=None):
+    if anthropic is None:
+        print("Banner update skipped: anthropic package not installed.")
+        return
     """Call Claude to detect crises in yesterday's posts and update the banner settings.
 
     If posts is empty, writes the evergreen message without calling the API.
@@ -308,11 +316,11 @@ def _update_crisis_banner(posts, conn=None):
         summaries_text = "\n".join(lines)[:3000]
 
         api_key = getattr(config, "ANTHROPIC_API_KEY", None)
-        if not api_key:
-            print("Banner update skipped: no ANTHROPIC_API_KEY configured.")
-            return
+        client_kwargs = {}
+        if api_key:
+            client_kwargs["api_key"] = api_key
 
-        client = anthropic.Anthropic(api_key=api_key)
+        client = anthropic.Anthropic(**client_kwargs)
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=256,
@@ -458,5 +466,112 @@ def run_briefing():
     _update_crisis_banner(posts)
 
 
+def _table_exists(conn, table_name: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? LIMIT 1",
+        (table_name,),
+    ).fetchone()
+    return bool(row)
+
+
+def _count_semantic_vectors_last_24h(conn) -> int:
+    candidate_tables = [
+        ("incident_vectors", "created_at"),
+        ("meeting_pdf_chunks", "created_at"),
+        ("meeting_embeddings", "created_at"),
+    ]
+    total = 0
+    for table_name, timestamp_col in candidate_tables:
+        if not _table_exists(conn, table_name):
+            continue
+        try:
+            value = conn.execute(
+                f"""
+                SELECT COUNT(*)
+                FROM {table_name}
+                WHERE datetime(COALESCE({timestamp_col}, datetime('now'))) >= datetime('now', '-24 hours')
+                """
+            ).fetchone()[0]
+            total += int(value or 0)
+        except sqlite3.OperationalError:
+            continue
+    return total
+
+
+def build_ops_morning_briefing_markdown() -> str:
+    conn = get_db()
+    try:
+        run_rows = conn.execute(
+            """
+            SELECT
+                job_name,
+                SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) AS ok_runs,
+                SUM(CASE WHEN status != 'ok' THEN 1 ELSE 0 END) AS failed_runs
+            FROM scheduled_job_runs
+            WHERE datetime(COALESCE(started_at, created_at)) >= datetime('now', '-24 hours')
+            GROUP BY job_name
+            ORDER BY job_name ASC
+            """
+        ).fetchall() if _table_exists(conn, "scheduled_job_runs") else []
+        state_rows = conn.execute(
+            """
+            SELECT job_name, last_status, last_started_at, last_finished_at, last_output_excerpt
+            FROM scheduled_job_state
+            ORDER BY job_name ASC
+            """
+        ).fetchall() if _table_exists(conn, "scheduled_job_state") else []
+        vectors_created = _count_semantic_vectors_last_24h(conn)
+    finally:
+        conn.close()
+
+    by_job = {row["job_name"]: row for row in run_rows}
+    lines = [
+        "# Morning Briefing",
+        "",
+        f"- Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC",
+        f"- Semantic vectors created (last 24h): {vectors_created}",
+        "",
+        "## Scheduled Jobs",
+    ]
+    if not state_rows:
+        lines.append("- No scheduled job state rows found.")
+        return "\n".join(lines) + "\n"
+
+    for row in state_rows:
+        job_name = row["job_name"]
+        stats = by_job.get(job_name)
+        ok_runs = int(stats["ok_runs"]) if stats and stats["ok_runs"] is not None else 0
+        failed_runs = int(stats["failed_runs"]) if stats and stats["failed_runs"] is not None else 0
+        lines.append(
+            f"- `{job_name}`: last_status={row['last_status']}, ok_24h={ok_runs}, failed_24h={failed_runs}, "
+            f"last_started={row['last_started_at'] or 'n/a'}, last_finished={row['last_finished_at'] or 'n/a'}"
+        )
+        if row["last_status"] != "ok":
+            excerpt = (row["last_output_excerpt"] or "").strip().splitlines()
+            short_excerpt = excerpt[-1][:200] if excerpt else "no output excerpt"
+            lines.append(f"  failure_excerpt: {short_excerpt}")
+    return "\n".join(lines) + "\n"
+
+
 if __name__ == "__main__":
-    run_briefing()
+    parser = argparse.ArgumentParser(description="Morning briefing sender and ops summary generator.")
+    parser.add_argument(
+        "--ops-markdown",
+        default="",
+        help="Optional output path for the ops Morning Briefing markdown summary.",
+    )
+    parser.add_argument(
+        "--ops-only",
+        action="store_true",
+        help="Only emit the ops markdown briefing without sending subscriber emails.",
+    )
+    args = parser.parse_args()
+
+    if args.ops_only or args.ops_markdown:
+        markdown = build_ops_morning_briefing_markdown()
+        print(markdown)
+        if args.ops_markdown:
+            with open(args.ops_markdown, "w", encoding="utf-8") as handle:
+                handle.write(markdown)
+    if not args.ops_only:
+        run_briefing()

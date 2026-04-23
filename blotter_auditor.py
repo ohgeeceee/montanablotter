@@ -150,10 +150,18 @@ def _mask(text: str) -> str:
 
 
 def _ctx(text: str, match: re.Match, width: int = 80) -> str:
-    """Extract surrounding context around a regex match."""
+    """Extract surrounding context around a regex match without storing the raw match."""
     start = max(0, match.start() - width // 2)
     end   = min(len(text), match.end() + width // 2)
     snippet = text[start:end].replace("\n", " ")
+    spans = get_pii_spans(snippet)
+    if spans:
+        for span in reversed(spans):
+            snippet = snippet[:span["start"]] + _mask(span["matched"]) + snippet[span["end"]:]
+    else:
+        relative_start = match.start() - start
+        relative_end = match.end() - start
+        snippet = snippet[:relative_start] + _mask(match.group()) + snippet[relative_end:]
     return snippet.strip()
 
 
@@ -192,7 +200,7 @@ def get_pii_spans(text: str) -> list[dict]:
     for m in _RE_MT_DL.finditer(text):
         if not re.search(
             r'(?i)(?:case|cfs|incident|report)\s*(?:no|num|#)?\s*:?\s*$',
-            text[max(0, m.start() - 30): m.start()],
+            text[max(0, m.start() - 60): m.start()],
         ):
             _add(m, "dl_number", "high")
 
@@ -229,6 +237,16 @@ def scan_for_pii(text: str) -> list[PiiFlag]:
             redacted=_mask(m.group()),
             context=_ctx(text, m),
         ))
+    # Also catch bare 9-digit SSNs (NNNNNNNNN) when preceded by SSN context
+    for m in re.finditer(r'\b\d{9}\b', text):
+        ctx = text[max(0, m.start() - 40):m.end() + 10].lower()
+        if any(kw in ctx for kw in ('ssn', 'social security', 'social sec')):
+            flags.append(PiiFlag(
+                pii_type="ssn",
+                severity="high",
+                redacted=_mask(m.group()),
+                context=_ctx(text, m),
+            ))
 
     # 2. Phone numbers — MEDIUM (contextual)
     for m in _RE_PHONE.finditer(text):
@@ -262,7 +280,7 @@ def scan_for_pii(text: str) -> list[PiiFlag]:
     for m in _RE_MT_DL.finditer(text):
         # Avoid false-positives from plain case numbers / CFS numbers
         if not re.search(r'(?i)(?:case|cfs|incident|report)\s*(?:no|num|#)?\s*:?\s*$',
-                         text[max(0, m.start()-30):m.start()]):
+                         text[max(0, m.start()-60):m.start()]):
             flags.append(PiiFlag(
                 pii_type="dl_number",
                 severity="high",
@@ -352,7 +370,8 @@ def _parse_claude_json(raw: str) -> dict:
     raw = re.sub(r'\s*```$', '', raw)
     try:
         return json.loads(raw)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to parse Claude JSON response: {e}. Raw: {raw[:200]}")
         return {}
 
 
@@ -374,6 +393,7 @@ def _call_claude_audit(
             max_tokens=2048,
             system=_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
+            timeout=30.0,
         )
         raw = message.content[0].text.strip()
         result = _parse_claude_json(raw)
@@ -442,8 +462,18 @@ def _fetch_raw_records_text(conn: sqlite3.Connection, blotter_id: int) -> str:
 def _save_audit_result(conn: sqlite3.Connection, result: AuditResult) -> None:
     if result.post_id is None:
         return
-    status = "clean" if result.audit_passed else "flagged"
-    flags_json = json.dumps([asdict(f) for f in result.pii_flags], ensure_ascii=False)
+    has_high = any(f.severity == "high" for f in result.pii_flags)
+    if not result.audit_passed and has_high:
+        status = "manual_review"
+    elif result.audit_passed:
+        status = "clean"
+    else:
+        status = "flagged"
+    try:
+        flags_json = json.dumps([asdict(f) for f in result.pii_flags], ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Failed to serialize PII flags: {e}")
+        flags_json = '[]'
     conn.execute(
         """
         UPDATE posts
@@ -507,7 +537,7 @@ def audit_post(
             agency_name, incident_date, county, pii_flags,
         )
     else:
-        logger.warning("No Anthropic client — Claude audit skipped")
+        logger.error("No Anthropic client — Claude audit skipped. Running in regex-only mode. Posts with HIGH severity PII flags will NOT be auto-cleared.")
         issues.append("Claude audit skipped (no API key configured)")
 
     # Merge missed PII from Claude into our flag list
@@ -538,7 +568,7 @@ def audit_post(
             f"{len(high_flags)} HIGH-severity PII flag(s) require manual review before publishing."
         )
 
-    audit_passed = len(high_flags) == 0 and tone_ok
+    audit_passed = len(high_flags) == 0 and tone_ok and not issues
 
     return AuditResult(
         post_id=post_id,

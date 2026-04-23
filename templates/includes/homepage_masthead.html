@@ -1,72 +1,59 @@
-<header style="background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;">
-
-    <div style="border-bottom: 1px solid var(--border);">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-1 flex items-center justify-between gap-4 flex-wrap">
-            <div class="mono flex items-center gap-4" style="color: var(--text-muted); font-size: 0.6rem;">
-                <span class="uppercase tracking-widest">Free Public Records</span>
-                <span style="color: var(--text-dim);">·</span>
-                <span>{{ total_records }} Records</span>
-                <span style="color: var(--text-dim);">·</span>
-                <span>{{ counties|length }} Counties</span>
-                <span style="color: var(--text-dim);">·</span>
-                <span>{{ agencies|length }} Agencies</span>
+<header class="public-masthead">
+    <div class="public-topband">
+        <div class="public-topband__inner newsroom-container homepage-masthead__topband-inner">
+            <div class="public-topband__cluster">
+                <span class="public-topband__stat">Free Public Records</span>
+                <span class="public-topband__dot">·</span>
+                <span class="public-topband__stat">{{ total_records }} Records</span>
+                <span class="public-topband__dot">·</span>
+                <span class="public-topband__stat">{{ counties|length }} Counties</span>
+                <span class="public-topband__dot">·</span>
+                <span class="public-topband__stat">{{ agencies|length }} Agencies</span>
             </div>
-            <div class="mono flex items-center gap-2" style="color: var(--text-muted); font-size: 0.6rem;">
-                <span class="beacon inline-block w-1.5 h-1.5 rounded-full light-active"></span>
-                <span class="uppercase tracking-widest">Live</span>
-                <span style="color: var(--text-dim);">·</span>
-                <a href="/feed.xml" class="uppercase tracking-widest transition hover:opacity-100" style="color: var(--text-muted);">RSS</a>
-                <span style="color: var(--text-dim);">·</span>
-                <a href="/admin/login" class="uppercase tracking-widest transition hover:opacity-100" style="color: var(--text-muted);">Admin</a>
+            <div class="public-topband__cluster">
+                <span class="beacon public-live-beacon inline-block w-1.5 h-1.5 rounded-full"></span>
+                <span class="public-topband__stat public-topband__stat--accent">Live</span>
+                <span class="public-topband__dot">·</span>
+                <a href="/feed.xml" class="public-utility-link">RSS</a>
+                <span class="public-topband__dot">·</span>
+                <a href="/admin/login" class="public-utility-link">Admin</a>
             </div>
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-6" style="padding-top: 14px; padding-bottom: 14px;">
-        <div class="flex items-center gap-4">
-            <div style="width:44px; height:44px; background: var(--amber); border-radius:5px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color: var(--bg);">
+    <div class="public-shell-core newsroom-container">
+        <a href="/" class="public-brand">
+            <div class="public-brand__mark">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                 </svg>
             </div>
             <div>
-                <div class="serif font-black leading-none" style="font-size: clamp(1.4rem, 3.5vw, 2rem); color: var(--text); letter-spacing: -0.01em;">
-                    The Montana Blotter
-                </div>
-                <p class="mono uppercase tracking-widest mt-0.5" style="font-size: 0.55rem; color: var(--amber);">
-                    Daily Public Safety Dispatch
-                </p>
+                <div class="public-brand__title">The Montana Blotter</div>
+                <p class="public-brand__tag">Daily Public Safety Dispatch</p>
             </div>
-        </div>
+        </a>
 
-        <nav class="hidden md:flex items-center gap-0.5">
+        <nav class="public-nav homepage-masthead__desktop-nav" aria-label="Primary">
             {% for item in public_primary_nav_items %}
             {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
-            <a href="{{ item.href }}" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
-               style="color: {{ 'var(--amber)' if is_active else 'var(--text-muted)' }}; font-size: 0.56rem; font-weight: 600;">{{ item.label }}</a>
+            <a href="{{ item.href }}" class="public-nav-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_primary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
             {% if not loop.last %}
-            <span class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.46rem; padding: 0 0.1rem;">//</span>
+            <span class="public-nav-divider">//</span>
             {% endif %}
             {% endfor %}
-            <a href="/subscribe" class="mono uppercase tracking-widest px-3 py-1.5 rounded ml-2 transition hover:opacity-90"
-               style="background: var(--amber); color: var(--bg); font-size: 0.58rem; font-weight: 700;">Subscribe</a>
+            <a href="/subscribe" class="public-nav-link public-nav-link--cta" style="margin-left:8px;" title="{{ public_action_labels.subscribe_full }}" aria-label="{{ public_action_labels.subscribe_full }}" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
             {% if public_user %}
-            <a href="/account" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
-               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600; margin-left:4px;">{{ public_user.display_name }}</a>
-            <a href="/logout?next={{ request.full_path | urlencode }}" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
-               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600;">Log Out</a>
+            <a href="/account" class="public-nav-link" style="margin-left:4px;" data-nav-track="1" data-nav-location="header_action">{{ public_user.display_name }}</a>
+            <a href="/logout?next={{ request.full_path | urlencode }}" class="public-nav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_out }}</a>
             {% else %}
-            <a href="/login?next={{ request.full_path | urlencode }}" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
-               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600; margin-left:4px;">Log In</a>
-            <a href="/register?next={{ request.full_path | urlencode }}" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
-               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600;">Register</a>
+            <a href="/login?next={{ request.full_path | urlencode }}" class="public-nav-link" style="margin-left:4px;" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
+            <a href="/register?next={{ request.full_path | urlencode }}" class="public-nav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
             {% endif %}
-            <a href="/terms-of-use" class="mono uppercase tracking-widest px-2 py-1 rounded transition hover:bg-white/5"
-               style="color: var(--text-muted); font-size: 0.56rem; font-weight: 600;">Terms</a>
+            <a href="/terms-of-use" class="public-nav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.terms }}</a>
         </nav>
 
-        <button id="mobile-menu-btn" class="md:hidden p-2 rounded transition hover:bg-white/5"
-                style="color: var(--text-muted);" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+        <button id="mobile-menu-btn" class="public-mobile-toggle homepage-masthead__mobile-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <line x1="0" y1="4" x2="18" y2="4"/>
                 <line x1="0" y1="9" x2="18" y2="9"/>
@@ -75,41 +62,42 @@
         </button>
     </div>
 
-    <div class="hidden md:block" style="border-top: 1px solid var(--border);">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-end gap-4">
+    <div class="public-secondary-nav homepage-masthead__secondary-nav">
+        <div class="public-secondary-nav__inner newsroom-container">
             {% for item in public_secondary_nav_items %}
             {% set is_active = active_nav == item.id %}
-            <a href="{{ item.href }}" class="mono uppercase tracking-widest transition hover:opacity-100"
-               style="color: {{ 'var(--amber)' if is_active else 'var(--text-dim)' }}; font-size: 0.5rem; font-weight: 600; text-decoration: none;">{{ item.label }}</a>
+            <a href="{{ item.href }}" class="public-secondary-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_secondary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
             {% if not loop.last %}
-            <span class="mono uppercase tracking-widest" style="color: var(--border-2); font-size: 0.44rem;">&gt;&gt;</span>
+            <span class="public-nav-divider">&gt;&gt;</span>
             {% endif %}
             {% endfor %}
         </div>
     </div>
 
-    <div id="mobile-menu" class="hidden md:hidden px-4 pb-3 space-y-0.5" style="border-top: 1px solid var(--border);">
-        <p class="mono uppercase tracking-widest px-3 pt-3 pb-1" style="color: var(--amber); font-size: 0.56rem; font-weight: 700;">Main</p>
+    <div id="mobile-menu" class="public-mobile-menu homepage-masthead__mobile-menu" hidden>
+        <p class="public-mobile-label public-mobile-label--accent">Main</p>
+        {% if public_mobile_short_label_legend %}
+        <p class="public-mobile-label" style="text-transform:none; letter-spacing:0; opacity:0.82;">{{ public_mobile_short_label_legend }}</p>
+        {% endif %}
+        <button id="home-mobile-label-toggle" type="button" class="public-mobile-link" data-label-toggle="1" data-target-menu="mobile-menu">Show Full Labels</button>
         {% for item in public_primary_nav_items %}
         {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
-        <a href="{{ item.href }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition"
-           style="color: {{ 'var(--amber)' if is_active else 'var(--text-muted)' }}; font-size: 0.66rem;">{{ item.label }}</a>
+        <a href="{{ item.href }}" class="public-mobile-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="mobile_main" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
         {% endfor %}
-        <a href="/subscribe" class="mono flex gap-2 px-3 py-2 rounded uppercase tracking-widest font-bold" style="color: var(--amber); font-size: 0.66rem;">Subscribe</a>
-        <a href="/terms-of-use" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Terms</a>
-        <p class="mono uppercase tracking-widest px-3 pt-3 pb-1" style="color: var(--text-dim); font-size: 0.56rem; font-weight: 700;">Explore</p>
+        <a href="/subscribe" class="public-mobile-link active" title="{{ public_action_labels.subscribe_full }}" aria-label="{{ public_action_labels.subscribe_full }}" data-nav-track="1" data-nav-location="mobile_main" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
+        <a href="/terms-of-use" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_main">{{ public_action_labels.terms }}</a>
+        <p class="public-mobile-label">Explore</p>
         {% for item in public_secondary_nav_items %}
         {% set is_active = active_nav == item.id %}
-        <a href="{{ item.href }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition"
-           style="color: {{ 'var(--amber)' if is_active else 'var(--text-muted)' }}; font-size: 0.66rem;">{{ item.label }}</a>
+        <a href="{{ item.href }}" class="public-mobile-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="mobile_secondary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
         {% endfor %}
-        <p class="mono uppercase tracking-widest px-3 pt-3 pb-1" style="color: var(--text-dim); font-size: 0.56rem; font-weight: 700;">Account</p>
+        <p class="public-mobile-label">{{ public_action_labels.account }}</p>
         {% if public_user %}
-        <a href="/account" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">{{ public_user.display_name }}</a>
-        <a href="/logout?next={{ request.full_path | urlencode }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Log Out</a>
+        <a href="/account" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_user.display_name }}</a>
+        <a href="/logout?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.sign_out }}</a>
         {% else %}
-        <a href="/login?next={{ request.full_path | urlencode }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Log In</a>
-        <a href="/register?next={{ request.full_path | urlencode }}" class="mono flex gap-2 px-3 py-2 rounded hover:bg-white/5 uppercase tracking-widest transition" style="color: var(--text-muted); font-size: 0.66rem;">Register</a>
+        <a href="/login?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.sign_in }}</a>
+        <a href="/register?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.join }}</a>
         {% endif %}
     </div>
 </header>

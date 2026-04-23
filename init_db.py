@@ -9,8 +9,10 @@ from datetime import datetime
 
 from case_journeys import ensure_case_journey_schema, seed_case_journeys
 from court_tracker import ensure_court_tracker_schema
+from bail_bonds_alerts import ensure_bail_bonds_alert_schema
 from bondsman_command_center import ensure_bondsman_command_center_schema
 from incident_notifications import ensure_incident_notification_schema
+from missing_persons import ensure_missing_person_schema
 from public_meetings import ensure_public_meeting_schema
 
 def _env_int(name: str, default: int) -> int:
@@ -213,6 +215,7 @@ def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
             is_featured INTEGER NOT NULL DEFAULT 0,
             last_checked_at TEXT,
             last_success_at TEXT,
+            latest_error TEXT DEFAULT '',
             notes TEXT DEFAULT '',
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
@@ -293,6 +296,7 @@ def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
         ('is_featured', 'INTEGER NOT NULL DEFAULT 0'),
         ('last_checked_at', 'TEXT'),
         ('last_success_at', 'TEXT'),
+        ('latest_error', "TEXT DEFAULT ''"),
         ('notes', "TEXT DEFAULT ''"),
         ('created_at', "TEXT DEFAULT (datetime('now'))"),
         ('updated_at', "TEXT DEFAULT (datetime('now'))"),
@@ -312,6 +316,8 @@ def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
         ('arresting_agency', 'TEXT'),
         ('source_url', 'TEXT'),
         ('source_record_id', 'TEXT'),
+        ('hash_id', 'TEXT'),
+        ('raw_json', 'TEXT'),
         ('booking_status', "TEXT NOT NULL DEFAULT 'current'"),
         ('is_current', 'INTEGER NOT NULL DEFAULT 1'),
         ('first_seen_at', "TEXT DEFAULT (datetime('now'))"),
@@ -325,6 +331,15 @@ def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
             print(f'✅ Added jail_bookings.{col}')
         except sqlite3.OperationalError:
             pass
+
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_bookings_hash_id '
+        'ON jail_bookings(hash_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_bookings_source_record_id '
+        'ON jail_bookings(source_record_id)'
+    )
 
     for col, definition in [
         ('run_type', "TEXT NOT NULL DEFAULT 'manual'"),
@@ -360,6 +375,7 @@ def init_database():
     ensure_public_meeting_schema(conn)
     ensure_public_engagement_schema(conn)
     ensure_incident_notification_schema(conn)
+    ensure_missing_person_schema(conn)
     ensure_jail_booking_schema(conn)
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
@@ -525,7 +541,8 @@ def migrate():
     ).fetchone()
     if record_id_col and record_id_col[0] == 1:
         print("Recreating posts table (removing NOT NULL on record_id)...")
-        cursor.execute('DROP TABLE posts')
+        old_columns = cursor.execute("SELECT name, type FROM pragma_table_info('posts')").fetchall()
+        cursor.execute('ALTER TABLE posts RENAME TO posts_legacy_record_id_not_null')
         cursor.execute('''
             CREATE TABLE posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -543,6 +560,28 @@ def migrate():
                 FOREIGN KEY (blotter_id) REFERENCES blotters(id) ON DELETE CASCADE
             )
         ''')
+        new_column_names = {
+            row[1] for row in cursor.execute("SELECT * FROM pragma_table_info('posts')").fetchall()
+        }
+        for name, col_type in old_columns:
+            if name in new_column_names:
+                continue
+            safe_name = '"' + name.replace('"', '""') + '"'
+            safe_type = col_type or 'TEXT'
+            cursor.execute(f'ALTER TABLE posts ADD COLUMN {safe_name} {safe_type}')
+            new_column_names.add(name)
+        old_column_names = [row[0] for row in old_columns]
+        common_columns = [name for name in old_column_names if name in new_column_names]
+        if common_columns:
+            quoted_columns = ', '.join('"' + name.replace('"', '""') + '"' for name in common_columns)
+            cursor.execute(
+                f'''
+                INSERT INTO posts ({quoted_columns})
+                SELECT {quoted_columns}
+                FROM posts_legacy_record_id_not_null
+                '''
+            )
+        cursor.execute('DROP TABLE posts_legacy_record_id_not_null')
 
     # Indexes on posts
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_county ON posts(county)')
@@ -611,7 +650,9 @@ def migrate():
         )
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(active)')
+    ensure_bail_bonds_alert_schema(conn)
     ensure_incident_notification_schema(conn)
+    ensure_missing_person_schema(conn)
 
     # Emailed agencies — tracks which agencies have been contacted so duplicates are skipped
     cursor.execute('''

@@ -1,196 +1,144 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-    .anav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
-    .anav-link:hover { color: #E8DFD0; }
-    .anav-logout { color: #C94A3A !important; }
-    .anav-logout:hover { color: #E07060 !important; }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <title>Analytics | Admin Panel</title>
-</head>
-<body class="bg-slate-50 font-sans">
+{% extends "base.html" %}
 
-        <nav style="background:#0D0C0B; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4" style="height:54px;">
-            <div class="flex items-center gap-3">
-                <div style="width:32px; height:32px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div>
-                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:0.9rem; color:#E8DFD0; line-height:1.1;">The Montana Blotter</div>
-                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.18em;">Admin Panel</div>
-                </div>
-            </div>
-            <div class="hidden md:flex items-center gap-0.5">
-                <a href="/admin" class="anav-link">Dashboard</a>
-                <a href="/admin/blotters" class="anav-link">Blotters</a>
-                <a href="/admin/upload" class="anav-link">Upload</a>
-                <a href="/admin/blog" class="anav-link">Blog</a>
-                <a href="/admin/analytics" class="anav-link">Analytics</a>
-                <a href="/admin/visitors" class="anav-link">Visitors</a>
-                {% if current_user.role == 'super_admin' %}
-                <a href="/admin/security/users" class="anav-link">Users</a>
-                <a href="/admin/security/audit" class="anav-link">Audit</a>
-                {% endif %}
-                <a href="/" class="anav-link" style="margin-left:8px;">↗ Public</a>
-                <a href="/admin/logout" class="anav-link anav-logout" style="margin-left:4px;">Logout</a>
-            </div>
-        </div>
-    </nav>
+{% block title %}Analytics | Admin Panel{% endblock %}
 
-    <div class="max-w-7xl mx-auto p-6">
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
 
-        <h1 class="text-3xl font-black text-slate-900 mb-8">Analytics Overview</h1>
+{% block content %}
+<div class="max-w-7xl mx-auto p-6">
 
-        <!-- Incidents per day — full width line chart -->
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
-            <h2 class="font-black text-lg mb-4 flex items-center gap-2">
-                <i class="fas fa-chart-line text-emerald-600"></i>
-                Incidents — Last 30 Days
-            </h2>
-            <canvas id="dailyChart" height="80"></canvas>
-        </div>
+    <h1 class="text-3xl font-black text-slate-900 mb-8">Analytics Overview</h1>
 
-        <!-- 2-col grid for smaller charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-            <!-- Top incident types -->
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h2 class="font-black text-lg mb-4 flex items-center gap-2">
-                    <i class="fas fa-list text-blue-600"></i>
-                    Top 10 Incident Types
-                </h2>
-                <canvas id="typeChart"></canvas>
-            </div>
-
-            <!-- Agency type breakdown -->
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h2 class="font-black text-lg mb-4 flex items-center gap-2">
-                    <i class="fas fa-building text-purple-600"></i>
-                    Agency Type Breakdown
-                </h2>
-                <canvas id="agencyChart"></canvas>
-            </div>
-
-        </div>
-
-        <!-- Counties this month vs last month — full width -->
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
-            <h2 class="font-black text-lg mb-4 flex items-center gap-2">
-                <i class="fas fa-map-marked-alt text-orange-600"></i>
-                Top Counties — This Month vs Last Month
-            </h2>
-            <canvas id="countyChart" height="80"></canvas>
-        </div>
-
-        <!-- Blotters per month -->
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h2 class="font-black text-lg mb-4 flex items-center gap-2">
-                <i class="fas fa-file-pdf text-red-600"></i>
-                Blotters Received per Month
-            </h2>
-            <canvas id="blotterChart" height="60"></canvas>
-        </div>
-
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+        <h2 class="font-black text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-chart-line text-emerald-600"></i>
+            Incidents — Last 30 Days
+        </h2>
+        <canvas id="dailyChart" height="80"></canvas>
     </div>
 
-    <script>
-        const dailyLabels  = {{ daily_labels | tojson }};
-        const dailyCounts  = {{ daily_counts | tojson }};
-        const typeLabels   = {{ type_labels  | tojson }};
-        const typeCounts   = {{ type_counts  | tojson }};
-        const agencyLabels = {{ agency_labels | tojson }};
-        const agencyCounts = {{ agency_counts | tojson }};
-        const countyLabels = {{ county_labels | tojson }};
-        const countyThis   = {{ county_this   | tojson }};
-        const countyLast   = {{ county_last   | tojson }};
-        const blotterLabels = {{ blotter_labels | tojson }};
-        const blotterCounts = {{ blotter_counts | tojson }};
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <h2 class="font-black text-lg mb-4 flex items-center gap-2">
+                <i class="fas fa-list text-blue-600"></i>
+                Top 10 Incident Types
+            </h2>
+            <canvas id="typeChart"></canvas>
+        </div>
 
-        // Incidents per day
-        new Chart(document.getElementById('dailyChart'), {
-            type: 'line',
-            data: {
-                labels: dailyLabels,
-                datasets: [{
-                    label: 'Incidents',
-                    data: dailyCounts,
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16,185,129,0.1)',
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 3,
-                }]
-            },
-            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-        });
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <h2 class="font-black text-lg mb-4 flex items-center gap-2">
+                <i class="fas fa-building text-purple-600"></i>
+                Agency Type Breakdown
+            </h2>
+            <canvas id="agencyChart"></canvas>
+        </div>
+    </div>
 
-        // Top incident types (horizontal bar)
-        new Chart(document.getElementById('typeChart'), {
-            type: 'bar',
-            data: {
-                labels: typeLabels,
-                datasets: [{
-                    label: 'Count',
-                    data: typeCounts,
-                    backgroundColor: '#3b82f6',
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true } }
-            }
-        });
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+        <h2 class="font-black text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-map-marked-alt text-orange-600"></i>
+            Top Counties — This Month vs Last Month
+        </h2>
+        <canvas id="countyChart" height="80"></canvas>
+    </div>
 
-        // Agency type doughnut
-        new Chart(document.getElementById('agencyChart'), {
-            type: 'doughnut',
-            data: {
-                labels: agencyLabels,
-                datasets: [{
-                    data: agencyCounts,
-                    backgroundColor: ['#6366f1', '#f59e0b', '#10b981', '#ef4444'],
-                }]
-            },
-            options: { plugins: { legend: { position: 'bottom' } } }
-        });
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+        <h2 class="font-black text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-file-pdf text-red-600"></i>
+            Blotters Received per Month
+        </h2>
+        <canvas id="blotterChart" height="60"></canvas>
+    </div>
 
-        // Counties grouped bar
-        new Chart(document.getElementById('countyChart'), {
-            type: 'bar',
-            data: {
-                labels: countyLabels,
-                datasets: [
-                    { label: 'This Month', data: countyThis, backgroundColor: '#f97316' },
-                    { label: 'Last Month', data: countyLast, backgroundColor: '#fed7aa' },
-                ]
-            },
-            options: { plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
-        });
+</div>
+{% endblock %}
 
-        // Blotters per month
-        new Chart(document.getElementById('blotterChart'), {
-            type: 'bar',
-            data: {
-                labels: blotterLabels,
-                datasets: [{
-                    label: 'Blotters',
-                    data: blotterCounts,
-                    backgroundColor: '#ef4444',
-                }]
-            },
-            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-        });
-    </script>
+{% block extra_scripts %}
+<script>
+const dailyLabels = {{ daily_labels | tojson }};
+const dailyCounts = {{ daily_counts | tojson }};
+const typeLabels = {{ type_labels | tojson }};
+const typeCounts = {{ type_counts | tojson }};
+const agencyLabels = {{ agency_labels | tojson }};
+const agencyCounts = {{ agency_counts | tojson }};
+const countyLabels = {{ county_labels | tojson }};
+const countyThis = {{ county_this | tojson }};
+const countyLast = {{ county_last | tojson }};
+const blotterLabels = {{ blotter_labels | tojson }};
+const blotterCounts = {{ blotter_counts | tojson }};
 
-</body>
-</html>
+new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: {
+        labels: dailyLabels,
+        datasets: [{
+            label: 'Incidents',
+            data: dailyCounts,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16,185,129,0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+        }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('typeChart'), {
+    type: 'bar',
+    data: {
+        labels: typeLabels,
+        datasets: [{
+            label: 'Count',
+            data: typeCounts,
+            backgroundColor: '#3b82f6',
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
+    }
+});
+
+new Chart(document.getElementById('agencyChart'), {
+    type: 'doughnut',
+    data: {
+        labels: agencyLabels,
+        datasets: [{
+            data: agencyCounts,
+            backgroundColor: ['#6366f1', '#f59e0b', '#10b981', '#ef4444'],
+        }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+});
+
+new Chart(document.getElementById('countyChart'), {
+    type: 'bar',
+    data: {
+        labels: countyLabels,
+        datasets: [
+            { label: 'This Month', data: countyThis, backgroundColor: '#f97316' },
+            { label: 'Last Month', data: countyLast, backgroundColor: '#fed7aa' },
+        ]
+    },
+    options: { plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('blotterChart'), {
+    type: 'bar',
+    data: {
+        labels: blotterLabels,
+        datasets: [{
+            label: 'Blotters',
+            data: blotterCounts,
+            backgroundColor: '#ef4444',
+        }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+</script>
+{% endblock %}

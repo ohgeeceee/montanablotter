@@ -1,0 +1,89 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Account" %}
+{% set meta_description = "Manage your Montana Blotter public account, digest settings, and subscriber access." %}
+{% set canonical_url = "https://montanablotter.com/account" %}
+
+{% block body_class %}public-account-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Account</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-5xl mx-auto">
+        <p class="public-eyebrow">Public Account</p>
+        <h1 class="public-title mt-4">Manage Your Access</h1>
+        <p class="public-copy mt-4 max-w-2xl">
+            Review your account details, subscriber status, and command-center access in one place.
+        </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="public-section public-section--narrow">
+    <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <aside class="public-card p-6">
+            <p class="public-card__eyebrow">Profile</p>
+            <h2 class="mt-3 text-2xl font-black text-slate-900">{{ account_user.display_name }}</h2>
+            <dl class="mt-6 space-y-4 text-sm text-slate-600">
+                <div>
+                    <dt class="font-black uppercase tracking-[0.16em] text-[10px] text-slate-400">Email</dt>
+                    <dd class="mt-1">{{ account_user.email }}</dd>
+                </div>
+                <div>
+                    <dt class="font-black uppercase tracking-[0.16em] text-[10px] text-slate-400">Digest Counties</dt>
+                    <dd class="mt-1">{{ account_user.county_list|join(', ') if account_user.county_list else 'None selected' }}</dd>
+                </div>
+                <div>
+                    <dt class="font-black uppercase tracking-[0.16em] text-[10px] text-slate-400">Last Login</dt>
+                    <dd class="mt-1">{{ account_user.last_login_at or 'First session' }}</dd>
+                </div>
+            </dl>
+        </aside>
+
+        <div class="public-card p-6">
+            <p class="public-card__eyebrow">Subscriber Access</p>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+                {% if account_user.is_subscribed %}
+                <span class="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Active</span>
+                {% else %}
+                <span class="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">Free Account</span>
+                {% endif %}
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">{{ account_user.subscriber_plan|replace('_', ' ')|title }}</span>
+            </div>
+
+            <div class="mt-6 public-meta-box p-5">
+                {% if account_user.is_subscribed %}
+                <h3 class="text-xl font-black text-slate-900">Bondsman Command Center unlocked</h3>
+                <p class="mt-2 text-sm text-slate-600">Your subscriber account can access defendant watchlists, alerts, lead claiming, and active-case tracking.</p>
+                <a href="/bondsman/command-center" class="public-btn public-btn--primary mt-4 inline-flex">Open Command Center</a>
+                {% else %}
+                <h3 class="text-xl font-black text-slate-900">Upgrade for bondsman tools</h3>
+                <p class="mt-2 text-sm text-slate-600">Monthly subscriber access activates the bondsman command center and the defendant check-in workflow.</p>
+                <a href="/donate?source=bondsman_account&campaign=bondsman_command_center" class="public-btn public-btn--primary mt-4 inline-flex">Upgrade to Monthly</a>
+                {% endif %}
+            </div>
+
+            {% if account_user.subscription_activated_at or account_user.subscription_canceled_at %}
+            <div class="mt-5 text-sm text-slate-600 space-y-2">
+                {% if account_user.subscription_activated_at %}
+                <p><span class="font-black text-slate-900">Activated:</span> {{ account_user.subscription_activated_at }}</p>
+                {% endif %}
+                {% if account_user.subscription_canceled_at %}
+                <p><span class="font-black text-slate-900">Canceled:</span> {{ account_user.subscription_canceled_at }}</p>
+                {% endif %}
+                {% if account_user.subscription_status %}
+                <p><span class="font-black text-slate-900">Stripe Status:</span> {{ account_user.subscription_status }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

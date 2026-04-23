@@ -128,7 +128,7 @@ class CourtSourceAdaptersTests(unittest.TestCase):
                 <h3>2026</h3>
                 <h4>APRIL</h4>
                 <p><a href="https://courts.mt.gov/external/orders/caseInfo?id=DA%2025-0142">DA 25-0142</a></p>
-                <p>ELLINGSON, Plaintiffs, v. STATE OF MONTANA, Defendants. <strong>Oral Argument </strong>is set for Friday, April 10, 2026, at 10:00 a.m. in the Dennison Theatre, on the campus of the University of Montana, Missoula, Montana, with an introduction to the argument beginning at 9:30 a.m.</p>
+                <p>ELLINGSON, Plaintiffs, v. STATE OF MONTANA, Defendants. <strong>Oral Argument </strong>is set for Friday, April 10, 2027, at 10:00 a.m. in the Dennison Theatre, on the campus of the University of Montana, Missoula, Montana, with an introduction to the argument beginning at 9:30 a.m.</p>
             </div>
         '''
         conn = app_module.get_db()
@@ -151,7 +151,7 @@ class CourtSourceAdaptersTests(unittest.TestCase):
         self.assertEqual(court_row['court_type'], 'Supreme Court')
         self.assertEqual(case_row['case_number'], 'DA 25-0142')
         self.assertEqual(case_row['status'], 'scheduled')
-        self.assertEqual(event_row['event_date'], '2026-04-10')
+        self.assertEqual(event_row['event_date'], '2027-04-10')
         self.assertEqual(event_row['event_time'], '10:00')
         self.assertIn('Dennison Theatre', event_row['event_title'])
         self.assertIn('Missoula', event_row['room'])

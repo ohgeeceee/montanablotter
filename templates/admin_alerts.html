@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {# ── Header + Stats ── #}
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Audience</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">County Alerts &amp; Name Watches</h1>
+            <p class="text-sm text-slate-500 mt-2">Subscribers to immediate county alerts and name watch notifications.</p>
+        </div>
+        <div class="grid grid-cols-3 gap-3 sm:grid-cols-5">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Total Alerts</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.total_subs or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Active</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.active_subs or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Counties</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.counties_covered or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Name Watches</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.active_watches or 0 }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Watches Total</p>
+                <p class="text-2xl font-black text-slate-900 mt-1">{{ summary.total_watches or 0 }}</p>
+            </div>
+        </div>
+    </div>
+
+    {# ── County Breakdown ── #}
+    {% if county_counts %}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-sm font-black text-slate-900 uppercase tracking-wider">Subscribers by County</h2>
+            <span class="text-xs text-slate-400">{{ county_counts|length }} counties</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-px bg-slate-100">
+            {% for row in county_counts %}
+            <div class="bg-white px-4 py-3">
+                <p class="text-xs font-black text-slate-700">{{ row.county }}</p>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-lg font-black text-slate-900">{{ row.active }}</span>
+                    <span class="text-xs text-slate-400">active / {{ row.total }} total</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Filters ── #}
+    <form method="get" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Search Email</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="email or county"
+                    class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+            </div>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">County</label>
+                <input type="text" name="county" value="{{ county_filter }}" placeholder="Cascade, Missoula…"
+                    class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+            </div>
+            <div>
+                <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Status</label>
+                <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider px-5 py-2.5 hover:bg-blue-600 transition">Filter</button>
+            </div>
+        </div>
+    </form>
+
+    {# ── Alert Subscriptions Table ── #}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100">
+            <h2 class="text-sm font-black text-slate-900 uppercase tracking-wider">County Alert Subscriptions</h2>
+        </div>
+        {% if subs %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50">
+                        <th class="text-left px-5 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Email</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">County</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Alert Types</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Source</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Last Alerted</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Status</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in subs %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium text-slate-900">{{ row.email }}</td>
+                        <td class="px-4 py-3 text-slate-700">{{ row.county }}</td>
+                        <td class="px-4 py-3">
+                            {% set types = row.alert_types | tojson | fromjson if row.alert_types else ['all'] %}
+                            {% for t in (row.alert_types | replace('[','') | replace(']','') | replace('"','') | replace("'", '') ).split(',') %}
+                            <span class="inline-block text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 mr-1">{{ t.strip() }}</span>
+                            {% endfor %}
+                        </td>
+                        <td class="px-4 py-3 text-slate-500 text-xs">{{ row.source or '—' }}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs">{{ (row.last_alerted_at or '—')[:16] }}</td>
+                        <td class="px-4 py-3">
+                            {% if row.active %}
+                            <span class="inline-block text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Active</span>
+                            {% else %}
+                            <span class="inline-block text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if row.active %}
+                            <form method="post" action="/admin/audience/alerts/{{ row.id }}/deactivate">
+                                <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold">Deactivate</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-5 py-10 text-center text-slate-400 text-sm">No alert subscriptions found.</div>
+        {% endif %}
+    </div>
+
+    {# ── Name Watches Table ── #}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-sm font-black text-slate-900 uppercase tracking-wider">Name Watches</h2>
+            <span class="text-xs text-slate-400 italic">Watch names are private — never shown publicly</span>
+        </div>
+        {% if watches %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50">
+                        <th class="text-left px-5 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Email</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Watch Name</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">County Scope</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Last Alerted</th>
+                        <th class="text-left px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">Status</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in watches %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium text-slate-900">{{ row.email }}</td>
+                        <td class="px-4 py-3 text-slate-700 font-mono text-xs">{{ row.watch_name }}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs">{{ row.county or 'Statewide' }}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs">{{ (row.last_alerted_at or '—')[:16] }}</td>
+                        <td class="px-4 py-3">
+                            {% if row.active %}
+                            <span class="inline-block text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Active</span>
+                            {% else %}
+                            <span class="inline-block text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if row.active %}
+                            <form method="post" action="/admin/audience/alerts/watch/{{ row.id }}/deactivate">
+                                <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold">Deactivate</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-5 py-10 text-center text-slate-400 text-sm">No name watches yet.</div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

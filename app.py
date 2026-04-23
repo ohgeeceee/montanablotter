@@ -27,6 +27,7 @@ from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
 from agency_normalization import normalize_agency_identity
+from blotter_auditor import get_pii_spans
 import config
 from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
@@ -46,6 +47,12 @@ from morning_briefing import (
     build_html as build_morning_briefing_html,
     get_posts_for_date as get_morning_briefing_posts,
     send_email as send_morning_briefing_email,
+)
+from missing_persons import (
+    get_missing_person_by_slug,
+    missing_person_detail_context,
+    missing_person_homepage_context,
+    missing_person_public_context,
 )
 from public_meetings import ensure_public_meeting_schema, meeting_admin_context
 from facebook_publisher import (
@@ -82,6 +89,36 @@ app.config.update(
     SESSION_COOKIE_SAMESITE=config.SESSION_COOKIE_SAMESITE,
     SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
 )
+
+
+def _redact_public_pii(value):
+    if value is None:
+        return value
+    text = str(value)
+    spans = [
+        span for span in get_pii_spans(text)
+        if span.get('severity') in {'high', 'medium'}
+    ]
+    for span in reversed(spans):
+        pii_type = str(span.get('pii_type') or 'pii').replace('_', ' ')
+        text = text[:span['start']] + f'[redacted {pii_type}]' + text[span['end']:]
+    return text
+
+
+def _public_record_dict(row):
+    data = dict(row)
+    for key in ('location', 'details', 'officer'):
+        if key in data:
+            data[key] = _redact_public_pii(data[key])
+    return data
+
+
+def _public_log_dict(row):
+    data = dict(row)
+    for key in ('officer', 'entry'):
+        if key in data:
+            data[key] = _redact_public_pii(data[key])
+    return data
 
 OFFICIAL_SOURCE_COVERAGE = [
     {
@@ -637,7 +674,8 @@ MAJOR_JAIL_BOOKING_COUNTIES = (
     'missoula',
     'gallatin',
     'flathead',
-    'cascade',
+    'jefferson',   # ADDED: visible on /jail-bookings page
+    'sanders',     # ADDED: visible on /jail-bookings page
 )
 JAIL_BOOKING_STATUS_LABELS = {
     'current': 'Current',
@@ -1036,8 +1074,19 @@ def apply_security_headers(response):
     if config.CONTENT_SECURITY_POLICY:
         response.headers.setdefault('Content-Security-Policy', config.CONTENT_SECURITY_POLICY)
     if request.path.startswith('/api/') and request.method in {'GET', 'HEAD', 'OPTIONS'}:
-        allow_origin = (getattr(config, 'API_CORS_ALLOW_ORIGIN', '*') or '*').strip()
-        response.headers.setdefault('Access-Control-Allow-Origin', allow_origin)
+        allow_origin_raw = (getattr(config, 'API_CORS_ALLOW_ORIGIN', '') or '').strip()
+        allowed_origins = [origin.strip() for origin in allow_origin_raw.split(',') if origin.strip()]
+        request_origin = (request.headers.get('Origin') or '').strip()
+
+        if '*' in allowed_origins:
+            response.headers.setdefault('Access-Control-Allow-Origin', '*')
+        elif request_origin and request_origin in allowed_origins:
+            response.headers.setdefault('Access-Control-Allow-Origin', request_origin)
+            vary = response.headers.get('Vary', '')
+            response.headers['Vary'] = 'Origin' if not vary else f'{vary}, Origin'
+        elif not request_origin and len(allowed_origins) == 1:
+            response.headers.setdefault('Access-Control-Allow-Origin', allowed_origins[0])
+
         response.headers.setdefault('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
         response.headers.setdefault('Access-Control-Allow-Headers', 'Content-Type')
     return response
@@ -1463,6 +1512,43 @@ def _city_slug_for_name(name):
 
 def _summary_lines(summary):
     return [line.strip() for line in (summary or '').split('\n') if line.strip()]
+
+
+def _detail_source_pdf_name(row):
+    if not row:
+        return None
+    file_path = (row['file_path'] or '').strip() if 'file_path' in row.keys() else ''
+    if file_path:
+        return os.path.basename(file_path)
+
+    filename = ''
+    for key in ('source_filename', 'blotter_filename'):
+        if key in row.keys() and (row[key] or '').strip():
+            filename = row[key].strip()
+            break
+    return os.path.basename(filename) if filename else None
+
+
+def _charge_explainer_slug_map(conn, records):
+    incident_types = []
+    for record in records or []:
+        incident_type = (record['incident_type'] or '').strip()
+        if incident_type and incident_type not in incident_types:
+            incident_types.append(incident_type)
+    if not incident_types:
+        return {}
+
+    placeholders = ','.join('?' for _ in incident_types)
+    rows = conn.execute(
+        f'''
+        SELECT incident_type, slug
+        FROM charge_explainers
+        WHERE published = 1
+          AND incident_type IN ({placeholders})
+        ''',
+        incident_types,
+    ).fetchall()
+    return {row['incident_type']: row['slug'] for row in rows}
 
 
 def _safe_json_loads(value, default):
@@ -2204,8 +2290,8 @@ def _bail_ad_contract_context():
     )
     contract_url = configured_url or url_for('payments.advertise_bail_contract')
     return {
-        'title': "Let's Bail Advertising Contract",
-        'partner_name': "Let's Bail",
+        'title': "Affordable Bail Bonds Advertising Contract",
+        'partner_name': "Affordable Bail Bonds",
         'url': contract_url,
         'external': bool(configured_url),
         'updated_label': 'Updated March 19, 2026',
@@ -4795,6 +4881,9 @@ def _annotate_recent_records(conn, recent_records):
     enriched = []
     for record in recent_records:
         item = dict(record)
+        for key in ('location', 'details'):
+            if key in item:
+                item[key] = _redact_public_pii(item[key])
         detail = detail_map.get(int(record['id']))
         if detail:
             card = _build_record_provenance_card(
@@ -4961,6 +5050,7 @@ def _annotate_posts_with_confidence(conn, posts):
         batch_rows = conn.execute(
             f'''
             SELECT blotter_id,
+                   id,
                    cfs_number, date, time,
                    COALESCE(incident_type, incident, '') AS incident_type,
                    COALESCE(location, '') AS location,
@@ -4979,11 +5069,26 @@ def _annotate_posts_with_confidence(conn, posts):
     for post in posts:
         item = dict(post)
         detail = detail_map.get(int(post['id']))
+        blotter_records = blotter_cache.get(int(detail['blotter_id']), []) if detail else []
+        if blotter_records:
+            lead_record = dict(blotter_records[-1])
+            item['lead_record'] = {
+                'id': lead_record.get('id'),
+                'date': lead_record.get('date'),
+                'time': lead_record.get('time'),
+                'incident_label': (lead_record.get('incident_type') or '').strip() or 'Incident',
+                'location': (lead_record.get('location') or '').strip(),
+                'cfs_number': lead_record.get('cfs_number'),
+            }
+            item['record_count'] = len(blotter_records)
+        else:
+            item['lead_record'] = None
+            item['record_count'] = 0
         if detail:
             card = _build_provenance_card(
                 conn,
                 detail,
-                blotter_cache.get(int(detail['blotter_id']), []),
+                blotter_records,
             )
             item['confidence_badge'] = _confidence_badge_meta(card)
         else:
@@ -5061,6 +5166,288 @@ def _featured_city_pages(cities, limit=None):
     if limit is not None:
         return featured[:limit]
     return featured
+
+
+def _titleize_slug(value):
+    parts = [part for part in (value or '').replace('_', '-').split('-') if part]
+    return ' '.join(part.capitalize() for part in parts)
+
+
+def _homepage_recent_records(
+    conn,
+    *,
+    county='',
+    city='',
+    agency_type='',
+    agency='',
+    search_query='',
+    date_sql_val='',
+    status_filter='',
+    limit=10,
+):
+    record_date_sql = _record_roundup_date_sql('records.date')
+    sql = f"""
+        SELECT
+            records.id,
+            records.date,
+            records.time,
+            records.county,
+            COALESCE(NULLIF(records.incident_type, ''), NULLIF(records.incident, ''), 'Incident') AS incident_label,
+            COALESCE(NULLIF(records.location, ''), '') AS location,
+            COALESCE(records.details, '') AS details,
+            posts.id AS post_id,
+            posts.title AS post_title,
+            COALESCE(NULLIF(posts.agency_name, ''), 'Unknown agency') AS agency_name,
+            COALESCE(NULLIF(posts.city, ''), '') AS city,
+            COALESCE(posts.case_status, 'pending') AS case_status
+        FROM records
+        JOIN posts ON posts.blotter_id = records.blotter_id
+        WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
+    """
+    params = []
+
+    if county:
+        sql += " AND records.county = ?"
+        params.append(county)
+    if city:
+        sql += " AND COALESCE(posts.city, '') LIKE ?"
+        params.append(f'%{city}%')
+    if agency_type:
+        sql += " AND COALESCE(posts.agency_type, '') = ?"
+        params.append(agency_type)
+    if agency:
+        sql += " AND COALESCE(posts.agency_name, '') = ?"
+        params.append(agency)
+    if search_query:
+        st = f'%{search_query}%'
+        sql += """
+            AND (
+                COALESCE(records.incident_type, '') LIKE ?
+                OR COALESCE(records.incident, '') LIKE ?
+                OR COALESCE(records.details, '') LIKE ?
+                OR COALESCE(records.location, '') LIKE ?
+                OR COALESCE(posts.title, '') LIKE ?
+                OR COALESCE(posts.summary, '') LIKE ?
+            )
+        """
+        params.extend([st, st, st, st, st, st])
+    if date_sql_val:
+        sql += " AND records.date = ?"
+        params.append(date_sql_val)
+    if status_filter in ('active', 'pending', 'resolved'):
+        sql += " AND COALESCE(posts.case_status, 'pending') = ?"
+        params.append(status_filter)
+
+    sql += f"""
+        ORDER BY
+            CASE COALESCE(posts.case_status, 'pending')
+                WHEN 'active' THEN 0
+                WHEN 'pending' THEN 1
+                ELSE 2
+            END,
+            {record_date_sql} DESC,
+            COALESCE(records.time, '') DESC,
+            records.id DESC
+        LIMIT ?
+    """
+    params.append(limit)
+
+    recent_records = conn.execute(sql, params).fetchall()
+    return _annotate_recent_records(conn, recent_records)
+
+
+def _homepage_most_viewed_pages(conn, limit=5):
+    try:
+        path_rows = conn.execute(
+            """
+            SELECT path, COUNT(*) AS view_count, MAX(created_at) AS last_viewed_at
+            FROM page_views
+            WHERE created_at >= datetime('now', '-7 days')
+              AND path IS NOT NULL
+              AND TRIM(path) != ''
+              AND path != '/'
+              AND path NOT LIKE '/admin%'
+              AND path NOT LIKE '/api/%'
+              AND path NOT LIKE '/static/%'
+              AND path NOT LIKE '/uploads/%'
+              AND path NOT LIKE '/manifest.json%'
+              AND path NOT LIKE '/sw.js%'
+              AND path NOT LIKE '/feed.xml%'
+            GROUP BY path
+            ORDER BY view_count DESC, last_viewed_at DESC
+            LIMIT ?
+            """,
+            (limit * 3,),
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+
+    if not path_rows:
+        return []
+
+    post_ids = []
+    record_ids = []
+    for row in path_rows:
+        path = (row['path'] or '').strip()
+        if path.startswith('/post/'):
+            tail = path.split('/post/', 1)[1].split('/', 1)[0]
+            if tail.isdigit():
+                post_ids.append(int(tail))
+        elif path.startswith('/record/'):
+            tail = path.split('/record/', 1)[1].split('/', 1)[0]
+            if tail.isdigit():
+                record_ids.append(int(tail))
+
+    post_map = {}
+    if post_ids:
+        placeholders = ','.join('?' for _ in post_ids)
+        post_rows = conn.execute(
+            f"SELECT id, title, county FROM posts WHERE id IN ({placeholders})",
+            post_ids,
+        ).fetchall()
+        post_map = {
+            int(row['id']): {
+                'label': row['title'] or f"Report {row['id']}",
+                'meta': row['county'] or 'Report',
+                'kind': 'Report',
+            }
+            for row in post_rows
+        }
+
+    record_map = {}
+    if record_ids:
+        placeholders = ','.join('?' for _ in record_ids)
+        record_rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                county,
+                COALESCE(NULLIF(incident_type, ''), NULLIF(incident, ''), 'Incident') AS incident_label
+            FROM records
+            WHERE id IN ({placeholders})
+            """,
+            record_ids,
+        ).fetchall()
+        record_map = {
+            int(row['id']): {
+                'label': row['incident_label'],
+                'meta': row['county'] or 'Record',
+                'kind': 'Record',
+            }
+            for row in record_rows
+        }
+
+    generic_labels = {
+        '/counties': ('Jurisdiction Directory', 'Statewide coverage', 'Directory'),
+        '/cities': ('City Coverage', 'Jurisdiction coverage', 'Directory'),
+        '/trends': ('Statewide Trends', '7-day movement', 'Trend'),
+        '/arrests': ('Arrest Records', 'Recent arrest-linked entries', 'Desk'),
+        '/support': ('Support Hub', 'Sponsorships and partnerships', 'Support'),
+        '/jail-rosters': ('Jail Rosters', 'County detention lookup', 'Lookup'),
+        '/detention': ('Detention Hub', 'County detention lookup', 'Lookup'),
+        '/warrants': ('Warrant Resources', 'Court and county warrant access', 'Lookup'),
+        '/courts': ('Montana Court Tracker', 'Hearings and public case pages', 'Courts'),
+    }
+
+    viewed_pages = []
+    for row in path_rows:
+        path = (row['path'] or '').strip()
+        label = None
+        meta = None
+        kind = 'Page'
+
+        if path in generic_labels:
+            label, meta, kind = generic_labels[path]
+        elif path.startswith('/post/'):
+            tail = path.split('/post/', 1)[1].split('/', 1)[0]
+            if tail.isdigit():
+                info = post_map.get(int(tail))
+                if info:
+                    label = info['label']
+                    meta = info['meta']
+                    kind = info['kind']
+        elif path.startswith('/record/'):
+            tail = path.split('/record/', 1)[1].split('/', 1)[0]
+            if tail.isdigit():
+                info = record_map.get(int(tail))
+                if info:
+                    label = info['label']
+                    meta = info['meta']
+                    kind = info['kind']
+        elif path.startswith('/county/'):
+            slug = path.split('/county/', 1)[1].split('/', 1)[0]
+            county_page = COUNTY_DATA.get(slug)
+            if county_page:
+                label = f"{county_page['name']} County"
+                meta = 'County desk'
+                kind = 'Jurisdiction'
+        elif path.startswith('/city/'):
+            slug = path.split('/city/', 1)[1].split('/', 1)[0]
+            city_page = CITY_DATA.get(slug)
+            if city_page:
+                label = city_page['name']
+                meta = city_page.get('county_name') or 'City desk'
+                kind = 'Jurisdiction'
+        elif path.startswith('/laws/charge/'):
+            slug = path.split('/laws/charge/', 1)[1].split('/', 1)[0]
+            label = _titleize_slug(slug)
+            meta = 'Charge explainer'
+            kind = 'Reference'
+        elif path.startswith('/case-journeys/'):
+            slug = path.split('/case-journeys/', 1)[1].split('/', 1)[0]
+            label = _titleize_slug(slug)
+            meta = 'Case journey'
+            kind = 'Timeline'
+
+        if not label:
+            clean_path = path.strip('/') or 'home'
+            label = _titleize_slug(clean_path)
+            meta = 'Public page'
+
+        viewed_pages.append({
+            'href': path,
+            'label': label,
+            'meta': meta,
+            'kind': kind,
+            'view_count': row['view_count'],
+        })
+        if len(viewed_pages) >= limit:
+            break
+
+    return viewed_pages
+
+
+def _homepage_newsroom_context(
+    conn,
+    *,
+    county='',
+    city='',
+    agency_type='',
+    agency='',
+    search_query='',
+    date_sql_val='',
+    status_filter='',
+):
+    recent_records = _homepage_recent_records(
+        conn,
+        county=county,
+        city=city,
+        agency_type=agency_type,
+        agency=agency,
+        search_query=search_query,
+        date_sql_val=date_sql_val,
+        status_filter=status_filter,
+        limit=10,
+    )
+    return {
+        'featured_records': recent_records[:3],
+        'live_activity': recent_records[:8],
+        'ticker_records': recent_records[:6],
+        # The weekly ranking query groups over a very large page_views table and
+        # can dominate homepage latency. Keep the sidebar in its empty state
+        # until this is replaced with pre-aggregated analytics.
+        'most_viewed_pages': [],
+    }
 
 
 def _parse_record_date(value):
@@ -5715,6 +6102,9 @@ def _public_meetings_dashboard_context():
         LIMIT 150
     '''
     meetings = conn.execute(sql, params).fetchall()
+    if not meetings:
+        fallback_sql = sql.replace("          AND public_meetings.status = 'upcoming'\n", '')
+        meetings = conn.execute(fallback_sql, params).fetchall()
     documents_map = _meeting_documents_map(conn, [row['id'] for row in meetings])
     latest_sync_row = conn.execute(
         '''
@@ -5790,35 +6180,73 @@ def _public_meetings_dashboard_context():
 def inject_public_nav():
     home_href = BASE_URL if _is_agendas_host() else '/'
     public_user = _get_public_user()
+    subscribe_variant = 'subscribe'
+    try:
+        seed = f"{_client_ip()}|{request.headers.get('User-Agent', '')}"
+        subscribe_variant = 'alerts' if (int(hashlib.sha256(seed.encode()).hexdigest(), 16) % 2) else 'subscribe'
+    except Exception:
+        subscribe_variant = 'subscribe'
+    subscribe_nav_label = 'Alerts' if subscribe_variant == 'alerts' else 'Subscribe'
     public_primary_nav_items = [
         {'id': 'home', 'href': home_href, 'label': 'Home'},
         {'id': 'meetings', 'href': _public_meetings_href(), 'label': 'Meetings'},
         {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
-        {'id': 'jail_rosters', 'href': '/detention', 'label': 'Detention'},
-        {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds'},
-        {'id': 'advertise', 'href': '/advertise/bail-bonds', 'label': 'Advertise'},
+        {'id': 'jail_rosters', 'href': '/detention', 'label': 'Detention', 'menu_label': 'Jails'},
+        {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds', 'menu_label': 'Bail'},
     ]
     public_secondary_nav_items = [
-        {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys'},
-        {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings'},
+        {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys', 'menu_label': 'Cases'},
+        {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings', 'menu_label': 'Bookings'},
+        {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons', 'menu_label': 'Missing'},
+        {'id': 'support', 'href': '/support', 'label': 'Support'},
     ]
     if public_user and getattr(public_user, 'is_subscribed', False):
         public_secondary_nav_items.append(
-            {'id': 'bondsman_command_center', 'href': '/bondsman/command-center', 'label': 'Command Center'}
+            {'id': 'bondsman_command_center', 'href': '/bondsman/command-center', 'label': 'Command Center', 'menu_label': 'Command'}
         )
+    nav_items_by_id = {
+        item['id']: item
+        for item in [*public_primary_nav_items, *public_secondary_nav_items]
+    }
+    public_nav_menu_labels_by_href = {
+        item['href']: item.get('menu_label') or item['label']
+        for item in [*public_primary_nav_items, *public_secondary_nav_items]
+    }
+    public_nav_full_labels_by_href = {
+        item['href']: item['label']
+        for item in [*public_primary_nav_items, *public_secondary_nav_items]
+    }
+    mobile_legend_ids = ('bail_bonds', 'case_journeys', 'missing_persons')
+    public_mobile_short_label_legend = ' · '.join(
+        f"{nav_items_by_id[item_id]['menu_label']} = {nav_items_by_id[item_id]['label']}"
+        for item_id in mobile_legend_ids
+        if item_id in nav_items_by_id and nav_items_by_id[item_id].get('menu_label')
+    )
+    public_action_labels = {
+        'subscribe': subscribe_nav_label,
+        'subscribe_full': 'Subscribe',
+        'account': 'Account',
+        'sign_in': 'Sign In',
+        'join': 'Join',
+        'sign_out': 'Sign Out',
+        'terms': 'Terms',
+        'more': 'More',
+    }
     public_footer_items = [
         {'href': home_href, 'label': 'Home'},
         {'href': _public_meetings_href(), 'label': 'Meetings'},
         {'href': '/courts', 'label': 'Courts'},
         {'href': '/case-journeys', 'label': 'Case Journeys'},
+        {'href': '/missing-persons', 'label': 'Missing Persons'},
         {'href': '/arrests', 'label': 'Arrests'},
         {'href': '/counties', 'label': 'Counties'},
         {'href': '/jail-rosters', 'label': 'Jail Rosters'},
         {'href': '/bail-bonds', 'label': 'Bail Bonds'},
         {'href': '/jail-bookings', 'label': 'New Bookings'},
         {'href': '/bondsman/command-center', 'label': 'Command Center'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
+        {'href': '/support', 'label': 'Support'},
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
         {'href': '/recovery-centers', 'label': 'Recovery Centers'},
         {'href': '/subscribe', 'label': 'Subscribe'},
@@ -5831,6 +6259,11 @@ def inject_public_nav():
     return {
         'public_primary_nav_items': public_primary_nav_items,
         'public_secondary_nav_items': public_secondary_nav_items,
+        'public_nav_menu_labels_by_href': public_nav_menu_labels_by_href,
+        'public_nav_full_labels_by_href': public_nav_full_labels_by_href,
+        'public_mobile_short_label_legend': public_mobile_short_label_legend,
+        'public_action_labels': public_action_labels,
+        'public_nav_experiment': {'subscribe_variant': subscribe_variant},
         'public_footer_items': [item for item in public_footer_items if item],
         'footer_featured_city_items': footer_featured_city_items,
         'current_year': datetime.now().year,
@@ -5940,16 +6373,24 @@ def track_page_view():
         return
     ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
     referrer = (request.referrer or '')[:500]
+    conn = None
     try:
-        conn = get_db()
+        # Visitor analytics must never sit on the request path behind a long DB
+        # lock; skip the write if SQLite is busy.
+        conn = connect_db(row_factory=None, timeout_seconds=0.25, busy_timeout_ms=250)
         conn.execute(
             'INSERT INTO page_views (path, ip_hash, referrer) VALUES (?, ?, ?)',
             (request.path, ip_hash, referrer)
         )
         conn.commit()
-        conn.close()
-    except Exception:
+    except sqlite3.Error:
         pass  # Never break the site for analytics
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except sqlite3.Error:
+                pass
 
 
 def _record_subscribe_event(event_type, source='', page_path='', email=''):
@@ -6017,6 +6458,11 @@ def _ensure_subscriber_schema(conn):
         ('source', 'TEXT'),
         ('notes', 'TEXT'),
         ('phone', 'TEXT'),
+        ('agency_name', "TEXT NOT NULL DEFAULT ''"),
+        ('phone_number_sms', "TEXT NOT NULL DEFAULT ''"),
+        ('counties_of_interest', "TEXT NOT NULL DEFAULT '[]'"),
+        ('charge_types_of_interest', "TEXT NOT NULL DEFAULT '[\"all\"]'"),
+        ('subscription_status', "TEXT NOT NULL DEFAULT 'active'"),
         ('wants_notifications', 'INTEGER NOT NULL DEFAULT 0'),
         ('notification_channels', "TEXT NOT NULL DEFAULT 'email'"),
     ]:
@@ -6044,6 +6490,12 @@ def _ensure_subscriber_schema(conn):
             email_hash TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_subscribers_bail_bonds_active
+        ON subscribers(subscription_status, active)
         '''
     )
     conn.execute('CREATE INDEX IF NOT EXISTS idx_subscribe_events_created ON subscribe_events(created_at)')
@@ -7047,7 +7499,7 @@ def index():
         SELECT posts.*, blotters.county AS blotter_county, blotters.file_path AS file_path
         FROM posts
         JOIN blotters ON posts.blotter_id = blotters.id
-        WHERE 1=1
+        WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
     """
     params = []
 
@@ -7085,9 +7537,9 @@ def index():
 
     # Filter dropdowns
     counties = [r['county'] for r in conn.execute(
-        'SELECT DISTINCT county FROM posts ORDER BY county').fetchall()]
+        "SELECT DISTINCT county FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean' ORDER BY county").fetchall()]
     cities = [r['city'] for r in conn.execute(
-        "SELECT DISTINCT city FROM posts WHERE city != '' ORDER BY city").fetchall()]
+        "SELECT DISTINCT city FROM posts WHERE city != '' AND COALESCE(audit_status, 'pending') = 'clean' ORDER BY city").fetchall()]
 
     # Agency directory: each agency with last report date and count
     agency_rows = conn.execute("""
@@ -7096,6 +7548,7 @@ def index():
                COUNT(*) AS report_count
         FROM posts
         WHERE agency_name IS NOT NULL AND agency_name != ''
+          AND COALESCE(audit_status, 'pending') = 'clean'
         GROUP BY agency_name
         ORDER BY last_report DESC
     """).fetchall()
@@ -7121,18 +7574,6 @@ def index():
             continue
         agency_map[key]['report_count'] += row['report_count']
 
-    # Calendar: all dates that have at least one post, normalised to YYYY-MM-DD
-    dates_with_posts = []
-    for row in conn.execute(
-            'SELECT DISTINCT incident_date FROM posts '
-            'WHERE incident_date IS NOT NULL AND incident_date != "" '
-            'ORDER BY incident_date').fetchall():
-        try:
-            d = datetime.strptime(row[0], '%m/%d/%y').strftime('%Y-%m-%d')
-            dates_with_posts.append(d)
-        except ValueError:
-            pass
-
     total_records = conn.execute('SELECT COUNT(*) FROM records').fetchone()[0]
 
     post_stats = {
@@ -7142,6 +7583,7 @@ def index():
             SELECT county, COUNT(*) AS post_count, MAX(incident_date) AS last_report
             FROM posts
             WHERE county IS NOT NULL AND county != ''
+              AND COALESCE(audit_status, 'pending') = 'clean'
             GROUP BY county
             '''
         ).fetchall()
@@ -7174,13 +7616,19 @@ def index():
         key=lambda item: (-item['record_count'], -item['post_count'], item['name'])
     )
     top_counties = top_counties[:5]
-    city_directory_listing = _city_directory_listing(conn)
-    featured_new_cities = _featured_city_pages(city_directory_listing)
-    latest_weekly_digest = _latest_weekly_digest(conn)
+    featured_new_cities = []
     weekly_snapshot = _weekly_snapshot(conn)
-    top_pattern_pages = _top_pattern_pages(conn)
-    featured_case_journeys = _featured_case_journeys(conn)
-    bail_ad_placements = _bail_ad_public_placements(conn, county=county)
+    missing_persons_alert = missing_person_homepage_context(conn, limit=3)
+    newsroom_context = _homepage_newsroom_context(
+        conn,
+        county=county,
+        city=city,
+        agency_type=agency_type,
+        agency=agency,
+        search_query=search_query,
+        date_sql_val=date_sql_val,
+        status_filter=status_filter,
+    )
 
     # Leaderboard: most active agencies this week vs last week
     this_week_rows = conn.execute("""
@@ -7236,22 +7684,39 @@ def index():
                            q=search_query,
                            date_filter=date_filter,
                            status_filter=status_filter,
-                           dates_with_posts=dates_with_posts,
                            total_records=total_records,
                            top_counties=top_counties,
                            featured_new_cities=featured_new_cities,
-                           latest_weekly_digest=latest_weekly_digest,
                            weekly_snapshot=weekly_snapshot,
-                           top_pattern_pages=top_pattern_pages,
-                           featured_case_journeys=featured_case_journeys,
-                           bail_ad_placements=bail_ad_placements,
+                           missing_persons_alert=missing_persons_alert,
                            leaderboard=leaderboard,
+                           page_title='Real-Time Public Record Reporting',
+                           meta_description='Real-time Montana public record reporting with recent incident cards, jurisdiction directories, and statewide trend visibility.',
+                           canonical_url=f'{BASE_URL}/',
+                           og_title='Montana Blotter | Real-Time Public Record Reporting',
+                           og_description='Track recent Montana incident records, browse jurisdictions, and follow statewide public record trends in one newsroom-style homepage.',
+                           active_nav='home',
+                           **newsroom_context,
                            current_year=datetime.now().year)
+
+
+@app.route('/posts')
+def legacy_posts_redirect():
+    query_string = request.query_string.decode().strip()
+    target = url_for('index')
+    if query_string:
+        target = f'{target}?{query_string}'
+    return redirect(target, code=302)
 
 
 @app.route('/meetings')
 def public_meetings_dashboard():
     return render_template('public_meetings.html', **_public_meetings_dashboard_context())
+
+
+@app.route('/public-meetings')
+def legacy_public_meetings_redirect():
+    return redirect(url_for('public_meetings_dashboard'), code=301)
 
 
 @app.route('/courts')
@@ -7334,6 +7799,87 @@ def public_court_case_detail(slug):
     )
 
 
+@app.route('/case-journeys')
+def public_case_journey_index():
+    conn = get_db()
+    journeys = _case_journey_rows(conn)
+    conn.close()
+    return render_template(
+        'case_journey_index.html',
+        journeys=journeys,
+        page_title='Case Journeys',
+        meta_description='Follow Montana incident timelines with command-log updates, source confidence, and direct links back to public records.',
+        canonical_url=f'{BASE_URL}/case-journeys',
+        og_title='Case Journeys | Montana Blotter',
+        og_description='Follow Montana incident timelines with command-log updates, source confidence, and direct links back to public records.',
+        active_nav='case_journeys',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/case-journeys/<slug>')
+def public_case_journey_detail(slug):
+    conn = get_db()
+    journey = _case_journey_detail(conn, slug)
+    conn.close()
+    if not journey:
+        return render_template('404.html'), 404
+    return render_template(
+        'case_journey_detail.html',
+        journey=journey,
+        page_title=journey['title'],
+        meta_description=journey.get('summary') or f"Public case journey for {journey['county']} County, Montana.",
+        canonical_url=f"{BASE_URL}/case-journeys/{journey['slug']}",
+        og_title=f"{journey['title']} | Case Journey | Montana Blotter",
+        og_description=journey.get('summary') or f"Public case journey for {journey['county']} County, Montana.",
+        active_nav='case_journeys',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/missing-persons')
+def missing_persons_index():
+    conn = get_db()
+    context = missing_person_public_context(
+        conn,
+        status_filter=request.args.get('status'),
+        q=request.args.get('q'),
+    )
+    conn.close()
+    return render_template(
+        'missing_persons.html',
+        active_nav='missing_persons',
+        page_title='Montana Missing Persons Database',
+        meta_description='Statewide missing-person alerts and recent located updates for Montana communities, with last-seen details and contact guidance.',
+        canonical_url=f'{BASE_URL}/missing-persons',
+        og_title='Montana Missing Persons Database',
+        og_description='Track active missing-person alerts and recently located cases across Montana.',
+        **context,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/missing-persons/<slug>')
+def missing_person_detail(slug):
+    conn = get_db()
+    context = missing_person_detail_context(conn, slug)
+    conn.close()
+    if not context:
+        return render_template('404.html'), 404
+    person = context['person']
+    return render_template(
+        'missing_person_detail.html',
+        active_nav='missing_persons',
+        page_title=person['full_name'],
+        meta_description=f"Missing-person record for {person['full_name']} with last-seen details, contact guidance, and Montana public alert context.",
+        canonical_url=f"{BASE_URL}{person['public_href']}",
+        og_title=f"{person['full_name']} | Montana Missing Persons",
+        og_description=person['summary'],
+        **context,
+        current_year=datetime.now().year,
+    )
+
+
 @app.route('/feed.xml')
 def rss_feed():
     """Atom feed of the 20 most recent daily activity reports."""
@@ -7342,6 +7888,7 @@ def rss_feed():
         SELECT posts.*, blotters.county AS blotter_county
         FROM posts
         JOIN blotters ON posts.blotter_id = blotters.id
+        WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
         ORDER BY posts.incident_date DESC, posts.created_at DESC
         LIMIT 20
     """).fetchall()
@@ -7498,10 +8045,15 @@ def sitemap_index():
     """Sitemap index for public archive sections."""
     conn = get_db()
     post_lastmod_row = conn.execute(
-        'SELECT MAX(created_at) AS lastmod FROM posts'
+        "SELECT MAX(created_at) AS lastmod FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean'"
     ).fetchone()
     record_lastmod_row = conn.execute(
-        'SELECT MAX(created_at) AS lastmod FROM records'
+        """
+        SELECT MAX(records.created_at) AS lastmod
+        FROM records
+        JOIN posts ON posts.blotter_id = records.blotter_id
+        WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
+        """
     ).fetchone()
     journey_lastmod_row = conn.execute(
         'SELECT MAX(COALESCE(updated_at, created_at)) AS lastmod FROM case_journeys WHERE is_published = 1'
@@ -7564,7 +8116,7 @@ def sitemap_locations():
 def sitemap_posts():
     conn = get_db()
     rows = conn.execute(
-        'SELECT id, created_at FROM posts ORDER BY created_at DESC'
+        "SELECT id, created_at FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean' ORDER BY created_at DESC"
     ).fetchall()
     conn.close()
     urls = [(f"{BASE_URL}/post/{row['id']}", _iso_lastmod(row['created_at'])) for row in rows]
@@ -7575,7 +8127,13 @@ def sitemap_posts():
 def sitemap_records():
     conn = get_db()
     rows = conn.execute(
-        'SELECT id, created_at FROM records ORDER BY created_at DESC'
+        """
+        SELECT records.id, records.created_at
+        FROM records
+        JOIN posts ON posts.blotter_id = records.blotter_id
+        WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
+        ORDER BY records.created_at DESC
+        """
     ).fetchall()
     conn.close()
     urls = [(f"{BASE_URL}/record/{row['id']}", _iso_lastmod(row['created_at'])) for row in rows]
@@ -7905,6 +8463,239 @@ def name_watch_cancel():
         counties=[],
         watch_cancelled=True,
         unsubscribed_email=email,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/post/<int:post_id>')
+def public_post_detail(post_id):
+    conn = get_db()
+    post = conn.execute(
+        '''
+        SELECT posts.*,
+               blotters.filename AS blotter_filename,
+               blotters.file_path,
+               blotters.upload_date,
+               blotters.incident_count,
+               blotters.source_type AS blotter_source_type,
+               blotters.source_document_id,
+               source_documents.source_type,
+               source_documents.source_sender,
+               source_documents.source_subject,
+               source_documents.source_received_at,
+               source_documents.filename AS source_filename,
+               source_documents.extraction_method,
+               source_documents.extraction_warnings
+        FROM posts
+        JOIN blotters ON posts.blotter_id = blotters.id
+        LEFT JOIN source_documents ON source_documents.id = blotters.source_document_id
+        WHERE posts.id = ?
+          AND COALESCE(posts.audit_status, 'pending') = 'clean'
+        LIMIT 1
+        ''',
+        (post_id,),
+    ).fetchone()
+    if not post:
+        conn.close()
+        return render_template('404.html'), 404
+
+    records = conn.execute(
+        '''
+        SELECT records.*
+        FROM records
+        WHERE records.blotter_id = ?
+        ORDER BY records.date DESC, records.time DESC, records.id DESC
+        ''',
+        (post['blotter_id'],),
+    ).fetchall()
+    explainer_slugs = _charge_explainer_slug_map(conn, records)
+    county_slug = _county_slug_for_name(post['county'])
+    city_slug = _city_slug_for_name(post['city'])
+    related_posts = conn.execute(
+        '''
+        SELECT id, title, incident_date, agency_name
+        FROM posts
+        WHERE county = ?
+          AND id != ?
+          AND COALESCE(audit_status, 'pending') = 'clean'
+        ORDER BY incident_date DESC, created_at DESC
+        LIMIT 5
+        ''',
+        (post['county'], post_id),
+    ).fetchall()
+    provenance_card = _build_provenance_card(conn, post, records)
+    bail_ad_placements = _bail_ad_public_placements(conn, county=post['county'])
+    conn.close()
+
+    public_records = [_public_record_dict(record) for record in records]
+    summary_lines = _summary_lines(post['summary']) or ['No published summary was included for this report.']
+    county_page = COUNTY_DATA.get(county_slug) if county_slug else None
+    return render_template(
+        'post_detail.html',
+        post=post,
+        county_slug=county_slug,
+        city_slug=city_slug,
+        records=public_records,
+        total_incident_count=len(records),
+        summary_lines=summary_lines,
+        provenance_card=provenance_card,
+        source_pdf_name=_detail_source_pdf_name(post),
+        explainer_slugs=explainer_slugs,
+        county_page=county_page,
+        related_pattern_pages=_related_pattern_pages_for_post(records, county_slug=county_slug),
+        related_posts=related_posts,
+        bail_ad_placements=bail_ad_placements,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/record/<int:record_id>')
+def public_record_detail(record_id):
+    conn = get_db()
+    record = conn.execute(
+        '''
+        SELECT records.*,
+               blotters.filename AS blotter_filename,
+               blotters.file_path,
+               blotters.upload_date,
+               blotters.source_type AS blotter_source_type,
+               blotters.source_document_id,
+               posts.id AS post_id,
+               posts.title AS post_title,
+               posts.incident_date,
+               source_documents.source_type,
+               source_documents.source_sender,
+               source_documents.source_subject,
+               source_documents.source_received_at,
+               source_documents.filename AS source_filename,
+               source_documents.extraction_method,
+               source_documents.extraction_warnings
+        FROM records
+        LEFT JOIN blotters ON blotters.id = records.blotter_id
+        LEFT JOIN posts ON posts.id = (
+            SELECT p.id
+            FROM posts p
+            WHERE p.blotter_id = records.blotter_id
+              AND COALESCE(p.audit_status, 'pending') = 'clean'
+            ORDER BY p.created_at DESC, p.id DESC
+            LIMIT 1
+        )
+        LEFT JOIN source_documents ON source_documents.id = blotters.source_document_id
+        WHERE records.id = ?
+        LIMIT 1
+        ''',
+        (record_id,),
+    ).fetchone()
+    if not record or record['post_id'] is None:
+        conn.close()
+        return render_template('404.html'), 404
+
+    blotter_records = conn.execute(
+        '''
+        SELECT cfs_number,
+               date,
+               time,
+               COALESCE(incident_type, incident, '') AS incident_type,
+               COALESCE(location, '') AS location,
+               COALESCE(details, '') AS details,
+               county
+        FROM records
+        WHERE blotter_id = ?
+        ORDER BY date DESC, time DESC, id DESC
+        ''',
+        (record['blotter_id'],),
+    ).fetchall()
+    logs = conn.execute(
+        '''
+        SELECT timestamp, officer, entry
+        FROM command_logs
+        WHERE record_id = ?
+        ORDER BY COALESCE(timestamp, created_at) ASC, id ASC
+        ''',
+        (record_id,),
+    ).fetchall()
+    sibling_records = conn.execute(
+        '''
+        SELECT id,
+               time,
+               COALESCE(incident_type, incident, 'Incident') AS incident_type,
+               location
+        FROM records
+        WHERE blotter_id = ?
+          AND id != ?
+        ORDER BY date DESC, time DESC, id DESC
+        LIMIT 8
+        ''',
+        (record['blotter_id'], record_id),
+    ).fetchall()
+    linked_case_journey = _case_journey_for_record(conn, record_id)
+    provenance_card = _build_record_provenance_card(conn, record, blotter_records)
+    public_record = _public_record_dict(record)
+    public_logs = [_public_log_dict(log) for log in logs]
+    public_sibling_records = [_public_record_dict(row) for row in sibling_records]
+    conn.close()
+
+    return render_template(
+        'record_detail.html',
+        record=public_record,
+        county_slug=_county_slug_for_name(record['county']),
+        logs=public_logs,
+        provenance_card=provenance_card,
+        source_pdf_name=_detail_source_pdf_name(record),
+        linked_case_journey=linked_case_journey,
+        sibling_records=public_sibling_records,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/bondsman/felony-alerts')
+def bail_bonds_alerts_landing():
+    county_key = (request.args.get('county') or 'cascade').strip().lower()
+    county_cards = [
+        {
+            'slug': 'cascade',
+            'county_name': 'Cascade',
+            'city_name': 'Great Falls',
+            'headline_county_name': 'Cascade',
+            'launch_note': 'Built for Great Falls bail desks that need the first outbound call.',
+            'source_note': 'Cascade County detention activity surfaces some of the highest-intent lead moments in central Montana.',
+            'cta_note': "Ideal first outreach targets: Lisa's Family Bail Bonds and A-1 Bail Bonds.",
+        },
+        {
+            'slug': 'missoula',
+            'county_name': 'Missoula',
+            'city_name': 'Missoula',
+            'headline_county_name': 'Missoula',
+            'launch_note': 'Built for Missoula agencies competing on responsiveness, not just ad spend.',
+            'source_note': 'Missoula County bookings convert best when the agency reaches family members before the rest of the market reacts.',
+            'cta_note': 'Ideal first outreach targets: AAA Bail Bonds and Central Montana Bail Bonds.',
+        },
+    ]
+    county_map = {item['slug']: item for item in county_cards}
+    selected_county = county_map.get(county_key, county_map['cascade'])
+    help_contact = _bail_help_contact()
+    support_email = (
+        (getattr(config, 'SMTP_USER', '') or '').strip()
+        or (getattr(config, 'EMAIL_USER', '') or '').strip()
+        or 'support@montanablotter.com'
+    )
+    return render_template(
+        'bail_bonds_alerts_landing.html',
+        page_title=f"{selected_county['county_name']} County Felony Alerts",
+        meta_description=(
+            f"Instant felony booking SMS alerts for {selected_county['county_name']} County bail bondsmen. "
+            "Get a four-hour speed-to-lead advantage in Great Falls and Missoula."
+        ),
+        canonical_url=f"{BASE_URL}/bondsman/felony-alerts?county={selected_county['slug']}",
+        og_title=f"Instant Felony Alerts for {selected_county['county_name']} County",
+        og_description="SMS the moment a felony booking lands. Built for Montana bail agencies that win on speed to lead.",
+        active_nav='bondsman_command_center',
+        county_cards=county_cards,
+        selected_county=selected_county,
+        help_contact=help_contact,
+        support_email=support_email,
+        pricing_amount='$30',
+        pricing_term='month',
         current_year=datetime.now().year,
     )
 
@@ -8566,7 +9357,26 @@ def _annual_roundup_context(conn, year: int):
 
 @app.route('/guides')
 def guides_hub():
-    return redirect('/blog?category=guide', 301)
+    conn = get_db()
+    guide_cards = [
+        {
+            'href': f'/guides/{slug}',
+            'label': guide['title'],
+            'description': guide.get('meta_description') or guide.get('intro', ''),
+        }
+        for slug, guide in RESOURCE_GUIDES.items()
+    ]
+    featured_counties = _ranked_county_cards(conn, limit=6)
+    annual_years = _annual_roundup_years(conn)
+    conn.close()
+    return render_template(
+        'guides_hub.html',
+        guide_cards=guide_cards,
+        featured_counties=featured_counties,
+        annual_years=annual_years,
+        active_nav='blog',
+        current_year=datetime.now().year,
+    )
 
 
 @app.route('/guides/<slug>')
@@ -10464,6 +11274,36 @@ def charge_explainer(slug):
         explainer=row,
         body_lines=body_lines,
         recent_records=recent,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/support')
+def support_hub():
+    support_email = (
+        (getattr(config, 'SMTP_USER', '') or '').strip()
+        or (getattr(config, 'EMAIL_USER', '') or '').strip()
+        or 'support@montanablotter.com'
+    )
+    return render_template(
+        'support.html',
+        page_title='Support & Partnerships',
+        meta_description=(
+            'Support Montana Blotter with reader donations, email subscriptions, '
+            'and high-intent Montana advertising programs for bail agencies and recovery centers.'
+        ),
+        canonical_url=f'{BASE_URL}/support',
+        og_title='Support & Partnerships | Montana Blotter',
+        og_description=(
+            'Keep Montana public records free with donations, or explore bail-bonds '
+            'and recovery-center partnership programs.'
+        ),
+        active_nav='support',
+        donation_ready=_donations_enabled() and _stripe_ready_for_checkout(),
+        donations_enabled=_donations_enabled(),
+        bail_checkout_ready=_bail_ad_checkout_ready(),
+        bail_package_count=len(_bail_ad_public_packages()),
+        support_email=support_email,
         current_year=datetime.now().year,
     )
 

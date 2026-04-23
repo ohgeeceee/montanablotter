@@ -6,7 +6,7 @@ import os
 import secrets
 
 import stripe
-from flask import Blueprint, current_app, jsonify, render_template, request
+from flask import Blueprint, abort, current_app, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
 from db import get_db
@@ -32,6 +32,306 @@ def _app():
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+def _post_payload(row):
+    return {
+        'id': int(row['id']),
+        'title': row['title'] or '',
+        'summary': row['summary'] or '',
+        'county': row['county'] or '',
+        'agency_name': row['agency_name'] or '',
+        'agency_type': row['agency_type'] or '',
+        'incident_date': row['incident_date'] or '',
+        'incident_type': row['incident_type'] or '',
+        'created_at': row['created_at'] or '',
+    }
+
+
+def _blog_payload(row, *, include_body: bool = True):
+    payload = {
+        'id': int(row['id']),
+        'title': row['title'] or '',
+        'slug': row['slug'] or '',
+        'excerpt': row['excerpt'] or '',
+        'author': row['author'] or '',
+        'created_at': row['created_at'] or '',
+    }
+    if include_body:
+        payload['body'] = row['body'] or ''
+    return payload
+
+
+@api_bp.route('/api/posts')
+def api_posts():
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = max(1, min(100, request.args.get('per_page', 20, type=int)))
+    params = []
+    where = ["COALESCE(audit_status, 'pending') = 'clean'"]
+
+    ids = (request.args.get('ids') or '').strip()
+    if ids:
+        parsed_ids = []
+        for raw_id in ids.split(','):
+            try:
+                parsed_ids.append(int(raw_id.strip()))
+            except (TypeError, ValueError):
+                continue
+        if parsed_ids:
+            placeholders = ','.join('?' for _ in parsed_ids)
+            where.append(f'id IN ({placeholders})')
+            params.extend(parsed_ids)
+        else:
+            where.append('0=1')
+
+    county = (request.args.get('county') or '').strip()
+    if county:
+        where.append('county = ?')
+        params.append(county)
+
+    agency_type = (request.args.get('agency_type') or '').strip()
+    if agency_type:
+        where.append('agency_type = ?')
+        params.append(agency_type)
+
+    date_from = (request.args.get('date_from') or '').strip()
+    if date_from:
+        where.append('incident_date >= ?')
+        params.append(date_from)
+
+    date_to = (request.args.get('date_to') or '').strip()
+    if date_to:
+        where.append('incident_date <= ?')
+        params.append(date_to)
+
+    search = (request.args.get('search') or request.args.get('q') or '').strip()
+    if search:
+        term = f'%{search}%'
+        where.append('(title LIKE ? OR summary LIKE ? OR agency_name LIKE ? OR county LIKE ?)')
+        params.extend([term, term, term, term])
+
+    where_sql = ' AND '.join(where)
+    offset = (page - 1) * per_page
+    conn = get_db()
+    total = conn.execute(f'SELECT COUNT(*) FROM posts WHERE {where_sql}', params).fetchone()[0]
+    rows = conn.execute(
+        f'''
+        SELECT id, title, summary, county, agency_name, agency_type, incident_date,
+               incident_type, created_at
+        FROM posts
+        WHERE {where_sql}
+        ORDER BY incident_date DESC, created_at DESC, id DESC
+        LIMIT ? OFFSET ?
+        ''',
+        [*params, per_page, offset],
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'posts': [_post_payload(row) for row in rows],
+        'total': int(total),
+        'page': page,
+        'per_page': per_page,
+        'total_pages': max(1, (int(total) + per_page - 1) // per_page),
+    })
+
+
+@api_bp.route('/api/posts/<int:post_id>')
+def api_post_detail(post_id: int):
+    conn = get_db()
+    row = conn.execute(
+        '''
+        SELECT id, title, summary, county, agency_name, agency_type, incident_date,
+               incident_type, created_at
+        FROM posts
+        WHERE id = ?
+          AND COALESCE(audit_status, 'pending') = 'clean'
+        LIMIT 1
+        ''',
+        (post_id,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        abort(404)
+    return jsonify(_post_payload(row))
+
+
+@api_bp.route('/api/counties')
+def api_counties():
+    conn = get_db()
+    rows = conn.execute(
+        '''
+        SELECT p.county AS county,
+               COUNT(DISTINCT p.id) AS post_count,
+               COUNT(DISTINCT r.id) AS record_count
+        FROM posts p
+        LEFT JOIN records r ON r.blotter_id = p.blotter_id
+        WHERE p.county IS NOT NULL
+          AND p.county != ''
+          AND COALESCE(p.audit_status, 'pending') = 'clean'
+        GROUP BY p.county
+        ORDER BY p.county
+        '''
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'counties': [
+            {
+                'county': row['county'],
+                'post_count': int(row['post_count'] or 0),
+                'record_count': int(row['record_count'] or 0),
+            }
+            for row in rows
+        ]
+    })
+
+
+@api_bp.route('/api/agencies')
+def api_agencies():
+    conn = get_db()
+    rows = conn.execute(
+        '''
+        SELECT agency_name, agency_type, MAX(county) AS county, COUNT(*) AS post_count
+        FROM posts
+        WHERE agency_name IS NOT NULL
+          AND agency_name != ''
+          AND COALESCE(audit_status, 'pending') = 'clean'
+        GROUP BY agency_name, agency_type
+        ORDER BY agency_name
+        '''
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'agencies': [
+            {
+                'agency_name': row['agency_name'] or '',
+                'agency_type': row['agency_type'] or '',
+                'county': row['county'] or '',
+                'post_count': int(row['post_count'] or 0),
+            }
+            for row in rows
+        ]
+    })
+
+
+@api_bp.route('/api/stats')
+def api_stats():
+    conn = get_db()
+    totals = conn.execute(
+        '''
+        SELECT
+            (SELECT COUNT(*) FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean') AS total_posts,
+            (SELECT COUNT(DISTINCT county) FROM posts WHERE county IS NOT NULL AND county != '' AND COALESCE(audit_status, 'pending') = 'clean') AS total_counties,
+            (SELECT COUNT(DISTINCT agency_name) FROM posts WHERE agency_name IS NOT NULL AND agency_name != '' AND COALESCE(audit_status, 'pending') = 'clean') AS total_agencies,
+            (SELECT COUNT(*) FROM blotters) AS total_blotters
+        '''
+    ).fetchone()
+    total_records = conn.execute(
+        '''
+        SELECT COUNT(DISTINCT r.id)
+        FROM records r
+        JOIN posts p ON p.blotter_id = r.blotter_id
+        WHERE COALESCE(p.audit_status, 'pending') = 'clean'
+        '''
+    ).fetchone()[0]
+    latest_blotter = conn.execute(
+        'SELECT county, upload_date FROM blotters ORDER BY upload_date DESC, id DESC LIMIT 1'
+    ).fetchone()
+    date_range = conn.execute(
+        '''
+        SELECT MIN(incident_date) AS earliest, MAX(incident_date) AS latest
+        FROM posts
+        WHERE COALESCE(audit_status, 'pending') = 'clean'
+        '''
+    ).fetchone()
+    top_counties = conn.execute(
+        '''
+        SELECT county, COUNT(*) AS count
+        FROM posts
+        WHERE county IS NOT NULL
+          AND county != ''
+          AND COALESCE(audit_status, 'pending') = 'clean'
+        GROUP BY county
+        ORDER BY count DESC, county ASC
+        LIMIT 10
+        '''
+    ).fetchall()
+    top_incident_types = conn.execute(
+        '''
+        SELECT COALESCE(NULLIF(incident_type, ''), 'Incident') AS incident_type,
+               COUNT(*) AS count
+        FROM posts
+        WHERE COALESCE(audit_status, 'pending') = 'clean'
+        GROUP BY COALESCE(NULLIF(incident_type, ''), 'Incident')
+        ORDER BY count DESC, incident_type ASC
+        LIMIT 10
+        '''
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'total_records': int(total_records or 0),
+        'total_posts': int(totals['total_posts'] or 0),
+        'total_blotters': int(totals['total_blotters'] or 0),
+        'total_counties': int(totals['total_counties'] or 0),
+        'total_agencies': int(totals['total_agencies'] or 0),
+        'latest_blotter': dict(latest_blotter) if latest_blotter else None,
+        'date_range': {
+            'earliest': date_range['earliest'] if date_range else None,
+            'latest': date_range['latest'] if date_range else None,
+        },
+        'top_counties': [
+            {'county': row['county'], 'count': int(row['count'] or 0)}
+            for row in top_counties
+        ],
+        'top_incident_types': [
+            {'incident_type': row['incident_type'], 'count': int(row['count'] or 0)}
+            for row in top_incident_types
+        ],
+    })
+
+
+@api_bp.route('/api/blog')
+def api_blog_posts():
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = max(1, min(100, request.args.get('per_page', 20, type=int)))
+    offset = (page - 1) * per_page
+    conn = get_db()
+    total = conn.execute('SELECT COUNT(*) FROM blog_posts WHERE published = 1').fetchone()[0]
+    rows = conn.execute(
+        '''
+        SELECT id, title, slug, excerpt, body, author, created_at
+        FROM blog_posts
+        WHERE published = 1
+        ORDER BY created_at DESC, id DESC
+        LIMIT ? OFFSET ?
+        ''',
+        (per_page, offset),
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'posts': [_blog_payload(row, include_body=False) for row in rows],
+        'total': int(total),
+        'page': page,
+        'total_pages': max(1, (int(total) + per_page - 1) // per_page),
+    })
+
+
+@api_bp.route('/api/blog/<slug>')
+def api_blog_post_detail(slug: str):
+    conn = get_db()
+    row = conn.execute(
+        '''
+        SELECT id, title, slug, excerpt, body, author, created_at
+        FROM blog_posts
+        WHERE slug = ?
+          AND published = 1
+        LIMIT 1
+        ''',
+        (slug,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        abort(404)
+    return jsonify(_blog_payload(row))
+
 
 @api_bp.route('/api/pattern-click', methods=['POST'])
 def track_pattern_click():
@@ -88,7 +388,7 @@ def track_subscribe_event():
             payload = {}
 
     event_type = (payload.get('event_type') or '').strip()
-    if event_type not in {'cta_click', 'form_submit'}:
+    if event_type not in {'cta_click', 'form_submit', 'nav_click'}:
         return ('', 204)
 
     source = payload.get('source') or ''

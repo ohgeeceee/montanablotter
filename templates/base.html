@@ -11,11 +11,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-    .anav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
-    .anav-link:hover { color: #E8DFD0; }
-    .anav-link.is-active { color: #D4892A; background: rgba(212, 137, 42, 0.12); }
+    .anav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s, background 0.15s, border-color 0.15s; border: 1px solid transparent; }
+    .anav-link:hover { color: #E8DFD0; background: rgba(255,255,255,0.03); }
+    .anav-link.is-active { color: #D4892A; background: rgba(212, 137, 42, 0.12); border-color: rgba(212, 137, 42, 0.2); }
     .anav-logout { color: #C94A3A !important; }
     .anav-logout:hover { color: #E07060 !important; }
+    .anav-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid #282420; border-radius: 6px; background: rgba(255,255,255,0.02); }
+    .anav-group-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.5rem; color: #D4892A; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 700; padding-right: 6px; }
+    .anav-meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.5rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.18em; }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -30,36 +33,62 @@
                 </div>
                 <div>
                     <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:0.9rem; color:#E8DFD0; line-height:1.1;">The Montana Blotter</div>
-                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.18em;">Admin Panel</div>
+                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.18em;">Statewide Operations Console</div>
                 </div>
             </div>
-            <div class="flex items-center gap-0.5 overflow-x-auto whitespace-nowrap pb-1 xl:pb-0 xl:justify-end scrollbar-thin">
-                <a href="/admin" class="anav-link {% if admin_path == '/admin' %}is-active{% endif %}">Dashboard</a>
-                <a href="/admin/operations/sources" class="anav-link {% if admin_path.startswith('/admin/operations/sources') %}is-active{% endif %}">Sources</a>
-                <a href="/admin/operations/courts" class="anav-link {% if admin_path.startswith('/admin/operations/courts') %}is-active{% endif %}">Courts</a>
-                <a href="/admin/operations/jail-bookings" class="anav-link {% if admin_path.startswith('/admin/operations/jail-bookings') %}is-active{% endif %}">Bookings</a>
-                <a href="/admin/operations/redaction" class="anav-link {% if admin_path.startswith('/admin/operations/redaction') or admin_path.startswith('/admin/post/') %}is-active{% endif %}">Redaction</a>
-                <a href="/admin/blotters" class="anav-link {% if admin_path.startswith('/admin/blotters') or admin_path.startswith('/admin/blotter/') %}is-active{% endif %}">Blotters</a>
-                <a href="/admin/ingestion" class="anav-link {% if admin_path.startswith('/admin/ingestion') %}is-active{% endif %}">Ingestion</a>
-                <a href="/admin/upload" class="anav-link {% if admin_path.startswith('/admin/upload') %}is-active{% endif %}">Upload</a>
-                <a href="/admin/blog" class="anav-link {% if admin_path.startswith('/admin/blog') %}is-active{% endif %}">Blog</a>
-                <a href="/admin/facebook" class="anav-link {% if admin_path.startswith('/admin/facebook') %}is-active{% endif %}">Facebook</a>
-                <a href="/admin/content/seo" class="anav-link {% if admin_path.startswith('/admin/content/seo') %}is-active{% endif %}">SEO</a>
-                <a href="/admin/audience/subscribers" class="anav-link {% if admin_path.startswith('/admin/audience/subscribers') %}is-active{% endif %}">Subscribers</a>
-                <a href="/admin/audience/alerts" class="anav-link {% if admin_path.startswith('/admin/audience/alerts') %}is-active{% endif %}">Alerts</a>
-                <a href="/admin/audience/comments" class="anav-link {% if admin_path.startswith('/admin/audience/comments') %}is-active{% endif %}">Comments</a>
-                <a href="/admin/audience/email-ops" class="anav-link {% if admin_path.startswith('/admin/audience/email-ops') %}is-active{% endif %}">Email Ops</a>
-                <a href="/admin/bail-ads" class="anav-link {% if admin_path.startswith('/admin/bail-ads') %}is-active{% endif %}">Bail Ads</a>
-                <a href="/admin/recovery-ads" class="anav-link {% if admin_path.startswith('/admin/recovery-ads') %}is-active{% endif %}">Recovery Ads</a>
-                <a href="/admin/donations" class="anav-link {% if admin_path.startswith('/admin/donations') %}is-active{% endif %}">Donations</a>
-                <a href="/admin/analytics" class="anav-link {% if admin_path.startswith('/admin/analytics') %}is-active{% endif %}">Analytics</a>
-                <a href="/admin/visitors" class="anav-link {% if admin_path.startswith('/admin/visitors') %}is-active{% endif %}">Visitors</a>
-                {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
-                <a href="/admin/security/users" class="anav-link {% if admin_path.startswith('/admin/security/users') %}is-active{% endif %}">Users</a>
-                <a href="/admin/security/audit" class="anav-link {% if admin_path.startswith('/admin/security/audit') %}is-active{% endif %}">Audit</a>
-                {% endif %}
-                <a href="/" class="anav-link" style="margin-left:8px;">↗ Public</a>
-                <a href="/admin/logout" class="anav-link anav-logout" style="margin-left:4px;">Logout</a>
+            <div class="flex flex-col gap-2 xl:items-end">
+                <p class="anav-meta">Control lanes</p>
+                <div class="flex flex-wrap gap-2 xl:justify-end">
+                    <div class="anav-group">
+                        <span class="anav-group-label">Core</span>
+                        <a href="/admin" class="anav-link {% if admin_path == '/admin' %}is-active{% endif %}">Dashboard</a>
+                        <a href="/admin/blotters" class="anav-link {% if admin_path.startswith('/admin/blotters') or admin_path.startswith('/admin/blotter/') %}is-active{% endif %}">Blotters</a>
+                        <a href="/admin/ingestion" class="anav-link {% if admin_path.startswith('/admin/ingestion') %}is-active{% endif %}">Ingestion</a>
+                        <a href="/admin/upload" class="anav-link {% if admin_path.startswith('/admin/upload') %}is-active{% endif %}">Upload</a>
+                        <a href="/admin/operations/redaction" class="anav-link {% if admin_path.startswith('/admin/operations/redaction') or admin_path.startswith('/admin/post/') %}is-active{% endif %}">Redaction</a>
+                    </div>
+                    <div class="anav-group">
+                        <span class="anav-group-label">Operations</span>
+                        <a href="/admin/operations/sources" class="anav-link {% if admin_path.startswith('/admin/operations/sources') %}is-active{% endif %}">Sources</a>
+                        <a href="/admin/operations/courts" class="anav-link {% if admin_path.startswith('/admin/operations/courts') %}is-active{% endif %}">Courts</a>
+                        <a href="/admin/operations/jail-bookings" class="anav-link {% if admin_path.startswith('/admin/operations/jail-bookings') %}is-active{% endif %}">Bookings</a>
+                    </div>
+                    <div class="anav-group">
+                        <span class="anav-group-label">Publishing</span>
+                        <a href="/admin/blog" class="anav-link {% if admin_path.startswith('/admin/blog') %}is-active{% endif %}">Blog</a>
+                        <a href="/admin/facebook" class="anav-link {% if admin_path.startswith('/admin/facebook') %}is-active{% endif %}">Facebook</a>
+                        <a href="/admin/content/seo" class="anav-link {% if admin_path.startswith('/admin/content/seo') %}is-active{% endif %}">SEO</a>
+                    </div>
+                    <div class="anav-group">
+                        <span class="anav-group-label">Audience</span>
+                        <a href="/admin/audience/subscribers" class="anav-link {% if admin_path.startswith('/admin/audience/subscribers') %}is-active{% endif %}">Subscribers</a>
+                        <a href="/admin/audience/alerts" class="anav-link {% if admin_path.startswith('/admin/audience/alerts') %}is-active{% endif %}">Alerts</a>
+                        <a href="/admin/audience/comments" class="anav-link {% if admin_path.startswith('/admin/audience/comments') %}is-active{% endif %}">Comments</a>
+                        <a href="/admin/audience/email-ops" class="anav-link {% if admin_path.startswith('/admin/audience/email-ops') %}is-active{% endif %}">Email Ops</a>
+                    </div>
+                    <div class="anav-group">
+                        <span class="anav-group-label">Revenue</span>
+                        <a href="/admin/bail-ads" class="anav-link {% if admin_path.startswith('/admin/bail-ads') %}is-active{% endif %}">Bail Ads</a>
+                        <a href="/admin/recovery-ads" class="anav-link {% if admin_path.startswith('/admin/recovery-ads') %}is-active{% endif %}">Recovery Ads</a>
+                        <a href="/admin/donations" class="anav-link {% if admin_path.startswith('/admin/donations') %}is-active{% endif %}">Donations</a>
+                    </div>
+                    <div class="anav-group">
+                        <span class="anav-group-label">Reporting</span>
+                        <a href="/admin/analytics" class="anav-link {% if admin_path.startswith('/admin/analytics') %}is-active{% endif %}">Analytics</a>
+                        <a href="/admin/visitors" class="anav-link {% if admin_path.startswith('/admin/visitors') %}is-active{% endif %}">Visitors</a>
+                    </div>
+                    {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+                    <div class="anav-group">
+                        <span class="anav-group-label">Security</span>
+                        <a href="/admin/security/users" class="anav-link {% if admin_path.startswith('/admin/security/users') %}is-active{% endif %}">Users</a>
+                        <a href="/admin/security/audit" class="anav-link {% if admin_path.startswith('/admin/security/audit') %}is-active{% endif %}">Audit</a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="flex flex-wrap gap-2 xl:justify-end">
+                    <a href="/" class="anav-link">↗ Public</a>
+                    <a href="/admin/logout" class="anav-link anav-logout">Logout</a>
+                </div>
             </div>
         </div>
     </nav>

@@ -597,6 +597,9 @@ def court_hearing_feed_context(
     elif not include_past:
         event_sql += ' AND court_events.event_date >= date(\'now\')'
     records = [dict(row) for row in conn.execute(event_sql, params).fetchall()]
+    if not records and not include_past and not selected_date:
+        fallback_sql = event_sql.replace(" AND court_events.event_date >= date('now')", '')
+        records = [dict(row) for row in conn.execute(fallback_sql, params).fetchall()]
 
     if include_past:
         filing_sql = '''

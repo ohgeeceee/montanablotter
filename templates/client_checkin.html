@@ -1,0 +1,128 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2 text-slate-300">/</span>
+<span class="text-slate-700">Client Check-In</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-slate-950 border-b border-slate-800">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+        <p class="text-[11px] font-black uppercase tracking-[0.24em] text-amber-400">Secure Check-In</p>
+        <h1 class="mt-4 text-4xl sm:text-5xl font-black tracking-tight text-white">Share Your Latest Location</h1>
+        <p class="mt-4 max-w-2xl text-sm sm:text-base text-slate-300 leading-7">
+            This private link submits a selfie and GPS coordinates to your bondsman for the active case listed below.
+        </p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <aside class="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Case Snapshot</p>
+            <h2 class="mt-3 text-2xl font-black text-slate-900">{{ checkin_case.defendant_name }}</h2>
+            <dl class="mt-6 space-y-4 text-sm text-slate-600">
+                <div>
+                    <dt class="font-black uppercase tracking-[0.16em] text-[10px] text-slate-400">Bondsman</dt>
+                    <dd class="mt-1">{{ checkin_case.bondsman_name }}</dd>
+                </div>
+                <div>
+                    <dt class="font-black uppercase tracking-[0.16em] text-[10px] text-slate-400">Payment Status</dt>
+                    <dd class="mt-1">{{ checkin_case.payment_status|replace('_', ' ')|title }}</dd>
+                </div>
+                <div>
+                    <dt class="font-black uppercase tracking-[0.16em] text-[10px] text-slate-400">Court Date</dt>
+                    <dd class="mt-1">{{ checkin_case.court_date or 'Not set' }}</dd>
+                </div>
+                <div>
+                    <dt class="font-black uppercase tracking-[0.16em] text-[10px] text-slate-400">Last Check-In</dt>
+                    <dd class="mt-1">{{ checkin_case.last_checkin_at or 'No prior check-in recorded' }}</dd>
+                </div>
+            </dl>
+        </aside>
+
+        <form method="POST" enctype="multipart/form-data" class="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="checkin-latitude" name="latitude">
+            <input type="hidden" id="checkin-longitude" name="longitude">
+
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Selfie Upload</label>
+                    <input
+                        type="file"
+                        name="selfie"
+                        accept="image/png,image/jpeg,image/webp"
+                        class="mt-3 block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    >
+                </div>
+
+                <div>
+                    <label for="checkin-notes" class="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Notes</label>
+                    <textarea
+                        id="checkin-notes"
+                        name="notes"
+                        rows="4"
+                        placeholder="Optional note for your bondsman"
+                        class="mt-3 block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    ></textarea>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">GPS Coordinates</p>
+                            <p id="checkin-location-status" class="mt-2 text-sm text-slate-600">Waiting for location permission.</p>
+                        </div>
+                        <button
+                            type="button"
+                            id="checkin-location-button"
+                            class="rounded-full bg-slate-900 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white"
+                        >
+                            Capture Location
+                        </button>
+                    </div>
+                </div>
+
+                <button
+                    type="submit"
+                    class="inline-flex items-center justify-center rounded-full bg-amber-500 px-6 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-950 shadow-sm hover:bg-amber-400 transition"
+                >
+                    Submit Check-In
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script>
+(function () {
+    var button = document.getElementById('checkin-location-button');
+    var status = document.getElementById('checkin-location-status');
+    var latitudeInput = document.getElementById('checkin-latitude');
+    var longitudeInput = document.getElementById('checkin-longitude');
+    if (!button || !status || !latitudeInput || !longitudeInput) return;
+
+    button.addEventListener('click', function () {
+        if (!navigator.geolocation) {
+            status.textContent = 'This browser does not support GPS capture.';
+            return;
+        }
+        status.textContent = 'Capturing location...';
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                latitudeInput.value = String(position.coords.latitude);
+                longitudeInput.value = String(position.coords.longitude);
+                status.textContent = 'Location captured: ' + position.coords.latitude.toFixed(5) + ', ' + position.coords.longitude.toFixed(5);
+            },
+            function () {
+                status.textContent = 'Location permission denied or unavailable.';
+            },
+            {enableHighAccuracy: true, timeout: 15000, maximumAge: 0}
+        );
+    });
+})();
+</script>
+{% endblock %}

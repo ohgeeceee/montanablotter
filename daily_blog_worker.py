@@ -27,6 +27,9 @@ MAX_RELATED_POSTS = 6
 WINDOW_DAYS = 3
 LOG_PATH = "/root/montanablotter/daily_blog.log"
 
+import os as _os
+_os.makedirs(_os.path.dirname(LOG_PATH), exist_ok=True)
+
 logging.basicConfig(
     filename=LOG_PATH,
     level=logging.INFO,
@@ -374,27 +377,28 @@ Rules:
                 "Be specific, restrained, and factual. Return JSON only."
             ),
             messages=[{"role": "user", "content": prompt}],
+            timeout=60,
         )
         raw_text = message.content[0].text.strip()
         return _parse_json_block(raw_text)
     except Exception as exc:
-        logger.warning("Claude daily blog generation failed: %s", exc)
+        logger.error("Claude daily blog generation failed: %s", exc)
         return {}
 
 
 def _fallback_article(context_payload: dict[str, object]) -> dict[str, str]:
-    story_mode = context_payload["story_mode"]
-    date_long = context_payload["analysis_date_long"]
-    total_incidents = int(context_payload["total_incidents"])
-    agency_count = int(context_payload["agency_count"])
-    top_counties = context_payload["top_counties"]
-    top_incident_types = context_payload["top_incident_types"]
-    highlights = context_payload["highlights"]
-    related_posts = context_payload["related_posts"]
-    window_total_incidents = int(context_payload["window_total_incidents"])
-    window_top_counties = context_payload["window_top_counties"]
-    window_top_incident_types = context_payload["window_top_incident_types"]
-    window_highlights = context_payload["window_highlights"]
+    story_mode = context_payload.get("story_mode", "statewide")
+    date_long = context_payload.get("analysis_date_long", "")
+    total_incidents = int(context_payload.get("total_incidents") or 0)
+    agency_count = int(context_payload.get("agency_count") or 0)
+    top_counties = context_payload.get("top_counties", [])
+    top_incident_types = context_payload.get("top_incident_types", [])
+    highlights = context_payload.get("highlights", [])
+    related_posts = context_payload.get("related_posts", [])
+    window_total_incidents = int(context_payload.get("window_total_incidents") or 0)
+    window_top_counties = context_payload.get("window_top_counties", [])
+    window_top_incident_types = context_payload.get("window_top_incident_types", [])
+    window_highlights = context_payload.get("window_highlights", [])
 
     county_line = ", ".join(
         f"{entry['county']} ({entry['count']})" for entry in top_counties[:3]
@@ -695,6 +699,10 @@ def run_daily_blog(date_override: Optional[str] = None, dry_run: bool = False, f
         )
         print(f"{status}: /blog/{slug} (post_id={blog_post_id})")
         return 0
+    except Exception as e:
+        logger.error("run_daily_blog failed: %s", e)
+        conn.rollback()
+        raise
     finally:
         conn.close()
 

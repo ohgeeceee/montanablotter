@@ -1,53 +1,58 @@
 <!-- ═══════════════════════════════════════ MOBILE BOTTOM TAB BAR ═══ -->
-<nav id="mb-tab-bar" class="md:hidden" style="position:fixed; bottom:0; left:0; right:0; z-index:60; background:#161513; border-top:1px solid #282420; display:flex; height:56px;">
+<nav id="mb-tab-bar" class="public-mobile-tabbar">
 
   {% set tabs = [
-    ('/', 'home', 'Home', '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'),
-    ('/arrests', 'arrests', 'Arrests', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
-    ('/counties', 'counties', 'Counties', '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'),
-    ('/jail-bookings', 'jail_bookings', 'Bookings', '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'),
+    ('/', 'home', public_nav_menu_labels_by_href.get('/', 'Home'), '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'),
+    ('/arrests', 'arrests', public_nav_menu_labels_by_href.get('/arrests', 'Arrests'), '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+    ('/counties', 'counties', public_nav_menu_labels_by_href.get('/counties', 'Counties'), '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'),
+    ('/jail-bookings', 'jail_bookings', public_nav_menu_labels_by_href.get('/jail-bookings', 'Bookings'), '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'),
   ] %}
 
   {% for href, nav_id, label, svg_path in tabs %}
   {% set is_active = active_nav == nav_id or (nav_id == 'home' and request.path == '/') %}
-  <a href="{{ href }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; text-decoration:none; color:{{ '#D4892A' if is_active else '#5F564C' }}; font-family:'IBM Plex Mono',monospace; font-size:0.42rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; transition:color 0.15s;">
+  <a href="{{ href }}" class="public-mobile-tabbar__link {% if is_active %}active{% endif %}" data-nav-track="1" data-nav-location="mobile_tabbar" data-short-label="{{ label }}" data-full-label="{{ public_nav_full_labels_by_href.get(href, label) }}">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{{ svg_path | safe }}</svg>
     {{ label }}
   </a>
   {% endfor %}
 
   <!-- More tab -->
-  <button id="mb-more-btn" onclick="document.getElementById('mb-more-drawer').showModal()" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:none; border:none; cursor:pointer; color:#5F564C; font-family:'IBM Plex Mono',monospace; font-size:0.42rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;">
+  <button id="mb-more-btn" onclick="document.getElementById('mb-more-drawer').showModal()" class="public-mobile-tabbar__button">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    More
+    {{ public_action_labels.more }}
   </button>
 </nav>
 
 <!-- ═══════════════════════════════════════ MORE DRAWER ═══ -->
-<dialog id="mb-more-drawer" style="position:fixed; bottom:0; left:0; right:0; top:auto; margin:0; width:100%; max-height:65vh; background:#161513; border:none; border-top:1px solid #282420; border-radius:12px 12px 0 0; padding:0; overflow-y:auto; z-index:70;">
-  <div style="padding:12px 16px 8px; display:flex; align-items:center; justify-content:space-between;">
-    <span style="font-family:'IBM Plex Mono',monospace; font-size:0.55rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.15em; font-weight:600;">More</span>
-    <button onclick="document.getElementById('mb-more-drawer').close()" style="background:none; border:none; color:#5F564C; cursor:pointer; font-size:1.2rem; line-height:1;">&#x2715;</button>
+<dialog id="mb-more-drawer" class="public-mobile-drawer">
+  <div class="public-mobile-drawer__header">
+    <span class="public-mobile-drawer__label">{{ public_action_labels.more }}</span>
+    <button onclick="document.getElementById('mb-more-drawer').close()" class="public-mobile-drawer__close" aria-label="Close more menu">&#x2715;</button>
   </div>
-  <div style="padding:4px 0 72px;">
+  <div class="public-mobile-drawer__body" style="padding-top:0.35rem; padding-bottom:4.5rem;">
+    {% if public_mobile_short_label_legend %}
+    <p class="public-mobile-label" style="text-transform:none; letter-spacing:0; opacity:0.82; margin:0 1rem 0.5rem;">{{ public_mobile_short_label_legend }}</p>
+    {% endif %}
+    <button id="drawer-mobile-label-toggle" type="button" class="public-mobile-drawer__item public-mobile-drawer__item--muted" data-label-toggle="1" data-target-menu="mb-more-drawer">Show Full Labels</button>
     {% set more_items = [
-      ('/courts',          'Courts'),
-      ('/meetings',        'Meetings'),
-      ('/detention',       'Detention'),
-      ('/bail-bonds',      'Bail Bonds'),
-      ('/case-journeys',   'Case Journeys'),
-      ('/subscribe',       'Subscribe'),
+      ('/courts',        public_nav_menu_labels_by_href.get('/courts', 'Courts'), public_nav_full_labels_by_href.get('/courts', 'Courts')),
+      ('/meetings',      public_nav_menu_labels_by_href.get('/meetings', 'Meetings'), public_nav_full_labels_by_href.get('/meetings', 'Meetings')),
+      ('/detention',     public_nav_menu_labels_by_href.get('/detention', 'Jails'), public_nav_full_labels_by_href.get('/detention', 'Detention')),
+      ('/bail-bonds',    public_nav_menu_labels_by_href.get('/bail-bonds', 'Bail'), public_nav_full_labels_by_href.get('/bail-bonds', 'Bail Bonds')),
+      ('/case-journeys', public_nav_menu_labels_by_href.get('/case-journeys', 'Cases'), public_nav_full_labels_by_href.get('/case-journeys', 'Case Journeys')),
+      ('/subscribe',     public_action_labels.subscribe, public_action_labels.subscribe_full),
+      ('/support',       public_nav_menu_labels_by_href.get('/support', 'Support'), public_nav_full_labels_by_href.get('/support', 'Support')),
     ] %}
-    {% for href, label in more_items %}
-    <a href="{{ href }}" style="display:block; padding:13px 20px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:600; color:#E8DFD0; text-decoration:none; border-bottom:1px solid #1E1C1A; text-transform:uppercase; letter-spacing:0.08em;">{{ label }}</a>
+    {% for href, label, full_label in more_items %}
+    <a href="{{ href }}" class="public-mobile-drawer__item" title="{{ full_label }}" aria-label="{{ full_label }}" data-nav-track="1" data-nav-location="mobile_drawer" data-short-label="{{ label }}" data-full-label="{{ full_label }}">{{ label }}</a>
     {% endfor %}
 
     {% if public_user %}
-    <a href="/account" style="display:block; padding:13px 20px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:600; color:#A89880; text-decoration:none; border-bottom:1px solid #1E1C1A; text-transform:uppercase; letter-spacing:0.08em;">Account</a>
-    <a href="/logout" style="display:block; padding:13px 20px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:600; color:#C94A3A; text-decoration:none; text-transform:uppercase; letter-spacing:0.08em;">Log Out</a>
+    <a href="/account" class="public-mobile-drawer__item public-mobile-drawer__item--muted" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.account }}</a>
+    <a href="/logout" class="public-mobile-drawer__item public-mobile-drawer__item--danger" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.sign_out }}</a>
     {% else %}
-    <a href="/login" style="display:block; padding:13px 20px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:600; color:#A89880; text-decoration:none; border-bottom:1px solid #1E1C1A; text-transform:uppercase; letter-spacing:0.08em;">Log In</a>
-    <a href="/register" style="display:block; padding:13px 20px; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; font-weight:600; color:#D4892A; text-decoration:none; text-transform:uppercase; letter-spacing:0.08em;">Register</a>
+    <a href="/login" class="public-mobile-drawer__item public-mobile-drawer__item--muted" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.sign_in }}</a>
+    <a href="/register" class="public-mobile-drawer__item" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.join }}</a>
     {% endif %}
   </div>
 </dialog>
@@ -60,6 +65,67 @@
   drawer.addEventListener('click', function (e) {
     var rect = drawer.getBoundingClientRect();
     if (e.clientY < rect.top) { drawer.close(); }
+  });
+})();
+
+/* Shared mobile menu label toggle + nav click analytics */
+(function () {
+  var storageKey = 'montanablotter:nav:show-full-labels';
+  function labelMode() {
+    try { return localStorage.getItem(storageKey) === '1'; } catch (e) { return false; }
+  }
+  function setLabelMode(full) {
+    try { localStorage.setItem(storageKey, full ? '1' : '0'); } catch (e) {}
+  }
+  function applyLabels() {
+    var full = labelMode();
+    document.querySelectorAll('#pub-mobile-menu [data-short-label][data-full-label], #mobile-menu [data-short-label][data-full-label], #mb-more-drawer [data-short-label][data-full-label]').forEach(function (el) {
+      el.textContent = full ? el.getAttribute('data-full-label') : el.getAttribute('data-short-label');
+    });
+    var toggleText = full ? 'Show Short Labels' : 'Show Full Labels';
+    ['pub-mobile-label-toggle', 'home-mobile-label-toggle', 'drawer-mobile-label-toggle'].forEach(function (id) {
+      var btn = document.getElementById(id);
+      if (btn) btn.textContent = toggleText;
+    });
+  }
+  document.querySelectorAll('[data-label-toggle="1"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setLabelMode(!labelMode());
+      applyLabels();
+    });
+  });
+  applyLabels();
+
+  function sendNavClick(source, targetPath) {
+    try {
+      var payload = JSON.stringify({
+        event_type: 'nav_click',
+        source: source || 'nav',
+        page_path: targetPath || window.location.pathname
+      });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/subscribe-event', new Blob([payload], {type: 'application/json'}));
+        return;
+      }
+      fetch('/api/subscribe-event', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: payload,
+        keepalive: true
+      });
+    } catch (e) {}
+  }
+  document.addEventListener('click', function (event) {
+    var link = event.target.closest('a[data-nav-track="1"]');
+    if (!link) return;
+    var location = (link.getAttribute('data-nav-location') || 'nav').slice(0, 32);
+    var label = (link.getAttribute('data-full-label') || link.getAttribute('data-short-label') || link.textContent || '').trim().slice(0, 40);
+    var href = link.getAttribute('href') || '';
+    var targetPath = href;
+    if (href && href.indexOf('http') !== 0) {
+      try { targetPath = new URL(href, window.location.origin).pathname; } catch (e) {}
+    }
+    sendNavClick(location + ':' + label, targetPath);
   });
 })();
 </script>

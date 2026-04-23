@@ -1,0 +1,652 @@
+{% extends "base.html" %}
+
+{% block title %}Office Ops | Admin Panel{% endblock %}
+
+{% block content %}
+<style>
+  .ops-shell {
+    --ops-bg: #f3f4f6;
+    --ops-card: #ffffff;
+    --ops-ink: #0f172a;
+    --ops-muted: #64748b;
+    --ops-grid: rgba(15, 23, 42, 0.06);
+    --ops-line: #e2e8f0;
+    --ops-accent: #f59e0b;
+    --ops-accent-2: #0ea5e9;
+    background:
+      linear-gradient(120deg, rgba(14, 165, 233, 0.08), rgba(245, 158, 11, 0.08)),
+      var(--ops-bg);
+  }
+  .ops-panel {
+    border: 1px solid var(--ops-line);
+    border-radius: 20px;
+    background: var(--ops-card);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+  .ops-grid-bg {
+    background-image:
+      linear-gradient(to right, var(--ops-grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--ops-grid) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .ops-feed {
+    font-family: "IBM Plex Mono", "JetBrains Mono", "Menlo", monospace;
+    background: #0b1221;
+    color: #dbeafe;
+  }
+  .ops-badge {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 800;
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+</style>
+
+<div class="ops-shell min-h-screen p-4 sm:p-6">
+  <div class="max-w-[1450px] mx-auto space-y-6">
+    <section class="ops-panel ops-grid-bg p-5 sm:p-6">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p class="ops-badge inline-flex items-center gap-2 bg-amber-100 text-amber-800">
+            <span class="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
+            Montana Blotter Command Floor
+          </p>
+          <h1 class="mt-3 text-3xl sm:text-4xl font-black text-slate-900">Office Ops Panel</h1>
+          <p class="mt-2 text-sm text-slate-600 max-w-2xl">
+            Real-time view of your agents and live client movement through the website.
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <p class="text-[11px] uppercase tracking-[0.16em] font-black text-slate-400">Now (UTC)</p>
+            <p id="utc-clock" class="text-sm font-bold text-slate-900">--:--:--</p>
+          </div>
+          <a href="/admin" class="inline-flex items-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">
+            Admin Home
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="ops-panel p-4 sm:p-5">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Alert Bells</p>
+          <h2 class="text-lg font-black text-slate-900">Live Alerts</h2>
+        </div>
+        <span id="alert-count" class="ops-badge bg-amber-100 text-amber-800">0 alerts</span>
+      </div>
+      <div id="alert-list" class="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">No active alerts.</div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      <article class="xl:col-span-7 space-y-6">
+        <div class="ops-panel p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-black text-slate-900">Agent Floor</h2>
+            <div class="text-xs text-slate-500">Source: openclaw live logs</div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3" id="agent-cards">
+            {% for name in known_agents %}
+            {% set info = snapshot.agents[name] %}
+            <button type="button" class="text-left rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 hover:bg-slate-100 transition" data-agent="{{ name }}" onclick="switchHistoryTab('{{ name }}')">
+              <div class="flex items-center gap-2">
+                <span id="dot-{{ name }}" class="inline-block h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+                <p class="font-black text-sm text-slate-900">{{ name }}</p>
+              </div>
+              <p id="status-label-{{ name }}" class="mt-2 text-[10px] font-black tracking-[0.14em] uppercase text-slate-500">{{ info.status }}</p>
+              <p id="last-seen-{{ name }}" class="mt-1 text-xs text-slate-500 truncate">{{ info.last_seen[:19] | replace('T',' ') if info.last_seen else 'no data' }}</p>
+              <p id="last-msg-{{ name }}" class="mt-1 text-xs text-slate-600 truncate">{{ info.last_msg or '—' }}</p>
+              <div class="mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em]">
+                <span id="metric-evpm-{{ name }}" class="rounded-md bg-sky-100 px-1.5 py-0.5 text-sky-700">0.0 ev/min</span>
+                <span id="metric-err-{{ name }}" class="rounded-md bg-rose-100 px-1.5 py-0.5 text-rose-700">0.0% err</span>
+              </div>
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="ops-panel overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center gap-2">
+            <h3 class="font-black text-slate-900 mr-auto">Agent Live Feed</h3>
+            {% for name in known_agents %}
+            <button class="filter-btn px-2 py-1 rounded-md text-xs font-bold border border-slate-300 bg-white text-slate-700 hover:bg-slate-100" data-filter="{{ name }}" onclick="toggleFilter(this)">{{ name }}</button>
+            {% endfor %}
+            <button id="pause-btn" class="px-3 py-1 rounded-md text-xs font-bold border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200" onclick="togglePause()">Pause</button>
+          </div>
+          <div id="agent-feed" class="ops-feed h-[320px] overflow-y-auto">
+            <div id="agent-feed-lines" class="p-3 space-y-1"></div>
+            <p id="agent-feed-empty" class="p-4 text-sm text-slate-400">Connecting to agent stream…</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="xl:col-span-5 space-y-6">
+        <div class="ops-panel p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-black text-slate-900">Client Radar</h2>
+            <div class="text-xs text-slate-500">Source: page_views</div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Active Clients</p>
+              <p id="metric-active-clients" class="mt-1 text-2xl font-black text-slate-900">0</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Events / Min</p>
+              <p id="metric-events-minute" class="mt-1 text-2xl font-black text-slate-900">0</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Window Hits</p>
+              <p id="metric-events-window" class="mt-1 text-2xl font-black text-slate-900">0</p>
+            </div>
+          </div>
+          <div class="mt-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Top Paths</p>
+            <div id="top-paths" class="space-y-1 text-xs"></div>
+          </div>
+          <div class="mt-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Client Funnel (Unique Desks)</p>
+            <div class="grid grid-cols-4 gap-2 text-xs">
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-center">
+                <p class="text-[10px] font-black tracking-[0.12em] text-slate-500 uppercase">Home</p>
+                <p id="funnel-home" class="mt-1 text-lg font-black text-slate-900">0</p>
+              </div>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-center">
+                <p class="text-[10px] font-black tracking-[0.12em] text-slate-500 uppercase">Login</p>
+                <p id="funnel-login" class="mt-1 text-lg font-black text-slate-900">0</p>
+              </div>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-center">
+                <p class="text-[10px] font-black tracking-[0.12em] text-slate-500 uppercase">Register</p>
+                <p id="funnel-register" class="mt-1 text-lg font-black text-slate-900">0</p>
+              </div>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-center">
+                <p class="text-[10px] font-black tracking-[0.12em] text-slate-500 uppercase">Subscribe</p>
+                <p id="funnel-subscribe" class="mt-1 text-lg font-black text-slate-900">0</p>
+              </div>
+            </div>
+            <p id="funnel-conversion" class="mt-2 text-[11px] text-slate-500">Conversion: 0.0%</p>
+          </div>
+        </div>
+
+        <div class="ops-panel overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-200">
+            <h3 class="font-black text-slate-900">Live Client Activity</h3>
+          </div>
+          <div id="client-feed" class="ops-feed h-[190px] overflow-y-auto">
+            <div id="client-feed-lines" class="p-3 space-y-1"></div>
+          </div>
+        </div>
+
+        <div class="ops-panel overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-200">
+            <h3 class="font-black text-slate-900">Active Desk Sessions</h3>
+          </div>
+          <div class="max-h-[235px] overflow-y-auto">
+            <table class="w-full text-xs">
+              <thead class="sticky top-0 bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th class="px-3 py-2 text-left text-[10px] uppercase tracking-[0.13em] font-black text-slate-500">Desk</th>
+                  <th class="px-3 py-2 text-left text-[10px] uppercase tracking-[0.13em] font-black text-slate-500">Last Path</th>
+                  <th class="px-3 py-2 text-left text-[10px] uppercase tracking-[0.13em] font-black text-slate-500">Hits</th>
+                  <th class="px-3 py-2 text-left text-[10px] uppercase tracking-[0.13em] font-black text-slate-500">Seen</th>
+                </tr>
+              </thead>
+              <tbody id="sessions-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="ops-panel p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-black text-slate-900">System Health</h2>
+            <span id="system-captured-at" class="text-[11px] text-slate-500 font-mono">--</span>
+          </div>
+          <div class="grid grid-cols-1 gap-4">
+            <div>
+              <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Services</p>
+              <div id="service-status-list" class="space-y-1"></div>
+            </div>
+            <div>
+              <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Queues</p>
+              <div id="queue-status-list" class="space-y-1"></div>
+            </div>
+            <div>
+              <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">RQ Worker Processes</p>
+              <div id="rq-worker-list" class="space-y-1"></div>
+            </div>
+            <div>
+              <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Recent Failed Jobs</p>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 mb-2 space-y-1">
+                <div>
+                  <span class="text-xs text-slate-600">Last 24h failed:</span>
+                  <span id="jobs-failed-24h" class="ml-1 text-sm font-black text-slate-900">0</span>
+                </div>
+                <div>
+                  <span class="text-xs text-slate-600">Dead letters (window):</span>
+                  <span id="dead-letters-window" class="ml-1 text-sm font-black text-slate-900">0</span>
+                </div>
+              </div>
+              <div id="failed-job-list" class="space-y-1"></div>
+              <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500 mt-3 mb-2">Recent Dead Letters</p>
+              <div id="dead-letter-list" class="space-y-1"></div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="ops-panel overflow-hidden">
+      <div class="px-4 pt-4 border-b border-slate-200">
+        <div class="flex items-center gap-2 overflow-x-auto pb-2" id="history-tabs" role="tablist">
+          {% for name in known_agents %}
+          <button type="button" class="history-tab whitespace-nowrap rounded-t-lg px-3 py-2 text-xs font-bold border-b-2 {% if loop.first %}border-slate-900 text-slate-900{% else %}border-transparent text-slate-500{% endif %}" data-tab="{{ name }}" onclick="switchHistoryTab('{{ name }}')">
+            {{ name }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% for name in known_agents %}
+      <div id="history-panel-{{ name }}" class="history-panel {% if not loop.first %}hidden{% endif %} max-h-[330px] overflow-y-auto">
+        <table class="w-full text-xs">
+          <thead class="sticky top-0 bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="px-3 py-2 text-left text-[10px] uppercase tracking-[0.13em] font-black text-slate-500">Time</th>
+              <th class="px-3 py-2 text-left text-[10px] uppercase tracking-[0.13em] font-black text-slate-500">Level</th>
+              <th class="px-3 py-2 text-left text-[10px] uppercase tracking-[0.13em] font-black text-slate-500">Message</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for entry in snapshot.history[name] %}
+            <tr>
+              <td class="px-3 py-1.5 font-mono text-slate-500">{{ entry.time[:19] | replace('T',' ') if entry.time else '—' }}</td>
+              <td class="px-3 py-1.5 text-slate-600">{{ entry.level or 'INFO' }}</td>
+              <td class="px-3 py-1.5 font-mono text-slate-700 break-all">{{ entry.msg or '—' }}</td>
+            </tr>
+            {% endfor %}
+            {% if not snapshot.history[name] %}
+            <tr><td colspan="3" class="px-3 py-6 text-center text-slate-400">No entries for {{ name }} today.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    </section>
+  </div>
+</div>
+
+<script>
+(function() {
+  const KNOWN_AGENTS = {{ known_agents | tojson }};
+  const INITIAL_AGENT_STATE = {{ snapshot.agents | tojson }};
+  const INITIAL_PRODUCTIVITY = {{ snapshot.productivity | default({}, true) | tojson }};
+  const INITIAL_AGENT_ALERTS = {{ snapshot.alerts | default([], true) | tojson }};
+  const INITIAL_CLIENT = {{ client_snapshot | tojson }};
+  const INITIAL_SYSTEM = {{ system_snapshot | default({}, true) | tojson }};
+  const DOT_CLASSES = { active: 'bg-emerald-500', idle: 'bg-amber-400', seen: 'bg-slate-400', unknown: 'bg-slate-300' };
+  const AGENT_COLORS = {
+    main: '#60a5fa',
+    reporter: '#f59e0b',
+    scout: '#34d399',
+    clerk: '#a78bfa',
+    bailbot: '#fb7185',
+  };
+
+  let paused = false;
+  let activeFilters = new Set(KNOWN_AGENTS);
+  let currentAgentAlerts = Array.isArray(INITIAL_AGENT_ALERTS) ? INITIAL_AGENT_ALERTS : [];
+  let currentClientAlerts = Array.isArray(INITIAL_CLIENT.alerts) ? INITIAL_CLIENT.alerts : [];
+
+  function tickClock() {
+    const el = document.getElementById('utc-clock');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toISOString().slice(11, 19);
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  function statusFromTime(isoStr) {
+    if (!isoStr) return 'unknown';
+    const ts = Date.parse(isoStr);
+    if (!Number.isFinite(ts)) return 'seen';
+    const diff = (Date.now() - ts) / 1000;
+    if (diff < 30) return 'active';
+    if (diff < 600) return 'idle';
+    return 'seen';
+  }
+
+  function updateAgentCard(agent, entry) {
+    const dot = document.getElementById('dot-' + agent);
+    const label = document.getElementById('status-label-' + agent);
+    const seen = document.getElementById('last-seen-' + agent);
+    const msg = document.getElementById('last-msg-' + agent);
+    if (!dot) return;
+    const status = statusFromTime(entry.time || '');
+    Object.values(DOT_CLASSES).forEach(cls => dot.classList.remove(...cls.split(' ')));
+    dot.classList.add(...(DOT_CLASSES[status] || DOT_CLASSES.unknown).split(' '));
+    if (label) label.textContent = status;
+    if (seen) seen.textContent = (entry.time || '').slice(0, 19).replace('T', ' ') || 'no data';
+    if (msg && entry.msg) msg.textContent = entry.msg.slice(0, 80);
+  }
+
+  function appendAgentLine(entry) {
+    const lines = document.getElementById('agent-feed-lines');
+    const empty = document.getElementById('agent-feed-empty');
+    if (!lines) return;
+    if (empty) empty.remove();
+    const agent = entry.agent || 'system';
+    const row = document.createElement('div');
+    row.dataset.agent = agent;
+    row.className = 'rounded px-2 py-1 text-[11px]';
+    row.style.borderLeft = `3px solid ${AGENT_COLORS[agent] || '#94a3b8'}`;
+    row.style.background = 'rgba(148,163,184,0.08)';
+    row.style.display = activeFilters.has(agent) ? '' : 'none';
+    const time = (entry.time || '').slice(11, 19) || '--:--:--';
+    row.textContent = `${time} [${agent}] ${entry.msg || ''}`;
+    lines.appendChild(row);
+    while (lines.children.length > 420) lines.removeChild(lines.firstChild);
+    if (!paused) {
+      const container = document.getElementById('agent-feed');
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+
+  function appendClientLine(evt) {
+    const lines = document.getElementById('client-feed-lines');
+    if (!lines) return;
+    const row = document.createElement('div');
+    row.className = 'rounded px-2 py-1 text-[11px] bg-sky-500/10 border-l-2 border-sky-400';
+    const time = (evt.created_at || '').slice(11, 19) || '--:--:--';
+    const desk = (evt.ip_hash || 'anon').slice(0, 8);
+    row.textContent = `${time} [desk:${desk}] ${evt.path || '/'}${evt.referrer_host ? ` <- ${evt.referrer_host}` : ''}`;
+    lines.appendChild(row);
+    while (lines.children.length > 260) lines.removeChild(lines.firstChild);
+    const container = document.getElementById('client-feed');
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function renderAgentProductivity(productivity) {
+    const data = productivity || {};
+    KNOWN_AGENTS.forEach(agent => {
+      const stats = data[agent] || {};
+      const ev = document.getElementById('metric-evpm-' + agent);
+      const err = document.getElementById('metric-err-' + agent);
+      const evpm = Number(stats.events_per_minute || 0);
+      const errRate = Number(stats.error_rate_5m || 0);
+      if (ev) ev.textContent = `${evpm.toFixed(1)} ev/min`;
+      if (err) err.textContent = `${errRate.toFixed(1)}% err`;
+      if (err) {
+        err.classList.remove('bg-rose-100', 'text-rose-700', 'bg-amber-100', 'text-amber-700', 'bg-emerald-100', 'text-emerald-700');
+        if (errRate >= 20) err.classList.add('bg-rose-100', 'text-rose-700');
+        else if (errRate >= 5) err.classList.add('bg-amber-100', 'text-amber-700');
+        else err.classList.add('bg-emerald-100', 'text-emerald-700');
+      }
+    });
+  }
+
+  function renderAlerts() {
+    const list = document.getElementById('alert-list');
+    const count = document.getElementById('alert-count');
+    if (!list || !count) return;
+    const alerts = [...currentAgentAlerts, ...currentClientAlerts];
+    count.textContent = `${alerts.length} alert${alerts.length === 1 ? '' : 's'}`;
+    list.innerHTML = '';
+    if (!alerts.length) {
+      list.innerHTML = '<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500">No active alerts.</div>';
+      return;
+    }
+    alerts.slice(0, 9).forEach(alert => {
+      const sev = (alert.severity || 'warning').toLowerCase();
+      const palette = sev === 'critical'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : sev === 'warning'
+          ? 'border-amber-200 bg-amber-50 text-amber-900'
+          : 'border-sky-200 bg-sky-50 text-sky-900';
+      const card = document.createElement('div');
+      card.className = `rounded-xl border px-3 py-3 ${palette}`;
+      card.innerHTML = `
+        <p class="text-[10px] uppercase tracking-[0.12em] font-black">${sev}</p>
+        <p class="mt-1 text-sm font-black">${alert.title || 'Alert'}</p>
+        <p class="mt-1 text-xs">${alert.message || ''}</p>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  function renderSystemSnapshot(system) {
+    if (!system) return;
+    const capturedAt = document.getElementById('system-captured-at');
+    if (capturedAt) capturedAt.textContent = (system.captured_at || '').slice(11, 19) || '--';
+
+    const services = document.getElementById('service-status-list');
+    if (services) {
+      services.innerHTML = '';
+      (system.services || []).forEach(item => {
+        const active = !!item.active;
+        const badge = active
+          ? '<span class="ops-badge bg-emerald-100 text-emerald-700">online</span>'
+          : '<span class="ops-badge bg-rose-100 text-rose-700">offline</span>';
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5';
+        row.innerHTML = `<span class="text-xs text-slate-700">${item.label || item.service || 'service'}</span>${badge}`;
+        services.appendChild(row);
+      });
+      if (!services.children.length) services.innerHTML = '<p class="text-slate-400 text-xs">No service data.</p>';
+    }
+
+    const queues = document.getElementById('queue-status-list');
+    if (queues) {
+      queues.innerHTML = '';
+      (system.queues || []).forEach(item => {
+        const failed = Number(item.failed_count || 0);
+        const row = document.createElement('div');
+        row.className = 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700';
+        row.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-black">${item.name || 'queue'}</span>
+            <span>depth: <span class="font-black text-slate-900">${Number(item.count || 0)}</span></span>
+          </div>
+          <div class="mt-1 ${failed > 0 ? 'text-rose-700' : 'text-slate-500'}">failed: ${failed}</div>
+        `;
+        queues.appendChild(row);
+      });
+      if (!queues.children.length) queues.innerHTML = '<p class="text-slate-400 text-xs">No queue data.</p>';
+    }
+
+    const workers = document.getElementById('rq-worker-list');
+    if (workers) {
+      workers.innerHTML = '';
+      (system.rq_workers || []).slice(0, 8).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs';
+        const uptime = Number(item.uptime_seconds || 0);
+        row.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-slate-700">pid ${item.pid || 0}</span>
+            <span class="text-slate-500">up ${uptime}s</span>
+          </div>
+          <div class="mt-1 font-mono text-[11px] text-slate-600 truncate">${item.cmdline || ''}</div>
+        `;
+        workers.appendChild(row);
+      });
+      if (!workers.children.length) workers.innerHTML = '<p class="text-slate-400 text-xs">No RQ worker processes found.</p>';
+    }
+
+    const failed24h = document.getElementById('jobs-failed-24h');
+    const deadLettersWindow = document.getElementById('dead-letters-window');
+    const failedList = document.getElementById('failed-job-list');
+    const deadLetterList = document.getElementById('dead-letter-list');
+    const jobs = system.jobs || {};
+    if (failed24h) failed24h.textContent = String(Number(jobs.failed_last_24h || 0));
+    if (deadLettersWindow) deadLettersWindow.textContent = String(Number(jobs.dead_letters_last_window || 0));
+    if (failedList) {
+      failedList.innerHTML = '';
+      (jobs.recent || []).slice(0, 8).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5';
+        row.innerHTML = `
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-black text-slate-800">${item.queue_name || 'queue'} · ${item.task_name || 'task'}</span>
+            <span class="text-slate-500 font-mono">${(item.finished_at || '').slice(11, 19) || '--:--:--'}</span>
+          </div>
+          <div class="mt-1 text-[11px] text-rose-700 truncate">${item.error_text || 'error unavailable'}</div>
+        `;
+        failedList.appendChild(row);
+      });
+      if (!failedList.children.length) failedList.innerHTML = '<p class="text-slate-400 text-xs">No recent failed jobs.</p>';
+    }
+    if (deadLetterList) {
+      deadLetterList.innerHTML = '';
+      (jobs.dead_letter_recent || []).slice(0, 8).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5';
+        row.innerHTML = `
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-black text-rose-900">${item.queue_name || 'queue'} · ${item.task_name || 'task'}</span>
+            <span class="text-rose-700 font-mono">${(item.failed_at || '').slice(11, 19) || '--:--:--'}</span>
+          </div>
+          <div class="mt-1 text-[11px] text-rose-800 truncate">${item.error_text || 'error unavailable'}</div>
+        `;
+        deadLetterList.appendChild(row);
+      });
+      if (!deadLetterList.children.length) deadLetterList.innerHTML = '<p class="text-slate-400 text-xs">No dead letters.</p>';
+    }
+  }
+
+  function renderClientSnapshot(data) {
+    if (!data) return;
+    const active = document.getElementById('metric-active-clients');
+    const perMin = document.getElementById('metric-events-minute');
+    const windowHits = document.getElementById('metric-events-window');
+    if (active) active.textContent = data.active_clients || 0;
+    if (perMin) perMin.textContent = data.events_last_minute || 0;
+    if (windowHits) windowHits.textContent = data.events_window || 0;
+    const funnel = data.funnel || {};
+    const home = Number(funnel.home || 0);
+    const subscribe = Number(funnel.subscribe || 0);
+    const cv = home > 0 ? (subscribe / home) * 100 : 0;
+    const funnelHome = document.getElementById('funnel-home');
+    const funnelLogin = document.getElementById('funnel-login');
+    const funnelRegister = document.getElementById('funnel-register');
+    const funnelSubscribe = document.getElementById('funnel-subscribe');
+    const funnelConversion = document.getElementById('funnel-conversion');
+    if (funnelHome) funnelHome.textContent = String(home);
+    if (funnelLogin) funnelLogin.textContent = String(Number(funnel.login || 0));
+    if (funnelRegister) funnelRegister.textContent = String(Number(funnel.register || 0));
+    if (funnelSubscribe) funnelSubscribe.textContent = String(subscribe);
+    if (funnelConversion) funnelConversion.textContent = `Conversion: ${cv.toFixed(1)}%`;
+
+    const topPaths = document.getElementById('top-paths');
+    if (topPaths) {
+      topPaths.innerHTML = '';
+      (data.top_paths || []).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5';
+        row.innerHTML = `<span class="truncate text-slate-700 pr-2">${item.path || '/'}</span><span class="font-black text-slate-900">${item.count || 0}</span>`;
+        topPaths.appendChild(row);
+      });
+      if (!topPaths.children.length) topPaths.innerHTML = '<p class="text-slate-400 text-xs">No path data yet.</p>';
+    }
+
+    const tbody = document.getElementById('sessions-body');
+    if (tbody) {
+      tbody.innerHTML = '';
+      (data.active_sessions || []).forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-slate-100';
+        tr.innerHTML = `
+          <td class="px-3 py-2 font-mono text-slate-600">${(item.ip_hash || 'anon').slice(0, 8)}</td>
+          <td class="px-3 py-2 text-slate-700 truncate max-w-[220px]">${item.last_path || '/'}</td>
+          <td class="px-3 py-2 text-slate-700">${item.hits || 0}</td>
+          <td class="px-3 py-2 text-slate-500 font-mono">${(item.last_seen || '').slice(11, 19)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      if (!tbody.children.length) tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-6 text-center text-slate-400">No active desk sessions.</td></tr>';
+    }
+    currentClientAlerts = Array.isArray(data.alerts) ? data.alerts : [];
+    renderAlerts();
+  }
+
+  async function refreshClientSnapshot() {
+    try {
+      const res = await fetch('/admin/agents/client-snapshot', { cache: 'no-store' });
+      if (!res.ok) return;
+      renderClientSnapshot(await res.json());
+    } catch (_) {}
+  }
+
+  async function refreshAgentSnapshot() {
+    try {
+      const res = await fetch('/admin/agents/snapshot', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const agents = data.agents || {};
+      KNOWN_AGENTS.forEach(name => {
+        const seeded = agents[name] || {};
+        updateAgentCard(name, { time: seeded.last_seen || '', msg: seeded.last_msg || '' });
+      });
+      renderAgentProductivity(data.productivity || {});
+      renderSystemSnapshot(data.system || {});
+      currentAgentAlerts = Array.isArray(data.alerts) ? data.alerts : [];
+      renderAlerts();
+    } catch (_) {}
+  }
+
+  window.switchHistoryTab = function(name) {
+    document.querySelectorAll('.history-panel').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.history-tab').forEach(el => {
+      el.classList.remove('border-slate-900', 'text-slate-900');
+      el.classList.add('border-transparent', 'text-slate-500');
+    });
+    const panel = document.getElementById('history-panel-' + name);
+    const tab = document.querySelector(`.history-tab[data-tab="${name}"]`);
+    if (panel) panel.classList.remove('hidden');
+    if (tab) {
+      tab.classList.remove('border-transparent', 'text-slate-500');
+      tab.classList.add('border-slate-900', 'text-slate-900');
+    }
+  };
+
+  window.togglePause = function() {
+    paused = !paused;
+    const btn = document.getElementById('pause-btn');
+    if (btn) btn.textContent = paused ? 'Resume' : 'Pause';
+  };
+
+  window.toggleFilter = function(btn) {
+    const name = btn.dataset.filter;
+    if (activeFilters.has(name)) {
+      activeFilters.delete(name);
+      btn.classList.add('opacity-50');
+    } else {
+      activeFilters.add(name);
+      btn.classList.remove('opacity-50');
+    }
+    document.querySelectorAll('#agent-feed-lines [data-agent]').forEach(row => {
+      row.style.display = activeFilters.has(row.dataset.agent) ? '' : 'none';
+    });
+  };
+
+  KNOWN_AGENTS.forEach(name => {
+    const seeded = INITIAL_AGENT_STATE[name] || {};
+    updateAgentCard(name, { time: seeded.last_seen || '', msg: seeded.last_msg || '' });
+  });
+  renderAgentProductivity(INITIAL_PRODUCTIVITY || {});
+  renderClientSnapshot(INITIAL_CLIENT || {});
+  renderSystemSnapshot(INITIAL_SYSTEM || {});
+  renderAlerts();
+  (INITIAL_CLIENT.recent_events || []).slice(0, 40).reverse().forEach(appendClientLine);
+
+  refreshClientSnapshot();
+  refreshAgentSnapshot();
+  setInterval(refreshClientSnapshot, 15000);
+  setInterval(refreshAgentSnapshot, 15000);
+})();
+</script>
+{% endblock %}

@@ -8,10 +8,13 @@ from __future__ import annotations
 import argparse
 import json
 import socket
+import sqlite3
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import config
 
 
 ROOT = Path("/root/montanablotter")
@@ -28,6 +31,13 @@ class MonitoredJob:
     cadence: str
 
 
+@dataclass(frozen=True)
+class MonitoredStateJob:
+    name: str
+    max_age_hours: float
+    cadence: str
+
+
 JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("cleanup", ROOT / "cleanup.log", 30, "daily"),
     MonitoredJob("email_worker", ROOT / "mail.log", 2, "every 15 minutes"),
@@ -35,6 +45,10 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("morning_briefing", ROOT / "briefing.log", 30, "daily"),
     MonitoredJob("daily_blog_worker", ROOT / "daily_blog.log", 30, "daily"),
     MonitoredJob("weekly_county_digest", ROOT / "weekly_county_digest.log", 8 * 24, "weekly"),
+    MonitoredJob("weekly_safety_report", ROOT / "weekly_safety_report.log", 8 * 24, "weekly"),
+    MonitoredJob("charge_explainer_worker", ROOT / "charge_explainer.log", 8 * 24, "weekly"),
+    MonitoredJob("weekly_snapshot", ROOT / "weekly_snapshot.log", 8 * 24, "weekly"),
+    MonitoredJob("script_watchdog", ROOT / "cron_errors.log", 30, "daily"),
     MonitoredJob("pattern_conversion_report", ROOT / "cron.log", 30, "daily"),
     MonitoredJob("backup_db", ROOT / "backup.log", 26, "daily"),
     MonitoredJob("court_refresh", ROOT / "court_refresh.log", 5, "every 3 hours"),
@@ -44,13 +58,22 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("crimemapping_fetcher", ROOT / "crimemapping.log", 14, "twice daily"),
     MonitoredJob("missoula_public_report_fetcher", ROOT / "missoula_fetcher.log", 2, "hourly"),
     MonitoredJob("whitefish_blotter_fetcher", ROOT / "whitefish_fetcher.log", 8, "every 6 hours"),
-    # Both jail counties share one log file; this monitors log freshness only.
-    # DB state is tracked per-county: jail_booking_ingest_yellowstone / jail_booking_ingest_missoula
     MonitoredJob("jail_booking", ROOT / "jail_booking_ingest.log", 4, "every 2 hours"),
+    MonitoredJob("missing_person_watch", ROOT / "missing_person_watch.log", 2, "hourly"),
     MonitoredJob("bozeman_police_calls", ROOT / "bozeman_calls.log", 2, "hourly"),
     MonitoredJob("bozeman_police_crime", ROOT / "bozeman_crime.log", 8, "every 6 hours"),
     MonitoredJob("ingestion_alerts", ROOT / "ingestion_alerts.log", 2, "every 30 minutes"),
 )
+
+STATE_JOBS: tuple[MonitoredStateJob, ...] = (
+    MonitoredStateJob("jail_booking_ingest_yellowstone", 4, "every 2 hours"),
+    MonitoredStateJob("jail_booking_ingest_missoula", 4, "every 2 hours"),
+    MonitoredStateJob("jail_booking_ingest_flathead", 4, "every 2 hours"),
+    MonitoredStateJob("jail_booking_ingest_jefferson", 4, "every 2 hours"),
+    MonitoredStateJob("jail_booking_ingest_sanders", 4, "every 2 hours"),
+)
+
+SUCCESS_STATUSES = {"ok", "success"}
 
 
 def _isoformat(dt: datetime | None) -> str | None:
@@ -81,6 +104,85 @@ def _check_job(job: MonitoredJob, now: datetime) -> dict[str, object]:
         "status": status,
         "max_age_hours": job.max_age_hours,
         "last_seen_at": _isoformat(modified_at),
+        "age_hours": age_hours,
+    }
+
+
+def _parse_state_time(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    raw = value.strip().replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        try:
+            parsed = datetime.strptime(raw[:19], "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _check_state_job(job: MonitoredStateJob, now: datetime) -> dict[str, object]:
+    db_path = getattr(config, "DB_PATH", str(ROOT / "blotter.db"))
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM scheduled_job_state WHERE job_name = ?",
+            (job.name,),
+        ).fetchone()
+        conn.close()
+    except sqlite3.Error as exc:
+        return {
+            "name": job.name,
+            "kind": "job",
+            "source": "scheduled_job_state",
+            "cadence": job.cadence,
+            "status": "error",
+            "details": str(exc),
+            "max_age_hours": job.max_age_hours,
+            "last_seen_at": None,
+            "age_hours": None,
+        }
+
+    if not row:
+        return {
+            "name": job.name,
+            "kind": "job",
+            "source": "scheduled_job_state",
+            "cadence": job.cadence,
+            "status": "missing",
+            "details": "no scheduled_job_state row",
+            "max_age_hours": job.max_age_hours,
+            "last_seen_at": None,
+            "age_hours": None,
+        }
+
+    finished_at = _parse_state_time(row["last_finished_at"])
+    age_hours = None
+    status = "ok"
+    if finished_at is None:
+        status = "missing"
+    else:
+        age_hours = round((now - finished_at).total_seconds() / 3600, 2)
+        if now - finished_at > timedelta(hours=job.max_age_hours):
+            status = "stale"
+    last_status = (row["last_status"] or "").strip().lower()
+    if last_status not in SUCCESS_STATUSES:
+        status = "error"
+
+    return {
+        "name": job.name,
+        "kind": "job",
+        "source": "scheduled_job_state",
+        "cadence": job.cadence,
+        "status": status,
+        "last_status": row["last_status"],
+        "exit_code": row["last_exit_code"],
+        "max_age_hours": job.max_age_hours,
+        "last_seen_at": _isoformat(finished_at),
         "age_hours": age_hours,
     }
 
@@ -202,7 +304,10 @@ def _check_web_service() -> dict[str, object]:
 
 def run_watchdog() -> tuple[int, dict[str, object]]:
     now = datetime.now(timezone.utc)
-    job_checks = [_check_job(job, now) for job in JOBS]
+    job_checks = [
+        *[_check_job(job, now) for job in JOBS],
+        *[_check_state_job(job, now) for job in STATE_JOBS],
+    ]
     service_checks = [_check_systemd_service(), _check_web_service()]
     checks = [*service_checks, *job_checks]
     failing = [item for item in checks if item["status"] != "ok"]
@@ -240,10 +345,12 @@ def main() -> int:
         if item["kind"] == "job":
             age = item["age_hours"]
             age_label = "n/a" if age is None else f"{age:.2f}h"
+            source = item.get("source", "log")
+            location = item.get("log_path") or source
             print(
                 f"- {item['name']}: status={item['status']} cadence={item['cadence']} "
                 f"last_seen={item['last_seen_at'] or 'missing'} age={age_label} "
-                f"log={item['log_path']}"
+                f"source={location}"
             )
             continue
 

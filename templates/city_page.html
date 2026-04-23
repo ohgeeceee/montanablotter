@@ -1,4 +1,5 @@
 {% extends "public_page_base.html" %}
+{% from "includes/bail_ad_units.html" import render_bail_banner, render_bail_panel, render_bail_tracking_script %}
 
 {% set page_title = city.seo_title or (city.name ~ " Police Blotter, Arrests, and Warrant Links") %}
 {% set meta_description = city.meta_description or ("Free " ~ city.name ~ ", Montana police blotter and daily activity reports from the " ~ city.pd_name ~ ". Public safety records, no account required.") %}
@@ -101,69 +102,74 @@
 {% endif %}
 {% endblock %}
 
+{% block body_class %}city-page{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<a href="/county/{{ city.county_slug }}" class="hover:text-slate-700">{{ city.county }} County</a>
+<a href="/county/{{ city.county_slug }}">{{ city.county }} County</a>
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">{{ city.name }}</span>
+<span>{{ city.name }}</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-10 px-4 sm:px-6">
-    <div class="max-w-7xl mx-auto">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
             <div>
-                <span class="inline-block bg-blue-500/20 text-blue-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-3">
-                    {{ city.county }} County &bull; Montana
-                </span>
-                <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-2">
-                    {{ city.name }}
-                    <span class="text-blue-400 italic">Police Blotter</span>
+                <span class="public-eyebrow">{{ city.county }} County, Montana</span>
+                <h1 class="public-title public-title--medium">
+                    {{ city.name }} Police Blotter
                 </h1>
-                <p class="text-slate-300 text-sm max-w-xl">
+                <p class="public-copy">
                     {{ city.hero_summary or ("Daily activity reports from the " ~ city.pd_name ~ " and " ~ city.county ~ " County law enforcement agencies. Free, AI-summarized, no account required.") }}
                 </p>
             </div>
-            <div class="flex gap-8 text-center flex-shrink-0">
-                <div>
-                    <p class="text-2xl font-black">{{ post_count }}</p>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Reports</p>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">City Snapshot</p>
+                    <div class="public-stat-grid">
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Reports</p>
+                            <p class="public-stat-value">{{ post_count }}</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Incidents</p>
+                            <p class="public-stat-value">{{ record_count }}</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Last Report</p>
+                            <p class="public-stat-value">{{ last_report or '—' }}</p>
+                        </div>
+                    </div>
+                    <p class="public-card__text">
+                        This page narrows readers from county-wide search into {{ city.pd_name }}, then links back out to county arrests, warrant resources, and detention tools.
+                    </p>
                 </div>
-                <div class="border-l border-white/10 pl-8">
-                    <p class="text-2xl font-black">{{ record_count }}</p>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Incidents</p>
-                </div>
-                <div class="border-l border-white/10 pl-8">
-                    {% if last_report %}
-                    <p class="text-lg font-black">{{ last_report }}</p>
-                    {% else %}
-                    <p class="text-lg font-black text-slate-500">—</p>
-                    {% endif %}
-                    <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-0.5">Last Report</p>
-                </div>
-            </div>
+            </aside>
         </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col lg:flex-row gap-8 items-start">
+    <div class="public-route-layout public-route-layout--wide">
 
         <!-- Feed column -->
-        <main class="flex-1 min-w-0">
+        <main class="public-main-stack">
+
+            {{ render_bail_banner(bail_ad_placements.banner, 'city_banner') }}
 
             {% if posts %}
-            <div class="flex items-center justify-between mb-5">
-                <h2 class="text-lg font-black text-slate-900">
+            <div class="public-panel-row">
+                <h2 class="public-panel-title">
                     <i class="fas fa-newspaper text-blue-500 mr-2"></i>Recent Activity Reports
                 </h2>
-                <span class="text-xs text-slate-400 font-semibold uppercase tracking-widest">{{ post_count }} total</span>
+                <span class="public-card__eyebrow">{{ post_count }} total</span>
             </div>
 
             <div class="space-y-4">
                 {% for post in posts %}
-                <article class="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition p-5">
+                <article class="public-card public-card--lift p-5">
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex-1 min-w-0">
                             <div class="flex flex-wrap items-center gap-2 mb-2">
@@ -209,14 +215,14 @@
             <div class="flex items-center justify-center gap-2 mt-8">
                 {% if page > 1 %}
                 <a href="/city/{{ city.slug }}?page={{ page - 1 }}"
-                   class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+                   class="public-btn public-btn--secondary">
                     <i class="fas fa-chevron-left mr-1"></i> Prev
                 </a>
                 {% endif %}
                 <span class="text-sm text-slate-500 font-semibold">Page {{ page }} of {{ total_pages }}</span>
                 {% if page < total_pages %}
                 <a href="/city/{{ city.slug }}?page={{ page + 1 }}"
-                   class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+                   class="public-btn public-btn--secondary">
                     Next <i class="fas fa-chevron-right ml-1"></i>
                 </a>
                 {% endif %}
@@ -225,7 +231,7 @@
 
             {% else %}
             <!-- No data yet -->
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-10 text-center">
+            <div class="public-card public-empty-state">
                 <div class="inline-flex items-center justify-center w-14 h-14 bg-slate-100 rounded-2xl mb-4">
                     <i class="fas fa-satellite-dish text-slate-400 text-2xl"></i>
                 </div>
@@ -240,7 +246,7 @@
             {% endif %}
 
             <!-- SEO content -->
-            <div class="mt-10 bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-8">
+            <div class="public-card p-6 space-y-8">
 
                 <div>
                     <h2 class="text-xl font-black text-slate-900 mb-3">
@@ -416,7 +422,7 @@
                         <a href="/county/{{ city.county_slug }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
                             <i class="fas fa-map text-blue-500"></i>{{ city.county }} County archive
                         </a>
-                        <a href="/posts?city={{ city.name | urlencode }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
+                        <a href="/?city={{ city.name | urlencode }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
                             <i class="fas fa-newspaper text-blue-500"></i>All {{ city.name }} reports
                         </a>
                         <a href="/arrests?county={{ city.county | urlencode }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700 transition">
@@ -517,7 +523,9 @@
         </main>
 
         <!-- Sidebar -->
-        <aside class="w-full lg:w-72 flex-shrink-0 space-y-5 lg:sticky top-24">
+        <aside class="public-sidebar-stack lg:sticky top-24">
+
+            {{ render_bail_panel(bail_ad_placements.county_sponsor or bail_ad_placements.sidebar, 'city_sidebar') }}
 
             <!-- Quick access -->
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -626,12 +634,12 @@
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                 <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">More {{ city.name }} Paths</h3>
                 <div class="space-y-2">
-                    <a href="/posts?city={{ city.name | urlencode }}"
+                    <a href="/?city={{ city.name | urlencode }}"
                        class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
                         <i class="fas fa-newspaper text-blue-500 w-4 text-center"></i>
                         All {{ city.name }} reports
                     </a>
-                    <a href="/posts?county={{ city.county | urlencode }}&agency={{ city.pd_name | urlencode }}"
+                    <a href="/?county={{ city.county | urlencode }}&agency={{ city.pd_name | urlencode }}"
                        class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
                         <i class="fas fa-building text-blue-500 w-4 text-center"></i>
                         {{ city.pd_name }}
@@ -661,4 +669,8 @@
         </aside>
     </div>
 
+{% endblock %}
+
+{% block extra_scripts %}
+{{ render_bail_tracking_script() }}
 {% endblock %}

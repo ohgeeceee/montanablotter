@@ -1,0 +1,156 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana Detention Hub" %}
+{% set meta_description = "One statewide detention hub for Montana jail rosters, newly tracked jail bookings, county contact links, and official roster access." %}
+{% set canonical_url = "https://montanablotter.com/detention" %}
+{% set og_title = "Montana Detention Hub | Montana Blotter" %}
+{% set og_description = meta_description %}
+{% set active_nav = "jail_rosters" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Detention Hub</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-6xl mx-auto">
+        <div class="max-w-3xl">
+            <div class="inline-flex items-center rounded-full bg-orange-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-300">
+                County Rosters + New Bookings
+            </div>
+            <h1 class="mt-4 text-4xl font-black tracking-tight">Montana detention tools in one place</h1>
+            <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
+                This hub combines official county jail roster links with Montana Blotter's monitored new-bookings feed,
+                so users can move from statewide directory lookup to county-level booking detail without jumping between pages.
+            </p>
+        </div>
+
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Tracked Counties</p>
+                <p class="mt-2 text-3xl font-black">{{ booking_context.summary.tracked_counties }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Current Listings</p>
+                <p class="mt-2 text-3xl font-black">{{ booking_context.summary.current_bookings }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Online Rosters</p>
+                <p class="mt-2 text-3xl font-black">{{ roster_directory.online_count }}</p>
+            </div>
+            <div class="rounded-2xl border border-orange-400/20 bg-orange-500/10 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-orange-200">Phone-Only Counties</p>
+                <p class="mt-2 text-3xl font-black text-orange-50">{{ roster_directory.phone_only_count }}</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-10 space-y-10">
+    <section id="bookings" class="space-y-5">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-orange-600">Freshest Intake</p>
+                <h2 class="mt-2 text-2xl font-black text-slate-900">Recent jail bookings</h2>
+                <p class="mt-2 text-sm text-slate-600">Start with the latest published detention entries, then jump into county pages or official rosters.</p>
+            </div>
+            <a href="/jail-bookings" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white hover:bg-slate-800 transition">
+                Open Full Bookings Feed
+            </a>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-3">
+            {% for row in booking_context.rows[:6] %}
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-white">{{ row.county_name }}</span>
+                    {% if row.is_new_24h %}
+                    <span class="inline-flex rounded-full bg-orange-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-orange-700">New in 24h</span>
+                    {% endif %}
+                </div>
+                <h3 class="mt-4 text-xl font-black text-slate-900">{{ row.person_name }}</h3>
+                <p class="mt-2 text-sm text-slate-600">{{ row.booking_at_label }} · {{ row.facility_name }}</p>
+                <p class="mt-3 text-sm leading-6 text-slate-700">{{ row.charges_summary or 'No charge summary available yet.' }}</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <a href="/jail-bookings/{{ row.county_slug }}" class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">County feed</a>
+                    {% if row.roster_url %}
+                    <a href="{{ row.roster_url }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">Official roster</a>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <div id="rosters" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Official Directory</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">County jail rosters</h2>
+                    <p class="mt-2 text-sm text-slate-600">Official inmate lookup links for all Montana counties, with phone fallback where no public online roster exists.</p>
+                </div>
+                <a href="https://vinelink.vineapps.com/state/mt" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                    Statewide VINELink
+                </a>
+            </div>
+
+            <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {% for county in roster_directory.counties %}
+                <div class="rounded-xl border border-slate-200 px-4 py-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-black text-slate-900">{{ county.name }} County</h3>
+                            <p class="mt-1 text-xs text-slate-500">{{ county.phone }}</p>
+                        </div>
+                        {% if county.has_online_roster %}
+                        <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Online</span>
+                        {% else %}
+                        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">Phone</span>
+                        {% endif %}
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        {% if county.roster_url %}
+                        <a href="{{ county.roster_url }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg bg-orange-600 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-white hover:bg-orange-700 transition">View roster</a>
+                        {% endif %}
+                        <a href="tel:{{ county.phone }}" class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">Call</a>
+                        {% if county.public_bookings_href %}
+                        <a href="{{ county.public_bookings_href }}" class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">Bookings</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <aside class="space-y-5">
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Featured County Feeds</p>
+                <div class="mt-4 space-y-3">
+                    {% for source in booking_context.featured_sources %}
+                    <div class="rounded-xl border border-slate-200 px-4 py-3">
+                        <a href="{{ source.public_href }}" class="text-sm font-black text-slate-900 hover:text-blue-700">{{ source.county_name }}</a>
+                        <p class="mt-1 text-xs text-slate-500">{{ source.facility_name }}</p>
+                        <p class="mt-3 text-xs font-black uppercase tracking-[0.14em] {% if source.sync_state == 'healthy' %}text-emerald-700{% elif source.sync_state == 'attention' %}text-amber-700{% else %}text-slate-500{% endif %}">
+                            {{ source.sync_state_label }} · {{ source.current_count }} current
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700">Important Context</p>
+                <ul class="mt-3 space-y-3 text-sm leading-6 text-amber-900">
+                    <li>Booking status does not imply guilt or conviction.</li>
+                    <li>County rosters can change rapidly as people are released or corrected.</li>
+                    <li>For the most current detention status, verify directly with the county roster or sheriff's office.</li>
+                </ul>
+            </div>
+        </aside>
+    </section>
+</div>
+{% endblock %}

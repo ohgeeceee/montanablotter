@@ -73,17 +73,22 @@
                     <p class="text-2xl font-black text-slate-900 mt-1">{{ preview.skipped_subscribers }}</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Test Recipient</p>
-                    <p class="text-sm font-semibold text-slate-900 mt-2 break-all">{{ test_recipient or 'No admin email configured' }}</p>
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Default Test Recipient</p>
+                    <p class="text-sm font-semibold text-slate-900 mt-2 break-all">{{ test_recipient or 'No default email configured' }}</p>
                 </div>
             </div>
 
             <div class="mt-5 flex flex-wrap gap-3">
                 <form method="post" action="/admin/audience/email-ops/send-test">
                     <input type="hidden" name="target_date" value="{{ target_date }}">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <input type="email" name="recipient_email" value="{{ test_recipient or '' }}" placeholder="test@yourdomain.com"
+                               class="w-72 rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                        <p class="text-xs text-slate-500">Override the default test recipient if you want to send to another inbox.</p>
+                    </div>
                     <button type="submit"
-                            {% if not can_send_email_ops or not test_recipient or not preview.all_posts %}disabled{% endif %}
-                            class="inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-black text-white transition {% if can_send_email_ops and test_recipient and preview.all_posts %}bg-blue-600 hover:bg-blue-700{% else %}bg-slate-300 cursor-not-allowed{% endif %}">
+                            {% if not can_send_email_ops or not preview.all_posts %}disabled{% endif %}
+                            class="inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-black text-white transition {% if can_send_email_ops and preview.all_posts %}bg-blue-600 hover:bg-blue-700{% else %}bg-slate-300 cursor-not-allowed{% endif %}">
                         Send Test
                     </button>
                 </form>
@@ -121,27 +126,147 @@
         </div>
     </div>
 
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-amber-600">Sponsors</p>
+                    <h2 class="text-xl font-black text-slate-900 mt-2">Sponsor Announcement Email</h2>
+                    <p class="text-sm text-slate-500 mt-1">Draft, preview, test, and send a sponsor announcement to all active subscribers.</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Active Audience</p>
+                    <p class="text-2xl font-black text-slate-900 mt-1">{{ sponsor_announcement.active_subscribers }}</p>
+                </div>
+            </div>
+
+            <form method="post" class="mt-5 space-y-4">
+                <input type="hidden" name="target_date" value="{{ target_date }}">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Email Subject</label>
+                        <input type="text" name="sponsor_subject" value="{{ sponsor_announcement.draft.subject }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Sponsor Name</label>
+                        <input type="text" name="sponsor_name" value="{{ sponsor_announcement.draft.sponsor_name }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Headline</label>
+                    <input type="text" name="sponsor_headline" value="{{ sponsor_announcement.draft.headline }}"
+                           class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Body Copy</label>
+                    <textarea name="sponsor_body" rows="8"
+                              class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">{{ sponsor_announcement.draft.body }}</textarea>
+                    <p class="text-xs text-slate-500 mt-2">Use blank lines for paragraph breaks. Unsubscribe language is added automatically.</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-[0.35fr_0.65fr]">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">CTA Label</label>
+                        <input type="text" name="sponsor_cta_label" value="{{ sponsor_announcement.draft.cta_label }}"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">CTA URL</label>
+                        <input type="url" name="sponsor_cta_url" value="{{ sponsor_announcement.draft.cta_url }}" placeholder="https://example.com"
+                               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Internal Notes</label>
+                    <textarea name="sponsor_notes" rows="3"
+                              class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">{{ sponsor_announcement.draft.notes }}</textarea>
+                    <p class="text-xs text-slate-500 mt-2">Optional internal notes are stored with the draft and send log.</p>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div class="grid grid-cols-1 gap-3 lg:grid-cols-[0.55fr_0.45fr] lg:items-end">
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Test Recipient</label>
+                            <input type="email" name="recipient_email" value="{{ test_recipient or '' }}" placeholder="test@yourdomain.com"
+                                   class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800">
+                            <p class="text-xs text-slate-500 mt-2">Use this to send yourself a preview before sending to all active subscribers.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-3">
+                            <button type="submit"
+                                    formaction="/admin/audience/email-ops/sponsor-draft"
+                                    {% if not can_send_email_ops %}disabled{% endif %}
+                                    class="inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-black transition {% if can_send_email_ops %}border border-slate-300 bg-white text-slate-700 hover:bg-slate-100{% else %}bg-slate-300 text-white cursor-not-allowed{% endif %}">
+                                Save Draft
+                            </button>
+                            <button type="submit"
+                                    formaction="/admin/audience/email-ops/sponsor-test"
+                                    {% if not can_send_email_ops %}disabled{% endif %}
+                                    class="inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-black text-white transition {% if can_send_email_ops %}bg-blue-600 hover:bg-blue-700{% else %}bg-slate-300 cursor-not-allowed{% endif %}">
+                                Send Test
+                            </button>
+                            <button type="submit"
+                                    formaction="/admin/audience/email-ops/sponsor-send-now"
+                                    onclick="return confirm('Send this sponsor announcement to all active subscribers now?');"
+                                    {% if not can_send_email_ops or sponsor_announcement.active_subscribers == 0 %}disabled{% endif %}
+                                    class="inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-black text-white transition {% if can_send_email_ops and sponsor_announcement.active_subscribers > 0 %}bg-emerald-600 hover:bg-emerald-700{% else %}bg-slate-300 cursor-not-allowed{% endif %}">
+                                Send To All Active Subscribers
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {% if not can_send_email_ops %}
+            <div class="mt-4 inline-flex items-center rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+                View-only role. Sponsor draft changes and sends are limited to super admin, ops, and revenue.
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Sponsor Email Preview</h2>
+                <p class="text-sm text-slate-500 mt-1">Rendered from the saved draft fields above.</p>
+            </div>
+            <div class="p-5 bg-slate-100">
+                <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                    <div class="p-4">
+                        {{ sponsor_announcement.preview_html|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
-                <h2 class="text-lg font-black text-slate-900">Recent Digest Runs</h2>
+                <h2 class="text-lg font-black text-slate-900">Recent Email Runs</h2>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[920px]">
+                <table class="w-full min-w-[1040px]">
                     <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
                         <tr>
                             <th class="px-5 py-3 text-left">When</th>
+                            <th class="px-5 py-3 text-left">Kind</th>
                             <th class="px-5 py-3 text-left">Audience</th>
                             <th class="px-5 py-3 text-left">Target Date</th>
                             <th class="px-5 py-3 text-left">Status</th>
                             <th class="px-5 py-3 text-left">Volume</th>
                             <th class="px-5 py-3 text-left">Initiated By</th>
+                            <th class="px-5 py-3 text-left">Ops</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for run in preview.recent_runs %}
                         <tr class="align-top hover:bg-slate-50 transition">
                             <td class="px-5 py-4 text-sm font-mono text-slate-600">{{ run.created_at }}</td>
+                            <td class="px-5 py-4 text-sm font-semibold text-slate-900">{{ run.kind|replace('_', ' ')|title }}</td>
                             <td class="px-5 py-4 text-sm font-semibold text-slate-900">{{ run.audience }}</td>
                             <td class="px-5 py-4 text-sm text-slate-700">{{ run.target_date }}</td>
                             <td class="px-5 py-4">
@@ -153,10 +278,16 @@
                                 {{ run.sent_count }} sent / {{ run.skipped_count }} skipped / {{ run.failed_count }} failed
                             </td>
                             <td class="px-5 py-4 text-sm text-slate-700">{{ run.created_by_username or run.initiated_by or 'system' }}</td>
+                            <td class="px-5 py-4 text-sm">
+                                <a href="{{ url_for('admin.admin_email_ops', target_date=target_date, run_id=run.id) }}"
+                                   class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-100">
+                                    Inspect
+                                </a>
+                            </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-500">No digest runs have been recorded yet.</td>
+                            <td colspan="8" class="px-5 py-8 text-center text-sm text-slate-500">No email runs have been recorded yet.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -166,9 +297,91 @@
 
         <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
-                <h2 class="text-lg font-black text-slate-900">Audience Preview</h2>
-                <p class="text-sm text-slate-500 mt-1">First 30 active subscribers for {{ target_date }}.</p>
+                <h2 class="text-lg font-black text-slate-900">
+                    {% if preview.selected_run %}Run Diagnostics{% else %}Audience Preview{% endif %}
+                </h2>
+                <p class="text-sm text-slate-500 mt-1">
+                    {% if preview.selected_run %}
+                    Inspect the delivery results for email run #{{ preview.selected_run.id }}.
+                    {% else %}
+                    First 30 active subscribers for {{ target_date }}.
+                    {% endif %}
+                </p>
             </div>
+            {% if preview.selected_run %}
+            <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Kind</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ preview.selected_run.kind|replace('_', ' ')|title }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Status</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ preview.selected_run.status }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Subject</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ preview.selected_run.subject }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Window</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ preview.selected_run.started_at or preview.selected_run.created_at }} → {{ preview.selected_run.finished_at or 'running' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Volume</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ preview.selected_run.sent_count }} sent / {{ preview.selected_run.skipped_count }} skipped / {{ preview.selected_run.failed_count }} failed</p>
+                    </div>
+                </div>
+                {% if preview.selected_run.notes %}
+                <p class="mt-3 text-sm text-slate-600">{{ preview.selected_run.notes }}</p>
+                {% endif %}
+                {% if can_send_email_ops and preview.selected_run.failed_count %}
+                <form method="post" action="/admin/audience/email-ops/retry-failures" class="mt-4" onsubmit="return confirm('Retry failed recipients from run #{{ preview.selected_run.id }} now?');">
+                    <input type="hidden" name="target_date" value="{{ target_date }}">
+                    <input type="hidden" name="run_id" value="{{ preview.selected_run.id }}">
+                    <button type="submit"
+                            class="inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-black text-white hover:bg-amber-700 transition">
+                        Retry Failed Recipients
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[760px]">
+                    <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
+                        <tr>
+                            <th class="px-5 py-3 text-left">Recipient</th>
+                            <th class="px-5 py-3 text-left">Status</th>
+                            <th class="px-5 py-3 text-left">Counties</th>
+                            <th class="px-5 py-3 text-left">Posts</th>
+                            <th class="px-5 py-3 text-left">Error</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for row in preview.selected_run_recipients %}
+                        <tr class="align-top hover:bg-slate-50 transition">
+                            <td class="px-5 py-4">
+                                <p class="text-sm font-semibold text-slate-900 break-all">{{ row.recipient_email }}</p>
+                                <p class="text-xs text-slate-400 mt-1">{{ row.created_at }}</p>
+                            </td>
+                            <td class="px-5 py-4">
+                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em] {% if row.status == 'sent' %}bg-emerald-100 text-emerald-700{% elif row.status == 'failed' %}bg-rose-100 text-rose-700{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                    {{ row.status }}
+                                </span>
+                            </td>
+                            <td class="px-5 py-4 text-sm text-slate-700">{{ row.counties or 'All counties' }}</td>
+                            <td class="px-5 py-4 text-sm text-slate-700">{{ row.post_count }}</td>
+                            <td class="px-5 py-4 text-sm text-slate-600">{{ row.error_message or '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-500">No recipient rows were recorded for this run.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[520px]">
                     <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
@@ -200,6 +413,50 @@
                     </tbody>
                 </table>
             </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Recent Delivery Failures</h2>
+            <p class="text-sm text-slate-500 mt-1">Latest failed recipients across all recorded digest runs.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[860px]">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3 text-left">When</th>
+                        <th class="px-5 py-3 text-left">Run</th>
+                        <th class="px-5 py-3 text-left">Recipient</th>
+                        <th class="px-5 py-3 text-left">Counties</th>
+                        <th class="px-5 py-3 text-left">Posts</th>
+                        <th class="px-5 py-3 text-left">Error</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in preview.recent_failures %}
+                    <tr class="align-top hover:bg-slate-50 transition">
+                        <td class="px-5 py-4 text-sm font-mono text-slate-600">{{ row.created_at }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">
+                            <a href="{{ url_for('admin.admin_email_ops', target_date=row.target_date, run_id=row.run_id) }}"
+                               class="font-semibold text-blue-700 hover:text-blue-900">
+                                #{{ row.run_id }}
+                            </a>
+                            <p class="mt-1 text-xs text-slate-400">{{ row.target_date }} · {{ row.audience }} · {{ row.run_status }}</p>
+                        </td>
+                        <td class="px-5 py-4 text-sm font-semibold text-slate-900 break-all">{{ row.recipient_email }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.counties or 'All counties' }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ row.post_count }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-600">{{ row.error_message or '—' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-500">No delivery failures have been recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 

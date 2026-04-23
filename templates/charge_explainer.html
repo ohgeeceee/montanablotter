@@ -1,0 +1,148 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = explainer.title %}
+{% set meta_description = explainer.excerpt %}
+{% set canonical_url = "https://montanablotter.com/laws/charge/" ~ explainer.slug %}
+{% set og_title = explainer.title ~ " | Montana Blotter" %}
+{% set og_description = explainer.excerpt %}
+{% set og_type = "article" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": {{ explainer.title | tojson }},
+  "description": {{ explainer.excerpt | tojson }},
+  "datePublished": {{ (explainer.created_at or '') | tojson }},
+  "dateModified": {{ (explainer.updated_at or explainer.created_at or '') | tojson }},
+  "author": {"@type": "Organization", "name": "Montana Blotter"},
+  "publisher": {"@type": "Organization", "name": "Montana Blotter", "url": "https://montanablotter.com"},
+  "mainEntityOfPage": {{ canonical_url | tojson }}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Montana Blotter", "item": "https://montanablotter.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Montana Laws", "item": "https://montanablotter.com/laws"},
+    {"@type": "ListItem", "position": 3, "name": {{ explainer.incident_type | tojson }}, "item": {{ canonical_url | tojson }}}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/laws" class="hover:text-slate-700">Montana Laws</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ explainer.incident_type }}</span>
+{% endblock %}
+
+{% block content %}
+<main class="max-w-4xl mx-auto px-4 sm:px-6 py-10 grid lg:grid-cols-[minmax(0,1fr)_280px] gap-8">
+
+    {# ── Main article ── #}
+    <article>
+        {# Header #}
+        <div class="public-detail-frame mb-6">
+            <div class="public-detail-frame__header">
+                <div class="flex flex-wrap items-center gap-2 mb-4 text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace;">
+                    <span class="px-3 py-1 rounded-full" style="background:var(--public-red-soft); color:var(--public-red);">Charge Explainer</span>
+                    {% if explainer.charge_category %}
+                    <span class="px-3 py-1 rounded-full border border-slate-200 bg-white/70 text-slate-600">{{ explainer.charge_category | replace('_', ' ') | title }}</span>
+                    {% endif %}
+                    {% if explainer.statute_ref %}
+                    <span class="px-3 py-1 rounded-full border border-slate-200 bg-white/70 text-slate-600">{{ explainer.statute_ref }}</span>
+                    {% endif %}
+                </div>
+                <h1 class="text-3xl sm:text-4xl leading-tight font-black text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">{{ explainer.title }}</h1>
+                <p class="mt-4 text-sm max-w-2xl text-slate-600">{{ explainer.excerpt }}</p>
+            </div>
+        </div>
+
+        {# Body rendered as pre-processed HTML lines #}
+        <div class="prose prose-slate max-w-none rounded-[24px] border p-6 sm:p-8 mb-6" style="background:#fff; border-color:#E7DECF;">
+            {% for kind, content in body_lines %}
+                {% if kind == 'h2' %}<h2 class="text-xl font-black text-slate-900 mt-8 mb-3 first:mt-0">{{ content }}</h2>
+                {% elif kind == 'h3' %}<h3 class="text-base font-black text-slate-800 mt-6 mb-2">{{ content }}</h3>
+                {% elif kind == 'li' %}<li class="text-slate-700 text-[1.02rem] leading-7 ml-4">{{ content | safe }}</li>
+                {% elif kind == 'br' %}<div class="mt-2"></div>
+                {% else %}<p class="text-slate-700 text-[1.02rem] leading-7">{{ content | safe }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {# Recent records for this charge #}
+        {% if recent_records %}
+        <section class="public-sidebar-card p-5">
+            <h2 class="public-sidebar-card__eyebrow mb-4">
+                Recent {{ explainer.incident_type }} Records
+            </h2>
+            <div class="space-y-2">
+                {% for record in recent_records %}
+                <a href="/record/{{ record.id }}" class="public-link-tile">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="public-link-tile__eyebrow">
+                                {{ record.date or '' }}{% if record.county %} · {{ record.county }} County{% endif %}
+                            </p>
+                            {% if record.location %}
+                            <p class="mt-1 text-sm text-slate-600">{{ record.location }}</p>
+                            {% endif %}
+                            {% if record.details %}
+                            <p class="mt-1 text-xs leading-5 text-slate-500">{{ record.details[:120] }}{% if record.details|length > 120 %}…{% endif %}</p>
+                            {% endif %}
+                        </div>
+                        <span class="text-xs font-black flex-shrink-0" style="font-family:'IBM Plex Mono',monospace; color:var(--public-red);">View →</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </article>
+
+    {# ── Sidebar ── #}
+    <aside class="space-y-4">
+        {# Quick reference card #}
+        <div class="public-sidebar-card p-5">
+            <h2 class="public-sidebar-card__eyebrow mb-4">Quick Reference</h2>
+            <dl class="space-y-3 text-sm">
+                <div>
+                    <dt class="text-[11px] uppercase tracking-wider font-black text-slate-400">Charge Type</dt>
+                    <dd class="mt-1 font-semibold text-slate-900">{{ explainer.incident_type }}</dd>
+                </div>
+                {% if explainer.charge_category %}
+                <div>
+                    <dt class="text-[11px] uppercase tracking-wider font-black text-slate-400">Category</dt>
+                    <dd class="mt-1 text-slate-600">{{ explainer.charge_category | replace('_', ' ') | title }}</dd>
+                </div>
+                {% endif %}
+                {% if explainer.statute_ref %}
+                <div>
+                    <dt class="text-[11px] uppercase tracking-wider font-black text-slate-400">Montana Statute</dt>
+                    <dd class="mt-1 font-mono text-xs" style="color:var(--public-red);">{{ explainer.statute_ref }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+
+        {# Alert CTA #}
+        <div class="public-sidebar-card p-5">
+            <p class="public-sidebar-card__eyebrow mb-2" style="color:var(--public-red);">Stay Informed</p>
+            <p class="text-sm mb-4 text-slate-600">Get notified when new blotter activity is posted for your county.</p>
+            <a href="/alerts" class="public-btn public-btn--primary w-full">
+                Set Up Alerts →
+            </a>
+        </div>
+
+        {# Back to laws #}
+        <div class="public-sidebar-card p-5 text-center">
+            <a href="/laws" class="text-sm font-semibold text-slate-600">← All Montana Laws</a>
+        </div>
+    </aside>
+</main>
+{% endblock %}

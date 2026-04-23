@@ -26,6 +26,8 @@ import sqlite3
 import logging
 import json
 import re
+import random
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -34,6 +36,21 @@ import config
 from dedupe import incident_key_set, incident_keys
 
 logger = logging.getLogger(__name__)
+DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
+DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
+SCOUT_MAX_ATTEMPTS = max(2, int(getattr(config, "SCOUT_HTTP_MAX_ATTEMPTS", 5)))
+SCOUT_BASE_DELAY_SECONDS = max(0.25, float(getattr(config, "SCOUT_HTTP_BASE_DELAY_SECONDS", 0.75)))
+SCOUT_MAX_DELAY_SECONDS = max(1.0, float(getattr(config, "SCOUT_HTTP_MAX_DELAY_SECONDS", 12.0)))
+SCOUT_JITTER_SECONDS = max(0.0, float(getattr(config, "SCOUT_HTTP_JITTER_SECONDS", 0.8)))
+SCOUT_INTER_PAGE_DELAY_MIN = max(0.0, float(getattr(config, "SCOUT_INTER_PAGE_DELAY_MIN_SECONDS", 0.15)))
+SCOUT_INTER_PAGE_DELAY_MAX = max(SCOUT_INTER_PAGE_DELAY_MIN, float(getattr(config, "SCOUT_INTER_PAGE_DELAY_MAX_SECONDS", 1.0)))
+
+ROTATING_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
+]
 
 
 def _load_existing_incident_keys(
@@ -173,12 +190,69 @@ ENDPOINT_CRIME_INCIDENTS    = "https://www.crimemapping.com/Map/CrimeIncidents_R
 
 _SESSION = requests.Session()
 _SESSION.headers.update({
-    "User-Agent":       "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+    "User-Agent":       random.choice(ROTATING_USER_AGENTS),
     "Accept":           "application/json, text/javascript, */*; q=0.01",
     "Accept-Language":  "en-US,en;q=0.9",
     "Referer":          "https://www.crimemapping.com/map/mt/billings/",
     "X-Requested-With": "XMLHttpRequest",
 })
+
+
+def _rotate_session_headers(session: requests.Session) -> None:
+    session.headers.update({
+        "User-Agent": random.choice(ROTATING_USER_AGENTS),
+        "Referer": f"https://www.crimemapping.com/map/mt/{random.choice(['billings', 'great-falls', 'kalispell', 'bozeman'])}/",
+    })
+
+
+def _request_with_retry(
+    session: requests.Session,
+    *,
+    method: str,
+    url: str,
+    data: dict,
+    timeout: int = 30,
+) -> requests.Response:
+    last_exc: Exception | None = None
+    for attempt in range(1, SCOUT_MAX_ATTEMPTS + 1):
+        _rotate_session_headers(session)
+        try:
+            response = session.request(method, url, data=data, timeout=timeout)
+            status = int(response.status_code or 0)
+            if status in {403, 429} or 500 <= status <= 599:
+                last_exc = RuntimeError(f"HTTP {status} for {url}")
+                if attempt >= SCOUT_MAX_ATTEMPTS:
+                    response.raise_for_status()
+                backoff = min(SCOUT_MAX_DELAY_SECONDS, SCOUT_BASE_DELAY_SECONDS * (2 ** (attempt - 1)))
+                sleep_for = backoff + random.uniform(0, SCOUT_JITTER_SECONDS)
+                logger.warning(
+                    "Scout request throttled/blocked (%s) on attempt %s/%s; retrying in %.2fs",
+                    status,
+                    attempt,
+                    SCOUT_MAX_ATTEMPTS,
+                    sleep_for,
+                )
+                time.sleep(sleep_for)
+                continue
+            response.raise_for_status()
+            return response
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt >= SCOUT_MAX_ATTEMPTS:
+                raise
+            backoff = min(SCOUT_MAX_DELAY_SECONDS, SCOUT_BASE_DELAY_SECONDS * (2 ** (attempt - 1)))
+            sleep_for = backoff + random.uniform(0, SCOUT_JITTER_SECONDS)
+            logger.warning(
+                "Scout request failed (%s) attempt %s/%s; retrying in %.2fs",
+                exc.__class__.__name__,
+                attempt,
+                SCOUT_MAX_ATTEMPTS,
+                sleep_for,
+            )
+            time.sleep(sleep_for)
+    if last_exc:
+        raise RuntimeError(str(last_exc))
+    raise RuntimeError("request failed with unknown error")
 
 
 # ---------------------------------------------------------------------------
@@ -252,12 +326,13 @@ def fetch_incidents(
 
     # Step 1: hit MapUpdated to prime the session (also gives total count)
     try:
-        map_resp = _SESSION.post(
-            ENDPOINT_MAP_UPDATED,
+        map_resp = _request_with_retry(
+            _SESSION,
+            method="POST",
+            url=ENDPOINT_MAP_UPDATED,
             data={"filterdata": json.dumps(filter_obj), "alertID": "", "spatfilter": ""},
             timeout=30,
         )
-        map_resp.raise_for_status()
         map_data = map_resp.json()
         total = map_data.get("result", {}).get("nr", "?")
         logger.info(f"CrimeMapping MapUpdated: {total} total incidents reported")
@@ -271,8 +346,10 @@ def fetch_incidents(
 
     while True:
         try:
-            resp = _SESSION.post(
-                ENDPOINT_CRIME_INCIDENTS,
+            resp = _request_with_retry(
+                _SESSION,
+                method="POST",
+                url=ENDPOINT_CRIME_INCIDENTS,
                 data={
                     "paramFilt":        json.dumps(filter_obj),
                     "unmappableOrgIDs": "[]",
@@ -283,18 +360,18 @@ def fetch_incidents(
                 },
                 timeout=30,
             )
-            resp.raise_for_status()
             data = resp.json()
-        except requests.RequestException as e:
-            logger.error(f"CrimeIncidents_Read request failed (page {page}): {e}")
-            break
         except ValueError:
             logger.error(f"Non-JSON response from CrimeIncidents_Read (page {page})")
-            break
+            raise RuntimeError(f"Non-JSON response from CrimeIncidents_Read (page {page})")
+        except Exception as e:
+            logger.error(f"CrimeIncidents_Read request failed (page {page}): {e}")
+            raise RuntimeError(f"CrimeIncidents_Read request failed (page {page}): {e}") from e
 
         batch = data.get("Data", [])
         all_incidents.extend(batch)
         logger.info(f"CrimeMapping page {page}: got {len(batch)} incidents")
+        time.sleep(random.uniform(SCOUT_INTER_PAGE_DELAY_MIN, SCOUT_INTER_PAGE_DELAY_MAX))
 
         if len(batch) < page_size:
             break   # last page
@@ -328,17 +405,20 @@ def smoke_check_agency(
         end,
     )
 
-    map_resp = _SESSION.post(
-        ENDPOINT_MAP_UPDATED,
+    map_resp = _request_with_retry(
+        _SESSION,
+        method="POST",
+        url=ENDPOINT_MAP_UPDATED,
         data={"filterdata": json.dumps(filter_obj), "alertID": "", "spatfilter": ""},
         timeout=30,
     )
-    map_resp.raise_for_status()
     map_data = map_resp.json()
     map_total = map_data.get("result", {}).get("nr", 0)
 
-    resp = _SESSION.post(
-        ENDPOINT_CRIME_INCIDENTS,
+    resp = _request_with_retry(
+        _SESSION,
+        method="POST",
+        url=ENDPOINT_CRIME_INCIDENTS,
         data={
             "paramFilt": json.dumps(filter_obj),
             "unmappableOrgIDs": "[]",
@@ -349,7 +429,6 @@ def smoke_check_agency(
         },
         timeout=30,
     )
-    resp.raise_for_status()
     data = resp.json()
     if "Data" not in data:
         raise RuntimeError(f"CrimeMapping probe returned unexpected payload for org_id={agency['org_id']}")
@@ -467,8 +546,9 @@ def ingest_crimemapping(
         return 0
 
     # Deduplicate by record GUID and a cross-source incident signature
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, timeout=DB_TIMEOUT_SECONDS)
     conn.row_factory = sqlite3.Row
+    conn.execute(f"PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS}")
     existing_keys = _load_existing_incident_keys(conn, cfg["county"], [
         normalise_incident(raw, cfg["county"], cfg["city"]) for raw in raw_incidents
     ])
@@ -609,14 +689,23 @@ if __name__ == "__main__":
             logger.info(f"--- Ingesting {cfg['agency_name']} ---")
             for day_start, day_end in day_windows:
                 label = day_start.strftime("%Y-%m-%d")
-                bid = ingest_crimemapping(
-                    config_override=cfg,
-                    start_date=day_start,
-                    end_date=day_end,
-                )
-                if bid:
-                    total_blotters += 1
-                    print(f"  {cfg['agency_name']} {label}: blotter_id={bid}")
-                else:
-                    print(f"  {cfg['agency_name']} {label}: no new incidents")
+                try:
+                    bid = ingest_crimemapping(
+                        config_override=cfg,
+                        start_date=day_start,
+                        end_date=day_end,
+                    )
+                    if bid:
+                        total_blotters += 1
+                        print(f"  {cfg['agency_name']} {label}: blotter_id={bid}")
+                    else:
+                        print(f"  {cfg['agency_name']} {label}: no new incidents")
+                except Exception as exc:
+                    logger.error(
+                        "Scout failed for agency=%s window=%s (%s); continuing batch",
+                        cfg["agency_name"],
+                        label,
+                        exc,
+                    )
+                    print(f"  {cfg['agency_name']} {label}: failed ({exc})")
         print(f"\nDone — {total_blotters} blotter(s) created")

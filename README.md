@@ -173,6 +173,29 @@ crontab -e
 */15 * * * * cd /root/montanablotter && /usr/bin/python3 email_worker.py >> /root/montanablotter/cron.log 2>&1
 ```
 
+## ✅ Operations Checks
+
+Use the watchdog to verify the app and scheduled jobs are still healthy.
+
+```bash
+cd /root/montanablotter
+./venv/bin/python3 script_watchdog.py
+./venv/bin/python3 script_watchdog.py --json
+```
+
+What it checks:
+
+- `montanablotter.service` is active and running under systemd
+- the Gunicorn unix socket at `/tmp/montanablotter.sock` responds with HTTP
+- all scheduled jobs have written to their expected log files within the allowed freshness window
+
+Exit codes:
+
+- `0` = all checks passed
+- `1` = one or more services or jobs are missing, stale, or failing
+
+The watchdog is also scheduled in [crontab.txt](/root/montanablotter/crontab.txt) to run daily and append output to `cron_errors.log`.
+
 ## 🎨 Dashboard Features
 
 - **Authentication**: Secure login system
@@ -253,6 +276,18 @@ python3 email_worker.py
 # Check logs
 tail -f worker.log
 ```
+
+### Verify The Whole Stack
+```bash
+cd /root/montanablotter
+./venv/bin/python3 script_watchdog.py
+```
+
+If this reports a failure:
+
+- check `systemctl status montanablotter.service`
+- check `tail -n 100 /root/montanablotter/cron_errors.log`
+- inspect the specific log file named in the watchdog output
 
 ### Can't Login
 ```bash

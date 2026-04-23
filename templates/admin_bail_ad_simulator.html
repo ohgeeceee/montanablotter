@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Internal Sales Mode</p>
+                <h1 class="text-3xl font-black text-slate-900 mt-2">Ad Simulator Workspace</h1>
+                <p class="text-sm text-slate-600 mt-2">Launch prefilled previews from agency CRM and recent advertiser creative without typing query params by hand.</p>
+            </div>
+            <a href="/admin/bail-ads"
+               class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                Back to Bail Ads
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Simulator Views (30d)</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.page_views or 0 }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Logo Uploads</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.logo_uploads or 0 }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Share Links</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.share_links or 0 }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Inquiry Syncs</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.inquiry_syncs or 0 }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Checkout Clicks</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ simulator_stats.checkout_clicks or 0 }}</p>
+        </article>
+    </div>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div id="ad-simulator-root"></div>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-black text-slate-900">Agency CRM Launchers</h2>
+            <p class="text-sm text-slate-600 mt-1">Open the simulator with CRM agency data and any matching creative asset already attached.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                    <tr>
+                        <th class="text-left px-4 py-3">Agency</th>
+                        <th class="text-left px-4 py-3">Contact</th>
+                        <th class="text-left px-4 py-3">Coverage</th>
+                        <th class="text-left px-4 py-3">Creative</th>
+                        <th class="text-left px-4 py-3">Launch</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for agency in sales_agencies %}
+                    {% set preview_url = '/admin/bail-ads/simulator?agency_name=' ~ (agency.agency_name | urlencode) ~ ('&logo_url=' ~ (agency.logo_path | urlencode) if agency.logo_path else '') ~ ('&target_url=' ~ (agency.target_url | urlencode) if agency.target_url else '') %}
+                    {% set public_url = '/advertise/bail-bonds?agency_name=' ~ (agency.agency_name | urlencode) ~ ('&logo_url=' ~ (agency.logo_path | urlencode) if agency.logo_path else '') ~ ('&target_url=' ~ (agency.target_url | urlencode) if agency.target_url else '') %}
+                    <tr>
+                        <td class="px-4 py-3 text-slate-700 align-top">
+                            <p class="font-semibold text-slate-900">{{ agency.agency_name }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ agency.outreach_status or 'new' }}</p>
+                        </td>
+                        <td class="px-4 py-3 text-slate-700 align-top">
+                            <p>{{ agency.contact_name or 'No contact name' }}</p>
+                            <p class="text-xs text-slate-500">{{ agency.email or 'No email' }}</p>
+                            <p class="text-xs text-slate-500">{{ agency.phone or 'No phone' }}</p>
+                        </td>
+                        <td class="px-4 py-3 text-slate-700 align-top">{{ agency.counties or 'No counties set' }}</td>
+                        <td class="px-4 py-3 align-top">
+                            {% if agency.logo_path %}
+                            <img src="{{ agency.logo_path }}" alt="Logo" class="h-12 w-12 object-contain rounded border border-slate-200 bg-white">
+                            {% else %}
+                            <span class="text-xs text-slate-500">No saved logo</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 align-top">
+                            <div class="flex flex-wrap gap-2">
+                                <a href="{{ preview_url }}" class="inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Load Here</a>
+                                <a href="{{ public_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Public View</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">No agencies available yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-black text-slate-900">Recent Creative-Ready Advertisers</h2>
+            <p class="text-sm text-slate-600 mt-1">Quickly relaunch a proven mockup using a recent creative or simulator upload.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                    <tr>
+                        <th class="text-left px-4 py-3">Advertiser</th>
+                        <th class="text-left px-4 py-3">Asset</th>
+                        <th class="text-left px-4 py-3">Package</th>
+                        <th class="text-left px-4 py-3">Launch</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for item in recent_creatives %}
+                    {% set sim_view = 'sidebar' if item.package_id == 'emergency_call_sidebar' else 'banner' %}
+                    {% set preview_url = '/admin/bail-ads/simulator?agency_name=' ~ (item.agency_name | urlencode) ~ '&sim_view=' ~ sim_view ~ ('&logo_url=' ~ (item.logo_path | urlencode) if item.logo_path else '') ~ ('&target_url=' ~ (item.target_url | urlencode) if item.target_url else '') %}
+                    <tr>
+                        <td class="px-4 py-3 text-slate-700 align-top">
+                            <p class="font-semibold text-slate-900">{{ item.agency_name }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ item.created_at }}</p>
+                        </td>
+                        <td class="px-4 py-3 align-top">
+                            {% if item.logo_path %}
+                            <img src="{{ item.logo_path }}" alt="Creative asset" class="h-12 w-12 object-contain rounded border border-slate-200 bg-white">
+                            {% else %}
+                            <span class="text-xs text-slate-500">No asset</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-slate-700 align-top">{{ item.package_id|replace('_', ' ')|title }}</td>
+                        <td class="px-4 py-3 align-top">
+                            <a href="{{ preview_url }}" class="inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Relaunch Mockup</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-4 py-8 text-center text-slate-500">No recent creative assets yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script id="ad-simulator-data" type="application/json">{{ simulator_bootstrap | tojson }}</script>
+<script type="module" src="{{ url_for('static', filename='js/ad-simulator.js') }}"></script>
+{% endblock %}

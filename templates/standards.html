@@ -6,6 +6,8 @@
 {% set og_title = "Sourcing Standards | Montana Blotter" %}
 {% set og_description = meta_description %}
 
+{% block body_class %}standards-page{% endblock %}
+
 {% block extra_head %}
 <script type="application/ld+json">
 {
@@ -20,99 +22,154 @@
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Sourcing Standards</span>
+<span>Sourcing Standards</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-4xl mx-auto">
-        <div class="inline-flex items-center bg-sky-500/20 text-sky-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            Standards
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Standards</p>
+                <h1 class="public-title public-title--medium">Sourcing Standards</h1>
+                <p class="public-copy">
+                    Effective date: March 15, 2026. This page explains how Montana Blotter gathers, verifies, labels, and corrects public information across records, meetings, and civic data.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Operating Principle</p>
+                    <h2 class="public-card__title">Primary sources first, provenance visible, corrections direct.</h2>
+                    <p class="public-card__text">
+                        This page is the public statement of how we standardize source data without pretending to replace the originating government record.
+                    </p>
+                </div>
+            </aside>
         </div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Sourcing Standards</h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            Effective date: March 15, 2026. This page explains how Montana Blotter gathers, verifies, labels, and corrects public information.
-        </p>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 py-10">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 text-slate-700">
-        <p class="text-sm leading-relaxed">
-            Montana Blotter is designed to make public records and public meeting information easier to access. It is not a government office, and it does not replace official notice, clerk records, court files, or agency databases.
-        </p>
+<div class="public-route-layout">
+    <main class="public-main-stack">
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Standards</span>
+                    <span class="public-pill">Effective March 15, 2026</span>
+                </div>
+                <h2 class="public-detail-title">How Montana Blotter sources and labels public information.</h2>
+                <p class="public-detail-subtitle">
+                    Montana Blotter is designed to make public records and public meeting information easier to access. It is not a government office, and it does not replace official notice, clerk records, court files, or agency databases.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-policy-stack">
+                    <section class="public-policy-section" id="standards-primary">
+                        <h2 class="public-policy-heading">1. Primary Source Rule</h2>
+                        <p class="public-policy-copy">
+                            We prefer direct links to official county, city, court, sheriff, police, and state judiciary pages. Where possible, each page should point readers back to the original public record, agenda page, minutes page, or official document listing.
+                        </p>
+                    </section>
 
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">1. Primary Source Rule</h2>
-            <p class="text-sm leading-relaxed">
-                We prefer direct links to official county, city, court, sheriff, police, and state judiciary pages. Where possible, each page should point readers back to the original public record, agenda, minutes page, or official document listing.
-            </p>
+                    <section class="public-policy-section" id="standards-normalize">
+                        <h2 class="public-policy-heading">2. What We Standardize</h2>
+                        <ul class="public-policy-list">
+                            <li>Date and time formatting.</li>
+                            <li>Location and body-name labeling.</li>
+                            <li>Document labels such as agenda, packet, or minutes.</li>
+                            <li>Searchable statewide filters and metadata.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="standards-limits">
+                        <h2 class="public-policy-heading">3. What We Do Not Claim</h2>
+                        <ul class="public-policy-list">
+                            <li>We do not claim to be the official keeper of public records.</li>
+                            <li>We do not guarantee that a third-party government site is complete, current, or correctly maintained.</li>
+                            <li>We do not treat summaries or extracted text as a substitute for the official source file.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="standards-updates">
+                        <h2 class="public-policy-heading">4. Update Cadence and Provenance</h2>
+                        <p class="public-policy-copy">
+                            Automated sources are checked on a recurring basis. Public pages may show the last successful source check or the last time a meeting was seen in a source feed. If a source is stale, broken, or moved, the originating public body remains the authoritative reference until the source is repaired.
+                        </p>
+                        <p class="public-policy-copy">
+                            We aim to show where information came from, when it was last refreshed, and how users can verify it. On higher-stakes pages, we prefer explicit provenance details over generic summaries.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="standards-sensitive">
+                        <h2 class="public-policy-heading">5. Redactions, Corrections, and Government Contact</h2>
+                        <p class="public-policy-copy">
+                            We may review records for obvious sensitivity, legal restrictions, or redaction issues. The existence of a public record does not automatically mean every field or derivative presentation should be amplified without review.
+                        </p>
+                        <p class="public-policy-copy">
+                            If a source link breaks, a meeting is mislabeled, a record is duplicated, or a page needs clarification, we want a direct report. See the <a class="public-policy-inline-link" href="/corrections">Corrections Policy</a> for the reporting workflow.
+                        </p>
+                        <p class="public-policy-copy">
+                            If you work for a Montana public body and need a source updated, corrected, or removed because the official location changed, contact us directly with exact URLs, dates, and a brief explanation of the change.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="standards-contact">
+                        <h2 class="public-policy-heading">6. Contact</h2>
+                        <p class="public-policy-copy">
+                            Montana Blotter<br>
+                            Website: <a class="public-policy-inline-link" href="https://montanablotter.com">montanablotter.com</a><br>
+                            Corrections and source updates: <a class="public-policy-inline-link" href="mailto:records@montanablotter.com?subject=Montana%20Blotter%20source%20update">records@montanablotter.com</a>
+                        </p>
+                    </section>
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Standards Map</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="#standards-primary" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">01</div>
+                        <div class="public-rail-link__title">Primary source rule</div>
+                    </a>
+                    <a href="#standards-normalize" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">02</div>
+                        <div class="public-rail-link__title">What gets standardized</div>
+                    </a>
+                    <a href="#standards-updates" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">03</div>
+                        <div class="public-rail-link__title">Update cadence and provenance</div>
+                    </a>
+                    <a href="#standards-sensitive" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">04</div>
+                        <div class="public-rail-link__title">Corrections and sensitivity</div>
+                    </a>
+                </div>
+            </div>
         </section>
 
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">2. What We Standardize</h2>
-            <ul class="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                <li>Date and time formatting</li>
-                <li>Location and body-name labeling</li>
-                <li>Document labels such as agenda, packet, or minutes</li>
-                <li>Searchable statewide filters and metadata</li>
-            </ul>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Related Pages</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="/corrections" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Policy</div>
+                        <div class="public-rail-link__title">Corrections Policy</div>
+                        <div class="public-rail-link__copy">How to submit source updates and factual fixes.</div>
+                    </a>
+                    <a href="/privacy" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Legal</div>
+                        <div class="public-rail-link__title">Privacy Policy</div>
+                        <div class="public-rail-link__copy">How site and subscriber data is handled.</div>
+                    </a>
+                </div>
+            </div>
         </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">3. What We Do Not Claim</h2>
-            <ul class="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                <li>We do not claim to be the official keeper of public records.</li>
-                <li>We do not guarantee that a third-party government site is complete, current, or correctly maintained.</li>
-                <li>We do not treat summaries or extracted text as a substitute for the official source file.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">4. Update Cadence</h2>
-            <p class="text-sm leading-relaxed">
-                Automated sources are checked on a recurring basis. Public pages may show the last successful source check or the last time a meeting was seen in a source feed. If a source is stale, broken, or moved, the originating public body remains the authoritative reference until the source is repaired.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">5. Provenance and Visibility</h2>
-            <p class="text-sm leading-relaxed">
-                We aim to show where information came from, when it was last refreshed, and how users can verify it. On higher-stakes pages, we prefer explicit provenance details over generic summaries.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">6. Redactions and Sensitive Material</h2>
-            <p class="text-sm leading-relaxed">
-                We may review records for obvious sensitivity, legal restrictions, or redaction issues. The existence of a public record does not automatically mean every field or derivative presentation should be amplified without review.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">7. Corrections</h2>
-            <p class="text-sm leading-relaxed">
-                If a source link breaks, a meeting is mislabeled, a record is duplicated, or a page needs clarification, we want a direct report. See the <a class="text-blue-700 hover:text-blue-800 underline" href="/corrections">Corrections Policy</a> for the reporting workflow.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">8. Government and Clerk Communications</h2>
-            <p class="text-sm leading-relaxed">
-                If you work for a Montana public body and need a source updated, corrected, or removed because the official location changed, contact us directly. We prefer exact URLs, dates, and a brief explanation of the change.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">9. Contact</h2>
-            <p class="text-sm leading-relaxed">
-                Montana Blotter<br>
-                Website: <a class="text-blue-700 hover:text-blue-800 underline" href="https://montanablotter.com">montanablotter.com</a><br>
-                Corrections and source updates: <a class="text-blue-700 hover:text-blue-800 underline" href="mailto:records@montanablotter.com?subject=Montana%20Blotter%20source%20update">records@montanablotter.com</a>
-            </p>
-        </section>
-    </div>
+    </aside>
 </div>
 {% endblock %}

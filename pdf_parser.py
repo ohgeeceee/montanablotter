@@ -6,7 +6,97 @@ Handles GCSO format and adaptable for other counties
 import pdfplumber
 import re
 from datetime import datetime
-from typing import List, Dict, Optional
+from dataclasses import dataclass
+from typing import Callable, List, Dict, Optional
+
+
+_DATE_PARSE_FORMATS = [
+    # (input_format, output_format, description)
+    ('%m/%d/%y',    '%m/%d/%y',  'GCSO standard: MM/DD/YY'),
+    ('%m/%d/%Y',    '%m/%d/%y',  'MM/DD/YYYY variant'),
+    ('%m-%d-%y',    '%m/%d/%y',  'Dash-separated: MM-DD-YY'),
+    ('%m-%d-%Y',    '%m/%d/%y',  'Dash-separated: MM-DD-YYYY'),
+    ('%Y-%m-%d',    '%m/%d/%y',  'ISO 8601 format'),
+    ('%B %d, %Y',   '%m/%d/%y',  'Long month: March 14, 2026'),
+    ('%B %d %Y',    '%m/%d/%y',  'Long month no comma: March 14 2026'),
+    ('%b %d, %Y',   '%m/%d/%y',  'Short month: Mar 14, 2026'),
+    ('%b %d %Y',    '%m/%d/%y',  'Short month no comma: Mar 14 2026'),
+]
+
+
+def normalize_date(date_str: str) -> str | None:
+    """
+    Normalize a date string to MM/DD/YY format.
+    
+    Handles all common Montana agency date formats:
+    - GCSO standard: MM/DD/YY
+    - 4-digit year variants: MM/DD/YYYY
+    - Dash separators: MM-DD-YY, MM-DD-YYYY
+    - ISO format: YYYY-MM-DD
+    - Long month: March 14, 2026 / March 14 2026
+    - Short month: Mar 14, 2026 / Mar 14 2026
+    
+    Args:
+        date_str: Raw date string from blotter
+    
+    Returns:
+        Normalized date in MM/DD/YY format, or None if unparseable
+    """
+    if not date_str or not date_str.strip():
+        return None
+    
+    date_str = date_str.strip()
+    
+    for input_fmt, output_fmt, _ in _DATE_PARSE_FORMATS:
+        try:
+            parsed = datetime.strptime(date_str, input_fmt)
+            return parsed.strftime(output_fmt)
+        except ValueError:
+            continue
+    
+    return None
+
+
+
+@dataclass(frozen=True)
+class ParserAdapter:
+    slug: str
+    matcher: Callable[[str], bool]
+    parser_name: str
+
+    def matches(self, text: str) -> bool:
+        return self.matcher(text)
+
+    def parse(self, parser: "BlotterParser", text: str) -> List[Dict]:
+        return getattr(parser, self.parser_name)(text)
+
+
+def _match_gcso(text: str) -> bool:
+    return "GCSO" in text or "Gallatin County" in text
+
+
+def _match_helena(text: str) -> bool:
+    return bool(re.search(r'Helena Police|HPD Officers responded|helenamt\.gov', text, re.IGNORECASE))
+
+
+def _match_whitefish(text: str) -> bool:
+    return bool(
+        re.search(r'Daily Incidents', text, re.IGNORECASE)
+        and (re.search(r'\bWF\b', text) or re.search(r'Whitefish', text, re.IGNORECASE))
+    )
+
+
+def _match_havre(text: str) -> bool:
+    return bool(re.search(r'HAVRE POLICE|For Jurisdiction:\s*HAVRE', text, re.IGNORECASE))
+
+
+PARSER_ADAPTERS = (
+    ParserAdapter('gcso', _match_gcso, '_parse_gcso_format'),
+    ParserAdapter('helena', _match_helena, '_parse_helena_format'),
+    ParserAdapter('whitefish', _match_whitefish, '_parse_whitefish_format'),
+    ParserAdapter('havre', _match_havre, '_parse_havre_format'),
+    ParserAdapter('generic', lambda _text: True, '_parse_generic_format'),
+)
 
 class BlotterParser:
     """Parse police blotter PDFs into structured data"""
@@ -15,6 +105,7 @@ class BlotterParser:
         self.pdf_path = pdf_path
         self.county = None
         self.incidents = []
+        self.parser_slug = 'generic'
 
     def _extract_text(self) -> str:
         """Extract raw text from the PDF, falling back to OCR for image-based PDFs."""
@@ -42,30 +133,27 @@ class BlotterParser:
     def _parse_text(self, full_text: str) -> Dict:
         """Shared parsing logic given raw text. Returns structured data dict."""
         self.county = self._detect_county(full_text)
-
-        if "GCSO" in full_text or "Gallatin County" in full_text:
-            self.incidents = self._parse_gcso_format(full_text)
-        elif re.search(r'Helena Police|HPD Officers responded|helenamt\.gov', full_text, re.IGNORECASE):
-            self.incidents = self._parse_helena_format(full_text)
-        elif re.search(r'Daily Incidents', full_text, re.IGNORECASE) and (
-            re.search(r'\bWF\b', full_text) or re.search(r'Whitefish', full_text, re.IGNORECASE)
-        ):
-            self.incidents = self._parse_whitefish_format(full_text)
-        elif re.search(r'HAVRE POLICE|For Jurisdiction:\s*HAVRE', full_text, re.IGNORECASE):
-            self.incidents = self._parse_havre_format(full_text)
-        else:
-            self.incidents = self._parse_generic_format(full_text)
+        adapter = self._select_parser_adapter(full_text)
+        self.parser_slug = adapter.slug
+        self.incidents = adapter.parse(self, full_text)
 
         return {
             'county': self.county,
             'incidents': self.incidents,
-            'total_count': len(self.incidents)
+            'total_count': len(self.incidents),
+            'parser_slug': self.parser_slug,
         }
 
     def parse(self) -> Dict:
         """Main parsing method - returns structured data"""
         full_text = self._extract_text()
         return self._parse_text(full_text)
+
+    def _select_parser_adapter(self, full_text: str) -> ParserAdapter:
+        for adapter in PARSER_ADAPTERS:
+            if adapter.matches(full_text):
+                return adapter
+        return PARSER_ADAPTERS[-1]
     
     def _detect_county(self, text: str) -> str:
         """Extract county name from PDF header"""
@@ -104,7 +192,10 @@ class BlotterParser:
         
         # Pattern to find incident blocks
         # GCSO format: MM/DD/YY HH:MM:SS CFS26-XXXXXX LOCATION CODE
-        incident_pattern = r'(\d{2}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+(CFS\d{2}-\d+)\s+(.+?)\s+(\w+(?:\s+\w+)?)\s*$'
+        # Pattern to find incident blocks
+        # GCSO format: MM/DD/YY HH:MM:SS CFS26-XXXXXX LOCATION CODE
+        # Accepts both 2-digit and 4-digit year dates
+        incident_pattern = r'(\d{2}/\d{2}/\d{2,4}\s+\d{2}:\d{2}:\d{2})\s+(CFS\d{2}-\d+)\s+(.+?)\s+(\w+(?:\s+\w+)?)\s*$'
         
         lines = text.split('\n')
         current_incident = None
@@ -123,14 +214,15 @@ class BlotterParser:
                     current_incident['command_logs'] = command_logs
                     current_incident['details'] = self._extract_narrative(command_logs)
                     incidents.append(current_incident)
-                
                 # Start new incident
                 date_time, cfs_num, location, code = match.groups()
                 date_parts = date_time.split()
+                raw_date = date_parts[0]
+                normalized_date = normalize_date(raw_date)
                 
                 current_incident = {
                     'cfs_number': cfs_num.strip(),
-                    'date': date_parts[0],
+                    'date': normalized_date or raw_date,  # Fallback to raw if normalize fails
                     'time': date_parts[1],
                     'location': location.strip(),
                     'incident_type': code.strip(),
@@ -185,28 +277,44 @@ class BlotterParser:
         """
         incidents = []
 
-        # Extract date from email body
+        # Extract date from email body using unified normalizer
         date_str = None
-        month_match = re.search(
-            r'(January|February|March|April|May|June|July|August|September|October|November|December)'
-            r'\s+(\d{1,2}),?\s+(\d{4})', text, re.IGNORECASE)
-        if month_match:
-            try:
-                dt = datetime.strptime(
-                    f"{month_match.group(1)} {month_match.group(2)} {month_match.group(3)}", "%B %d %Y")
-                date_str = dt.strftime('%m/%d/%y')
-            except ValueError:
-                pass
-        if not date_str:
-            slash_match = re.search(r'\b(\d{1,2}/\d{1,2}/\d{4})\b', text)
-            if slash_match:
-                try:
-                    dt = datetime.strptime(slash_match.group(1), '%m/%d/%Y')
-                    date_str = dt.strftime('%m/%d/%y')
-                except ValueError:
-                    pass
-        if not date_str:
-            date_str = datetime.now().strftime('%m/%d/%y')
+
+        # Try to find any date pattern in the text
+        all_date_patterns = [
+            r'\b(\d{2}/\d{2}/\d{2,4})\b',
+            r'\b(\d{2}-\d{2}-\d{2,4})\b',
+            r'\b(\d{4}-\d{2}-\d{2})\b',
+            r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b',
+            r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(\d{4})\b',
+        ]
+
+        for pattern in all_date_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                # Group 1 = date string OR month name
+                if len(match.groups()) == 1:
+                    # Simple date string
+                    date_str = normalize_date(match.group(1))
+                else:
+                    # Month name format - build date string
+                    if match.group(1)[0].isdigit():
+                        # Numeric month format
+                        date_str = normalize_date(match.group(1))
+                    else:
+                        # Month name format
+                        try:
+                            month_str = match.group(1)
+                            day = match.group(2)
+                            year = match.group(3)
+                            # Try long month format first
+                            date_str = normalize_date(f"{month_str} {day}, {year}")
+                            if not date_str:
+                                date_str = normalize_date(f"{month_str} {day} {year}")
+                        except (ValueError, IndexError):
+                            pass
+                if date_str:
+                    break
 
         # Format 1: "8:20 AM – Description"
         # The dash separator may be en-dash, em-dash, or a replacement char
@@ -236,7 +344,8 @@ class BlotterParser:
                 description = re.sub(r'\s+', ' ', m.group(2)).strip()
                 try:
                     dt = datetime.strptime(raw_time, '%H%M')
-                    time_val = dt.strftime('%-I:%M %p')
+                    hour = dt.hour % 12 or 12
+                    time_val = f"{hour}:{dt.strftime('%M')} {dt.strftime('%p')}"
                 except ValueError:
                     time_val = raw_time
                 incidents.append({
@@ -314,17 +423,22 @@ class BlotterParser:
         """
         incidents = []
 
-        # Extract date from header
+        # Extract date from header using unified normalizer
         date_str = None
-        date_match = re.search(r'For Date:\s*(\d{2}/\d{2}/\d{4})', text)
-        if date_match:
-            try:
-                dt = datetime.strptime(date_match.group(1), '%m/%d/%Y')
-                date_str = dt.strftime('%m/%d/%y')
-            except ValueError:
-                pass
-        if not date_str:
-            date_str = datetime.now().strftime('%m/%d/%y')
+
+        # Try multiple date patterns that Havre might use
+        havre_date_patterns = [
+            r'For Date:\s*(\d{2}/\d{2}/\d{2,4})',
+            r'For Date:\s*(\d{2}-\d{2}-\d{2,4})',
+            r'(\d{2}/\d{2}/\d{2,4})\s+\d{2}:\d{2}',
+        ]
+
+        for pattern in havre_date_patterns:
+            match = re.search(pattern, text)
+            if match:
+                date_str = normalize_date(match.group(1))
+                if date_str:
+                    break
 
         # Split into per-incident blocks at each call number
         blocks = re.split(r'\n(?=\d{2}-\d{4}\s)', text)
@@ -353,7 +467,8 @@ class BlotterParser:
                 if len(time_raw) == 3:
                     time_raw = '0' + time_raw
                 dt = datetime.strptime(time_raw, '%H%M')
-                time_val = dt.strftime('%-I:%M %p')
+                hour = dt.hour % 12 or 12
+                time_val = f"{hour}:{dt.strftime('%M')} {dt.strftime('%p')}"
             except ValueError:
                 time_val = time_raw
 
@@ -527,15 +642,34 @@ class BlotterParser:
         incidents = []
         
         # Generic date-based parsing
-        # Look for lines starting with dates
+        # Normalize line endings first
+        text = text.replace('\r\n', '\n').replace('\r', '\n')
         lines = text.split('\n')
         
         for line in lines:
-            # Match MM/DD/YY or YYYY-MM-DD at start of line
-            date_match = re.match(r'^(\d{1,2}/\d{1,2}/\d{2,4}|\d{4}-\d{2}-\d{2})', line)
-            if date_match:
-                date = date_match.group(1)
-                rest = line[len(date):].strip()
+            # Normalize line endings and strip
+            line = line.strip()
+            if not line:
+                continue
+
+            # Match various date formats at start of line
+            date_patterns = [
+                r'^(\d{2}/\d{2}/\d{2,4})',
+                r'^(\d{2}-\d{2}-\d{2,4})',
+                r'^(\d{4}-\d{2}-\d{2})',
+            ]
+
+            matched_date = None
+            date_end = 0
+            for pattern in date_patterns:
+                m = re.match(pattern, line)
+                if m:
+                    matched_date = normalize_date(m.group(1))
+                    date_end = len(m.group(0))
+                    break
+
+            if matched_date:
+                rest = line[date_end:].strip()
                 
                 # Try to extract incident type and details
                 parts = rest.split('-', 1)
@@ -548,7 +682,7 @@ class BlotterParser:
                 
                 incidents.append({
                     'cfs_number': None,
-                    'date': date,
+                    'date': matched_date,
                     'time': None,
                     'location': "Unknown",
                     'incident_type': incident_type,
@@ -566,6 +700,7 @@ def parse_text_blotter(text: str) -> dict:
     parser.pdf_path = None
     parser.county = None
     parser.incidents = []
+    parser.parser_slug = 'generic'
     return parser._parse_text(text)
 
 

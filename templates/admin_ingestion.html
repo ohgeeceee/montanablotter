@@ -18,12 +18,30 @@
             <p class="text-sm text-slate-500 mt-2">Admin-only health view for source freshness, recent failures, and stuck ingestion jobs.</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
+            <span id="refresh-countdown" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold tabular-nums">Refresh in 60s</span>
             <a href="/admin" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-bold">Dashboard</a>
             <a href="/admin/ingestion?status=failed" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'failed' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Failed {{ failed_count }}</a>
             <a href="/admin/ingestion?status=published" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'published' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Published {{ published_count }}</a>
             <a href="/admin/ingestion?status=all" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'all' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">All {{ total_count }}</a>
         </div>
     </div>
+
+    <script>
+    (function () {
+        var seconds = 60;
+        var el = document.getElementById('refresh-countdown');
+        var interval = setInterval(function () {
+            seconds -= 1;
+            if (seconds <= 0) {
+                clearInterval(interval);
+                el.textContent = 'Refreshing…';
+                location.reload();
+            } else {
+                el.textContent = 'Refresh in ' + seconds + 's';
+            }
+        }, 1000);
+    })();
+    </script>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">

@@ -3,7 +3,10 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import sys
 from datetime import datetime, timedelta
+from html import escape
+from urllib.parse import urlparse
 
 import config
 from flask import Response, flash, redirect, render_template, request, url_for
@@ -21,6 +24,7 @@ from utils.auth_constants import (
     AUDIENCE_MANAGEMENT_ROLES,
     EMAIL_OPS_SEND_ROLES,
 )
+from utils.app_settings import _app_setting_text, _save_app_setting
 
 # ---------------------------------------------------------------------------
 # Module-level constants (audience-only)
@@ -35,10 +39,27 @@ PUBLIC_COMMENT_TYPES = {
 PUBLIC_COMMENT_STATUSES = {'pending', 'approved', 'rejected', 'spam'}
 
 BASE_URL = config.BASE_URL
+SPONSOR_ANNOUNCEMENT_SETTING_KEYS = {
+    'subject': 'email_ops.sponsor_announcement.subject',
+    'sponsor_name': 'email_ops.sponsor_announcement.sponsor_name',
+    'headline': 'email_ops.sponsor_announcement.headline',
+    'body': 'email_ops.sponsor_announcement.body',
+    'cta_label': 'email_ops.sponsor_announcement.cta_label',
+    'cta_url': 'email_ops.sponsor_announcement.cta_url',
+    'notes': 'email_ops.sponsor_announcement.notes',
+}
 
 # ---------------------------------------------------------------------------
 # Private helpers — audience-exclusive
 # ---------------------------------------------------------------------------
+
+
+def _send_digest_email(*args, **kwargs):
+    app_module = sys.modules.get('app')
+    sender = getattr(app_module, 'send_morning_briefing_email', None) if app_module else None
+    if callable(sender):
+        return sender(*args, **kwargs)
+    return send_morning_briefing_email(*args, **kwargs)
 
 
 def _public_comment_target_path(conn, content_type, content_id):
@@ -357,6 +378,196 @@ def _digest_subject_for_date(target_date):
     return f'Montana Blotter Briefing - {display}'
 
 
+def _current_email_campaign_date():
+    return datetime.now().strftime('%Y-%m-%d')
+
+
+def _sponsor_announcement_defaults():
+    return {
+        'subject': 'Montana Blotter Update: Meet Our New Sponsor',
+        'sponsor_name': 'New Montana Sponsor',
+        'headline': 'A new sponsor is helping support statewide public-records coverage.',
+        'body': (
+            'We wanted to let you know about a new sponsor supporting Montana Blotter.\n\n'
+            'Their support helps fund statewide blotter coverage, county-by-county directories, '
+            'and the public-records tools we keep available to readers across Montana.'
+        ),
+        'cta_label': 'Learn more',
+        'cta_url': '',
+        'notes': '',
+    }
+
+
+def _normalize_multiline_text(raw_value, *, max_length):
+    value = str(raw_value or '').replace('\r\n', '\n').replace('\r', '\n')
+    lines = [line.rstrip() for line in value.split('\n')]
+    return '\n'.join(lines).strip()[:max_length]
+
+
+def _normalize_http_url(raw_value):
+    value = (raw_value or '').strip()
+    if not value:
+        return ''
+    parsed = urlparse(value)
+    if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
+        raise ValueError('Enter a valid sponsor CTA URL starting with http:// or https://.')
+    return value[:500]
+
+
+def _load_sponsor_announcement_draft(conn):
+    defaults = _sponsor_announcement_defaults()
+    return {
+        'subject': _app_setting_text(
+            SPONSOR_ANNOUNCEMENT_SETTING_KEYS['subject'],
+            defaults['subject'],
+            max_length=255,
+            conn=conn,
+        ),
+        'sponsor_name': _app_setting_text(
+            SPONSOR_ANNOUNCEMENT_SETTING_KEYS['sponsor_name'],
+            defaults['sponsor_name'],
+            max_length=120,
+            conn=conn,
+        ),
+        'headline': _app_setting_text(
+            SPONSOR_ANNOUNCEMENT_SETTING_KEYS['headline'],
+            defaults['headline'],
+            max_length=220,
+            conn=conn,
+        ),
+        'body': _app_setting_text(
+            SPONSOR_ANNOUNCEMENT_SETTING_KEYS['body'],
+            defaults['body'],
+            max_length=4000,
+            conn=conn,
+        ),
+        'cta_label': _app_setting_text(
+            SPONSOR_ANNOUNCEMENT_SETTING_KEYS['cta_label'],
+            defaults['cta_label'],
+            max_length=80,
+            conn=conn,
+        ),
+        'cta_url': _app_setting_text(
+            SPONSOR_ANNOUNCEMENT_SETTING_KEYS['cta_url'],
+            defaults['cta_url'],
+            max_length=500,
+            conn=conn,
+        ),
+        'notes': _app_setting_text(
+            SPONSOR_ANNOUNCEMENT_SETTING_KEYS['notes'],
+            defaults['notes'],
+            max_length=500,
+            conn=conn,
+        ),
+    }
+
+
+def _sponsor_announcement_from_form(form):
+    defaults = _sponsor_announcement_defaults()
+    draft = {
+        'subject': ((form.get('sponsor_subject') or '').strip() or defaults['subject'])[:255],
+        'sponsor_name': ((form.get('sponsor_name') or '').strip() or defaults['sponsor_name'])[:120],
+        'headline': ((form.get('sponsor_headline') or '').strip() or defaults['headline'])[:220],
+        'body': _normalize_multiline_text(
+            form.get('sponsor_body') or defaults['body'],
+            max_length=4000,
+        ),
+        'cta_label': ((form.get('sponsor_cta_label') or '').strip() or defaults['cta_label'])[:80],
+        'cta_url': '',
+        'notes': _normalize_multiline_text(form.get('sponsor_notes') or '', max_length=500),
+    }
+    cta_url = form.get('sponsor_cta_url') or ''
+    draft['cta_url'] = _normalize_http_url(cta_url) if cta_url.strip() else ''
+    if not draft['subject']:
+        raise ValueError('Enter a sponsor email subject.')
+    if not draft['sponsor_name']:
+        raise ValueError('Enter the sponsor name.')
+    if not draft['headline']:
+        raise ValueError('Enter a sponsor email headline.')
+    if not draft['body']:
+        raise ValueError('Enter sponsor email body copy.')
+    if draft['cta_url'] and not draft['cta_label']:
+        raise ValueError('Enter a CTA label when a sponsor URL is provided.')
+    return draft
+
+
+def _save_sponsor_announcement_draft(conn, draft):
+    for field, key in SPONSOR_ANNOUNCEMENT_SETTING_KEYS.items():
+        _save_app_setting(conn, key, draft.get(field, ''))
+
+
+def _build_sponsor_announcement_html(draft, unsubscribe_url=None):
+    sponsor_name = escape(draft.get('sponsor_name') or 'Montana Sponsor')
+    subject = escape(draft.get('subject') or _sponsor_announcement_defaults()['subject'])
+    headline = escape(draft.get('headline') or '')
+    body = draft.get('body') or ''
+    body_sections = [
+        section.strip()
+        for section in body.replace('\r\n', '\n').replace('\r', '\n').split('\n\n')
+        if section.strip()
+    ]
+    if not body_sections:
+        body_sections = [body.strip() or _sponsor_announcement_defaults()['body']]
+    body_html = ''.join(
+        f"<p style=\"color:#334155;line-height:1.7;margin:0 0 14px;\">{escape(section).replace(chr(10), '<br>')}</p>"
+        for section in body_sections
+    )
+    cta_html = ''
+    cta_url = draft.get('cta_url') or ''
+    cta_label = escape(draft.get('cta_label') or 'Learn more')
+    if cta_url:
+        cta_html = (
+            f'<p style="margin:22px 0 0;">'
+            f'<a href="{escape(cta_url)}" '
+            f'style="display:inline-block;background:#1d4ed8;color:#ffffff;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:700;">'
+            f'{cta_label}</a></p>'
+        )
+
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;">
+        <div style="background:#0f172a;color:#ffffff;padding:28px 28px 24px;">
+            <p style="margin:0;color:#93c5fd;font-size:12px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;">Montana Blotter Sponsor Update</p>
+            <h2 style="margin:14px 0 0;font-size:28px;line-height:1.15;">{headline}</h2>
+            <p style="margin:14px 0 0;color:#cbd5e1;font-size:14px;line-height:1.6;">{subject}</p>
+        </div>
+        <div style="padding:28px;background:#ffffff;">
+            <div style="display:inline-block;background:#eff6ff;color:#1d4ed8;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
+                New Sponsor
+            </div>
+            <p style="margin:16px 0 8px;color:#0f172a;font-size:18px;font-weight:700;">{sponsor_name}</p>
+            {body_html}
+            {cta_html}
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+            <p style="margin:0;color:#64748b;font-size:13px;line-height:1.6;">
+                You are receiving this because you subscribed to Montana Blotter updates.
+            </p>
+            <p style="margin:10px 0 0;color:#64748b;font-size:13px;line-height:1.6;">
+                Sponsor support helps fund statewide public-records access, county directories, and daily report coverage.
+            </p>
+    """
+    if unsubscribe_url:
+        html += (
+            f'<p style="margin:14px 0 0;color:#94a3b8;font-size:12px;">'
+            f'<a href="{escape(BASE_URL)}" style="color:#3b82f6;text-decoration:none;">montanablotter.com</a>'
+            f' &mdash; <a href="{escape(unsubscribe_url)}" style="color:#94a3b8;">Unsubscribe</a>'
+            f'</p>'
+        )
+    html += '</div></div>'
+    return html
+
+
+def _build_sponsor_announcement_preview(conn):
+    draft = _load_sponsor_announcement_draft(conn)
+    active_subscribers = conn.execute(
+        'SELECT COUNT(*) AS total FROM subscribers WHERE COALESCE(active, 1) = 1'
+    ).fetchone()['total']
+    return {
+        'draft': draft,
+        'preview_html': _build_sponsor_announcement_html(draft),
+        'active_subscribers': active_subscribers,
+    }
+
+
 def _record_digest_run(
     conn,
     *,
@@ -640,7 +851,7 @@ def _send_test_digest(target_date, recipient_email, initiated_by):
     )
     conn.commit()
     try:
-        send_morning_briefing_email(
+        _send_digest_email(
             recipient_email,
             f"[TEST] {preview['subject']}",
             preview['preview_html'],
@@ -741,7 +952,7 @@ def _send_digest_to_active_subscribers(target_date, initiated_by):
                 unsubscribe_url=unsubscribe_url,
             )
             try:
-                send_morning_briefing_email(subscriber['email'], preview['subject'], html)
+                _send_digest_email(subscriber['email'], preview['subject'], html)
                 sent_count += 1
                 _record_digest_run_recipient(
                     conn,
@@ -913,7 +1124,7 @@ def _retry_failed_digest_recipients(original_run_id, initiated_by):
                 unsubscribe_url=unsubscribe_url,
             )
             try:
-                send_morning_briefing_email(recipient_email, original_run['subject'], html)
+                _send_digest_email(recipient_email, original_run['subject'], html)
                 sent_count += 1
                 _record_digest_run_recipient(
                     conn,
@@ -976,6 +1187,167 @@ def _retry_failed_digest_recipients(original_run_id, initiated_by):
         'skipped_count': skipped_count,
         'failed_count': failed_count,
     }
+
+
+def _send_sponsor_announcement_test(recipient_email, draft, initiated_by):
+    if not recipient_email:
+        raise ValueError('No valid test recipient email is configured for this admin account.')
+
+    conn = get_db()
+    _ensure_subscriber_schema(conn)
+    run_id = _record_digest_run(
+        conn,
+        kind='sponsor_announcement',
+        target_date=_current_email_campaign_date(),
+        audience='test',
+        status='running',
+        subject=f"[TEST] {draft['subject']}",
+        preview_posts=0,
+        preview_subscribers=1,
+        initiated_by=initiated_by,
+        notes=f"Manual sponsor announcement test for {draft['sponsor_name']}.",
+        created_by_user_id=current_user.id if current_user.is_authenticated else None,
+    )
+    conn.commit()
+    try:
+        _send_digest_email(
+            recipient_email,
+            f"[TEST] {draft['subject']}",
+            _build_sponsor_announcement_html(draft),
+        )
+        _record_digest_run_recipient(
+            conn,
+            run_id,
+            recipient_email,
+            '',
+            'sent',
+            post_count=0,
+        )
+        _finish_digest_run(conn, run_id, status='completed', sent_count=1)
+        _log_admin_action(
+            'email_ops.sponsor_test_sent',
+            target_type='digest_run',
+            target_id=run_id,
+            metadata={'recipient': recipient_email, 'sponsor_name': draft['sponsor_name']},
+            conn=conn,
+        )
+        conn.commit()
+    except Exception as exc:
+        _record_digest_run_recipient(
+            conn,
+            run_id,
+            recipient_email,
+            '',
+            'failed',
+            post_count=0,
+            error_message=str(exc),
+        )
+        _finish_digest_run(conn, run_id, status='failed', failed_count=1, notes=str(exc))
+        conn.commit()
+        conn.close()
+        raise
+    conn.close()
+
+
+def _send_sponsor_announcement_to_active_subscribers(draft, initiated_by):
+    conn = get_db()
+    _ensure_subscriber_schema(conn)
+    subscribers = conn.execute(
+        '''
+        SELECT email, token
+        FROM subscribers
+        WHERE COALESCE(active, 1) = 1
+        ORDER BY datetime(created_at) DESC, email ASC
+        '''
+    ).fetchall()
+    if not subscribers:
+        conn.close()
+        raise ValueError('No active subscribers are available for a sponsor announcement.')
+
+    run_id = _record_digest_run(
+        conn,
+        kind='sponsor_announcement',
+        target_date=_current_email_campaign_date(),
+        audience='subscribers',
+        status='running',
+        subject=draft['subject'],
+        preview_posts=0,
+        preview_subscribers=len(subscribers),
+        initiated_by=initiated_by,
+        notes=f"Manual sponsor announcement send for {draft['sponsor_name']}.",
+        created_by_user_id=current_user.id if current_user.is_authenticated else None,
+    )
+    conn.commit()
+
+    sent_count = 0
+    failed_count = 0
+    try:
+        for subscriber in subscribers:
+            unsubscribe_url = f"{BASE_URL}/unsubscribe?token={subscriber['token']}"
+            html = _build_sponsor_announcement_html(draft, unsubscribe_url=unsubscribe_url)
+            try:
+                _send_digest_email(subscriber['email'], draft['subject'], html)
+                sent_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    subscriber['email'],
+                    '',
+                    'sent',
+                    post_count=0,
+                )
+            except Exception as exc:
+                failed_count += 1
+                _record_digest_run_recipient(
+                    conn,
+                    run_id,
+                    subscriber['email'],
+                    '',
+                    'failed',
+                    post_count=0,
+                    error_message=str(exc),
+                )
+
+        final_status = 'completed'
+        if failed_count and sent_count:
+            final_status = 'completed_with_errors'
+        elif failed_count and not sent_count:
+            final_status = 'failed'
+        _finish_digest_run(
+            conn,
+            run_id,
+            status=final_status,
+            sent_count=sent_count,
+            skipped_count=0,
+            failed_count=failed_count,
+            notes=f"Sponsor announcement send for {draft['sponsor_name']}.",
+        )
+        _log_admin_action(
+            'email_ops.sponsor_send_now',
+            target_type='digest_run',
+            target_id=run_id,
+            metadata={
+                'sponsor_name': draft['sponsor_name'],
+                'sent_count': sent_count,
+                'failed_count': failed_count,
+            },
+            conn=conn,
+        )
+        conn.commit()
+    except Exception:
+        _finish_digest_run(
+            conn,
+            run_id,
+            status='failed',
+            sent_count=sent_count,
+            failed_count=failed_count,
+            notes=f"Sponsor announcement send for {draft['sponsor_name']}.",
+        )
+        conn.commit()
+        conn.close()
+        raise
+    conn.close()
+    return {'sent_count': sent_count, 'failed_count': failed_count}
 
 
 # ---------------------------------------------------------------------------
@@ -1343,11 +1715,16 @@ def admin_email_ops():
 
     preview = _build_email_ops_preview(target_date, selected_run_id=selected_run_id)
     test_recipient = _digest_support_email()
+    conn = get_db()
+    _ensure_subscriber_schema(conn)
+    sponsor_announcement = _build_sponsor_announcement_preview(conn)
+    conn.close()
     return render_template(
         'admin_email_ops.html',
         target_date=target_date,
         preview=preview,
         test_recipient=test_recipient,
+        sponsor_announcement=sponsor_announcement,
         can_send_email_ops=current_user.role in EMAIL_OPS_SEND_ROLES,
     )
 
@@ -1394,6 +1771,120 @@ def admin_email_ops_send_now():
         flash(str(exc), 'error')
     except Exception as exc:
         flash(f'Digest send failed: {str(exc)[:200]}', 'error')
+    return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
+
+
+@admin_bp.route('/audience/email-ops/sponsor-draft', methods=['POST'])
+@login_required
+@require_role(*EMAIL_OPS_SEND_ROLES)
+def admin_email_ops_sponsor_draft():
+    conn = get_db()
+    try:
+        draft = _sponsor_announcement_from_form(request.form)
+        _save_sponsor_announcement_draft(conn, draft)
+        _log_admin_action(
+            'email_ops.sponsor_draft_saved',
+            target_type='app_settings',
+            metadata={
+                'sponsor_name': draft['sponsor_name'],
+                'has_cta_url': bool(draft['cta_url']),
+            },
+            conn=conn,
+        )
+        conn.commit()
+        flash('Sponsor announcement draft saved.', 'success')
+    except ValueError as exc:
+        conn.rollback()
+        flash(str(exc), 'error')
+    except Exception as exc:
+        conn.rollback()
+        flash(f'Could not save sponsor draft: {str(exc)[:200]}', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
+
+
+@admin_bp.route('/audience/email-ops/sponsor-test', methods=['POST'])
+@login_required
+@require_role(*EMAIL_OPS_SEND_ROLES)
+def admin_email_ops_sponsor_test():
+    conn = get_db()
+    try:
+        draft = _sponsor_announcement_from_form(request.form)
+        _save_sponsor_announcement_draft(conn, draft)
+        conn.commit()
+    except ValueError as exc:
+        conn.rollback()
+        conn.close()
+        flash(str(exc), 'error')
+        return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
+    except Exception as exc:
+        conn.rollback()
+        conn.close()
+        flash(f'Could not load sponsor email draft: {str(exc)[:200]}', 'error')
+        return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    try:
+        custom_recipient = _normalize_email_ops_recipient(request.form.get('recipient_email'))
+        if (request.form.get('recipient_email') or '').strip() and not custom_recipient:
+            raise ValueError('Enter a valid test recipient email.')
+        recipient_email = custom_recipient or _digest_support_email()
+        _send_sponsor_announcement_test(
+            recipient_email,
+            draft=draft,
+            initiated_by=current_user.username,
+        )
+        flash(f'Sponsor test email sent to {recipient_email}.', 'success')
+    except ValueError as exc:
+        flash(str(exc), 'error')
+    except Exception as exc:
+        flash(f'Sponsor test send failed: {str(exc)[:200]}', 'error')
+    return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
+
+
+@admin_bp.route('/audience/email-ops/sponsor-send-now', methods=['POST'])
+@login_required
+@require_role(*EMAIL_OPS_SEND_ROLES)
+def admin_email_ops_sponsor_send_now():
+    conn = get_db()
+    try:
+        draft = _sponsor_announcement_from_form(request.form)
+        _save_sponsor_announcement_draft(conn, draft)
+        conn.commit()
+    except ValueError as exc:
+        conn.rollback()
+        conn.close()
+        flash(str(exc), 'error')
+        return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
+    except Exception as exc:
+        conn.rollback()
+        conn.close()
+        flash(f'Could not load sponsor email draft: {str(exc)[:200]}', 'error')
+        return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    try:
+        results = _send_sponsor_announcement_to_active_subscribers(
+            draft=draft,
+            initiated_by=current_user.username,
+        )
+        flash(
+            f"Sponsor email send complete: {results['sent_count']} sent, {results['failed_count']} failed.",
+            'success' if results['failed_count'] == 0 else 'warning',
+        )
+    except ValueError as exc:
+        flash(str(exc), 'error')
+    except Exception as exc:
+        flash(f'Sponsor email send failed: {str(exc)[:200]}', 'error')
     return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
 
 

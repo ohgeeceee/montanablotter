@@ -1,3 +1,4 @@
+import sqlite3
 import unittest
 from unittest import mock
 
@@ -31,6 +32,130 @@ class _FakeSession:
 
 
 class IngestionSourceTests(unittest.TestCase):
+    def test_sync_records_inserts_new_jail_booking_payload_columns(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            """
+            CREATE TABLE jail_bookings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id INTEGER,
+                county_slug TEXT,
+                county_name TEXT,
+                facility_name TEXT,
+                person_name TEXT,
+                age INTEGER,
+                booking_number TEXT,
+                booking_at TEXT,
+                charges_summary TEXT,
+                source_url TEXT,
+                source_record_id TEXT,
+                hash_id TEXT,
+                raw_json TEXT,
+                booking_status TEXT,
+                is_current INTEGER,
+                release_at TEXT,
+                first_seen_at TEXT,
+                last_seen_at TEXT,
+                created_at TEXT,
+                updated_at TEXT
+            )
+            """
+        )
+        source = conn.execute(
+            """
+            SELECT
+                1 AS id,
+                'missoula' AS county_slug,
+                'Missoula' AS county_name,
+                'Missoula County Detention Facility' AS facility_name,
+                'https://example.test/roster' AS roster_url
+            """
+        ).fetchone()
+        record = jail_booking_ingest.JailBookingRecord(
+            source_record_id="booking-1",
+            person_name="Example, Person",
+            age=42,
+            booking_number="2026-0001",
+            booking_at="2026-04-21 01:02:03",
+            charges_summary="Example Charge",
+            source_url=None,
+        )
+
+        stats = jail_booking_ingest._sync_records(conn, source, [record])
+        row = conn.execute(
+            """
+            SELECT hash_id, raw_json, booking_status, is_current
+            FROM jail_bookings
+            WHERE source_record_id = 'booking-1'
+            """
+        ).fetchone()
+
+        self.assertEqual(stats.new_count, 1)
+        self.assertIsNotNone(row["hash_id"])
+        self.assertIn('"person_name": "Example, Person"', row["raw_json"])
+        self.assertEqual(row["booking_status"], "current")
+        self.assertEqual(row["is_current"], 1)
+
+    def test_sync_records_refuses_empty_payload_when_current_bookings_exist(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            """
+            CREATE TABLE jail_bookings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id INTEGER,
+                county_slug TEXT,
+                county_name TEXT,
+                facility_name TEXT,
+                person_name TEXT,
+                age INTEGER,
+                booking_number TEXT,
+                booking_at TEXT,
+                charges_summary TEXT,
+                source_url TEXT,
+                source_record_id TEXT,
+                hash_id TEXT,
+                raw_json TEXT,
+                booking_status TEXT,
+                is_current INTEGER,
+                release_at TEXT,
+                first_seen_at TEXT,
+                last_seen_at TEXT,
+                created_at TEXT,
+                updated_at TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO jail_bookings (
+                source_id, county_slug, county_name, facility_name, person_name,
+                source_record_id, booking_status, is_current
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (1, "missoula", "Missoula", "Missoula County Detention Facility", "Example, Person", "booking-1", "current", 1),
+        )
+        source = conn.execute(
+            """
+            SELECT
+                1 AS id,
+                'missoula' AS county_slug,
+                'Missoula' AS county_name,
+                'Missoula County Detention Facility' AS facility_name,
+                'https://example.test/roster' AS roster_url
+            """
+        ).fetchone()
+
+        with self.assertRaisesRegex(RuntimeError, "Parsed zero jail booking rows"):
+            jail_booking_ingest._sync_records(conn, source, [])
+
+        row = conn.execute(
+            "SELECT booking_status, is_current FROM jail_bookings WHERE source_record_id = 'booking-1'"
+        ).fetchone()
+        self.assertEqual(row["booking_status"], "current")
+        self.assertEqual(row["is_current"], 1)
+
     def test_yellowstone_prompt_solver_handles_words_and_subtraction(self) -> None:
         html = '<label for="Answer" class="form-label text-uppercase w-50">7 - Three = </label>'
 
@@ -183,6 +308,244 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertIn("Criminal Trespass To Property", summary)
         self.assertIn("Misdemeanor", summary)
         self.assertIn("Bond $185.00", summary)
+
+    def test_broadwater_page_url_extractor_finds_pagination(self) -> None:
+        html = """
+        <a href="roster.php">1</a>
+        <a href="roster.php?grp=20">2</a>
+        <a href="roster.php?grp=40">4</a>
+        <a href="roster.php?released=1">Released</a>
+        """
+
+        urls = jail_booking_ingest._extract_broadwater_page_urls(
+            html,
+            "https://www.broadwatercountysheriff.org/roster.php",
+        )
+
+        self.assertEqual(
+            urls,
+            [
+                "https://www.broadwatercountysheriff.org/roster.php",
+                "https://www.broadwatercountysheriff.org/roster.php?grp=20",
+                "https://www.broadwatercountysheriff.org/roster.php?grp=40",
+            ],
+        )
+
+    def test_broadwater_roster_parser_extracts_records(self) -> None:
+        html = """
+        <div>SLAWSON, TIMOTHY JOHN</div>
+        <div>Booking #:</div>
+        <div>03308</div>
+        <div>Booking Date:</div>
+        <div>03-03-2026 - 3:52 pm</div>
+        <div>Charges:</div>
+        <div>DOC</div>
+        <div>Bond:</div>
+        <div>$0.00</div>
+        <a href="roster_view.php?booking_num=03308">View Profile >>></a>
+        <div>ESTRADA JUAREZ, RUBEN M</div>
+        <div>Booking #:</div>
+        <div>03299</div>
+        <div>Booking Date:</div>
+        <div>03-02-2026 - 3:38 am</div>
+        <div>Charges:</div>
+        <div>46-23-1012 - Probation And Parole Detention For Probation Violation</div>
+        <div>61-8-356(1) - Leaving Vehicle On Highway Right-Of-Way Over 48 Hours</div>
+        <div>Bond:</div>
+        <div>$80000.00</div>
+        <a href="roster_view.php?booking_num=03299">View Profile >>></a>
+        """
+
+        rows = jail_booking_ingest._parse_broadwater_roster(
+            html,
+            "https://www.broadwatercountysheriff.org/roster.php",
+        )
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0].person_name, "Slawson, Timothy John")
+        self.assertEqual(rows[0].booking_number, "03308")
+        self.assertEqual(rows[0].booking_at, "2026-03-03 15:52:00")
+        self.assertIn("DOC", rows[0].charges_summary)
+        self.assertIn("Bond $0.00", rows[0].charges_summary)
+        self.assertEqual(rows[1].source_record_id, "broadwater:03299")
+        self.assertIn("Probation And Parole Detention", rows[1].charges_summary)
+
+    @mock.patch('jail_booking_ingest.requests.Session')
+    def test_fetch_broadwater_bookings_walks_pages(self, session_cls) -> None:
+        page_one = mock.Mock(
+            raise_for_status=mock.Mock(),
+            text="""
+            <a href="roster.php?grp=20">2</a>
+            <div>SLAWSON, TIMOTHY JOHN</div>
+            <div>Booking #:</div>
+            <div>03308</div>
+            <div>Booking Date:</div>
+            <div>03-03-2026 - 3:52 pm</div>
+            <div>Charges:</div>
+            <div>DOC</div>
+            <div>Bond:</div>
+            <div>$0.00</div>
+            """,
+        )
+        page_two = mock.Mock(
+            raise_for_status=mock.Mock(),
+            text="""
+            <div>ESTRADA JUAREZ, RUBEN M</div>
+            <div>Booking #:</div>
+            <div>03299</div>
+            <div>Booking Date:</div>
+            <div>03-02-2026 - 3:38 am</div>
+            <div>Charges:</div>
+            <div>46-23-1012 - Probation And Parole Detention For Probation Violation</div>
+            <div>Bond:</div>
+            <div>$80000.00</div>
+            """,
+        )
+        session = mock.Mock()
+        session.get.side_effect = [page_one, page_two]
+        session_cls.return_value = session
+
+        rows = jail_booking_ingest.fetch_broadwater_bookings(
+            "https://www.broadwatercountysheriff.org/roster.php"
+        )
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0].booking_number, "03308")
+        self.assertEqual(rows[1].booking_number, "03299")
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_flathead_roster_parser_extracts_entries(self) -> None:
+        html = """
+        <div class="inmate-entry">
+            <div class="inmate-name">
+                <h2>ABRAMCHUK<span class="lighten-text">, TOLY PAVLOVICH</span></h2>
+            </div>
+            <div class="inmate-info">
+                <div class="img_mug" style="background: black url('images/inmates/20260453.JPG') center no-repeat; background-size: contain;"></div>
+                <div class="inmate-stat"><h6>Age:</h6><p>18</p></div>
+                <div class="inmate-stat"><h6>PIN:</h6><p>61290</p></div>
+                <div class="inmate-stat"><h6>Total Bail:</h6><p>$100,000</p></div>
+                <div class="inmate-stat"><h6>Court Date:</h6><p>2026-04-02</p></div>
+            </div>
+            <div class="inmate-disposition">
+                <div class="disposition-entry">
+                    <h6 class="disposition">&nbsp;Continued</h6>
+                    <p class="disposition-description severity-f">CRIMINAL ENDANGERMENT</p>
+                </div>
+                <div class="disposition-entry">
+                    <h6 class="disposition combined">&nbsp;&#8679;Combined</h6>
+                    <p class="disposition-description severity-m">AGGRAVATED DUI</p>
+                </div>
+            </div>
+            <div class="inmate-entry-footer"></div>
+        </div>
+        """
+
+        rows = jail_booking_ingest._parse_flathead_roster(
+            html,
+            "https://apps.flathead.mt.gov/jailroster/",
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].person_name, "Abramchuk, Toly Pavlovich")
+        self.assertEqual(rows[0].age, 18)
+        self.assertEqual(rows[0].booking_number, "20260453")
+        self.assertEqual(rows[0].source_record_id, "20260453")
+        self.assertIsNone(rows[0].booking_at)
+        self.assertIn("CRIMINAL ENDANGERMENT", rows[0].charges_summary)
+        self.assertIn("AGGRAVATED DUI", rows[0].charges_summary)
+
+    def test_jefferson_hold_reason_summary_extracts_first_items(self) -> None:
+        summary = jail_booking_ingest._summarize_jefferson_hold_reasons(
+            "Local Warrant: Bench warrant;<br />Bond - Cash/Surety, $50000.00;<br />Additional Hold for DOC;"
+        )
+
+        self.assertIn("Local Warrant: Bench warrant", summary)
+        self.assertIn("Bond - Cash/Surety, $50000.00", summary)
+        self.assertIn("Additional Hold for DOC", summary)
+
+    @mock.patch('jail_booking_ingest.requests.Session')
+    def test_fetch_jefferson_bookings_reads_portal_api(self, session_cls) -> None:
+        session = mock.Mock()
+        session.post.return_value = mock.Mock(
+            raise_for_status=mock.Mock(),
+            json=mock.Mock(
+                return_value={
+                    "total_record_count": 1,
+                    "records": [
+                        {
+                            "name": "BUSSARD, CHRISTINA LYNN",
+                            "sex": "Female",
+                            "arrest_date": "2026-03-11",
+                            "held_for_agency": "Jefferson County Sheriff's Office",
+                            "hold_reasons": "Local Warrant: Bench warrant;<br />Bond - Cash/Surety, $50000.00;",
+                        }
+                    ],
+                }
+            ),
+        )
+        session_cls.return_value = session
+
+        rows = jail_booking_ingest.fetch_jefferson_bookings(
+            "https://jefferson-so-mt.zuercherportal.com/#/inmates"
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].person_name, "Bussard, Christina Lynn")
+        self.assertEqual(rows[0].booking_at, "2026-03-11 00:00:00")
+        self.assertIn("Local Warrant: Bench warrant", rows[0].charges_summary)
+        self.assertEqual(rows[0].source_url, "https://jefferson-so-mt.zuercherportal.com/#/inmates")
+        self.assertEqual(len(rows[0].source_record_id), 20)
+
+    def test_sanders_search_parser_extracts_rows(self) -> None:
+        html = """
+        <table>
+            <tr bgcolor="#EADCB3">
+                <td>&nbsp;20-00000740</td>
+                <td>&nbsp;ALDEN-ODEKIRK, KELE&nbsp;</td>
+                <td>1979-03-12</td>
+                <td>White</td>
+                <td>Male</td>
+                <td><a class="fldListing" href="viewbkg.php?bkg=13">view</a></td>
+            </tr>
+        </table>
+        """
+
+        rows = jail_booking_ingest._parse_sanders_search_results(
+            html,
+            "https://sanders-mt.publiclogs.com/jms_public",
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["jacket_number"], "20-00000740")
+        self.assertEqual(rows[0]["person_name"], "Alden-Odekirk, Kele")
+        self.assertEqual(rows[0]["detail_url"], "https://sanders-mt.publiclogs.com/jms_public/viewbkg.php?bkg=13")
+
+    def test_sanders_detail_parser_extracts_booking_and_charges(self) -> None:
+        html = """
+        <div class="srt_label">Jacket #:</div><div class="rtn_field">&nbsp;20-00000740</div>
+        <div class="srt_label">Inmate's Name:</div><div class="rtn_field">&nbsp;ALDEN-ODEKIRK,&nbsp;KELE&nbsp;</div>
+        <div class="srt_label">Date of Birth:</div><div class="rtn_field">&nbsp;03/12/1979</div>
+        <div class="srt_label">Booking Date:</div><div class="rtn_field">&nbsp;05/14/2021 at 01:17 AM</div>
+        <div class="srt_label">Arresting Agency:</div><div class="rtn_field">&nbsp;HOT_SPRINGS</div>
+        <div class="srt_label">Release Date:</div><div class="rtn_field">&nbsp;00/00/0000</div>
+        <table>
+            <tr bgcolor="#EADCB3" valign="top">
+                <td>&nbsp;1</td>
+                <td>&nbsp;3-1-501(E)-WARRANT -CIVIL CONTEMPT</td>
+                <td></td>
+                <td>&nbsp;0</td>
+            </tr>
+        </table>
+        """
+
+        detail = jail_booking_ingest._parse_sanders_detail(html)
+
+        self.assertEqual(detail["booking_number"], "20-00000740")
+        self.assertEqual(detail["person_name"], "Alden-Odekirk, Kele")
+        self.assertEqual(detail["booking_date"], "05/14/2021 at 01:17 AM")
+        self.assertIn("3-1-501(E)-WARRANT -CIVIL CONTEMPT", detail["charges_summary"])
+        self.assertIn("Bond 0", detail["charges_summary"])
 
     @mock.patch('missoula_public_report_fetcher.time.sleep', return_value=None)
     def test_missoula_fetch_retries_transient_server_error(self, _sleep) -> None:

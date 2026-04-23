@@ -250,7 +250,7 @@ def advertise_bail_bonds():
         if request.form.get('policy_ack') != 'yes':
             errors.append('You must confirm the advertising policy.')
         if request.form.get('contract_ack') != 'yes':
-            errors.append("You must review the Let's Bail advertising contract.")
+            errors.append("You must review the Affordable Bail Bonds advertising contract.")
 
         budget_cents = m._parse_budget_cents(form_data['monthly_budget'])
         source = (request.form.get('source') or request.args.get('source') or 'bail_ad_page').strip()[:80]
@@ -427,7 +427,7 @@ def advertise_bail_bonds_checkout():
         if request.form.get('policy_ack') != 'yes':
             errors.append('Advertising policy acknowledgement is required.')
         if request.form.get('contract_ack') != 'yes':
-            errors.append("You must review and accept the Let's Bail advertising contract.")
+            errors.append("You must review and accept the Affordable Bail Bonds advertising contract.")
         if request.form.get('terms_ack') != 'yes':
             errors.append('You must accept billing terms to continue.')
 
@@ -694,7 +694,7 @@ def advertise_bail_contract():
         'advertise_bail_contract.html',
         contract_info=contract_info,
         page_title=contract_info['title'],
-        meta_description="Review the Let's Bail advertising contract for Montana Blotter placements, billing, creative review, and cancellation terms.",
+        meta_description="Review the Affordable Bail Bonds advertising contract for Montana Blotter placements, billing, creative review, and cancellation terms.",
         canonical_url=f'{m.BASE_URL}/advertise/bail-bonds/contract',
         og_title=contract_info['title'],
         og_description=contract_info['summary'],

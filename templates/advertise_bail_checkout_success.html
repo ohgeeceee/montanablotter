@@ -53,12 +53,22 @@
                 <li>Approved campaigns go live with county placement and reporting.</li>
             </ol>
             <p class="mt-3 text-slate-600">
+                Contract reference:
+                <a href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %} class="text-blue-700 underline">{{ contract_info.title }}</a>
+            </p>
+            <p class="mt-3 text-slate-600">
                 Need help with onboarding? Contact
                 <a href="mailto:{{ support_email }}" class="text-blue-700 underline">{{ support_email }}</a>.
             </p>
         </div>
 
         <div class="mt-7 flex items-center justify-center gap-3 flex-wrap">
+            {% if order and order.onboarding_token %}
+            <a href="/advertise/bail-bonds/control-panel/{{ order.onboarding_token }}"
+               class="inline-flex items-center justify-center rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">
+                Open Control Panel
+            </a>
+            {% endif %}
             {% if order and order.onboarding_token %}
             <a href="/advertise/bail-bonds/onboarding/{{ order.onboarding_token }}"
                class="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">

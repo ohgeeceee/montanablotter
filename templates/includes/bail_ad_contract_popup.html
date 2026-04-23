@@ -1,0 +1,69 @@
+<div id="letsbail-contract-popup" class="hidden fixed inset-0 z-50 px-4 sm:px-6" aria-hidden="true">
+    <div class="absolute inset-0 bg-slate-950/70"></div>
+    <div class="relative mx-auto max-w-2xl pt-16 sm:pt-24">
+        <div class="rounded-[1.75rem] border border-amber-200 bg-white shadow-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-amber-900 px-6 py-5 text-white">
+                <p class="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Required Review</p>
+                <h2 class="mt-2 text-2xl font-black">{{ contract_info.title }}</h2>
+                <p class="mt-2 text-sm text-slate-200">{{ contract_info.summary }}</p>
+            </div>
+            <div class="px-6 py-5">
+                <ul class="space-y-2 text-sm text-slate-700">
+                    {% for item in contract_info.highlights %}
+                    <li class="flex items-start gap-3">
+                        <span class="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-black text-amber-800">{{ loop.index }}</span>
+                        <span>{{ item }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="mt-5 flex flex-wrap gap-3">
+                    <a href="{{ contract_info.url }}"
+                       {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %}
+                       class="inline-flex items-center justify-center rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-slate-950 hover:bg-amber-400 transition">
+                        Open Full Contract
+                    </a>
+                    <button type="button"
+                            id="letsbail-contract-close"
+                            class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50 transition">
+                        Continue
+                    </button>
+                </div>
+                <p class="mt-4 text-xs text-slate-500">{{ contract_info.updated_label }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var popup = document.getElementById('letsbail-contract-popup');
+    var closeBtn = document.getElementById('letsbail-contract-close');
+    if (!popup || !closeBtn) return;
+
+    var storageKey = '{{ contract_popup_storage_key or "mb_letsbail_contract_seen" }}';
+    var showPopup = function () {
+        popup.classList.remove('hidden');
+        popup.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    };
+    var hidePopup = function () {
+        popup.classList.add('hidden');
+        popup.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        try { sessionStorage.setItem(storageKey, '1'); } catch (e) {}
+    };
+
+    closeBtn.addEventListener('click', hidePopup);
+    popup.addEventListener('click', function (event) {
+        if (event.target === popup || event.target === popup.firstElementChild) {
+            hidePopup();
+        }
+    });
+
+    try {
+        if (sessionStorage.getItem(storageKey) === '1') return;
+    } catch (e) {}
+
+    window.setTimeout(showPopup, 500);
+})();
+</script>

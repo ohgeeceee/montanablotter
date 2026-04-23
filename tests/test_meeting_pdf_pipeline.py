@@ -1,7 +1,12 @@
 import unittest
 
 from meeting_pdf_pipeline.chunking import chunk_markdown
-from meeting_pdf_pipeline.extractor import MeetingPDFMarkdownExtractor
+from meeting_pdf_pipeline.extractor import (
+    MeetingPDFMarkdownExtractor,
+    _extract_row_from_line,
+    _clean_money,
+    _normalise_date,
+)
 from meeting_pdf_pipeline.store import _vector_literal
 
 
@@ -24,6 +29,21 @@ class MeetingPDFPipelineTests(unittest.TestCase):
     def test_looks_useful_requires_meaningful_text(self) -> None:
         self.assertFalse(MeetingPDFMarkdownExtractor._looks_useful("x" * 10))
         self.assertTrue(MeetingPDFMarkdownExtractor._looks_useful("Agenda item " * 10))
+
+    def test_extract_row_from_line_parses_common_roster_line(self) -> None:
+        row = _extract_row_from_line("SMITH, JOHN - Assault 03/14/2026 $25,000")
+        self.assertIsNotNone(row)
+        assert row is not None
+        self.assertEqual(row["name"], "SMITH, JOHN")
+        self.assertIn("Assault", row["charge"])
+        self.assertEqual(row["date"], "2026-03-14")
+        self.assertEqual(row["bond"], "$25000")
+
+    def test_money_and_date_normalizers_keep_fallbacks(self) -> None:
+        self.assertEqual(_clean_money("No Bond"), "No Bond")
+        self.assertEqual(_clean_money("$100,000.00"), "$100000.00")
+        self.assertEqual(_normalise_date("2026-04-21"), "2026-04-21")
+        self.assertEqual(_normalise_date("unknown"), "unknown")
 
 
 if __name__ == "__main__":

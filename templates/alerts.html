@@ -1,0 +1,221 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "County Alerts & Name Watch" %}
+{% set meta_description = "Get immediate email alerts when new blotter activity is posted for your Montana county. Set up a Name Watch to be notified if a specific name appears." %}
+{% set canonical_url = "https://montanablotter.com/alerts" %}
+{% set og_title = "County Alerts & Name Watch | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}alerts-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Alerts</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Immediate Notifications</p>
+                <h1 class="public-title public-title--medium">Montana Blotter Alerts</h1>
+                <p class="public-copy">
+                    Get notified when new activity hits your county, or set a private Name Watch to receive an email if a specific name appears in a new record.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Alert Types</p>
+                    <div class="public-stat-grid">
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">County</p>
+                            <p class="public-stat-value">New activity</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Name Watch</p>
+                            <p class="public-stat-value">Private</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Delivery</p>
+                            <p class="public-stat-value">Email</p>
+                        </div>
+                    </div>
+                    <p class="public-card__text">
+                        Alerts are built for speed: county-level activity for broad monitoring, or private text matching when you need to watch for a specific person.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-section public-section--narrow">
+    {# ── Unsubscribed / Cancelled states ── #}
+    {% if unsubscribed or watch_cancelled %}
+    <div class="public-card public-empty-state">
+        <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(136, 187, 147, 0.16);">
+            <i class="fas fa-check text-xl" style="color:var(--public-green);"></i>
+        </div>
+        <h1 class="text-2xl font-black text-slate-900 mb-2">
+            {% if watch_cancelled %}Name Watch Cancelled{% else %}Alert Unsubscribed{% endif %}
+        </h1>
+        <p class="text-slate-600 text-sm mb-6">
+            {% if unsubscribed_email %}<strong>{{ unsubscribed_email }}</strong> will no longer receive these alerts.{% endif %}
+        </p>
+        <a href="/alerts" class="public-btn public-btn--primary">Set up new alerts</a>
+    </div>
+
+    {# ── Success states ── #}
+    {% elif success_type %}
+    <div class="public-form-card">
+        <div class="public-form-card__body public-empty-state">
+            <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(136, 187, 147, 0.16);">
+                <i class="fas fa-bell text-xl" style="color:var(--public-green);"></i>
+            </div>
+            <h1 class="text-2xl font-black text-slate-900 mb-2">
+                {% if success_type == 'name_watch' %}Name Watch Active{% else %}Alert Active{% endif %}
+            </h1>
+            <p class="text-slate-600 text-sm mb-4">
+                {% if success_type == 'county_alert' %}
+                    You'll get an email whenever new blotter activity is posted for <strong>{{ prefill_county }} County</strong>.
+                {% else %}
+                    We'll alert you if that name appears in a new Montana Blotter record.
+                    Name Watches are private and never published.
+                {% endif %}
+            </p>
+            <p class="text-slate-500 text-xs mb-6">Cancel any time via the link in the alert email.</p>
+            <div class="public-form-actions" style="justify-content:center;">
+                <a href="/" class="public-btn public-btn--primary">View Latest Reports</a>
+                <a href="/alerts" class="public-btn public-btn--secondary">Add Another Alert</a>
+            </div>
+        </div>
+    </div>
+
+    {# ── Main signup forms ── #}
+    {% else %}
+    {% if error %}
+    <div class="public-note public-note--error" style="margin-bottom:1.5rem;">
+        <i class="fas fa-exclamation-circle" style="margin-right:0.5rem;"></i>{{ error }}
+    </div>
+    {% endif %}
+
+    <div class="public-route-layout">
+        <main class="public-main-stack">
+            <section class="public-form-card">
+                <div class="public-form-card__body">
+                    <div class="public-panel-row">
+                        <div>
+                            <p class="public-card__eyebrow">County Alert</p>
+                            <h2 class="public-panel-title">Email when new blotter activity is posted for a county.</h2>
+                        </div>
+                    </div>
+                    <form method="POST" action="/alerts" class="public-form-grid" style="margin-top:1.25rem;">
+                        <input type="hidden" name="form_type" value="county_alert">
+                        <input type="hidden" name="source" value="{{ source or 'alerts_page' }}">
+                        <div>
+                            <label class="public-form-label">Email</label>
+                            <input type="email" name="email" required placeholder="you@example.com" class="public-form-input">
+                        </div>
+                        <div>
+                            <label class="public-form-label">County</label>
+                            <select name="county" required class="public-form-select">
+                                <option value="">Select a county…</option>
+                                {% for county in counties %}
+                                <option value="{{ county }}" {% if county == prefill_county %}selected{% endif %}>{{ county }} County</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="public-form-label">Alert Me For</label>
+                            <div class="public-check-grid" style="margin-top:0.7rem;">
+                                <label class="public-check-item"><input type="checkbox" name="alert_types" value="all" checked> <span>All activity</span></label>
+                                <label class="public-check-item"><input type="checkbox" name="alert_types" value="violent"> <span>Violent crime</span></label>
+                                <label class="public-check-item"><input type="checkbox" name="alert_types" value="property"> <span>Property crime</span></label>
+                                <label class="public-check-item"><input type="checkbox" name="alert_types" value="drug"> <span>Drug or alcohol</span></label>
+                                <label class="public-check-item"><input type="checkbox" name="alert_types" value="dui"> <span>DUI</span></label>
+                            </div>
+                        </div>
+                        <button type="submit" class="public-btn public-btn--primary" style="width:100%;">Activate County Alert</button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="public-form-card">
+                <div class="public-form-card__body">
+                    <p class="public-card__eyebrow">Name Watch</p>
+                    <h2 class="public-panel-title" style="margin-top:0.7rem;">Private alerts when a specific name appears in a new record.</h2>
+                    <div class="public-note public-note--warning" style="margin-top:1rem;">
+                        <i class="fas fa-lock" style="margin-right:0.45rem;"></i>
+                        Your watch name is <strong>never published or shared</strong>. This is a private notification only. Alerts are based on text matching and may not be exact.
+                    </div>
+                    <form method="POST" action="/alerts" class="public-form-grid" style="margin-top:1.25rem;">
+                        <input type="hidden" name="form_type" value="name_watch">
+                        <input type="hidden" name="source" value="{{ source or 'alerts_page' }}">
+                        <div>
+                            <label class="public-form-label">Email</label>
+                            <input type="email" name="email" required placeholder="you@example.com" class="public-form-input">
+                        </div>
+                        <div>
+                            <label class="public-form-label">Name To Watch</label>
+                            <input type="text" name="watch_name" required placeholder="First Last" class="public-form-input">
+                        </div>
+                        <div>
+                            <label class="public-form-label">County Optional</label>
+                            <select name="watch_county" class="public-form-select">
+                                <option value="">All Montana counties</option>
+                                {% for county in counties %}
+                                <option value="{{ county }}">{{ county }} County</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="public-btn public-btn--primary" style="width:100%;">Activate Name Watch</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        <aside class="public-sidebar-stack">
+            <section class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">How Delivery Works</p>
+                    <div class="public-rail-list" style="margin-top:1rem;">
+                        <div class="public-rail-link">
+                            <div class="public-rail-link__eyebrow">County Alert</div>
+                            <div class="public-rail-link__title">Broad monitoring</div>
+                            <div class="public-rail-link__copy">Receive a message when new blotter activity is posted for a county you care about.</div>
+                        </div>
+                        <div class="public-rail-link">
+                            <div class="public-rail-link__eyebrow">Name Watch</div>
+                            <div class="public-rail-link__title">Private text matching</div>
+                            <div class="public-rail-link__copy">We send an email if a watched name appears in new records. The watch itself is never public.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Related Paths</p>
+                    <div class="public-rail-list" style="margin-top:1rem;">
+                        <a href="/subscribe?source=alerts_sidebar" class="public-rail-link">
+                            <div class="public-rail-link__eyebrow">Digest</div>
+                            <div class="public-rail-link__title">Daily statewide briefing</div>
+                            <div class="public-rail-link__copy">Prefer one daily email instead of immediate alerts? Use the main subscription flow.</div>
+                        </a>
+                        <a href="/support" class="public-rail-link">
+                            <div class="public-rail-link__eyebrow">Support</div>
+                            <div class="public-rail-link__title">Partnerships and funding</div>
+                            <div class="public-rail-link__copy">See reader support and partner options tied to the alerts infrastructure.</div>
+                        </a>
+                    </div>
+                </div>
+            </section>
+        </aside>
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}

@@ -30,34 +30,38 @@
 </script>
 {% endblock %}
 
+{% block body_class %}jail-rosters-page{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Jail Rosters</span>
+<span>Jail Rosters</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-4xl mx-auto text-center">
-        <div class="inline-flex items-center bg-orange-500/20 text-orange-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl mx-auto text-center">
+        <div class="public-eyebrow mb-4" style="color: var(--public-amber);">
             <i class="fas fa-bars mr-2"></i>Public Records
         </div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Montana <span class="text-orange-300 italic">Jail Rosters</span></h1>
-        <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+        <h1 class="public-title public-title--medium mx-auto">Montana Jail Rosters</h1>
+        <p class="public-copy max-w-2xl mx-auto">
             Links to official inmate search and jail roster pages for all 56 Montana counties.
             All data is sourced directly from county sheriff's offices and detention centers.
         </p>
         <div class="mt-6 max-w-sm mx-auto">
             <input id="countySearch" type="text" placeholder="Search county..."
-                class="w-full px-4 py-2 rounded-lg text-slate-900 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                class="public-form-input">
+        </div>
         </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-    <div class="bg-orange-50 border-b border-orange-200">
+    <div class="public-card max-w-6xl mx-auto">
         <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap gap-4 items-center">
-            <span class="text-xs font-black text-orange-800 uppercase tracking-widest">Statewide Resources:</span>
+            <span class="public-card__eyebrow" style="color: var(--public-amber);">Statewide Resources:</span>
             <a href="/jail-bookings"
                class="text-xs font-bold text-orange-700 hover:text-orange-900 underline">
                 <i class="fas fa-arrow-right mr-1"></i>See New Jail Bookings
@@ -97,7 +101,7 @@
                 ("Carter", None, "406-775-8741", False),
                 ("Cascade", "https://www.cascadecountymt.gov/314/Inmate-Roster", "406-454-6840", True),
                 ("Chouteau", None, "406-622-3660", False),
-                ("Custer", "https://www.custercountysheriff.com/inmate-search", "406-874-3300", True),
+                ("Custer", None, "406-874-3300", False),
                 ("Daniels", None, "406-487-2691", False),
                 ("Dawson", "https://www.dawsoncountymontana.com/sheriff", "406-377-7600", True),
                 ("Deer Lodge", None, "406-563-5421", False),
@@ -109,14 +113,14 @@
                 ("Glacier", "https://glaciercountymt.gov/category/jail-roster/", "406-873-4600", True),
                 ("Golden Valley", None, "406-568-2321", False),
                 ("Granite", "https://granitecountyjail.org/", "406-859-3771", True),
-                ("Hill", "https://vinelink.vineapps.com/state/mt", "406-265-5481", True),
-                ("Jefferson", "https://www.jeffersoncountysheriffmt.gov/", "406-225-4075", True),
+                ("Hill", None, "406-265-5481", False),
+                ("Jefferson", "https://jefferson-so-mt.zuercherportal.com/#/inmates", "406-225-4075", True),
                 ("Judith Basin", None, "406-535-3860", False),
                 ("Lake", None, "406-883-7301", False),
                 ("Lewis and Clark", "https://www.lccountymt.gov/Sheriff/Detention-Center", "406-447-8270", True),
                 ("Liberty", None, "406-759-5171", False),
-                ("Lincoln", "http://inmateroster.lincolncountysheriff.us/", "406-293-0242", True),
-                ("Madison", "https://webportal.mcits.site/NewWorld.InmateInquiry/MadisonCountyJail", "406-843-5351", True),
+                ("Lincoln", None, "406-293-0242", False),
+                ("Madison", None, "406-843-5351", False),
                 ("McCone", None, "406-485-3405", False),
                 ("Meagher", None, "406-547-3397", False),
                 ("Mineral", "https://co.mineral.mt.us/departments/sheriff/", "406-822-3534", True),

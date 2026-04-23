@@ -7,6 +7,8 @@
 {% set og_description = meta_description %}
 {% set active_nav = "warrants" %}
 
+{% block body_class %}warrant-county-page{% endblock %}
+
 {% block extra_head %}
 <script type="application/ld+json">
 {
@@ -71,65 +73,86 @@
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<a href="/warrants" class="hover:text-slate-700">Warrant Search</a>
+<a href="/warrants">Warrant Search</a>
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">{{ county.name }} County</span>
+<span>{{ county.name }} County</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-10 px-4 sm:px-6">
-    <div class="max-w-4xl mx-auto">
-        <span class="inline-block bg-red-500/20 text-red-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-3">
-            {{ county.name }} County &bull; Montana
-        </span>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-2">
-            {{ county.name }} County
-            <span class="text-red-400 italic">Warrant Search</span>
-        </h1>
-        <p class="text-slate-300 text-sm max-w-2xl">
-            {{ county.warrant_hero_summary or ("How to find active arrest warrants and bench warrants in " ~ county.name ~ " County, Montana" ~ (" — including " ~ county.seat ~ " and surrounding communities" if county.seat else " using county-level court and sheriff resources") ~ ".") }}
-        </p>
-        {% if county.warrant_search_targets %}
-        <div class="mt-5 flex flex-wrap gap-2">
-            {% for item in county.warrant_search_targets %}
-            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">{{ item }}</span>
-            {% endfor %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">{{ county.name }} County • Montana</p>
+                <h1 class="public-title public-title--medium">{{ county.name }} County Warrant Search</h1>
+                <p class="public-copy">
+                    {{ county.warrant_hero_summary or ("How to find active arrest warrants and bench warrants in " ~ county.name ~ " County, Montana" ~ (" — including " ~ county.seat ~ " and surrounding communities" if county.seat else " using county-level court and sheriff resources") ~ ".") }}
+                </p>
+                {% if county.warrant_search_targets %}
+                <div class="public-eyebrow-row" style="margin-top:1rem; margin-bottom:0;">
+                    {% for item in county.warrant_search_targets %}
+                    <span class="public-pill">{{ item }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">County Snapshot</p>
+                    <div class="public-stat-grid">
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Warrant List</p>
+                            <p class="public-stat-value">{% if county.warrant_url %}Online{% else %}Guide{% endif %}</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Sheriff</p>
+                            <p class="public-stat-value">{{ county.phone or 'Call county' }}</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Seat</p>
+                            <p class="public-stat-value">{{ county.seat or 'Countywide' }}</p>
+                        </div>
+                    </div>
+                    <p class="public-card__text">
+                        Use this county page when you need local warrant instructions, sheriff contact details, and related jail or blotter follow-up paths.
+                    </p>
+                </div>
+            </aside>
         </div>
-        {% endif %}
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 flex flex-col lg:flex-row gap-8 items-start">
+<div class="public-route-layout public-route-layout--wide">
 
-    <div class="flex-1 space-y-8">
+    <div class="public-main-stack">
         {% if county.warrant_source_note %}
-        <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <section class="public-card p-6">
             <h2 class="text-xl font-black text-slate-900 mb-3">{{ county.warrant_source_note_title or (county.name ~ " County warrant context") }}</h2>
             <p class="text-sm leading-relaxed text-slate-600">{{ county.warrant_source_note }}</p>
         </section>
         {% endif %}
         {% if county.warrant_url %}
-        <div class="bg-red-50 border border-red-200 rounded-2xl p-6">
-            <div class="flex items-start gap-4">
-                <div class="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
-                    <i class="fas fa-list-check"></i>
+        <div class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Online Resource</span>
+                    <span class="public-pill">{{ county.name }} County</span>
                 </div>
-                <div>
-                    <h2 class="text-lg font-black text-red-900 mb-1">{{ county.name }} County Warrant List — Online</h2>
-                    <p class="text-red-800 text-sm mb-4">
-                        {{ county.name }} County publishes its active warrant list online. This list is updated regularly by the court and includes arrest warrants and bench warrants currently outstanding in the county.
-                    </p>
-                    <a href="{{ county.warrant_url }}" target="_blank" rel="noopener"
-                       class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-black px-5 py-2.5 rounded-xl text-sm uppercase tracking-wide transition">
-                        <i class="fas fa-external-link-alt"></i> View {{ county.name }} County Warrants
-                    </a>
+                <h2 class="public-panel-title">{{ county.name }} County Warrant List</h2>
+                <p class="public-detail-subtitle">
+                    {{ county.name }} County publishes its active warrant list online. This is often the fastest county-specific option for arrest warrants and bench warrants currently outstanding in the county.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-form-actions">
+                    <a href="{{ county.warrant_url }}" target="_blank" rel="noopener" class="public-btn public-btn--primary">View {{ county.name }} County Warrants</a>
                 </div>
             </div>
         </div>
         {% else %}
-        <div class="bg-slate-100 border border-slate-200 rounded-2xl p-6">
+        <div class="public-card p-6">
             <div class="flex items-start gap-4">
                 <div class="w-10 h-10 bg-slate-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
                     <i class="fas fa-phone"></i>
@@ -154,12 +177,13 @@
         </div>
         {% endif %}
 
-        <section>
+        <section class="public-form-card">
+            <div class="public-form-card__body">
             <h2 class="text-xl font-black text-slate-900 mb-4">Step-by-Step: Finding Warrants in {{ county.name }} County</h2>
             <div class="space-y-4">
 
                 {% if county.warrant_url %}
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
+                <div class="public-card p-5 flex gap-4">
                     <div class="flex-shrink-0 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center font-black text-sm">1</div>
                     <div>
                         <h3 class="font-black text-slate-900 mb-1">Check the {{ county.name }} County Warrant List</h3>
@@ -170,7 +194,7 @@
                 </div>
                 {% endif %}
 
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
+                <div class="public-card p-5 flex gap-4">
                     <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '2' if county.warrant_url else '1' }}</div>
                     <div>
                         <h3 class="font-black text-slate-900 mb-1">Search the Montana Judicial Branch Portal</h3>
@@ -181,7 +205,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
+                <div class="public-card p-5 flex gap-4">
                     <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '3' if county.warrant_url else '2' }}</div>
                     <div>
                         <h3 class="font-black text-slate-900 mb-1">Call the {{ county.name }} County Sheriff's Office</h3>
@@ -191,7 +215,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex gap-4">
+                <div class="public-card p-5 flex gap-4">
                     <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-sm">{{ '4' if county.warrant_url else '3' }}</div>
                     <div>
                         <h3 class="font-black text-slate-900 mb-1">DOJ Criminal History Search (Statewide)</h3>
@@ -202,9 +226,10 @@
                 </div>
 
             </div>
+            </div>
         </section>
 
-        <section class="bg-amber-50 border border-amber-200 rounded-xl p-6">
+        <section class="public-note public-note--warning">
             <h2 class="text-xl font-black text-amber-900 mb-3">
                 <i class="fas fa-triangle-exclamation mr-2 text-amber-500"></i>If You Have a Warrant
             </h2>
@@ -232,7 +257,7 @@
                      "Arrest warrants and bench warrants are generally public records under Montana law. Search warrants may be sealed by the court during an active investigation but are typically made public once the related case is filed."),
                 ] %}
                 {% for q, a in faqs %}
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                <div class="public-card p-5">
                     <h3 class="font-black text-slate-900 mb-2 flex items-start gap-2">
                         <i class="fas fa-circle-question text-blue-400 mt-0.5 flex-shrink-0"></i>{{ q }}
                     </h3>
@@ -244,9 +269,9 @@
 
     </div>
 
-    <aside class="w-full lg:w-64 flex-shrink-0 space-y-4 lg:sticky top-24">
+    <aside class="public-sidebar-stack">
 
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div class="public-card p-5">
             <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Warrant Resources</h3>
             <div class="space-y-2">
                 {% if county.warrant_url %}
@@ -278,7 +303,7 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div class="public-card p-5">
             <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Sheriff's Office</h3>
             <p class="text-sm font-bold text-slate-800 mb-1">{{ county.name }} County Sheriff</p>
             <a href="tel:{{ county.phone }}" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
@@ -286,7 +311,7 @@
             </a>
         </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-2">
+        <div class="public-card p-5 space-y-2">
             <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Related Pages</h3>
             <a href="/county/{{ county.slug }}" class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold">
                 <i class="fas fa-map w-4 text-center text-slate-400"></i>{{ county.name }} County Blotter
@@ -302,7 +327,7 @@
             </a>
         </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div class="public-card p-5">
             <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Other Counties</h3>
             <div class="space-y-1">
                 {% for other in all_counties %}

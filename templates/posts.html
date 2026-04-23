@@ -10,7 +10,7 @@
     <div class="flex gap-6">
         <!-- Sidebar filters -->
         <aside class="w-56 flex-shrink-0">
-            <form method="GET" action="/posts" class="space-y-4">
+            <form method="GET" action="/" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Search</label>
                     <input type="text" name="q" value="{{ q }}"
@@ -54,7 +54,7 @@
                 </button>
 
                 {% if county or city or agency_type or q %}
-                <a href="/posts" class="block text-center text-sm text-gray-500 hover:text-gray-700">Clear filters</a>
+                <a href="/" class="block text-center text-sm text-gray-500 hover:text-gray-700">Clear filters</a>
                 {% endif %}
             </form>
         </aside>
@@ -122,13 +122,13 @@
 
                     <div class="mt-4 flex flex-wrap gap-2">
                         {% if post.county %}
-                        <a href="/posts?county={{ post.county | urlencode }}"
+                        <a href="/?county={{ post.county | urlencode }}"
                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition">
                             <i class="fas fa-map text-[11px]"></i>{{ post.county }} County
                         </a>
                         {% endif %}
                         {% if post.city %}
-                        <a href="/posts?city={{ post.city | urlencode }}"
+                        <a href="/?city={{ post.city | urlencode }}"
                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition">
                             <i class="fas fa-city text-[11px]"></i>{{ post.city }}
                         </a>
