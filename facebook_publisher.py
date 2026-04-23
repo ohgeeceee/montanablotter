@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import logging
 import os
 import re
@@ -131,9 +133,10 @@ def save_facebook_settings(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _fetch_post(conn: sqlite3.Connection, post_id: int) -> Optional[sqlite3.Row]:
     return conn.execute(
         """
-        SELECT id, title, summary, county, city, agency_name, agency_type, incident_date
+        SELECT id, title, summary, county, city, agency_name, agency_type, incident_date, audit_status
         FROM posts
         WHERE id = ?
+          AND COALESCE(audit_status, 'pending') = 'clean'
         """,
         (post_id,),
     ).fetchone()
@@ -276,6 +279,7 @@ def queue_recent_posts(
             """
             SELECT id
             FROM posts
+            WHERE COALESCE(audit_status, 'pending') = 'clean'
             ORDER BY incident_date DESC, created_at DESC
             LIMIT ?
             """,
@@ -344,6 +348,7 @@ def publish_queue_item(queue_id: int) -> Dict[str, Any]:
             SELECT q.*, p.id AS post_id_ref, p.title, p.summary, p.county, p.city, p.agency_name, p.agency_type, p.incident_date
             FROM facebook_post_queue q
             JOIN posts p ON p.id = q.post_id
+                       AND COALESCE(p.audit_status, 'pending') = 'clean'
             WHERE q.id = ?
             """,
             (queue_id,),

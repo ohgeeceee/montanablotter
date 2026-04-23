@@ -1,0 +1,391 @@
+{% extends "public_page_base.html" %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex,nofollow">
+<style>
+    :root {
+        --bond-ink: #18130f;
+        --bond-paper: #f6efe4;
+        --bond-line: rgba(76, 54, 31, 0.16);
+        --bond-bronze: #b66a18;
+        --bond-rust: #8e3818;
+        --bond-gold: #f1bf74;
+        --bond-sand: #ead9c3;
+    }
+    .bond-shell {
+        background:
+            radial-gradient(circle at top left, rgba(241, 191, 116, 0.28), transparent 34%),
+            radial-gradient(circle at top right, rgba(182, 106, 24, 0.16), transparent 28%),
+            linear-gradient(180deg, #fcf7ef 0%, #f4eadb 100%);
+    }
+    .bond-panel {
+        background: rgba(255, 252, 247, 0.84);
+        border: 1px solid var(--bond-line);
+        box-shadow: 0 24px 70px rgba(44, 27, 13, 0.08);
+        backdrop-filter: blur(10px);
+    }
+    .bond-hero {
+        background:
+            linear-gradient(135deg, rgba(24, 19, 15, 0.98), rgba(72, 38, 16, 0.94)),
+            linear-gradient(45deg, rgba(241, 191, 116, 0.1), transparent);
+    }
+    .bond-pill {
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.06);
+    }
+    .bond-grid-card {
+        background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(251,246,239,0.88));
+        border: 1px solid rgba(76, 54, 31, 0.1);
+    }
+    .bond-kicker {
+        font-family: 'IBM Plex Mono', monospace;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/bail-bonds" class="hover:text-slate-700">Advertise</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Control Panel</span>
+{% endblock %}
+
+{% block content %}
+<div class="bond-shell">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+        <section class="bond-hero rounded-[2rem] text-white overflow-hidden">
+            <div class="px-6 sm:px-8 py-8 sm:py-10 grid lg:grid-cols-[1.4fr_0.9fr] gap-6 items-start">
+                <div>
+                    <p class="bond-kicker text-[11px] text-amber-200">Private Advertiser Console</p>
+                    <h1 class="mt-3 text-3xl sm:text-5xl font-black leading-tight">{{ order.business_name }}</h1>
+                    <p class="mt-3 text-base sm:text-lg text-amber-50/90 max-w-2xl">
+                        Monitor launch status, county heat, creative readiness, and bond-booking signals from one post-payment command center.
+                    </p>
+                    <div class="mt-5 flex flex-wrap gap-2 text-xs font-black uppercase tracking-[0.12em]">
+                        <span class="bond-pill rounded-full px-3 py-2">{{ order.package_name }}</span>
+                        <span class="bond-pill rounded-full px-3 py-2">{{ order.status_label }}</span>
+                        <span class="bond-pill rounded-full px-3 py-2">{{ order.billing_label }}</span>
+                        {% if order.county_list %}
+                        <span class="bond-pill rounded-full px-3 py-2">{{ order.county_count }} County{% if order.county_count != 1 %}s{% endif %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="bond-panel rounded-[1.6rem] p-5 text-slate-900">
+                    <p class="bond-kicker text-[11px] text-amber-700">Account Snapshot</p>
+                    <div class="mt-4 space-y-3 text-sm">
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Amount</span>
+                            <span class="font-black">{{ order.amount_display }} {{ order.currency_display }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Paid</span>
+                            <span class="font-semibold text-right">{{ order.paid_label }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Next Renewal</span>
+                            <span class="font-semibold text-right">{{ order.next_renewal }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Booking Signal</span>
+                            <span class="font-black text-amber-700">{{ booking_signal_score }}/100 · {{ signal_label }}</span>
+                        </div>
+                    </div>
+                    <div class="mt-5 flex flex-wrap gap-3">
+                        <a href="/advertise/bail-bonds/onboarding/{{ order.onboarding_token }}"
+                           class="inline-flex items-center justify-center rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">
+                            Edit Creative
+                        </a>
+                        <a href="{{ contract_info.url }}"
+                           {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %}
+                           class="inline-flex items-center justify-center rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">
+                            View Contract
+                        </a>
+                        {% if creative and creative.target_url %}
+                        <a href="{{ creative.target_url }}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="inline-flex items-center justify-center rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">
+                            Open Landing Page
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {% if welcome %}
+        <section class="bond-panel rounded-[1.6rem] p-5">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="bond-kicker text-[11px] text-emerald-700">Payment Confirmed</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">Your account is now in the bondsman control panel.</h2>
+                    <p class="mt-2 text-sm text-slate-600 max-w-3xl">
+                        This private link is the post-payment workspace for creative updates, rollout status, county-level performance, and renewal decisions.
+                    </p>
+                </div>
+                <div class="text-sm text-slate-600">
+                    <p><span class="font-semibold text-slate-900">Checkout ref:</span> <span class="font-mono text-xs">{{ session_id or order.provider_session_id or 'pending' }}</span></p>
+                    <p class="mt-1"><span class="font-semibold text-slate-900">Subscription ref:</span> <span class="font-mono text-xs">{{ order.provider_subscription_id or 'pending' }}</span></p>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="grid grid-cols-2 xl:grid-cols-5 gap-4">
+            <article class="bond-grid-card rounded-[1.5rem] p-5">
+                <p class="bond-kicker text-[10px] text-slate-500">Impressions 30d</p>
+                <p class="mt-3 text-3xl font-black text-slate-900">{{ performance_30d.impressions or 0 }}</p>
+                <p class="mt-2 text-xs text-slate-500">Average advertiser: {{ '%.1f'|format(benchmarks.avg_impressions or 0) }}</p>
+            </article>
+            <article class="bond-grid-card rounded-[1.5rem] p-5">
+                <p class="bond-kicker text-[10px] text-slate-500">Clicks 30d</p>
+                <p class="mt-3 text-3xl font-black text-slate-900">{{ performance_30d.clicks or 0 }}</p>
+                <p class="mt-2 text-xs text-slate-500">CTR {{ '%.1f'|format(performance_30d.ctr_pct or 0) }}%</p>
+            </article>
+            <article class="bond-grid-card rounded-[1.5rem] p-5">
+                <p class="bond-kicker text-[10px] text-slate-500">Calls + Texts</p>
+                <p class="mt-3 text-3xl font-black text-slate-900">{{ (attribution.calls or 0) + (attribution.texts or 0) }}</p>
+                <p class="mt-2 text-xs text-slate-500">Contact index {{ '%.0f'|format(benchmarks.contact_index_pct or 0) }}%</p>
+            </article>
+            <article class="bond-grid-card rounded-[1.5rem] p-5">
+                <p class="bond-kicker text-[10px] text-slate-500">Qualified Leads</p>
+                <p class="mt-3 text-3xl font-black text-slate-900">{{ attribution.qualified_leads or 0 }}</p>
+                <p class="mt-2 text-xs text-slate-500">Booked {{ attribution.booked_bonds or 0 }}</p>
+            </article>
+            <article class="bond-grid-card rounded-[1.5rem] p-5 col-span-2 xl:col-span-1">
+                <p class="bond-kicker text-[10px] text-slate-500">Renewal Timing</p>
+                <p class="mt-3 text-3xl font-black text-slate-900">
+                    {% if order.days_to_renewal is not none %}{{ order.days_to_renewal }}{% else %}-{% endif %}
+                </p>
+                <p class="mt-2 text-xs text-slate-500">days until next cycle</p>
+            </article>
+        </section>
+
+        <section class="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
+            <div class="bond-panel rounded-[1.6rem] p-6">
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                        <p class="bond-kicker text-[11px] text-amber-700">Launch Checklist</p>
+                        <h2 class="mt-2 text-2xl font-black text-slate-900">From payment to live traffic</h2>
+                    </div>
+                    <div class="text-right">
+                        {% set complete_count = launch_checklist | selectattr('complete') | list | length %}
+                        <p class="text-3xl font-black text-slate-900">{{ complete_count }}/{{ launch_checklist|length }}</p>
+                        <p class="text-xs text-slate-500 uppercase tracking-[0.12em] font-black">Milestones complete</p>
+                    </div>
+                </div>
+                <div class="mt-5 space-y-3">
+                    {% for item in launch_checklist %}
+                    <div class="rounded-2xl border px-4 py-4 {% if item.complete %}border-emerald-200 bg-emerald-50/80{% else %}border-slate-200 bg-white/80{% endif %}">
+                        <div class="flex items-start gap-3">
+                            <div class="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black {% if item.complete %}bg-emerald-600 text-white{% else %}bg-slate-200 text-slate-600{% endif %}">
+                                {% if item.complete %}<i class="fas fa-check"></i>{% else %}{{ loop.index }}{% endif %}
+                            </div>
+                            <div>
+                                <p class="text-sm font-black text-slate-900">{{ item.title }}</p>
+                                <p class="text-sm text-slate-600 mt-1">{{ item.detail }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <aside class="space-y-6">
+                <div class="bond-panel rounded-[1.6rem] p-6">
+                    <p class="bond-kicker text-[11px] text-rust-700" style="color: var(--bond-rust);">Next Moves</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">Priority actions</h2>
+                    <div class="mt-4 space-y-3">
+                        {% for action in priority_actions %}
+                        <div class="rounded-2xl border border-slate-200 bg-white/85 p-4">
+                            <p class="text-sm font-black text-slate-900">{{ action.title }}</p>
+                            <p class="text-sm text-slate-600 mt-1">{{ action.detail }}</p>
+                            <a href="{{ action.href }}"
+                               class="inline-flex items-center mt-3 text-xs font-black uppercase tracking-[0.12em] text-amber-700 hover:text-amber-800">
+                                {{ action.label }} <span class="ml-2">&rarr;</span>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="bond-panel rounded-[1.6rem] p-6">
+                    <p class="bond-kicker text-[11px] text-slate-500">Coverage</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">Target footprint</h2>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        {% for county in order.county_list %}
+                        <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-amber-800">{{ county }}</span>
+                        {% else %}
+                        <span class="text-sm text-slate-500">This package does not have county-specific targeting.</span>
+                        {% endfor %}
+                    </div>
+                    {% if order.add_on_labels %}
+                    <div class="mt-5">
+                        <p class="bond-kicker text-[11px] text-slate-500">Add-Ons</p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            {% for addon in order.add_on_labels %}
+                            <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black uppercase tracking-[0.12em] text-slate-700">{{ addon }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </aside>
+        </section>
+
+        <section class="bond-panel rounded-[1.6rem] p-6">
+            <div class="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                    <p class="bond-kicker text-[11px] text-amber-700">Signature Features</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">What makes this panel different</h2>
+                </div>
+                <p class="text-sm text-slate-500 max-w-2xl">
+                    These modules focus on county-level intent, booking readiness, and rollout friction, rather than generic ad vanity metrics.
+                </p>
+            </div>
+            <div class="mt-5 grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {% for feature in signature_features %}
+                <article class="rounded-[1.5rem] border border-slate-200 bg-white/85 p-5">
+                    <p class="bond-kicker text-[10px] text-slate-500">Feature {{ loop.index }}</p>
+                    <h3 class="mt-3 text-lg font-black text-slate-900">{{ feature.title }}</h3>
+                    <p class="mt-3 text-3xl font-black text-amber-700">{{ feature.value }}</p>
+                    <p class="mt-3 text-sm text-slate-600">{{ feature.body }}</p>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="grid lg:grid-cols-[1fr_0.9fr] gap-6">
+            <div class="bond-panel rounded-[1.6rem] p-6">
+                <div class="flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                        <p class="bond-kicker text-[11px] text-amber-700">County Radar</p>
+                        <h2 class="mt-2 text-2xl font-black text-slate-900">Hot zones in the last 30 days</h2>
+                    </div>
+                    <p class="text-sm text-slate-500">Clicks, calls, texts, and leads are split by county when available.</p>
+                </div>
+                <div class="mt-5 overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500 uppercase tracking-[0.12em] text-[11px]">
+                                <th class="py-3 pr-4">County</th>
+                                <th class="py-3 pr-4 text-right">Impr.</th>
+                                <th class="py-3 pr-4 text-right">Clicks</th>
+                                <th class="py-3 pr-4 text-right">Calls</th>
+                                <th class="py-3 pr-4 text-right">Texts</th>
+                                <th class="py-3 text-right">Leads</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for row in county_performance_30d %}
+                            <tr>
+                                <td class="py-3 pr-4 font-semibold text-slate-900">{{ row.county }}</td>
+                                <td class="py-3 pr-4 text-right text-slate-700">{{ row.impressions or 0 }}</td>
+                                <td class="py-3 pr-4 text-right text-slate-700">{{ row.clicks or 0 }}</td>
+                                <td class="py-3 pr-4 text-right text-slate-700">{{ row.calls or 0 }}</td>
+                                <td class="py-3 pr-4 text-right text-slate-700">{{ row.texts or 0 }}</td>
+                                <td class="py-3 text-right text-slate-900 font-black">{{ row.leads or 0 }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="py-8 text-center text-slate-500">No county-attributed traffic has been recorded yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <section class="bond-panel rounded-[1.6rem] p-6">
+                    <p class="bond-kicker text-[11px] text-amber-700">Creative Pulse</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">Submission and approval status</h2>
+                    {% if creative %}
+                    <div class="mt-4 space-y-3 text-sm">
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Headline</span>
+                            <span class="font-semibold text-slate-900 text-right">{{ creative.headline }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Status</span>
+                            <span class="font-black text-amber-700">{{ creative.status_label }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Updated</span>
+                            <span class="font-semibold text-right">{{ creative.updated_label }}</span>
+                        </div>
+                        {% if creative.review_notes %}
+                        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-slate-700">
+                            <p class="bond-kicker text-[10px] text-amber-700">Review Notes</p>
+                            <p class="mt-2">{{ creative.review_notes }}</p>
+                        </div>
+                        {% endif %}
+                        {% if creative.logo_path %}
+                        <img src="{{ creative.logo_path }}" alt="Advertiser creative asset" class="rounded-2xl border border-slate-200 bg-white max-h-52 object-contain w-full">
+                        {% endif %}
+                    </div>
+                    {% elif simulator_preview.logo_path %}
+                    <div class="mt-4 space-y-3 text-sm">
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Status</span>
+                            <span class="font-black text-slate-900 text-right">Simulator Preview Imported</span>
+                        </div>
+                        {% if simulator_preview.target_url %}
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Target URL</span>
+                            <span class="font-semibold text-right break-all">{{ simulator_preview.target_url }}</span>
+                        </div>
+                        {% endif %}
+                        <img src="{{ simulator_preview.logo_path }}" alt="Imported simulator asset" class="rounded-2xl border border-slate-200 bg-white max-h-52 object-contain w-full">
+                    </div>
+                    {% else %}
+                    <p class="mt-4 text-sm text-slate-600">No creative package has been uploaded yet.</p>
+                    {% endif %}
+                </section>
+
+                <section class="bond-panel rounded-[1.6rem] p-6">
+                    <p class="bond-kicker text-[11px] text-amber-700">Account Intel</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">Billing and reach</h2>
+                    <div class="mt-4 space-y-3 text-sm">
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Contact</span>
+                            <span class="font-semibold text-right">{{ order.contact_name or order.business_name }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Email</span>
+                            <span class="font-semibold text-right">{{ order.email }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Phone</span>
+                            <span class="font-semibold text-right">{{ order.phone or 'Not provided' }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Package badge</span>
+                            <span class="font-semibold text-right">{{ order.package_badge }}</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span class="text-slate-500">Created</span>
+                            <span class="font-semibold text-right">{{ order.created_label }}</span>
+                        </div>
+                    </div>
+                    {% if order.package_features %}
+                    <div class="mt-5">
+                        <p class="bond-kicker text-[10px] text-slate-500">Included in this package</p>
+                        <ul class="mt-3 space-y-2 text-sm text-slate-600">
+                            {% for item in order.package_features %}
+                            <li class="flex items-start gap-2">
+                                <span class="mt-1 text-amber-700"><i class="fas fa-circle text-[7px]"></i></span>
+                                <span>{{ item }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </section>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

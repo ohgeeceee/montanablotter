@@ -68,6 +68,7 @@ def _log_admin_action(action: str, target_type: str = '', target_id=None, metada
 def register_admin_blueprint(app):
     """Register the admin blueprint and all sub-modules onto the Flask app."""
     # Side-effect imports: each module decorates routes onto admin_bp at import time.
+    from blueprints.admin import agents     # noqa: F401
     from blueprints.admin import audience   # noqa: F401
     from blueprints.admin import bail_ads   # noqa: F401
     from blueprints.admin import blog       # noqa: F401

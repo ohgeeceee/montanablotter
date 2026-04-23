@@ -19,49 +19,62 @@
 </script>
 {% endblock %}
 
+{% block body_class %}cities-page{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Cities</span>
+<span>Cities</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-10 px-4 sm:px-6">
-    <div class="max-w-7xl mx-auto">
-        <span class="inline-block bg-blue-500/20 text-blue-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-3">
-            Montana Directory
-        </span>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">City Police Blotter Pages</h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            City-focused public safety landing pages with recent activity reports, source-linked incidents, and county-level jail and court resources.
-        </p>
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <span class="public-eyebrow">Montana Directory</span>
+                <h1 class="public-title public-title--medium">City Police Blotter Pages</h1>
+                <p class="public-copy">
+                    City-focused public safety landing pages with recent activity reports, source-linked incidents, and county-level jail and court resources.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Use Case</p>
+                    <h2 class="public-card__title">Start here when the search is city-specific, then widen into county records only when needed.</h2>
+                    <p class="public-card__text">
+                        These city hubs are built for narrower Montana search intent and hand readers off cleanly to county archives, arrest pages, and detention resources.
+                    </p>
+                </div>
+            </aside>
+        </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+<div class="public-section">
     {% if featured_new_cities %}
     <section id="new-city-pages" class="mb-8">
-        <div class="rounded-3xl bg-slate-900 text-white px-6 py-7 border border-slate-800 shadow-sm">
+        <div class="public-card px-6 py-7">
             <div class="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                    <p class="text-[11px] uppercase tracking-[0.22em] font-black text-blue-300">New City Pages</p>
+                    <p class="public-card__eyebrow" style="color: var(--public-steel);">New City Pages</p>
                     <h2 class="mt-3 text-3xl font-black tracking-tight">Fresh internal links into the newest Montana city launches.</h2>
                     <p class="mt-3 text-sm text-slate-300 max-w-3xl leading-6">
                         These newer city landing pages target local-intent searches that are often too narrow for county archives alone. Use them to jump directly into city reports, county records, and arrest coverage.
                     </p>
                 </div>
-                <a href="/counties" class="inline-flex items-center gap-2 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 px-4 py-3 text-sm font-black transition">
+                <a href="/counties" class="public-btn public-btn--primary">
                     Pair with county pages <i class="fas fa-arrow-right text-xs"></i>
                 </a>
             </div>
 
             <div class="grid lg:grid-cols-2 gap-4 mt-6">
                 {% for city in featured_new_cities %}
-                <article class="rounded-2xl border border-slate-700 bg-slate-950/40 px-5 py-5">
+                <article class="public-card public-card--lift px-5 py-5">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <p class="text-[10px] uppercase tracking-[0.2em] font-black text-slate-400">{{ city.county }} County</p>
+                            <p class="public-card__eyebrow">{{ city.county }} County</p>
                             <h3 class="mt-2 text-2xl font-black">
                                 <a href="/city/{{ city.slug }}" class="hover:text-blue-300 transition">{{ city.name }}</a>
                             </h3>
@@ -76,13 +89,13 @@
                     <p class="mt-4 text-sm text-slate-300 leading-6">{{ city.description }}</p>
 
                     <div class="grid sm:grid-cols-3 gap-3 mt-5 text-sm font-bold">
-                        <a href="/city/{{ city.slug }}" class="flex items-center justify-between rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 px-4 py-3 transition">
+                        <a href="/city/{{ city.slug }}" class="public-btn public-btn--primary">
                             Open page <i class="fas fa-arrow-right text-xs"></i>
                         </a>
-                        <a href="/posts?city={{ city.name | urlencode }}" class="flex items-center justify-between rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-200 px-4 py-3 transition">
+                        <a href="/?city={{ city.name | urlencode }}" class="public-btn public-btn--secondary">
                             City reports <i class="fas fa-newspaper text-xs text-blue-300"></i>
                         </a>
-                        <a href="/county/{{ city.county_slug }}" class="flex items-center justify-between rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-200 px-4 py-3 transition">
+                        <a href="/county/{{ city.county_slug }}" class="public-btn public-btn--secondary">
                             County page <i class="fas fa-map text-xs text-blue-300"></i>
                         </a>
                     </div>
@@ -93,12 +106,12 @@
     </section>
     {% endif %}
 
-    <div class="grid lg:grid-cols-2 gap-5">
+    <div class="public-card-grid public-card-grid--2">
         {% for city in cities %}
-        <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <article class="public-card public-card--lift p-6">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">{{ city.county }} County</p>
+                    <p class="public-card__eyebrow">{{ city.county }} County</p>
                     <h2 class="mt-2 text-2xl font-black text-slate-900">
                         <a href="/city/{{ city.slug }}" class="hover:text-blue-700 transition">{{ city.name }}</a>
                     </h2>
@@ -110,34 +123,34 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-3 mt-5">
-                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3">
-                    <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-400">Incidents</p>
-                    <p class="mt-1 text-sm font-black text-slate-900">{{ city.record_count }}</p>
+            <div class="public-stat-grid mt-5">
+                <div class="public-stat-box">
+                    <p class="public-stat-label">Incidents</p>
+                    <p class="public-stat-value">{{ city.record_count }}</p>
                 </div>
-                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3">
-                    <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-400">County</p>
-                    <p class="mt-1 text-sm font-black text-slate-900">{{ city.county }}</p>
+                <div class="public-stat-box">
+                    <p class="public-stat-label">County</p>
+                    <p class="public-stat-value">{{ city.county }}</p>
                 </div>
-                <div class="rounded-xl bg-slate-50 border border-slate-200 px-3 py-3">
-                    <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-400">Last report</p>
-                    <p class="mt-1 text-sm font-black text-slate-900">{{ city.last_report or 'None yet' }}</p>
+                <div class="public-stat-box">
+                    <p class="public-stat-label">Last Report</p>
+                    <p class="public-stat-value">{{ city.last_report or 'None yet' }}</p>
                 </div>
             </div>
 
             <p class="mt-5 text-sm leading-6 text-slate-600">{{ city.description }}</p>
 
-            <div class="mt-5 grid sm:grid-cols-2 gap-3 text-sm font-bold">
-                <a href="/city/{{ city.slug }}" class="flex items-center justify-between rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 transition">
+            <div class="public-action-grid mt-5 text-sm font-bold">
+                <a href="/city/{{ city.slug }}" class="public-btn public-btn--primary">
                     Open city page <i class="fas fa-arrow-right text-xs"></i>
                 </a>
-                <a href="/county/{{ city.county_slug }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 px-4 py-3 transition">
+                <a href="/county/{{ city.county_slug }}" class="public-btn public-btn--secondary">
                     {{ city.county }} County page <i class="fas fa-map text-xs text-blue-500"></i>
                 </a>
-                <a href="/posts?city={{ city.name | urlencode }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 px-4 py-3 transition">
+                <a href="/?city={{ city.name | urlencode }}" class="public-btn public-btn--secondary">
                     All {{ city.name }} reports <i class="fas fa-newspaper text-xs text-blue-500"></i>
                 </a>
-                <a href="/arrests?county={{ city.county | urlencode }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 px-4 py-3 transition">
+                <a href="/arrests?county={{ city.county | urlencode }}" class="public-btn public-btn--secondary">
                     {{ city.county }} arrests <i class="fas fa-handcuffs text-xs text-blue-500"></i>
                 </a>
             </div>

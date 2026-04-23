@@ -1,50 +1,58 @@
 {% extends "public_page_base.html" %}
 
+{% set page_title = "Create Account" %}
+{% set meta_description = "Create a Montana Blotter public account for comments, alerts, and digest preferences." %}
+{% set canonical_url = "https://montanablotter.com/register" %}
+
+{% block body_class %}register-page{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Create Account</span>
+<span>Create Account</span>
 {% endblock %}
 
 {% block content %}
-<main class="max-w-5xl mx-auto px-4 sm:px-6 py-8 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_340px]">
-    <section class="rounded-[28px] border overflow-hidden" style="background:#F7F3EB; border-color:#E7DECF; color:#1E1B18;">
-        <div class="px-6 sm:px-8 py-7" style="background:#141210; color:#F0E8D8;">
-            <p class="text-[10px] uppercase tracking-[0.22em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Public Account</p>
-            <h1 class="mt-2 text-3xl sm:text-4xl font-black leading-tight" style="font-family:'Playfair Display',Georgia,serif;">Create one account for comments and alerts</h1>
-            <p class="mt-3 text-sm leading-6" style="color:#C9B99F;">This first version gives readers a single login for commenting and optional daily digest subscriptions. Comments are moderated before they appear publicly.</p>
+<main class="public-route-layout public-route-layout--wide">
+    <section class="public-main-stack">
+    <section class="public-detail-frame">
+        <div class="public-detail-frame__header">
+            <p class="public-card__eyebrow" style="color: var(--public-amber);">Public Account</p>
+            <h1 class="public-detail-title mt-2">Create one account for comments and alerts</h1>
+            <p class="public-detail-subtitle mt-3">This first version gives readers a single login for commenting and optional daily digest subscriptions. Comments are moderated before they appear publicly.</p>
         </div>
 
-        <form method="post" action="/register" class="p-6 sm:p-8 space-y-6">
+        <form method="post" action="/register" id="register-form" class="public-detail-frame__body space-y-6">
             <input type="hidden" name="next" value="{{ next_url }}">
+            <input type="hidden" name="g-recaptcha-response" id="recaptcha-token">
 
             <div class="grid gap-5 sm:grid-cols-2">
                 <div class="sm:col-span-2">
-                    <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Display name</label>
+                    <label class="public-form-label">Display name</label>
                     <input type="text" name="display_name" value="{{ form_values.display_name }}" required maxlength="120"
-                           class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                           class="public-form-input"
                            placeholder="How your comments should appear">
                 </div>
                 <div class="sm:col-span-2">
-                    <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Email</label>
+                    <label class="public-form-label">Email</label>
                     <input type="email" name="email" value="{{ form_values.email }}" required maxlength="255"
-                           class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                           class="public-form-input"
                            placeholder="name@example.com">
                 </div>
                 <div>
-                    <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Password</label>
+                    <label class="public-form-label">Password</label>
                     <input type="password" name="password" required minlength="8"
-                           class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                           class="public-form-input"
                            placeholder="At least 8 characters">
                 </div>
                 <div>
-                    <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Confirm password</label>
+                    <label class="public-form-label">Confirm password</label>
                     <input type="password" name="confirm_password" required minlength="8"
-                           class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                           class="public-form-input"
                            placeholder="Repeat password">
                 </div>
             </div>
 
-            <section class="rounded-2xl border border-slate-200 bg-white p-5">
+            <section class="public-card p-5">
                 <label class="flex items-start gap-3">
                     <input type="checkbox" name="subscribe_digest" value="1" {% if form_values.subscribe_digest %}checked{% endif %}
                            class="mt-1 h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500">
@@ -66,32 +74,50 @@
                 </div>
             </section>
 
-            <button type="submit" class="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.16em]" style="background:#D4892A; color:#0D0C0B;">
+            <button type="submit" class="public-btn public-btn--primary inline-flex">
                 Create Account
             </button>
         </form>
     </section>
+    </section>
 
-    <aside class="space-y-5">
-        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
-            <h2 class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">What this enables</h2>
-            <div class="mt-4 space-y-3 text-sm" style="color:#E6DCCB;">
-                <div class="rounded-xl p-4" style="background:#1A1815;">
+    <aside class="public-sidebar-stack">
+        <section class="public-card p-5">
+            <h2 class="public-card__eyebrow">What this enables</h2>
+            <div class="mt-4 space-y-3 text-sm text-slate-600">
+                <div class="public-meta-box p-4">
                     Comment on records, case journeys, blog posts, and daily reports.
                 </div>
-                <div class="rounded-xl p-4" style="background:#1A1815;">
+                <div class="public-meta-box p-4">
                     Save a single email for digest signup instead of filling the form repeatedly.
                 </div>
-                <div class="rounded-xl p-4" style="background:#1A1815;">
+                <div class="public-meta-box p-4">
                     Keep moderation in place so public threads stay readable.
                 </div>
             </div>
         </section>
 
-        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
-            <p class="text-[10px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Already registered?</p>
-            <a href="/login?next={{ next_url | urlencode }}" class="mt-3 inline-flex items-center rounded-xl border px-4 py-3 text-sm font-bold" style="border-color:#35302A; color:#F0E8D8; text-decoration:none;">Log in instead</a>
+        <section class="public-card p-5">
+            <p class="public-card__eyebrow" style="color: var(--public-amber);">Already registered?</p>
+            <a href="/login?next={{ next_url | urlencode }}" class="public-btn public-btn--secondary mt-3 inline-flex">Log in instead</a>
         </section>
     </aside>
 </main>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if recaptcha_site_key %}
+<script>
+document.getElementById('register-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = this;
+    grecaptcha.ready(function() {
+        grecaptcha.execute('{{ recaptcha_site_key }}', {action: 'register'}).then(function(token) {
+            document.getElementById('recaptcha-token').value = token;
+            form.submit();
+        });
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

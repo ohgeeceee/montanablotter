@@ -1,0 +1,219 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Support & Partnerships" %}
+{% set meta_description = "Support Montana Blotter reader access, donations, bail agency partnerships, and recovery directory placements from one public support hub." %}
+{% set canonical_url = "https://montanablotter.com/support" %}
+{% set og_title = "Support & Partnerships | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}support-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Support &amp; Partnerships</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Support &amp; Partnerships</p>
+                <h1 class="public-title public-title--medium">Keep the public record open. Fund the coverage or reach the audience.</h1>
+                <p class="public-copy">
+                    Montana Blotter already has reader support, email capture, bail lead generation, and recovery directory programs.
+                    This page packages them into one clear place so readers and partners can act without hunting through the site.
+                </p>
+                <div class="public-form-actions" style="margin-top:1.35rem;">
+                    <a href="/subscribe?source=support_hub_reader" class="public-btn public-btn--primary">Open Free Signup</a>
+                    <a href="/donate?source=support_hub_reader" class="public-btn public-btn--secondary">Donate Now</a>
+                </div>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Current Readiness</p>
+                    <div class="public-stat-grid">
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Donations</p>
+                            <p class="public-stat-value">{% if donation_ready %}Live{% elif donations_enabled %}Pending{% else %}Paused{% endif %}</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Bail Packages</p>
+                            <p class="public-stat-value">{{ bail_package_count }}</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Support</p>
+                            <p class="public-stat-value">Direct</p>
+                        </div>
+                    </div>
+                    <p class="public-card__text">
+                        The immediate job is routing urgency into the right conversion path: free signup for readers, checkout for donors, and self-serve or assisted sales for partners.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout public-route-layout--wide">
+    <main class="public-main-stack">
+        <section class="public-card-grid public-card-grid--3">
+            <article class="public-card public-card--lift">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Readers</p>
+                    <h2 class="public-card__title">Support the reporting</h2>
+                    <p class="public-card__text">
+                        Convert readers into email subscribers first, then offer one-time or recurring support to keep statewide public-record coverage free.
+                    </p>
+                    <ul class="public-policy-list">
+                        <li>Free daily briefing builds a reusable audience.</li>
+                        <li>Donations work as a trust signal and reader revenue layer.</li>
+                        <li>{% if donation_ready %}Stripe checkout is live for donations.{% elif donations_enabled %}Donations are enabled, but secure checkout still needs Stripe configuration.{% else %}Donations are currently disabled, so email capture should stay primary until checkout is re-enabled.{% endif %}</li>
+                    </ul>
+                    <div class="public-form-actions" style="margin-top:1rem;">
+                        <a href="/subscribe?source=support_hub_reader" class="public-btn public-btn--primary">Open Free Signup</a>
+                        <a href="/donate?source=support_hub_reader" class="public-btn public-btn--secondary">Donate Now</a>
+                    </div>
+                </div>
+            </article>
+
+            <article class="public-card public-card--lift">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Bail Agencies</p>
+                    <h2 class="public-card__title">Sell into high-intent traffic</h2>
+                    <p class="public-card__text">
+                        Montana Blotter already has county bail directories, alert pages, and premium ad inventory aimed at urgent family and defendant searches.
+                    </p>
+                    <ul class="public-policy-list">
+                        <li>{{ bail_package_count }} public bail ad packages are already merchandised.</li>
+                        <li>Felony alerts and command-center workflows create a premium B2B upsell path.</li>
+                        <li>{% if bail_checkout_ready %}Secure checkout is ready for bail ad orders.{% else %}Lead capture still works, but Stripe checkout needs configuration before self-serve launch.{% endif %}</li>
+                    </ul>
+                    <div class="public-form-actions" style="margin-top:1rem;">
+                        <a href="/advertise/bail-bonds?source=support_hub_bail" class="public-btn public-btn--primary">Open Bail Ad Program</a>
+                        <a href="/alerts?source=support_hub_bail" class="public-btn public-btn--secondary">View Alerts Product</a>
+                    </div>
+                </div>
+            </article>
+
+            <article class="public-card public-card--lift">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Recovery Centers</p>
+                    <h2 class="public-card__title">List treatment options where families are already looking</h2>
+                    <p class="public-card__text">
+                        The recovery directory is a natural adjacent revenue stream for people moving from arrest or jail searches into treatment and next-step planning.
+                    </p>
+                    <ul class="public-policy-list">
+                        <li>Directory inventory is already packaged into paid placements.</li>
+                        <li>Audience intent is strong for families searching after a booking event.</li>
+                        <li>This is a clean secondary revenue line after bail monetization.</li>
+                    </ul>
+                    <div class="public-form-actions" style="margin-top:1rem;">
+                        <a href="/advertise/recovery?source=support_hub_recovery" class="public-btn public-btn--primary">Advertise Recovery Center</a>
+                        <a href="/recovery-centers" class="public-btn public-btn--secondary">View Directory</a>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="public-form-card">
+            <div class="public-form-card__body">
+                <p class="public-card__eyebrow">Recommended Revenue Order</p>
+                <h2 class="public-panel-title" style="margin-top:0.75rem;">Start with the money already closest to conversion.</h2>
+                <p class="public-panel-copy">
+                    The fastest path is not inventing a new product. It is routing traffic into the existing monetization surfaces in the right order.
+                </p>
+                <div class="public-number-list" style="margin-top:1.25rem;">
+                    <div class="public-number-item">
+                        <span class="public-number-badge">1</span>
+                        <div>
+                            <strong style="color:var(--public-text);">Bail Agencies</strong><br>
+                            Families and defendants searching right after an arrest are the highest-intent traffic on the site. This should stay the primary direct revenue focus.
+                        </div>
+                    </div>
+                    <div class="public-number-item">
+                        <span class="public-number-badge">2</span>
+                        <div>
+                            <strong style="color:var(--public-text);">Reader Support</strong><br>
+                            Free email capture compounds over time. Reader donations work best after the site explains value and earns repeated attention.
+                        </div>
+                    </div>
+                    <div class="public-number-item">
+                        <span class="public-number-badge">3</span>
+                        <div>
+                            <strong style="color:var(--public-text);">Recovery Listings</strong><br>
+                            Recovery placements fit the audience and keep revenue diversified without diluting the core public-record utility of the product.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Custom Partnerships</span>
+                    <span class="public-pill">Direct Response</span>
+                </div>
+                <h2 class="public-panel-title">Need a sponsorship package, county bundle, or custom placement?</h2>
+                <p class="public-detail-subtitle">
+                    Reach out directly for custom inventory, bundled campaigns, or a white-glove onboarding path while self-serve checkout matures.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-form-actions">
+                    <a href="mailto:{{ support_email }}?subject=Montana%20Blotter%20Partnership%20Inquiry" class="public-btn public-btn--primary">{{ support_email }}</a>
+                    <a href="/advertise/bail-bonds?source=support_hub_custom" class="public-btn public-btn--secondary">Start With Bail Inventory</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Operational Signals</p>
+                <div class="public-status-list" style="margin-top:1rem;">
+                    <div class="public-status-row">
+                        <span class="public-status-row__label">Donation Checkout</span>
+                        <span class="public-status-row__value">{% if donation_ready %}Live{% elif donations_enabled %}Configured, awaiting Stripe{% else %}Disabled{% endif %}</span>
+                    </div>
+                    <div class="public-status-row">
+                        <span class="public-status-row__label">Bail Self-Serve</span>
+                        <span class="public-status-row__value">{% if bail_checkout_ready %}Checkout ready{% else %}Lead capture only{% endif %}</span>
+                    </div>
+                    <div class="public-status-row">
+                        <span class="public-status-row__label">Recovery Path</span>
+                        <span class="public-status-row__value">Directory inventory live</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Quick Paths</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="/subscribe?source=support_hub_sidebar" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Audience</div>
+                        <div class="public-rail-link__title">Reader signup funnel</div>
+                        <div class="public-rail-link__copy">Open the free subscription flow and grow repeat demand first.</div>
+                    </a>
+                    <a href="/donate?source=support_hub_sidebar" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Revenue</div>
+                        <div class="public-rail-link__title">Donation checkout</div>
+                        <div class="public-rail-link__copy">Offer one-time or recurring support as a trust and funding layer.</div>
+                    </a>
+                    <a href="/advertise/bail-bonds?source=support_hub_sidebar" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">B2B</div>
+                        <div class="public-rail-link__title">Bail agency inventory</div>
+                        <div class="public-rail-link__copy">Sell into urgent county traffic with clear lead capture and premium upsells.</div>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}

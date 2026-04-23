@@ -91,16 +91,16 @@
             <nav class="hidden md:flex items-center gap-0.5">
                 {% for item in public_primary_nav_items %}
                 {% set is_active = request.path == item.href or request.path.startswith(item.href ~ '/') %}
-                <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}">{{ item.label }}</a>
+                <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_primary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
                 {% if not loop.last %}<span class="pnav-link" style="padding-left:2px;padding-right:2px;background:none;color:#5F564C;">//</span>{% endif %}
                 {% endfor %}
-                <a href="/subscribe" class="pnav-link" style="margin-left:8px;background:rgba(212,137,42,0.12);border:1px solid rgba(212,137,42,0.3);color:#D4892A;">Subscribe</a>
+                <a href="/subscribe" class="pnav-link" style="margin-left:8px;background:rgba(212,137,42,0.12);border:1px solid rgba(212,137,42,0.3);color:#D4892A;" title="{{ public_action_labels.subscribe_full }}" aria-label="{{ public_action_labels.subscribe_full }}" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
                 {% if public_user %}
-                <a href="/account" class="pnav-link" style="margin-left:8px;color:#E8DFD0;">{{ public_user.display_name }}</a>
-                <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link">Log Out</a>
+                <a href="/account" class="pnav-link" style="margin-left:8px;color:#E8DFD0;" data-nav-track="1" data-nav-location="header_action">{{ public_user.display_name }}</a>
+                <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_out }}</a>
                 {% else %}
-                <a href="/login?next={{ request.full_path | urlencode }}" class="pnav-link" style="margin-left:8px;">Log In</a>
-                <a href="/register?next={{ request.full_path | urlencode }}" class="pnav-link">Register</a>
+                <a href="/login?next={{ request.full_path | urlencode }}" class="pnav-link" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
+                <a href="/register?next={{ request.full_path | urlencode }}" class="pnav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
                 {% endif %}
             </nav>
         </div>
@@ -109,7 +109,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-end gap-4">
                 {% for item in public_secondary_nav_items %}
                 {% set is_active = request.path == item.href %}
-                <a href="{{ item.href }}" class="pnav-secondary-link {% if is_active %}active{% endif %}">{{ item.label }}</a>
+                <a href="{{ item.href }}" class="pnav-secondary-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_secondary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
                 {% if not loop.last %}<span class="pnav-divider pnav-secondary-link" style="padding:0;">&gt;&gt;</span>{% endif %}
                 {% endfor %}
             </div>
@@ -523,6 +523,39 @@
                     setMobileSheet(false);
                 });
             }
+
+            function sendNavClick(source, targetPath) {
+                try {
+                    var payload = JSON.stringify({
+                        event_type: 'nav_click',
+                        source: source || 'nav',
+                        page_path: targetPath || window.location.pathname
+                    });
+                    if (navigator.sendBeacon) {
+                        navigator.sendBeacon('/api/subscribe-event', new Blob([payload], {type: 'application/json'}));
+                        return;
+                    }
+                    fetch('/api/subscribe-event', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: payload,
+                        keepalive: true
+                    });
+                } catch (e) {}
+            }
+
+            document.addEventListener('click', function (event) {
+                var link = event.target.closest('a[data-nav-track="1"]');
+                if (!link) return;
+                var location = (link.getAttribute('data-nav-location') || 'nav').slice(0, 32);
+                var label = (link.getAttribute('data-full-label') || link.getAttribute('data-short-label') || link.textContent || '').trim().slice(0, 40);
+                var href = link.getAttribute('href') || '';
+                var targetPath = href;
+                if (href && href.indexOf('http') !== 0) {
+                    try { targetPath = new URL(href, window.location.origin).pathname; } catch (e) {}
+                }
+                sendNavClick(location + ':' + label, targetPath);
+            });
         })();
     </script>
 </body>

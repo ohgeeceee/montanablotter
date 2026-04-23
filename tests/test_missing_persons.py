@@ -1,0 +1,189 @@
+import os
+import sqlite3
+import tempfile
+import unittest
+
+import app as app_module
+import config
+import init_db
+import missing_persons as missing_persons_module
+
+
+class MissingPersonsTests(unittest.TestCase):
+    def setUp(self) -> None:
+        fd, self.db_path = tempfile.mkstemp(prefix='mb-missing-persons-', suffix='.db')
+        os.close(fd)
+        self.previous_db_path = config.DB_PATH
+        self.previous_init_db_path = init_db.DB_PATH
+        self.previous_app_db_path = app_module.config.DB_PATH
+
+        config.DB_PATH = self.db_path
+        init_db.DB_PATH = self.db_path
+        app_module.config.DB_PATH = self.db_path
+        app_module.app.config['TESTING'] = True
+
+        bootstrap_conn = sqlite3.connect(self.db_path)
+        bootstrap_conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS subscribers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                counties TEXT DEFAULT '',
+                token TEXT NOT NULL,
+                active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+            """
+        )
+        bootstrap_conn.commit()
+        bootstrap_conn.close()
+
+        init_db.init_database()
+        init_db.migrate()
+        self.admin_user_id = self._create_admin_user()
+
+    def tearDown(self) -> None:
+        config.DB_PATH = self.previous_db_path
+        init_db.DB_PATH = self.previous_init_db_path
+        app_module.config.DB_PATH = self.previous_app_db_path
+        if os.path.exists(self.db_path):
+            os.unlink(self.db_path)
+
+    def _create_admin_user(self) -> int:
+        conn = app_module.get_db()
+        cursor = conn.execute(
+            """
+            INSERT INTO users (username, password, email, role, is_active)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            ('missing-admin', 'not-used-in-tests', 'missing@example.com', 'ops', 1),
+        )
+        conn.commit()
+        conn.close()
+        return int(cursor.lastrowid)
+
+    def _login_admin_session(self, client) -> None:
+        with client.session_transaction() as session:
+            session['_user_id'] = str(self.admin_user_id)
+            session['_fresh'] = True
+            session['_csrf_token'] = 'test-csrf-token'
+
+    def test_parse_official_card_records_and_counts(self) -> None:
+        html = """
+        <div class="infoBox">
+            <div class="missingCount totalCount"><span class="underline">165 Individuals</span></div>
+            <div class="missingCount lessThanAYearCount"><span class="underline">49</span></div>
+            <div class="missingCount moreThanAYearCount"><span class="underline">116</span></div>
+        </div>
+        <div class="personCard" data-sort="45849" data-name="WAGNER, TRENTON CHRISTOPHER" data-agenow="17" data-agemissing="17">
+            <div class="personImageContainer"><img src="images\\mmps_img\\640cc8.jpg" class="personImage" alt="Person Image"/></div>
+            <button class="detailsButton" onclick='detailOnClickXML([{"0":"640cc8"}],["03\\/20\\/2026"],"WAGNER, TRENTON CHRISTOPHER","MALE","17","WHITE","BROWN","BLUE","510","150","04/09/2026","YELLOWSTONE COUNTY SHERIFF","","45849")'>Details</button>
+        </div>
+        """
+        counts = missing_persons_module._parse_official_counts(html)
+        records = missing_persons_module._parse_official_card_records(html)
+
+        self.assertEqual(counts['total_active'], 165)
+        self.assertEqual(counts['missing_less_than_year'], 49)
+        self.assertEqual(counts['missing_more_than_year'], 116)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]['source_person_id'], '45849')
+        self.assertEqual(records[0]['investigating_agency'], 'YELLOWSTONE COUNTY SHERIFF')
+        self.assertEqual(records[0]['age_now'], 17)
+        self.assertEqual(records[0]['is_child'], 1)
+
+    def test_sync_official_missing_persons_upserts_and_resolves(self) -> None:
+        conn = app_module.get_db()
+        snapshot = {
+            'source_name': missing_persons_module.OFFICIAL_SOURCE_NAME,
+            'official_last_updated': '2026-April-11 12:24:31 MDT',
+            'official_last_checked': '2026-April-11 13:29:44 MDT',
+            'stats': {
+                'total_active': 1,
+                'children': 1,
+                'indigenous': 0,
+                'missing_less_than_year': 1,
+                'missing_more_than_year': 0,
+            },
+            'records': [
+                {
+                    'source_person_id': '45849',
+                    'full_name': 'WAGNER, TRENTON CHRISTOPHER',
+                    'gender': 'MALE',
+                    'age_now': 17,
+                    'age_missing': 17,
+                    'race': 'WHITE',
+                    'hair_color': 'BROWN',
+                    'eye_color': 'BLUE',
+                    'height_raw': '510',
+                    'weight_lbs': 150,
+                    'last_seen_at': '2026-04-09 00:00:00',
+                    'investigating_agency': 'YELLOWSTONE COUNTY SHERIFF',
+                    'aliases': '',
+                    'photo_url': 'https://example.com/photo.jpg',
+                    'photo_gallery': [{'url': 'https://example.com/photo.jpg', 'label': '03/20/2026'}],
+                    'is_indigenous': 0,
+                    'is_child': 1,
+                }
+            ],
+        }
+
+        first_result = missing_persons_module.sync_official_missing_persons(conn, actor='test_sync', snapshot=snapshot)
+        conn.commit()
+
+        self.assertEqual(first_result['created'], 1)
+        self.assertEqual(first_result['active_total'], 1)
+
+        row = conn.execute(
+            "SELECT status, source_person_id, official_last_updated FROM missing_persons WHERE source_person_id = '45849'"
+        ).fetchone()
+        self.assertEqual(row['status'], 'missing')
+        self.assertEqual(row['official_last_updated'], '2026-April-11 12:24:31 MDT')
+
+        empty_snapshot = {
+            **snapshot,
+            'stats': {
+                'total_active': 0,
+                'children': 0,
+                'indigenous': 0,
+                'missing_less_than_year': 0,
+                'missing_more_than_year': 0,
+            },
+            'records': [],
+        }
+        second_result = missing_persons_module.sync_official_missing_persons(conn, actor='test_sync', snapshot=empty_snapshot)
+        conn.commit()
+        conn.close()
+
+        self.assertEqual(second_result['resolved'], 1)
+
+        check_conn = sqlite3.connect(self.db_path)
+        check_conn.row_factory = sqlite3.Row
+        updated = check_conn.execute(
+            "SELECT status, resolution_summary FROM missing_persons WHERE source_person_id = '45849'"
+        ).fetchone()
+        stats = check_conn.execute(
+            "SELECT total_active, children FROM missing_person_source_stats WHERE id = 1"
+        ).fetchone()
+        check_conn.close()
+
+        self.assertEqual(updated['status'], 'located')
+        self.assertIn('No longer listed', updated['resolution_summary'])
+        self.assertEqual(stats['total_active'], 0)
+        self.assertEqual(stats['children'], 0)
+
+    def test_admin_missing_persons_page_renders(self) -> None:
+        client = app_module.app.test_client()
+        self._login_admin_session(client)
+
+        response = client.get('/admin/operations/missing-persons')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Missing Persons', html)
+        self.assertIn('Sync Official Database', html)
+
+
+if __name__ == '__main__':
+    unittest.main()

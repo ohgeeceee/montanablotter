@@ -6,6 +6,8 @@
 {% set og_title = "Corrections Policy | Montana Blotter" %}
 {% set og_description = meta_description %}
 
+{% block body_class %}corrections-page{% endblock %}
+
 {% block extra_head %}
 <script type="application/ld+json">
 {
@@ -20,92 +22,150 @@
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Corrections Policy</span>
+<span>Corrections Policy</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-4xl mx-auto">
-        <div class="inline-flex items-center bg-amber-500/20 text-amber-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            Corrections
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Corrections</p>
+                <h1 class="public-title public-title--medium">Corrections Policy</h1>
+                <p class="public-copy">
+                    Effective date: March 15, 2026. If something is wrong, stale, mislabeled, or moved, this page explains how to report it and what we need to fix it quickly.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Fastest Route</p>
+                    <h2 class="public-card__title">Send the exact Montana Blotter URL, the exact source URL, and a short explanation.</h2>
+                    <p class="public-card__text">
+                        Concrete, verifiable reports get reviewed faster than general complaints. This workflow is optimized for source repairs, mislabeled data, and stale records.
+                    </p>
+                </div>
+            </aside>
         </div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Corrections Policy</h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            Effective date: March 15, 2026. If something is wrong, stale, mislabeled, or moved, this page explains how to report it and what we need to fix it quickly.
-        </p>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 py-10">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 text-slate-700">
-        <p class="text-sm leading-relaxed">
-            We want corrections requests to be specific, easy to verify, and fast to act on. The more concrete the report, the faster it can be reviewed.
-        </p>
+<div class="public-route-layout">
+    <main class="public-main-stack">
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Corrections</span>
+                    <span class="public-pill">Effective March 15, 2026</span>
+                </div>
+                <h2 class="public-detail-title">How to report stale, broken, or inaccurate information.</h2>
+                <p class="public-detail-subtitle">
+                    We want corrections requests to be specific, easy to verify, and fast to act on. The more concrete the report, the faster it can be reviewed.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-policy-stack">
+                    <section class="public-policy-section" id="corrections-report">
+                        <h2 class="public-policy-heading">1. What To Report</h2>
+                        <ul class="public-policy-list">
+                            <li>Broken official source links.</li>
+                            <li>Moved agenda or minutes pages.</li>
+                            <li>Incorrect meeting date, body name, or location label.</li>
+                            <li>Duplicate records or duplicate meetings.</li>
+                            <li>Stale source pages that no longer reflect the official feed.</li>
+                            <li>Material factual errors in a summary or description.</li>
+                        </ul>
+                    </section>
 
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">1. What To Report</h2>
-            <ul class="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                <li>Broken official source links</li>
-                <li>Moved agenda or minutes pages</li>
-                <li>Incorrect meeting date, body name, or location label</li>
-                <li>Duplicate records or duplicate meetings</li>
-                <li>Stale source pages that no longer reflect the official feed</li>
-                <li>Material factual errors in a summary or description</li>
-            </ul>
+                    <section class="public-policy-section" id="corrections-include">
+                        <h2 class="public-policy-heading">2. What To Include</h2>
+                        <ul class="public-policy-list">
+                            <li>The exact Montana Blotter URL.</li>
+                            <li>The exact official source URL that should be used.</li>
+                            <li>A short description of what is wrong.</li>
+                            <li>If timing matters, the date and time the official source changed.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="corrections-send">
+                        <h2 class="public-policy-heading">3. Where To Send It</h2>
+                        <p class="public-policy-copy">
+                            Email <a class="public-policy-inline-link" href="mailto:records@montanablotter.com?subject=Correction%20Request">records@montanablotter.com</a> with subject line <strong>Correction Request</strong> or <strong>Source Update</strong>.
+                        </p>
+                        <p class="public-policy-copy">
+                            If you represent a government office, clerk, court, city, county, or other public body, say so in the message and include the official page that should replace the existing source.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="corrections-review">
+                        <h2 class="public-policy-heading">4. Review Standard and Response Goal</h2>
+                        <p class="public-policy-copy">
+                            We review corrections against the official source when available. If a report cannot be verified, we may ask for a clarifying URL, screenshot, or exact document reference before changing the page.
+                        </p>
+                        <p class="public-policy-copy">
+                            Our goal is to review straightforward source and labeling issues within two business days. Complex disputes, legal issues, and record-sensitivity questions may take longer.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="corrections-handling">
+                        <h2 class="public-policy-heading">5. How Fixes Are Handled</h2>
+                        <ul class="public-policy-list">
+                            <li>Broken or moved source URLs are updated at the source-config level when possible.</li>
+                            <li>Mislabeled dates, titles, or locations are corrected in the public presentation and, where needed, in ingestion logic.</li>
+                            <li>If a government source removes or replaces a document, the official source controls.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="corrections-limits">
+                        <h2 class="public-policy-heading">6. Limits</h2>
+                        <p class="public-policy-copy">
+                            A correction request does not automatically guarantee removal. Montana Blotter may preserve accurate public-record references while updating labels, links, timestamps, or explanatory text.
+                        </p>
+                    </section>
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Corrections Flow</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="#corrections-report" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">01</div>
+                        <div class="public-rail-link__title">Identify the exact issue</div>
+                    </a>
+                    <a href="#corrections-include" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">02</div>
+                        <div class="public-rail-link__title">Send exact URLs and details</div>
+                    </a>
+                    <a href="#corrections-review" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">03</div>
+                        <div class="public-rail-link__title">Review and response timing</div>
+                    </a>
+                </div>
+            </div>
         </section>
 
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">2. What To Include</h2>
-            <ul class="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                <li>The exact Montana Blotter URL</li>
-                <li>The exact official source URL that should be used</li>
-                <li>A short description of what is wrong</li>
-                <li>If timing matters, include the date and time the official source changed</li>
-            </ul>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Related Pages</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="/standards" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Standards</div>
+                        <div class="public-rail-link__title">Sourcing Standards</div>
+                        <div class="public-rail-link__copy">How the public source rule and provenance labeling work.</div>
+                    </a>
+                    <a href="/terms-of-use" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Legal</div>
+                        <div class="public-rail-link__title">Terms of Use</div>
+                        <div class="public-rail-link__copy">Service rules, disclaimer scope, and operating limits.</div>
+                    </a>
+                </div>
+            </div>
         </section>
-
-        <section class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h2 class="text-xl font-black text-slate-900 mb-2">3. Where To Send It</h2>
-            <p class="text-sm leading-relaxed">
-                Email <a class="text-blue-700 hover:text-blue-800 underline" href="mailto:records@montanablotter.com?subject=Correction%20Request">records@montanablotter.com</a> with subject line
-                <strong>Correction Request</strong> or <strong>Source Update</strong>.
-            </p>
-            <p class="mt-3 text-sm leading-relaxed">
-                If you represent a government office, clerk, court, city, county, or other public body, say so in the message and include the official page that should replace the existing source.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">4. Review Standard</h2>
-            <p class="text-sm leading-relaxed">
-                We review corrections against the official source when available. If a report cannot be verified, we may ask for a clarifying URL, screenshot, or exact document reference before changing the page.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">5. Response Goal</h2>
-            <p class="text-sm leading-relaxed">
-                Our goal is to review straightforward source and labeling issues within two business days. Complex disputes, legal issues, and record-sensitivity questions may take longer.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">6. How Fixes Are Handled</h2>
-            <ul class="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                <li>Broken or moved source URLs are updated at the source-config level when possible.</li>
-                <li>Mislabeled dates, titles, or locations are corrected in the public presentation and, where needed, in ingestion logic.</li>
-                <li>If a government source removes or replaces a document, the official source controls.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">7. Limits</h2>
-            <p class="text-sm leading-relaxed">
-                A correction request does not automatically guarantee removal. Montana Blotter may preserve accurate public-record references while updating labels, links, timestamps, or explanatory text.
-            </p>
-        </section>
-    </div>
+    </aside>
 </div>
 {% endblock %}

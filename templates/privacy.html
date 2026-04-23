@@ -6,6 +6,8 @@
 {% set og_title = "Privacy Policy | Montana Blotter" %}
 {% set og_description = meta_description %}
 
+{% block body_class %}privacy-page{% endblock %}
+
 {% block extra_head %}
 <script type="application/ld+json">
 {
@@ -20,124 +22,171 @@
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Privacy Policy</span>
+<span>Privacy Policy</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-4xl mx-auto">
-        <div class="inline-flex items-center bg-blue-500/20 text-blue-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            Legal
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Legal</p>
+                <h1 class="public-title public-title--medium">Privacy Policy</h1>
+                <p class="public-copy">
+                    Effective date: March 6, 2026. This policy explains how Montana Blotter collects, uses, and protects data across subscriptions, site operations, and security.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">This Page Covers</p>
+                    <h2 class="public-card__title">Collection, usage, retention, and the rights readers can exercise.</h2>
+                    <p class="public-card__text">
+                        Use this page when you need to understand what data is collected, how payment processing works, and where to direct access or deletion requests.
+                    </p>
+                </div>
+            </aside>
         </div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Privacy Policy</h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            Effective date: March 6, 2026. This policy explains how Montana Blotter collects, uses, and protects data.
-        </p>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 py-10">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6 text-slate-700">
-        <p class="text-sm leading-relaxed">
-            This Privacy Policy applies to <strong>montanablotter.com</strong> (the "Service"). By using the Service, you agree to the data practices described here.
-        </p>
+<div class="public-route-layout">
+    <main class="public-main-stack">
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Privacy</span>
+                    <span class="public-pill">Effective March 6, 2026</span>
+                </div>
+                <h2 class="public-detail-title">How Montana Blotter handles reader and operational data.</h2>
+                <p class="public-detail-subtitle">
+                    This Privacy Policy applies to <strong>montanablotter.com</strong> (the "Service"). By using the Service, you agree to the data practices described here.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-policy-stack">
+                    <section class="public-policy-section" id="privacy-collect">
+                        <h2 class="public-policy-heading">1. Information We Collect</h2>
+                        <ul class="public-policy-list">
+                            <li><strong>Subscription data:</strong> email address and selected county preferences when you sign up for alerts.</li>
+                            <li><strong>Usage data:</strong> page views, page paths, referral context, and interaction events such as subscribe CTA clicks.</li>
+                            <li><strong>Technical data:</strong> device and browser metadata plus IP address in standard server logs for security and operations.</li>
+                            <li><strong>Admin session data:</strong> session and security tokens used to authenticate and protect administrative actions.</li>
+                        </ul>
+                    </section>
 
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">1. Information We Collect</h2>
-            <ul class="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                <li><strong>Subscription data:</strong> email address and selected county preferences when you sign up for alerts.</li>
-                <li><strong>Usage data:</strong> page views, page paths, referral context, and interaction events (such as subscribe CTA clicks).</li>
-                <li><strong>Technical data:</strong> device/browser metadata and IP address in standard server logs for security and operations.</li>
-                <li><strong>Admin session data:</strong> session and security tokens used to authenticate and protect administrative actions.</li>
-            </ul>
+                    <section class="public-policy-section" id="privacy-use">
+                        <h2 class="public-policy-heading">2. How We Use Information</h2>
+                        <ul class="public-policy-list">
+                            <li>Deliver email updates you requested.</li>
+                            <li>Operate, maintain, and improve website performance and reliability.</li>
+                            <li>Monitor engagement with subscription flows and core content.</li>
+                            <li>Prevent abuse, detect fraud, and secure the Service.</li>
+                            <li>Comply with legal obligations.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="privacy-basis">
+                        <h2 class="public-policy-heading">3. Legal Bases and Cookies</h2>
+                        <p class="public-policy-copy">
+                            Depending on your location, we process data based on consent, such as newsletter sign-up, legitimate interests such as site analytics, security, and service operation, and legal compliance.
+                        </p>
+                        <p class="public-policy-copy">
+                            The Service uses essential cookies and session storage to support site functionality, security protections, and user experience features. You can control cookies through your browser settings, but parts of the Service may not function correctly if disabled.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="privacy-sharing">
+                        <h2 class="public-policy-heading">4. Sharing, Payments, and Retention</h2>
+                        <p class="public-policy-copy">
+                            We do not sell personal information. We may share information with infrastructure, email delivery, and security providers that help us operate the Service, and when required by law.
+                        </p>
+                        <p class="public-policy-copy">
+                            Donations are processed by third-party payment providers, currently Stripe. Payment card details are collected and processed directly by the provider, not by Montana Blotter. We store limited transaction metadata such as status, amount, and source for accounting, fraud prevention, and operational analytics.
+                        </p>
+                        <p class="public-policy-copy">
+                            We retain data for as long as needed to provide the Service, maintain security and records, resolve disputes, and meet legal requirements. Subscriber data is retained until you unsubscribe or request deletion, subject to legal exceptions.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="privacy-rights">
+                        <h2 class="public-policy-heading">5. Your Choices and Rights</h2>
+                        <ul class="public-policy-list">
+                            <li><strong>Email preferences:</strong> you can unsubscribe at any time from links in email messages.</li>
+                            <li><strong>Access and deletion requests:</strong> you may request access to or deletion of personal data we hold, where legally available.</li>
+                            <li><strong>Regional rights:</strong> if privacy laws in your jurisdiction apply, including certain U.S. state laws, you may have additional rights.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="privacy-security">
+                        <h2 class="public-policy-heading">6. Security, Children, and Updates</h2>
+                        <p class="public-policy-copy">
+                            We use reasonable technical and organizational safeguards to protect personal data. No system is completely secure, and we cannot guarantee absolute security.
+                        </p>
+                        <p class="public-policy-copy">
+                            The Service is not directed to children under 13, and we do not knowingly collect personal information from children under 13.
+                        </p>
+                        <p class="public-policy-copy">
+                            We may update this Privacy Policy from time to time. Updates are effective when posted with a revised effective date.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="privacy-contact">
+                        <h2 class="public-policy-heading">7. Contact</h2>
+                        <p class="public-policy-copy">
+                            Operator: Montana Blotter<br>
+                            Website: <a class="public-policy-inline-link" href="https://montanablotter.com">montanablotter.com</a><br>
+                            Email: <a class="public-policy-inline-link" href="mailto:records@montanablotter.com">records@montanablotter.com</a>
+                        </p>
+                    </section>
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">In This Policy</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="#privacy-collect" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">01</div>
+                        <div class="public-rail-link__title">What data is collected</div>
+                    </a>
+                    <a href="#privacy-use" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">02</div>
+                        <div class="public-rail-link__title">How the data is used</div>
+                    </a>
+                    <a href="#privacy-sharing" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">03</div>
+                        <div class="public-rail-link__title">Sharing, payments, retention</div>
+                    </a>
+                    <a href="#privacy-rights" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">04</div>
+                        <div class="public-rail-link__title">Rights and choices</div>
+                    </a>
+                </div>
+            </div>
         </section>
 
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">2. How We Use Information</h2>
-            <ul class="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                <li>Deliver email updates you requested.</li>
-                <li>Operate, maintain, and improve website performance and reliability.</li>
-                <li>Monitor engagement with subscription flows and core content.</li>
-                <li>Prevent abuse, detect fraud, and secure the Service.</li>
-                <li>Comply with legal obligations.</li>
-            </ul>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Related Pages</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="/terms-of-use" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Legal</div>
+                        <div class="public-rail-link__title">Terms of Use</div>
+                        <div class="public-rail-link__copy">Rules for access, public-records disclaimers, and liability limits.</div>
+                    </a>
+                    <a href="/corrections" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Operations</div>
+                        <div class="public-rail-link__title">Corrections Policy</div>
+                        <div class="public-rail-link__copy">How to report broken source links, stale pages, or factual errors.</div>
+                    </a>
+                </div>
+            </div>
         </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">3. Legal Bases (Where Applicable)</h2>
-            <p class="text-sm leading-relaxed">
-                Depending on your location, we process data based on consent (such as newsletter sign-up), legitimate interests (site analytics, security, and service operation), and legal compliance.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">4. Cookies and Similar Technologies</h2>
-            <p class="text-sm leading-relaxed">
-                The Service uses essential cookies and session storage to support site functionality, security protections, and user experience features. You can control cookies through your browser settings, but parts of the Service may not function correctly if disabled.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">5. Sharing of Information</h2>
-            <p class="text-sm leading-relaxed">
-                We do not sell personal information. We may share information with infrastructure, email delivery, and security providers that help us operate the Service, and when required by law.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">6. Donation Processing</h2>
-            <p class="text-sm leading-relaxed">
-                Donations are processed by third-party payment providers (currently Stripe). Payment card details are collected and processed directly by the provider, not by Montana Blotter. We store limited transaction metadata (such as status, amount, and source) for accounting, fraud prevention, and operational analytics.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">7. Data Retention</h2>
-            <p class="text-sm leading-relaxed">
-                We retain data for as long as needed to provide the Service, maintain security and records, resolve disputes, and meet legal requirements. Subscriber data is retained until you unsubscribe or request deletion, subject to legal exceptions.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">8. Your Choices and Rights</h2>
-            <ul class="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                <li><strong>Email preferences:</strong> you can unsubscribe at any time from links in email messages.</li>
-                <li><strong>Access and deletion requests:</strong> you may request access to or deletion of personal data we hold, where legally available.</li>
-                <li><strong>Regional rights:</strong> if privacy laws in your jurisdiction apply (including certain U.S. state laws), you may have additional rights.</li>
-            </ul>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">9. Security</h2>
-            <p class="text-sm leading-relaxed">
-                We use reasonable technical and organizational safeguards to protect personal data. No system is completely secure, and we cannot guarantee absolute security.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">10. Children's Privacy</h2>
-            <p class="text-sm leading-relaxed">
-                The Service is not directed to children under 13, and we do not knowingly collect personal information from children under 13.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">11. Changes to This Policy</h2>
-            <p class="text-sm leading-relaxed">
-                We may update this Privacy Policy from time to time. Updates are effective when posted with a revised effective date.
-            </p>
-        </section>
-
-        <section>
-            <h2 class="text-xl font-black text-slate-900 mb-2">12. Contact</h2>
-            <p class="text-sm leading-relaxed">
-                Operator: Montana Blotter<br>
-                Website: <a class="text-blue-700 hover:text-blue-800 underline" href="https://montanablotter.com">montanablotter.com</a><br>
-                Email: <a class="text-blue-700 hover:text-blue-800 underline" href="mailto:records@montanablotter.com">records@montanablotter.com</a>
-            </p>
-        </section>
-    </div>
+    </aside>
 </div>
 {% endblock %}

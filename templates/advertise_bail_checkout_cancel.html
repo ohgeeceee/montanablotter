@@ -21,6 +21,10 @@
         </div>
         <h1 class="text-3xl font-black text-slate-900 mt-4">Checkout Canceled</h1>
         <p class="text-slate-600 text-sm mt-3">No charge was completed. You can resume package checkout anytime.</p>
+        <p class="text-slate-600 text-sm mt-2">
+            Need to review the terms again first?
+            <a href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %} class="text-blue-700 underline">{{ contract_info.title }}</a>
+        </p>
         <div class="mt-7 flex items-center justify-center gap-3 flex-wrap">
             <a href="/advertise/bail-bonds/checkout"
                class="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">
@@ -34,4 +38,3 @@
     </div>
 </div>
 {% endblock %}
-

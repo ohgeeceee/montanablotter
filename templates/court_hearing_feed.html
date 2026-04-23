@@ -9,11 +9,11 @@
 
 {% block content %}
 <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-    <section class="rounded-[30px] overflow-hidden border" style="background:#F7F3EB; border-color:#E7DECF;">
-        <div class="px-6 sm:px-8 py-7" style="background:#141210; color:#F0E8D8;">
-            <p class="text-[10px] uppercase tracking-[0.22em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Montana Court Tracker</p>
-            <h1 class="mt-2 text-3xl sm:text-5xl leading-tight font-black" style="font-family:'Playfair Display',Georgia,serif;">{% if search_mode %}Search court records{% else %}Upcoming public hearings{% endif %}</h1>
-            <p class="mt-3 max-w-3xl text-sm leading-6" style="color:#C9B99F;">{% if search_mode %}Search across upcoming hearings, historical hearings, and indexed opinion filings from official Montana court feeds.{% else %}Track upcoming public hearing dates across Montana courts, filter by county or court type, and move into case-level pages as they are indexed.{% endif %}</p>
+    <section class="public-detail-frame">
+        <div class="public-detail-frame__header">
+            <p class="public-eyebrow" style="color:var(--public-steel);">Montana Court Tracker</p>
+            <h1 class="mt-2 text-3xl sm:text-5xl leading-tight font-black text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">{% if search_mode %}Search court records{% else %}Upcoming public hearings{% endif %}</h1>
+            <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{% if search_mode %}Search across upcoming hearings, historical hearings, and indexed opinion filings from official Montana court feeds.{% else %}Track upcoming public hearing dates across Montana courts, filter by county or court type, and move into case-level pages as they are indexed.{% endif %}</p>
         </div>
 
         <div class="p-6 sm:p-8 border-b" style="border-color:#E7DECF;">

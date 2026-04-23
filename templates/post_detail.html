@@ -1,12 +1,15 @@
 {% extends "public_page_base.html" %}
+{% from "includes/bail_ad_units.html" import render_bail_banner, render_bail_panel, render_bail_tracking_script %}
 
 {% set page_title = post.title or 'Daily Activity Report' %}
-{% set meta_description = (post.summary or '')[:155] if post.summary else 'Daily police activity report with source traceability and linked incident records.' %}
+{% set meta_description = post.meta_description or ((post.summary or '')[:155] if post.summary else 'Daily police activity report with source traceability and linked incident records.') %}
 {% set canonical_url = "https://montanablotter.com/post/" ~ post.id %}
 {% set og_title = post.title or 'Daily Activity Report' %}
 {% set og_description = meta_description %}
 {% set og_type = "article" %}
 {% set twitter_card = "summary_large_image" %}
+
+{% block body_class %}post-detail-page{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -65,50 +68,52 @@
 {% block breadcrumb %}
 <span class="mx-2">/</span>
 {% if county_slug %}
-<a href="/county/{{ county_slug }}" class="hover:text-slate-700">{{ post.county }} County</a>
+<a href="/county/{{ county_slug }}">{{ post.county }} County</a>
 <span class="mx-2">/</span>
 {% endif %}
-<span class="text-slate-900 font-semibold">{{ post.title or 'Daily Activity Report' }}</span>
+<span>{{ post.title or 'Daily Activity Report' }}</span>
 {% endblock %}
 
 {% block content %}
-<main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid lg:grid-cols-[minmax(0,1fr)_340px] gap-8">
-    <section class="space-y-6">
-        <div class="rounded-[30px] overflow-hidden border" style="background:#F7F3EB; border-color:#E7DECF; color:#1E1B18;">
-            <div class="px-6 sm:px-8 py-7" style="background:#141210; color:#F0E8D8;">
-                <div class="flex flex-wrap items-center gap-2 mb-4 text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace;">
-                    <span class="px-3 py-1 rounded-full" style="background:rgba(212,137,42,0.16); color:#D4892A;">Daily Report</span>
+<main class="public-route-layout public-route-layout--wide">
+    <div class="public-main-stack">
+        {{ render_bail_banner(bail_ad_placements.banner, 'post_banner') }}
+
+        <div class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Daily Report</span>
                     {% if post.agency_type %}
-                    <span class="px-3 py-1 rounded-full" style="background:rgba(240,232,216,0.08); color:#C9B99F;">{{ post.agency_type }}</span>
+                    <span class="public-pill public-pill--soft">{{ post.agency_type }}</span>
                     {% endif %}
                     {% if post.case_status %}
-                    <span class="px-3 py-1 rounded-full" style="background:rgba(240,232,216,0.08); color:#C9B99F;">{{ post.case_status }}</span>
+                    <span class="public-pill public-pill--soft">{{ post.case_status }}</span>
                     {% endif %}
                 </div>
-                <h1 class="text-3xl sm:text-5xl leading-tight font-black" style="font-family:'Playfair Display',Georgia,serif;">{{ post.title or 'Daily Activity Report' }}</h1>
-                <p class="mt-4 text-sm sm:text-base max-w-3xl" style="color:#D7CCBA;">
+                <h1 class="public-detail-title">{{ post.title or 'Daily Activity Report' }}</h1>
+                <p class="public-detail-subtitle mt-4">
                     {{ post.agency_name or 'Law enforcement agency' }}{% if post.incident_date %} · {{ post.incident_date }}{% endif %}{% if post.city %} · {{ post.city }}, Montana{% endif %}
                 </p>
             </div>
 
-            <div class="p-6 sm:p-8">
-                <div class="grid sm:grid-cols-3 gap-4 mb-6">
-                    <div class="rounded-2xl p-4 bg-slate-50">
+            <div class="public-detail-frame__body">
+                <div class="public-meta-grid mb-6">
+                    <div class="public-meta-box">
                         <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">County</p>
                         <p class="mt-2 font-bold text-slate-900">{{ post.county }} County</p>
                     </div>
-                    <div class="rounded-2xl p-4 bg-slate-50">
+                    <div class="public-meta-box">
                         <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Agency</p>
                         <p class="mt-2 font-bold text-slate-900">{{ post.agency_name or 'Not identified' }}</p>
                     </div>
-                    <div class="rounded-2xl p-4 bg-slate-50">
+                    <div class="public-meta-box">
                         <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Incidents Indexed</p>
                         <p class="mt-2 font-bold text-slate-900">{{ total_incident_count }}</p>
                     </div>
                 </div>
 
-                <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400 mb-3">Published Summary</h2>
-                <div class="space-y-3 text-slate-700 leading-7 text-[1.02rem]">
+                <h2 class="public-card__eyebrow mb-3">Published Summary</h2>
+                <div class="space-y-3 text-slate-700 leading-7 text-[1.02rem] public-panel-copy">
                     {% for line in summary_lines %}
                     <p{% if loop.first %} class="font-semibold text-slate-900"{% endif %}>{{ line }}</p>
                     {% endfor %}
@@ -116,32 +121,37 @@
             </div>
         </div>
 
-        <section class="rounded-[24px] border p-6 sm:p-8" style="background:#12110F; border-color:#282420;">
-            <div class="flex items-center justify-between gap-4 mb-5">
-                <h2 class="text-xl font-black" style="font-family:'Playfair Display',Georgia,serif;">Incident Log Behind This Report</h2>
-                <span class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">{{ records|length }} source-linked records shown</span>
+        <section class="public-card p-6 sm:p-8">
+            <div class="public-panel-row mb-5">
+                <h2 class="public-panel-title">Incident Log Behind This Report</h2>
+                <span class="public-card__eyebrow">{{ records|length }} source-linked records shown</span>
             </div>
-            <div class="space-y-3">
+            <div class="public-doc-list">
                 {% for record in records %}
-                <a href="/record/{{ record.id }}" class="block rounded-2xl border px-4 py-4 transition" style="border-color:#282420; background:#1A1815;">
+                <a href="/record/{{ record.id }}" class="public-doc-item">
                     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">
+                            <div class="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] font-black text-slate-400" style="font-family:'IBM Plex Mono',monospace;">
                                 <span>{{ record.time or 'No time listed' }}</span>
                                 {% if record.cfs_number %}
-                                <span style="color:#D4892A;">{{ record.cfs_number }}</span>
+                                <span style="color:var(--public-red);">{{ record.cfs_number }}</span>
                                 {% endif %}
                                 {% if record.officer %}
                                 <span>{{ record.officer }}</span>
                                 {% endif %}
                             </div>
-                            <p class="mt-2 text-base font-semibold" style="color:#F0E8D8;">{{ record.incident_type or 'Incident' }}</p>
-                            <p class="mt-1 text-sm" style="color:#C9B99F;">{{ record.location or 'Location not listed' }}</p>
+                            {% set eslug = explainer_slugs.get(record.incident_type) if explainer_slugs else None %}
+                            {% if eslug %}
+                            <a href="/laws/charge/{{ eslug }}" class="mt-2 text-base font-semibold text-slate-900 hover:underline inline-block">{{ record.incident_type or 'Incident' }} <span class="text-[10px] font-black uppercase tracking-wider ml-1" style="color:var(--public-red);">What's this? →</span></a>
+                            {% else %}
+                            <p class="mt-2 text-base font-semibold text-slate-900">{{ record.incident_type or 'Incident' }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-sm text-slate-600">{{ record.location or 'Location not listed' }}</p>
                             {% if record.details %}
-                            <p class="mt-2 text-sm leading-6" style="color:#A89880;">{{ record.details[:220] }}{% if record.details|length > 220 %}...{% endif %}</p>
+                            <p class="mt-2 text-sm leading-6 text-slate-500">{{ record.details[:220] }}{% if record.details|length > 220 %}...{% endif %}</p>
                             {% endif %}
                         </div>
-                        <div class="text-right text-xs font-bold" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">
+                        <div class="text-right text-xs font-bold" style="font-family:'IBM Plex Mono',monospace; color:var(--public-red);">
                             View incident
                         </div>
                     </div>
@@ -149,132 +159,164 @@
                 {% endfor %}
             </div>
         </section>
-    </section>
 
-    <aside class="space-y-5">
-        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+    {# ── Inline alert opt-in ── #}
+    {% if post.county and post.county not in ('Unknown', '') %}
+    <section class="public-form-card">
+        <div class="public-form-card__body">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div class="flex-1">
+                <p class="public-card__eyebrow mb-1" style="color: var(--public-amber);">
+                    <i class="fas fa-bell mr-1"></i> County Alert
+                </p>
+                <p class="text-sm font-semibold" style="color:var(--public-text);">
+                    Get notified when new activity is posted for <strong>{{ post.county }} County</strong>
+                </p>
+            </div>
+            <form method="POST" action="/alerts" class="flex gap-2 flex-shrink-0">
+                <input type="hidden" name="form_type" value="county_alert">
+                <input type="hidden" name="county" value="{{ post.county }}">
+                <input type="hidden" name="alert_types" value="all">
+                <input type="hidden" name="source" value="post_detail_inline">
+                <input type="email" name="email" required placeholder="your@email.com"
+                    class="public-form-input w-48"
+                    style="margin-top:0;">
+                <button type="submit"
+                    class="public-btn public-btn--primary flex-shrink-0">
+                    Alert Me
+                </button>
+            </form>
+        </div>
+        </div>
+    </section>
+    {% endif %}
+    </div>
+
+    <aside class="public-sidebar-stack">
+        {{ render_bail_panel(bail_ad_placements.county_sponsor or bail_ad_placements.sidebar, 'post_sidebar') }}
+
+        <section class="public-sidebar-card p-5">
             <div class="flex items-start justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Source Confidence</h2>
-                    <p class="mt-2 text-lg font-black" style="font-family:'Playfair Display',Georgia,serif; color:#F0E8D8;">{{ provenance_card.confidence_label }}</p>
+                    <h2 class="public-sidebar-card__eyebrow">Source Confidence</h2>
+                    <p class="mt-2 text-lg font-black text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">{{ provenance_card.confidence_label }}</p>
                 </div>
                 <div class="rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em]"
-                     style="font-family:'IBM Plex Mono',monospace; background:#1A1815; color:#D4892A;">
+                     style="font-family:'IBM Plex Mono',monospace; background:var(--public-red-soft); color:var(--public-red);">
                     {{ provenance_card.confidence_score }}/100
                 </div>
             </div>
             <div class="space-y-3 text-sm">
-                <div class="rounded-xl p-4" style="background:#1A1815;">
-                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Source Channel</p>
-                    <p class="mt-2 font-semibold">{{ provenance_card.source.label }}</p>
-                    <p class="mt-1 text-xs leading-5" style="color:#A89880;">{{ provenance_card.source.description }}</p>
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Source Channel</p>
+                    <p class="public-sidebar-card__title mt-2">{{ provenance_card.source.label }}</p>
+                    <p class="public-sidebar-card__text mt-1 text-xs leading-5">{{ provenance_card.source.description }}</p>
                     {% if provenance_card.source.received_at %}
-                    <p class="mt-2 text-xs" style="color:#C9B99F;">Received {{ provenance_card.source.received_at }}</p>
+                    <p class="mt-2 text-xs text-slate-500">Received {{ provenance_card.source.received_at }}</p>
                     {% endif %}
                 </div>
-                <div class="rounded-xl p-4" style="background:#1A1815;">
-                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Parse Quality</p>
-                    <p class="mt-2 font-semibold">{{ provenance_card.parse_quality.label }} · {{ provenance_card.parse_quality.score }}/100</p>
-                    <p class="mt-1 text-xs leading-5" style="color:#A89880;">{{ provenance_card.parse_quality.detail }}</p>
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Parse Quality</p>
+                    <p class="public-sidebar-card__title mt-2">{{ provenance_card.parse_quality.label }} · {{ provenance_card.parse_quality.score }}/100</p>
+                    <p class="public-sidebar-card__text mt-1 text-xs leading-5">{{ provenance_card.parse_quality.detail }}</p>
                     {% if provenance_card.source.extraction_method %}
-                    <p class="mt-2 text-xs" style="color:#C9B99F;">Extraction method: {{ provenance_card.source.extraction_method }}</p>
+                    <p class="mt-2 text-xs text-slate-500">Extraction method: {{ provenance_card.source.extraction_method }}</p>
                     {% endif %}
                 </div>
-                <div class="rounded-xl p-4" style="background:#1A1815;">
-                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Duplicate Checks</p>
-                    <p class="mt-2 font-semibold">{{ provenance_card.duplicate_checks.label }}</p>
-                    <p class="mt-1 text-xs leading-5" style="color:#A89880;">{{ provenance_card.duplicate_checks.detail }}</p>
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Duplicate Checks</p>
+                    <p class="public-sidebar-card__title mt-2">{{ provenance_card.duplicate_checks.label }}</p>
+                    <p class="public-sidebar-card__text mt-1 text-xs leading-5">{{ provenance_card.duplicate_checks.detail }}</p>
                 </div>
-                <div class="rounded-xl p-4" style="background:#1A1815;">
-                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Summary Method</p>
-                    <p class="mt-2 font-semibold">{{ provenance_card.summary_method.label }}</p>
-                    <p class="mt-1 text-xs leading-5" style="color:#A89880;">{{ provenance_card.summary_method.detail }}</p>
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Summary Method</p>
+                    <p class="public-sidebar-card__title mt-2">{{ provenance_card.summary_method.label }}</p>
+                    <p class="public-sidebar-card__text mt-1 text-xs leading-5">{{ provenance_card.summary_method.detail }}</p>
                 </div>
-                <div class="rounded-xl p-4" style="background:#1A1815;">
-                    <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Provenance Notes</p>
-                    <p class="mt-2 font-semibold">{{ provenance_card.source.filename or post.blotter_filename or 'Unknown source batch' }}</p>
-                    <p class="mt-1 text-xs" style="color:#A89880;">Status: {{ provenance_card.ingestion_status }} · Post ID #{{ post.id }} · Blotter ID #{{ post.blotter_id }}</p>
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Provenance Notes</p>
+                    <p class="public-sidebar-card__title mt-2">{{ provenance_card.source.filename or post.blotter_filename or 'Unknown source batch' }}</p>
+                    <p class="mt-1 text-xs text-slate-500">Status: {{ provenance_card.ingestion_status }} · Post ID #{{ post.id }} · Blotter ID #{{ post.blotter_id }}</p>
                     {% if provenance_card.source.subject %}
-                    <p class="mt-2 text-xs leading-5" style="color:#C9B99F;">Subject: {{ provenance_card.source.subject }}</p>
+                    <p class="mt-2 text-xs leading-5 text-slate-500">Subject: {{ provenance_card.source.subject }}</p>
                     {% endif %}
                     {% if provenance_card.source.sender %}
-                    <p class="mt-1 text-xs leading-5" style="color:#C9B99F;">Sender: {{ provenance_card.source.sender }}</p>
+                    <p class="mt-1 text-xs leading-5 text-slate-500">Sender: {{ provenance_card.source.sender }}</p>
                     {% endif %}
                     {% if provenance_card.source.warnings %}
-                    <p class="mt-2 text-xs leading-5" style="color:#D4892A;">Warnings: {{ provenance_card.source.warnings | join(', ') }}</p>
+                    <p class="mt-2 text-xs leading-5" style="color:var(--public-red);">Warnings: {{ provenance_card.source.warnings | join(', ') }}</p>
                     {% endif %}
                     {% if provenance_card.last_error %}
-                    <p class="mt-2 text-xs leading-5" style="color:#D4892A;">Last pipeline note: {{ provenance_card.last_error }}</p>
+                    <p class="mt-2 text-xs leading-5" style="color:var(--public-red);">Last pipeline note: {{ provenance_card.last_error }}</p>
                     {% endif %}
                 </div>
                 {% if source_pdf_name %}
-                <a href="/uploads/{{ source_pdf_name }}" target="_blank" rel="noopener" class="block rounded-xl px-4 py-3 font-bold text-sm" style="background:#D4892A; color:#0D0C0B;">
+                <a href="/uploads/{{ source_pdf_name }}" target="_blank" rel="noopener" class="public-btn public-btn--primary w-full">
                     <i class="fas fa-file-pdf mr-2"></i>Open Original PDF
                 </a>
                 {% endif %}
             </div>
         </section>
 
-        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
-            <h2 class="text-xs font-black uppercase tracking-[0.18em] mb-4" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Related Pages</h2>
+        <section class="public-sidebar-card p-5">
+            <h2 class="public-sidebar-card__eyebrow mb-4">Related Pages</h2>
             <div class="space-y-2">
                 {% if county_slug %}
-                <a href="/county/{{ county_slug }}" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">{{ post.county }} County archive</a>
+                <a href="/county/{{ county_slug }}" class="public-link-tile text-sm font-semibold">{{ post.county }} County archive</a>
                 {% endif %}
                 {% if city_slug %}
-                <a href="/city/{{ city_slug }}" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">{{ post.city }} city page</a>
+                <a href="/city/{{ city_slug }}" class="public-link-tile text-sm font-semibold">{{ post.city }} city page</a>
                 {% endif %}
-                <a href="/posts?county={{ post.county | urlencode }}" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">More {{ post.county }} County reports</a>
-                <a href="/arrests?county={{ post.county | urlencode }}" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">{{ post.county }} County arrests</a>
-                <a href="/warrants/{{ county_slug }}" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">{{ post.county }} County warrants</a>
+                <a href="/?county={{ post.county | urlencode }}" class="public-link-tile text-sm font-semibold">More {{ post.county }} County reports</a>
+                <a href="/arrests?county={{ post.county | urlencode }}" class="public-link-tile text-sm font-semibold">{{ post.county }} County arrests</a>
+                <a href="/warrants/{{ county_slug }}" class="public-link-tile text-sm font-semibold">{{ post.county }} County warrants</a>
                 {% if county_page and county_page.roster_url %}
-                <a href="{{ county_page.roster_url }}" target="_blank" rel="noopener" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">{{ post.county }} County jail roster</a>
+                <a href="{{ county_page.roster_url }}" target="_blank" rel="noopener" class="public-link-tile text-sm font-semibold">{{ post.county }} County jail roster</a>
                 {% endif %}
-                <a href="/jail-rosters" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">All Montana jail rosters</a>
+                <a href="/jail-rosters" class="public-link-tile text-sm font-semibold">All Montana jail rosters</a>
             </div>
         </section>
 
-        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+        <section class="public-sidebar-card p-5">
             <div class="flex items-start justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Reference Guides</h2>
-                    <p class="mt-2 text-sm leading-6" style="color:#C9B99F;">Evergreen research pages that support warrant, arrest, jail-roster, and county-guide searches.</p>
+                    <h2 class="public-sidebar-card__eyebrow">Reference Guides</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Evergreen research pages that support warrant, arrest, jail-roster, and county-guide searches.</p>
                 </div>
-                <a href="/guides" class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">All guides</a>
+                <a href="/guides" class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:var(--public-red);">All guides</a>
             </div>
             <div class="space-y-2">
-                <a href="/guides/how-to-find-montana-police-blotters" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">How to find Montana police blotters</a>
-                <a href="/guides/montana-county-guides" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">Montana county guides</a>
-                <a href="/guides/how-to-find-montana-warrants" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">How to find Montana warrants</a>
-                <a href="/guides/how-to-find-montana-arrest-records" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">How to find Montana arrest records</a>
-                <a href="/guides/how-to-find-montana-jail-rosters" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">How to find Montana jail rosters</a>
-                <a href="/annual-roundups" class="block rounded-xl px-4 py-3 text-sm font-semibold" style="background:#1A1815; color:#F0E8D8;">Montana annual roundups</a>
+                <a href="/guides/how-to-find-montana-police-blotters" class="public-link-tile text-sm font-semibold">How to find Montana police blotters</a>
+                <a href="/guides/montana-county-guides" class="public-link-tile text-sm font-semibold">Montana county guides</a>
+                <a href="/guides/how-to-find-montana-warrants" class="public-link-tile text-sm font-semibold">How to find Montana warrants</a>
+                <a href="/guides/how-to-find-montana-arrest-records" class="public-link-tile text-sm font-semibold">How to find Montana arrest records</a>
+                <a href="/guides/how-to-find-montana-jail-rosters" class="public-link-tile text-sm font-semibold">How to find Montana jail rosters</a>
+                <a href="/annual-roundups" class="public-link-tile text-sm font-semibold">Montana annual roundups</a>
             </div>
         </section>
 
         {% if related_pattern_pages %}
-        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
+        <section class="public-sidebar-card p-5">
             <div class="flex items-start justify-between gap-3 mb-4">
                 <div>
-                    <h2 class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Related Pattern Pages</h2>
-                    <p class="mt-2 text-sm leading-6" style="color:#C9B99F;">These pattern pages match incident language found inside this report.</p>
+                    <h2 class="public-sidebar-card__eyebrow">Related Pattern Pages</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">These pattern pages match incident language found inside this report.</p>
                 </div>
-                <a href="/patterns" class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">All patterns</a>
+                <a href="/patterns" class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:var(--public-red);">All patterns</a>
             </div>
             <div class="space-y-2">
                 {% for pattern_page in related_pattern_pages %}
                 <a href="{{ pattern_page.href }}"
-                   class="block rounded-xl px-4 py-3 pattern-click-track"
+                   class="public-link-tile pattern-click-track"
                    data-pattern-placement="post_related_patterns"
                    data-pattern-slug="{{ pattern_page.href.split('/')[2] if pattern_page.href.split('/')|length > 2 else '' }}"
                    data-county-slug="{{ county_slug or '' }}"
-                   data-target-path="{{ pattern_page.href }}"
-                   style="background:#1A1815;">
+                   data-target-path="{{ pattern_page.href }}">
                     <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm font-semibold" style="color:#F0E8D8;">{{ pattern_page.label }}</p>
-                        <span class="text-[11px] font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">{{ pattern_page.hit_count }} match{% if pattern_page.hit_count != 1 %}es{% endif %}</span>
+                        <p class="text-sm font-semibold text-slate-900">{{ pattern_page.label }}</p>
+                        <span class="text-[11px] font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:var(--public-red);">{{ pattern_page.hit_count }} match{% if pattern_page.hit_count != 1 %}es{% endif %}</span>
                     </div>
-                    <p class="mt-1 text-xs leading-5" style="color:#A89880;">{{ pattern_page.description }}</p>
+                    <p class="mt-1 text-xs leading-5 text-slate-500">{{ pattern_page.description }}</p>
                 </a>
                 {% endfor %}
             </div>
@@ -282,15 +324,15 @@
         {% endif %}
 
         {% if related_posts %}
-        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
-            <h2 class="text-xs font-black uppercase tracking-[0.18em] mb-4" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Recent In This County</h2>
+        <section class="public-sidebar-card p-5">
+            <h2 class="public-sidebar-card__eyebrow mb-4">Recent In This County</h2>
             <div class="space-y-2">
                 {% for related in related_posts %}
-                <a href="/post/{{ related.id }}" class="block rounded-xl px-4 py-3" style="background:#1A1815;">
-                    <p class="text-xs uppercase tracking-widest font-black" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">{{ related.incident_date or 'Recent report' }}</p>
-                    <p class="mt-1 text-sm font-semibold" style="color:#F0E8D8;">{{ related.title }}</p>
+                <a href="/post/{{ related.id }}" class="public-link-tile">
+                    <p class="public-link-tile__eyebrow">{{ related.incident_date or 'Recent report' }}</p>
+                    <p class="public-link-tile__title mt-1">{{ related.title }}</p>
                     {% if related.agency_name %}
-                    <p class="mt-1 text-xs" style="color:#A89880;">{{ related.agency_name }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ related.agency_name }}</p>
                     {% endif %}
                 </a>
                 {% endfor %}
@@ -302,6 +344,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+{{ render_bail_tracking_script() }}
 <script>
 (function () {
     document.querySelectorAll('.pattern-click-track').forEach(function (link) {

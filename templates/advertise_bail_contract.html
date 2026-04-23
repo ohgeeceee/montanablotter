@@ -1,0 +1,78 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/bail-bonds" class="hover:text-slate-700">Advertise</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Contract</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-5xl mx-auto">
+        <div class="inline-flex items-center rounded-full bg-amber-500/15 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-amber-300">
+            Legal + Billing Terms
+        </div>
+        <h1 class="mt-4 text-3xl md:text-4xl font-black tracking-tight">{{ contract_info.title }}</h1>
+        <p class="mt-3 max-w-3xl text-sm text-slate-300">{{ contract_info.summary }}</p>
+        <p class="mt-3 text-xs uppercase tracking-[0.16em] text-slate-400">{{ contract_info.updated_label }}</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 class="text-xl font-black text-slate-900">Agreement Summary</h2>
+        <div class="mt-4 grid gap-4 md:grid-cols-3">
+            {% for item in contract_info.highlights %}
+            <article class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">Key Term {{ loop.index }}</p>
+                <p class="mt-2 text-sm text-slate-700">{{ item }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+        <article>
+            <h2 class="text-xl font-black text-slate-900">1. Inventory and Placement</h2>
+            <p class="mt-2 text-sm text-slate-700">Montana Blotter sells limited ad inventory for bail bond providers, including header placements, sidebar placements, county exclusives, and bundled packages. Placement availability is not guaranteed until payment is received and county inventory is confirmed.</p>
+        </article>
+        <article>
+            <h2 class="text-xl font-black text-slate-900">2. Creative Review and Compliance</h2>
+            <p class="mt-2 text-sm text-slate-700">All logos, headlines, body copy, call-to-action language, and destination URLs are subject to review before launch. Montana Blotter may reject, pause, or require revisions for creative that is misleading, unlicensed, non-compliant, or inappropriate for public safety reporting context.</p>
+        </article>
+        <article>
+            <h2 class="text-xl font-black text-slate-900">3. Billing and Renewal</h2>
+            <p class="mt-2 text-sm text-slate-700">Advertising subscriptions renew automatically on the selected monthly or annual cycle unless canceled. Taxes, platform processing fees, and custom production work are not included unless expressly stated in writing.</p>
+        </article>
+        <article>
+            <h2 class="text-xl font-black text-slate-900">4. County Exclusives and Bundles</h2>
+            <p class="mt-2 text-sm text-slate-700">Exclusive county sponsorships and bundle-based county slots are assigned based on current inventory. If a requested county becomes unavailable before launch, Montana Blotter may offer a substitute county, delayed launch timing, account credit, or cancellation before launch.</p>
+        </article>
+        <article>
+            <h2 class="text-xl font-black text-slate-900">5. Cancellation and Changes</h2>
+            <p class="mt-2 text-sm text-slate-700">Campaign changes may be requested through the advertiser onboarding flow or control panel. Cancellation requests should be submitted before the next billing cycle to avoid renewal charges. Mid-cycle cancellations do not automatically create prorated refunds unless Montana Blotter approves an exception in writing.</p>
+        </article>
+        <article>
+            <h2 class="text-xl font-black text-slate-900">6. Performance and Availability</h2>
+            <p class="mt-2 text-sm text-slate-700">Traffic, impressions, clicks, calls, and lead volume can vary by county, news cycle, seasonality, and inventory mix. Montana Blotter does not guarantee any specific booking volume, conversion rate, or legal outcome from advertising.</p>
+        </article>
+        <article>
+            <h2 class="text-xl font-black text-slate-900">7. Contact</h2>
+            <p class="mt-2 text-sm text-slate-700">Questions regarding this agreement, billing, or campaign status should be sent to <a href="mailto:{{ contract_info.support_email }}" class="text-blue-700 underline">{{ contract_info.support_email }}</a>.</p>
+        </article>
+    </section>
+
+    <section class="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+        <h2 class="text-lg font-black text-slate-900">Where This Contract Appears</h2>
+        <ul class="mt-3 list-disc list-inside space-y-1 text-sm text-slate-700">
+            <li>Advertising landing page</li>
+            <li>Secure checkout</li>
+            <li>Checkout success and onboarding</li>
+            <li>Advertiser control panel</li>
+        </ul>
+    </section>
+</div>
+{% endblock %}

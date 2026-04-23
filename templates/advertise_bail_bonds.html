@@ -27,6 +27,28 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+    <section class="rounded-2xl border border-amber-200 bg-amber-50 shadow-sm overflow-hidden">
+        <div class="px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">Contract Review</p>
+                <h2 class="mt-2 text-xl font-black text-slate-900">{{ contract_info.title }}</h2>
+                <p class="mt-2 text-sm text-slate-700">{{ contract_info.summary }}</p>
+                <p class="mt-2 text-xs text-slate-500">{{ contract_info.updated_label }}</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ contract_info.url }}"
+                   {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %}
+                   class="inline-flex items-center justify-center rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] transition">
+                    Open Contract
+                </a>
+                <a href="/advertise/bail-bonds/checkout"
+                   class="inline-flex items-center justify-center rounded-xl border border-slate-300 hover:bg-white text-slate-700 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] transition">
+                    Go to Checkout
+                </a>
+            </div>
+        </div>
+    </section>
+
     {% if submitted %}
     <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
         Thanks. Your advertising inquiry was submitted and is now in review. We typically respond within 1 business day.
@@ -44,42 +66,24 @@
     </div>
     {% endif %}
 
-    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-        <h2 class="text-xl font-black text-slate-900">Program Plans</h2>
-        <p class="text-sm text-slate-600 mt-2">Choose from the four current placements and bundle options.</p>
-        <div class="mt-3">
-            <a href="/bail-bonds" class="text-xs font-semibold text-blue-700 underline">View live advertiser directory example</a>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-            {% for pkg in package_options %}
-            <article class="rounded-xl border border-slate-200 p-4 bg-slate-50 cursor-pointer hover:border-slate-300 transition"
-                     data-checkout-url="/advertise/bail-bonds/checkout?package={{ pkg.id }}&source=package_card">
-                <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">{{ pkg.badge }}</p>
-                <h3 class="text-lg font-black text-slate-900 mt-2">{{ pkg.name }}</h3>
-                {% if pkg.short_description %}
-                <p class="text-sm text-slate-600 mt-2">{{ pkg.short_description }}</p>
-                {% endif %}
-                {% if pkg.price_label_monthly %}
-                <p class="mt-2 text-sm text-slate-700">{{ pkg.price_label_monthly }}</p>
-                {% else %}
-                <p class="mt-2 text-sm text-slate-700">${{ '%.0f'|format(pkg.price_monthly_cents / 100) }}/month</p>
-                {% endif %}
-                <p class="text-xs text-slate-500 mt-1">Annual package deal: ${{ '%.0f'|format(pkg.price_annual_cents / 100) }}/year</p>
-                {% if pkg.full_description %}
-                <p class="text-xs text-slate-500 mt-2">{{ pkg.full_description }}</p>
-                {% endif %}
-                <ul class="mt-3 space-y-1 text-sm text-slate-600 list-disc list-inside">
-                    {% for feature in pkg.features %}
-                    <li>{{ feature }}</li>
-                    {% endfor %}
-                </ul>
-                <a href="/advertise/bail-bonds/checkout?package={{ pkg.id }}&source=package_card"
-                   class="mt-4 inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em] transition">
-                    Select {{ pkg.name }}
-                </a>
-            </article>
-            {% endfor %}
-        </div>
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div id="advertising-packages-root"></div>
+        <noscript>
+            <div class="p-6 text-sm text-slate-600">
+                JavaScript is required to view the interactive advertising packages grid. You can still continue to
+                <a href="/advertise/bail-bonds/checkout" class="font-semibold text-blue-700 underline">secure checkout</a>.
+            </div>
+        </noscript>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div id="ad-simulator-root"></div>
+        <noscript>
+            <div class="p-6 text-sm text-slate-600">
+                JavaScript is required to use the live ad preview simulator. You can still explore packages above and
+                continue to <a href="/advertise/bail-bonds/checkout" class="font-semibold text-blue-700 underline">secure checkout</a>.
+            </div>
+        </noscript>
     </section>
 
     <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
@@ -87,32 +91,32 @@
         <p class="text-sm text-slate-600 mt-2">These placement rates anchor direct inventory sales and county-specific proposals.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
             <article class="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Featured Bondsman</p>
-                <h3 class="text-base font-black text-slate-900 mt-1">Top Banner (970x250)</h3>
+                <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">The Big Sky Header</p>
+                <h3 class="text-base font-black text-slate-900 mt-1">Top Banner Placement</h3>
                 <p class="text-sm text-slate-700 mt-2">$450 / month</p>
-                <p class="text-xs text-slate-500 mt-1">Premium header placement on all arrest feeds.</p>
-                <p class="text-xs text-slate-500 mt-2">Secure the most prominent real estate on MontanaBlotter.com. This 970x250 header banner ensures your agency is seen first by visitors checking recent arrests, with mobile click-to-call support.</p>
+                <p class="text-xs text-slate-500 mt-1">Premium statewide first-view visibility.</p>
+                <p class="text-xs text-slate-500 mt-2">Own the top of the feed with a 970x250 premium header positioned above MontanaBlotter's highest-intent arrest traffic.</p>
             </article>
             <article class="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Emergency Call Sidebar</p>
-                <h3 class="text-base font-black text-slate-900 mt-1">Sticky Ad (300x600)</h3>
+                <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">The Summit Sidebar</p>
+                <h3 class="text-base font-black text-slate-900 mt-1">Emergency Call Sidebar</h3>
                 <p class="text-sm text-slate-700 mt-2">$300 / month</p>
-                <p class="text-xs text-slate-500 mt-1">Persistent sidebar placement that stays visible as users scroll.</p>
-                <p class="text-xs text-slate-500 mt-2">Stay top of mind as users browse arrest records. This sticky placement remains visible and is optimized for mobile tap-to-call conversions.</p>
+                <p class="text-xs text-slate-500 mt-1">Persistent sidebar placement that stays visible on scroll.</p>
+                <p class="text-xs text-slate-500 mt-2">Keep your agency present through the full reading session with a 300x600 unit tuned for mobile tap-to-call behavior.</p>
             </article>
             <article class="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Exclusive County Sponsorship</p>
-                <h3 class="text-base font-black text-slate-900 mt-1">County Feed Sponsorship</h3>
+                <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">The Horizon Exclusive</p>
+                <h3 class="text-base font-black text-slate-900 mt-1">County Sponsorship</h3>
                 <p class="text-sm text-slate-700 mt-2">$150 - $350 / month (tiered)</p>
-                <p class="text-xs text-slate-500 mt-1">Dedicated sponsorship of one specific Montana county feed.</p>
-                <p class="text-xs text-slate-500 mt-2">Own the conversation in your local jurisdiction with branding placed above a specific county blotter feed. Limited to one agency per county.</p>
+                <p class="text-xs text-slate-500 mt-1">Exclusive sponsorship of one Montana county feed.</p>
+                <p class="text-xs text-slate-500 mt-2">Secure a single-agency county position and dominate the local arrest audience with hyper-local branding.</p>
             </article>
             <article class="rounded-xl border border-slate-200 p-4 bg-slate-50">
                 <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">The Gold Bond Bundle</p>
-                <h3 class="text-base font-black text-slate-900 mt-1">Top Banner + Sidebar + 2 Counties</h3>
+                <h3 class="text-base font-black text-slate-900 mt-1">Market Dominance</h3>
                 <p class="text-sm text-slate-700 mt-2">$650 / month</p>
-                <p class="text-xs text-slate-500 mt-1">The ultimate visibility package with multi-touch coverage.</p>
-                <p class="text-xs text-slate-500 mt-2">Includes Featured Bondsman top banner placement, Emergency Call sidebar placement, and exclusive sponsorship in two counties of your choice, with bundled value built in.</p>
+                <p class="text-xs text-slate-500 mt-1">The featured package for statewide multi-touch coverage.</p>
+                <p class="text-xs text-slate-500 mt-2">Bundle the header, sidebar, and two exclusive counties into one featured offer with the 15% package discount already applied.</p>
             </article>
         </div>
     </section>
@@ -122,8 +126,12 @@
             <h2 class="text-2xl font-black text-slate-900">Apply to Advertise</h2>
             <p class="text-sm text-slate-600 mt-2">Complete this intake form to start compliance review and placement planning.</p>
 
-            <form method="post" action="/advertise/bail-bonds" class="mt-6 space-y-4">
+            <form id="bail-ad-inquiry-form" method="post" action="/advertise/bail-bonds" class="mt-6 space-y-4">
                 <input type="hidden" name="source" value="{{ request.args.get('source', 'advertise_page') }}">
+                <input type="hidden" name="simulator_logo_path" value="">
+                <input type="hidden" name="simulator_target_url" value="">
+                <input type="hidden" name="simulator_share_url" value="">
+                <input type="hidden" name="simulator_view" value="">
                 <input type="text" name="fax_number" tabindex="-1" autocomplete="off" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -186,8 +194,12 @@
                 </div>
 
                 <label class="flex items-start gap-2 text-sm text-slate-700">
-                    <input type="checkbox" name="policy_ack" value="yes" class="mt-1">
+                    <input type="checkbox" name="policy_ack" value="yes" class="mt-1" required>
                     <span>I confirm our business is properly licensed and agree to Montana Blotter ad review policies.</span>
+                </label>
+                <label class="flex items-start gap-2 text-sm text-slate-700">
+                    <input type="checkbox" name="contract_ack" value="yes" class="mt-1" required>
+                    <span>I reviewed the <a href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %} class="font-semibold text-blue-700 underline">Affordable Bail Bonds advertising contract</a> before submitting this inquiry.</span>
                 </label>
 
                 <button type="submit" class="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black py-3 text-sm uppercase tracking-[0.12em]">
@@ -218,10 +230,15 @@
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
                 <h3 class="text-lg font-black text-slate-900">Legal</h3>
                 <p class="text-sm text-slate-600 mt-3">
-                    Applications and ad accounts are governed by our
+                    Review the <a class="underline hover:text-slate-700" href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %}>Affordable Bail Bonds advertising contract</a>,
+                    plus our
                     <a class="underline hover:text-slate-700" href="/terms-of-use">Terms of Use</a>
                     and
                     <a class="underline hover:text-slate-700" href="/privacy">Privacy Policy</a>.
+                </p>
+                <p class="text-xs text-slate-500 mt-3">
+                    Applications and ad accounts are governed by our
+                    contract review, billing rules, and creative standards before launch.
                 </p>
             </div>
         </aside>
@@ -230,15 +247,10 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-    (function () {
-        document.querySelectorAll('article[data-checkout-url]').forEach(function (card) {
-            card.addEventListener('click', function (event) {
-                if (event.target.closest('a, button, input, select, textarea, label')) return;
-                var url = card.getAttribute('data-checkout-url');
-                if (url) window.location.href = url;
-            });
-        });
-    })();
-</script>
+<script id="advertising-packages-data" type="application/json">{{ {'packages': pricing_cards, 'salesPhone': help_contact.phone_display, 'salesTel': help_contact.tel_href} | tojson }}</script>
+<script id="ad-simulator-data" type="application/json">{{ simulator_bootstrap | tojson }}</script>
+<script type="module" src="{{ url_for('static', filename='js/advertising-packages.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ad-simulator.js') }}"></script>
+{% set contract_popup_storage_key = 'mb_letsbail_contract_seen_advertise' %}
+{% include "includes/bail_ad_contract_popup.html" %}
 {% endblock %}

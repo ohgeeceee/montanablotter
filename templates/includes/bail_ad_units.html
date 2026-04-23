@@ -1,0 +1,203 @@
+{% macro render_bail_banner(ad, source, dark=False) -%}
+{% if ad %}
+{% set shell_bg = '#18130F' if dark else 'linear-gradient(135deg, #0f172a 0%, #1e293b 62%, #334155 100%)' %}
+{% set shell_border = 'rgba(241, 191, 116, 0.28)' if dark else '#cbd5e1' %}
+{% set text_primary = '#F8F5EF' if dark else '#ffffff' %}
+{% set text_secondary = '#D7CCBA' if dark else '#e2e8f0' %}
+{% set accent = '#F1BF74' if dark else '#f59e0b' %}
+<section class="js-bail-ad-unit rounded-[28px] overflow-hidden mb-4"
+         data-bail-ad-impression="true"
+         data-order-id="{{ ad.id }}"
+         data-county="{{ ad.tracking_county or '' }}"
+         data-source="{{ source }}"
+         style="background: {{ shell_bg }}; border: 1px solid {{ shell_border }}; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);">
+    <div class="px-5 sm:px-6 py-5 sm:py-6">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-5">
+            <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                    <span class="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em]"
+                          style="background: rgba(245, 158, 11, 0.16); color: {{ accent }};">
+                        {{ ad.surface_label }}
+                    </span>
+                    <span class="text-[10px] font-black uppercase tracking-[0.18em]" style="color: {{ text_secondary }};">
+                        {{ ad.surface_note }}
+                    </span>
+                </div>
+                <h2 style="color: {{ text_primary }}; font-family:'Playfair Display', Georgia, serif; font-size: 1.7rem; line-height: 1.05; font-weight: 900;">
+                    {{ ad.headline }}
+                </h2>
+                <p class="mt-3 text-sm sm:text-base" style="color: {{ text_secondary }}; line-height: 1.65;">
+                    {{ ad.body_copy }}
+                </p>
+                <div class="mt-4 flex flex-wrap items-center gap-3">
+                    {% if ad.target_url %}
+                    <a href="{{ ad.target_url }}"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="js-bail-ad-click inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em]"
+                       data-order-id="{{ ad.id }}"
+                       data-county="{{ ad.tracking_county or '' }}"
+                       data-source="{{ source }}"
+                       style="background: {{ accent }}; color: #111827; text-decoration: none;">
+                        {{ ad.cta_text }}
+                    </a>
+                    {% endif %}
+                    {% if ad.phone_href %}
+                    <a href="{{ ad.phone_href }}"
+                       class="js-bail-ad-call inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em]"
+                       data-order-id="{{ ad.id }}"
+                       data-county="{{ ad.tracking_county or '' }}"
+                       data-source="{{ source }}"
+                       style="border: 1px solid rgba(255,255,255,0.18); color: {{ text_primary }}; text-decoration: none;">
+                        Call {{ ad.phone }}
+                    </a>
+                    {% endif %}
+                    {% if ad.sms_href %}
+                    <a href="{{ ad.sms_href }}"
+                       class="js-bail-ad-text inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em]"
+                       data-order-id="{{ ad.id }}"
+                       data-county="{{ ad.tracking_county or '' }}"
+                       data-source="{{ source }}"
+                       style="border: 1px solid rgba(255,255,255,0.18); color: {{ text_primary }}; text-decoration: none;">
+                        Text Agency
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="w-full lg:w-[260px] xl:w-[320px] flex-shrink-0">
+                <div class="rounded-[24px] p-4"
+                     style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.08);">
+                    {% if ad.logo_path %}
+                    <img src="{{ ad.logo_path }}" alt="{{ ad.business_name }} creative" class="w-full rounded-[16px] bg-white object-contain" style="max-height: 168px;">
+                    {% else %}
+                    <div class="w-full rounded-[16px] flex items-center justify-center text-xs font-black uppercase tracking-[0.18em]" style="height: 168px; background: rgba(255,255,255,0.08); color: {{ text_secondary }};">
+                        {{ ad.business_name }}
+                    </div>
+                    {% endif %}
+                    <div class="mt-3">
+                        <p class="text-sm font-black" style="color: {{ text_primary }};">{{ ad.business_name }}</p>
+                        <p class="mt-1 text-[11px] uppercase tracking-[0.16em]" style="color: {{ text_secondary }};">Sponsored advertiser</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+{%- endmacro %}
+
+
+{% macro render_bail_panel(ad, source, dark=False) -%}
+{% if ad %}
+{% set panel_bg = '#12110F' if dark else '#ffffff' %}
+{% set panel_border = '#282420' if dark else '#e2e8f0' %}
+{% set heading = '#F0E8D8' if dark else '#0f172a' %}
+{% set body = '#C9B99F' if dark else '#475569' %}
+{% set accent = '#D4892A' if dark else '#f59e0b' %}
+<section class="js-bail-ad-unit rounded-[24px] overflow-hidden"
+         data-bail-ad-impression="true"
+         data-order-id="{{ ad.id }}"
+         data-county="{{ ad.tracking_county or '' }}"
+         data-source="{{ source }}"
+         style="background: {{ panel_bg }}; border: 1px solid {{ panel_border }};">
+    <div class="px-4 py-4">
+        <div class="flex items-center justify-between gap-3">
+            <span class="text-[10px] font-black uppercase tracking-[0.18em]" style="color: {{ accent }};">{{ ad.surface_label }}</span>
+            <span class="text-[10px] font-black uppercase tracking-[0.18em]" style="color: {{ body }};">Sponsored</span>
+        </div>
+        {% if ad.logo_path %}
+        <div class="mt-3 rounded-2xl border bg-white p-3" style="border-color: {{ panel_border }};">
+            <img src="{{ ad.logo_path }}" alt="{{ ad.business_name }} logo" class="w-full object-contain rounded-xl" style="max-height: 180px;">
+        </div>
+        {% endif %}
+        <h3 class="mt-3 text-lg font-black" style="color: {{ heading }};">{{ ad.headline }}</h3>
+        <p class="mt-2 text-sm leading-6" style="color: {{ body }};">{{ ad.body_copy }}</p>
+        <p class="mt-3 text-sm font-bold" style="color: {{ heading }};">{{ ad.business_name }}</p>
+        <div class="mt-4 flex flex-col gap-2">
+            {% if ad.target_url %}
+            <a href="{{ ad.target_url }}"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="js-bail-ad-click inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em]"
+               data-order-id="{{ ad.id }}"
+               data-county="{{ ad.tracking_county or '' }}"
+               data-source="{{ source }}"
+               style="background: {{ accent }}; color: #111827; text-decoration: none;">
+                {{ ad.cta_text }}
+            </a>
+            {% endif %}
+            {% if ad.phone_href %}
+            <a href="{{ ad.phone_href }}"
+               class="js-bail-ad-call inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em]"
+               data-order-id="{{ ad.id }}"
+               data-county="{{ ad.tracking_county or '' }}"
+               data-source="{{ source }}"
+               style="border: 1px solid {{ panel_border }}; color: {{ heading }}; text-decoration: none;">
+                Call {{ ad.phone }}
+            </a>
+            {% endif %}
+            {% if ad.sms_href %}
+            <a href="{{ ad.sms_href }}"
+               class="js-bail-ad-text inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em]"
+               data-order-id="{{ ad.id }}"
+               data-county="{{ ad.tracking_county or '' }}"
+               data-source="{{ source }}"
+               style="border: 1px solid {{ panel_border }}; color: {{ heading }}; text-decoration: none;">
+                Text Agency
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+{%- endmacro %}
+
+
+{% macro render_bail_tracking_script() -%}
+<script>
+(function () {
+    if (window.__mbBailAdsBound) return;
+    window.__mbBailAdsBound = true;
+
+    function send(payload) {
+        try {
+            var raw = JSON.stringify(payload || {});
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon('/api/bail-ads/event', new Blob([raw], {type: 'application/json'}));
+                return;
+            }
+            fetch('/api/bail-ads/event', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: raw,
+                keepalive: true
+            });
+        } catch (e) {}
+    }
+
+    document.querySelectorAll('[data-bail-ad-impression="true"]').forEach(function (node) {
+        if (node.dataset.impressionSent === '1') return;
+        node.dataset.impressionSent = '1';
+        send({
+            event_type: 'impression',
+            order_id: Number(node.getAttribute('data-order-id') || 0),
+            county: node.getAttribute('data-county') || '',
+            source: node.getAttribute('data-source') || ''
+        });
+    });
+
+    [['.js-bail-ad-click', 'click'], ['.js-bail-ad-call', 'call'], ['.js-bail-ad-text', 'text'], ['.js-bail-ad-email', 'lead']].forEach(function (pair) {
+        document.querySelectorAll(pair[0]).forEach(function (link) {
+            link.addEventListener('click', function () {
+                send({
+                    event_type: pair[1],
+                    order_id: Number(link.getAttribute('data-order-id') || 0),
+                    county: link.getAttribute('data-county') || '',
+                    source: link.getAttribute('data-source') || ''
+                });
+            });
+        });
+    });
+})();
+</script>
+{%- endmacro %}

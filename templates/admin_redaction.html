@@ -1,12 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>PII Redaction — Post #{{ post.id }} | Montana Blotter Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+{% extends "base.html" %}
+
+{% block title %}PII Redaction — Post #{{ post.id }} | Montana Blotter Admin{% endblock %}
+
+{% block body_class %}bg-slate-100 min-h-screen{% endblock %}
+
+{% block content_wrapper_class %}p-0{% endblock %}
+
+{% block extra_head %}
     <style>
         /* ------------------------------------------------------------------ */
         /* Base                                                                 */
@@ -154,33 +154,19 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius:3px; }
     </style>
-</head>
-<body class="bg-slate-100 min-h-screen">
+{% endblock %}
 
-<!-- ======================================================================= -->
-<!-- Admin nav bar                                                             -->
-<!-- ======================================================================= -->
-<nav style="background:#0D0C0B; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50; font-family:'IBM Plex Mono',monospace;">
-    <div class="max-w-7xl mx-auto px-6 flex items-center justify-between gap-4" style="height:54px;">
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div style="width:32px; height:32px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div>
-                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:0.9rem; color:#E8DFD0; line-height:1.1;">The Montana Blotter</div>
-                    <div style="font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.18em;">Admin Panel</div>
-                </div>
-            </div>
-            <span style="color:#282420;">|</span>
-            <div class="flex items-center gap-2">
-                <a href="/admin/blotters" style="font-size:0.6rem; color:#8A7F72; text-transform:uppercase; letter-spacing:0.08em; text-decoration:none;">← Blotters</a>
-                <span style="font-size:0.65rem; color:#D4892A; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); border-radius:3px;">PII Editor</span>
-                <span style="color:#E8DFD0; font-size:0.75rem; font-weight:500;">Post #{{ post.id }}</span>
-                <span style="color:#504840; font-size:0.7rem;">— {{ post.agency_name or 'Unknown Agency' }}</span>
-            </div>
+{% block content %}
+
+<section style="background:#0D0C0B; border-bottom:1px solid #282420; font-family:'IBM Plex Mono',monospace;">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div class="flex items-center gap-2 flex-wrap">
+            <a href="/admin/blotters" style="font-size:0.6rem; color:#8A7F72; text-transform:uppercase; letter-spacing:0.08em; text-decoration:none;">← Blotters</a>
+            <span style="font-size:0.65rem; color:#D4892A; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); border-radius:3px;">PII Editor</span>
+            <span style="color:#E8DFD0; font-size:0.75rem; font-weight:500;">Post #{{ post.id }}</span>
+            <span style="color:#504840; font-size:0.7rem;">{{ post.agency_name or 'Unknown Agency' }}</span>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 flex-wrap">
             {% set cs = post.audit_status or 'pending' %}
             {% if cs == 'clean' %}
             <span style="display:inline-flex; align-items:center; gap:6px; font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#5EAA70; background:rgba(94,170,112,0.12); border:1px solid rgba(94,170,112,0.35); padding:3px 10px; border-radius:3px;">
@@ -198,7 +184,7 @@
             <a href="/" target="_blank" style="font-size:0.6rem; color:#504840; text-transform:uppercase; letter-spacing:0.08em; text-decoration:none;">↗ Public</a>
         </div>
     </div>
-</nav>
+</section>
 
 <!-- Flash messages -->
 {% with messages = get_flashed_messages() %}
@@ -824,6 +810,4 @@ syncPreview();
 
 })();
 </script>
-
-</body>
-</html>
+{% endblock %}

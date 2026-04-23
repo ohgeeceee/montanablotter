@@ -11,6 +11,8 @@ import config
 from pdf_parser import BlotterParser, parse_text_blotter
 import summarizer
 import blotter_auditor
+from blotter_analytics import classify_charge
+from alert_dispatcher import dispatch_alerts
 from dedupe import incident_key_set, incident_keys
 from pipeline_state import (
     ensure_source_document,
@@ -32,7 +34,11 @@ def _connect_db() -> sqlite3.Connection:
     conn.execute(f'PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS}')
     return conn
 
+_ALLOWED_TABLES = {'blotters', 'records', 'posts', 'command_logs', 'ingestion_jobs'}
+
 def _table_has_column(conn: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+    if table_name not in _ALLOWED_TABLES:
+        return False
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return any(r[1] == column_name for r in rows)
 
@@ -130,7 +136,7 @@ def _publish_blotter_outputs(
                 {'post_count': post_count},
             )
     except Exception as e:
-        logging.warning(f"Post generation failed for {label} #{blotter_id}: {e}")
+        logging.error(f"Post generation failed for {label} #{blotter_id}: {e}")
         if ingestion_job_id is not None:
             log_pipeline_event(
                 ingestion_job_id,
@@ -146,6 +152,19 @@ def _publish_blotter_outputs(
             f"Blotter auditor: {len(audit_results)} post(s) audited, "
             f"{len(flagged)} flagged for review"
         )
+        try:
+            from facebook_publisher import auto_queue_post_if_enabled
+
+            queued = 0
+            for result in audit_results:
+                if result.audit_passed and result.post_id is not None:
+                    queue_result = auto_queue_post_if_enabled(int(result.post_id))
+                    if queue_result.get("queued"):
+                        queued += 1
+            if queued:
+                logging.info(f"Facebook auto-queued {queued} audited post(s) for {label} #{blotter_id}")
+        except Exception as e:
+            logging.warning(f"Facebook auto-queue after audit failed for {label} #{blotter_id}: {e}")
         if ingestion_job_id is not None:
             log_pipeline_event(
                 ingestion_job_id,
@@ -154,7 +173,7 @@ def _publish_blotter_outputs(
                 {'audited': len(audit_results), 'flagged': len(flagged)},
             )
     except Exception as e:
-        logging.warning(f"Blotter auditor failed for {label} #{blotter_id}: {e}")
+        logging.error(f"Blotter auditor failed for {label} #{blotter_id}: {e}")
         if ingestion_job_id is not None:
             log_pipeline_event(
                 ingestion_job_id,
@@ -162,6 +181,17 @@ def _publish_blotter_outputs(
                 'warn',
                 {'error': str(e)},
             )
+
+    try:
+        _conn = _connect_db()
+        _row = _conn.execute("SELECT county FROM blotters WHERE id=?", (blotter_id,)).fetchone()
+        _blotter_county = (_row[0] if _row else None) or 'Unknown'
+        _conn.close()
+        alerts_sent = dispatch_alerts(blotter_id, _blotter_county)
+        if alerts_sent:
+            logging.info(f"Alert dispatcher: {alerts_sent} alert(s) sent for blotter #{blotter_id}")
+    except Exception as e:
+        logging.error(f"Alert dispatcher failed for blotter #{blotter_id}: {e}")
 
     visible_post_count = _post_count_for_blotter(blotter_id)
     if ingestion_job_id is not None:
@@ -190,6 +220,193 @@ def _publish_blotter_outputs(
             )
 
     return visible_post_count
+
+
+def parse_pdf(
+    pdf_path: str,
+    county: Optional[str] = None,
+    ingestion_job_id: Optional[int] = None,
+) -> dict:
+    """Parse a blotter PDF into structured incidents without storing/publishing."""
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"PDF not found: {pdf_path}")
+
+    parser = BlotterParser(pdf_path)
+    result = parser.parse()
+    result_county = county or result.get('county')
+    parsed = {
+        'county': result_county,
+        'total_count': int(result.get('total_count') or 0),
+        'incidents': result.get('incidents') or [],
+    }
+    if ingestion_job_id is not None:
+        log_pipeline_event(
+            ingestion_job_id,
+            'parse',
+            'ok',
+            {'incident_count': parsed['total_count'], 'county': parsed['county']},
+        )
+        set_ingestion_job_status(ingestion_job_id, 'parsed')
+    return parsed
+
+
+def store_parsed_pdf(
+    pdf_path: str,
+    parsed: dict,
+    county: Optional[str] = None,
+    source_document_id: Optional[int] = None,
+    ingestion_job_id: Optional[int] = None,
+) -> int:
+    """
+    Persist parsed incidents into blotters/records tables.
+    Returns blotter id, or 0 when all incidents are duplicates.
+    """
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"PDF not found: {pdf_path}")
+
+    filename = os.path.basename(pdf_path)
+    incidents = list(parsed.get('incidents') or [])
+    parsed_county = county or parsed.get('county')
+
+    conn = _connect_db()
+    source_column_exists = _table_has_column(conn, 'blotters', 'source_document_id')
+    existing = None
+    if source_document_id is not None and source_column_exists:
+        existing = conn.execute(
+            'SELECT id FROM blotters WHERE source_document_id = ?',
+            (source_document_id,),
+        ).fetchone()
+    conn.close()
+    if existing:
+        existing_id = int(existing[0])
+        logging.info(f"Skipping duplicate blotter store: {filename} (already blotter #{existing_id})")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'ingest',
+                'ok',
+                {'message': 'duplicate-skip', 'existing_blotter_id': existing_id},
+            )
+            set_ingestion_job_status(ingestion_job_id, 'normalized')
+        return existing_id
+
+    conn = _connect_db()
+    cursor = conn.cursor()
+
+    try:
+        incidents, skipped_duplicates = _filter_duplicate_incidents(
+            conn,
+            incidents,
+            parsed_county,
+        )
+        if skipped_duplicates:
+            logging.info(
+                f"Skipped {skipped_duplicates} duplicate incident(s) before insert for {filename}"
+            )
+
+        if not incidents:
+            logging.info(f"All incidents already exist for {filename} — skipping batch creation")
+            if ingestion_job_id is not None:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'ingest',
+                    'ok',
+                    {'message': 'duplicate-skip-all-incidents', 'source_filename': filename},
+                )
+                set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+            conn.close()
+            return 0
+
+        has_source_column = _table_has_column(conn, 'blotters', 'source_document_id')
+        if has_source_column:
+            cursor.execute(
+                'INSERT INTO blotters (filename, county, incident_count, file_path, source_document_id) VALUES (?, ?, ?, ?, ?)',
+                (filename, parsed_county, len(incidents), pdf_path, source_document_id),
+            )
+        else:
+            cursor.execute(
+                'INSERT INTO blotters (filename, county, incident_count, file_path) VALUES (?, ?, ?, ?)',
+                (filename, parsed_county, len(incidents), pdf_path),
+            )
+        if cursor.lastrowid is None:
+            raise RuntimeError('Failed to create blotter row')
+        batch_id = int(cursor.lastrowid)
+        logging.info(f"Created blotter batch #{batch_id}")
+
+        for incident in incidents:
+            incident_type_val = incident.get('incident_type') or ''
+            cursor.execute(
+                '''
+                INSERT INTO records (
+                    blotter_id, cfs_number, date, time, incident_type,
+                    incident, location, details, county, officer, charge_category
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    batch_id,
+                    incident.get('cfs_number'),
+                    incident.get('date'),
+                    incident.get('time'),
+                    incident_type_val,
+                    incident_type_val,
+                    incident.get('location'),
+                    incident.get('details'),
+                    parsed_county,
+                    incident.get('officer'),
+                    classify_charge(incident_type_val),
+                ),
+            )
+            record_id = cursor.lastrowid
+            if not record_id:
+                raise RuntimeError('Failed to insert record row — lastrowid is None')
+
+            for log in incident.get('command_logs', []):
+                cursor.execute(
+                    '''
+                    INSERT INTO command_logs (record_id, timestamp, officer, entry)
+                    VALUES (?, ?, ?, ?)
+                    ''',
+                    (record_id, log.get('timestamp'), log.get('officer'), log.get('entry')),
+                )
+
+        conn.commit()
+        logging.info(f"✅ Batch #{batch_id} complete: {len(incidents)} incidents indexed")
+        if ingestion_job_id is not None:
+            log_pipeline_event(
+                ingestion_job_id,
+                'normalize',
+                'ok',
+                {
+                    'blotter_id': batch_id,
+                    'incident_count': len(incidents),
+                    'duplicate_incidents_skipped': skipped_duplicates,
+                },
+            )
+            set_ingestion_job_status(ingestion_job_id, 'normalized')
+        return batch_id
+
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def publish_blotter(
+    blotter_id: int,
+    sender_email: Optional[str] = None,
+    ingestion_job_id: Optional[int] = None,
+    label: str = 'blotter',
+) -> int:
+    """Publish downstream artifacts for an existing blotter id."""
+    if blotter_id <= 0:
+        return 0
+    return _publish_blotter_outputs(
+        blotter_id,
+        sender_email=sender_email,
+        ingestion_job_id=ingestion_job_id,
+        label=label,
+    )
 
 
 def process_new_blotter(
@@ -250,155 +467,34 @@ def process_new_blotter(
         )
         return existing[0]
 
-    logging.info(f"Processing blotter: {pdf_path}")
-    
-    # Step 1: Parse the PDF
     try:
-        parser = BlotterParser(pdf_path)
-        result = parser.parse()
-        if ingestion_job_id is not None:
-            log_pipeline_event(
-                ingestion_job_id,
-                'parse',
-                'ok',
-                {'incident_count': result['total_count'], 'county': result['county']},
-            )
-            set_ingestion_job_status(ingestion_job_id, 'parsed')
-    except Exception as e:
-        logging.error(f"Failed to parse PDF: {e}")
-        if ingestion_job_id is not None:
-            log_pipeline_event(
-                ingestion_job_id,
-                'parse',
-                'error',
-                {'error': str(e)},
-            )
-            increment_ingestion_retry(ingestion_job_id, str(e))
-            set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
-        raise
-    
-    # Use detected county if not provided
-    if not county:
-        county = result['county']
-    
-    logging.info(f"Detected county: {county}, Found {result['total_count']} incidents")
-    
-    # Step 2: Insert into database
-    conn = _connect_db()
-    cursor = conn.cursor()
-    
-    try:
-        incidents, skipped_duplicates = _filter_duplicate_incidents(
-            conn,
-            result['incidents'],
-            county,
+        logging.info(f"Processing blotter: {pdf_path}")
+        parsed = parse_pdf(
+            pdf_path,
+            county=county,
+            ingestion_job_id=ingestion_job_id,
         )
-        if skipped_duplicates:
-            logging.info(
-                f"Skipped {skipped_duplicates} duplicate incident(s) before insert for {filename}"
-            )
-        if not incidents:
-            logging.info(f"All incidents already exist for {filename} — skipping batch creation")
-            if ingestion_job_id is not None:
-                log_pipeline_event(
-                    ingestion_job_id,
-                    'ingest',
-                    'ok',
-                    {'message': 'duplicate-skip-all-incidents', 'source_filename': filename},
-                )
-                set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
-            conn.close()
-            return 0
+        logging.info(f"Detected county: {parsed.get('county')}, Found {parsed.get('total_count')} incidents")
 
-        # Create the Batch Entry
-        has_source_column = _table_has_column(conn, 'blotters', 'source_document_id')
-        if has_source_column:
-            cursor.execute(
-                'INSERT INTO blotters (filename, county, incident_count, file_path, source_document_id) VALUES (?, ?, ?, ?, ?)',
-                (filename, county, len(incidents), pdf_path, source_document_id)
-            )
-        else:
-            cursor.execute(
-                'INSERT INTO blotters (filename, county, incident_count, file_path) VALUES (?, ?, ?, ?)',
-                (filename, county, len(incidents), pdf_path)
-            )
-        if cursor.lastrowid is None:
-            raise RuntimeError('Failed to create blotter row')
-        batch_id = int(cursor.lastrowid)
-        logging.info(f"Created blotter batch #{batch_id}")
-        
-        # Insert individual incidents
-        for incident in incidents:
-            incident_type_val = incident.get('incident_type') or ''
-            cursor.execute('''
-                INSERT INTO records (
-                    blotter_id, cfs_number, date, time, incident_type,
-                    incident, location, details, county, officer
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                batch_id,
-                incident.get('cfs_number'),
-                incident.get('date'),
-                incident.get('time'),
-                incident_type_val,
-                incident_type_val,  # legacy 'incident' column (NOT NULL)
-                incident.get('location'),
-                incident.get('details'),
-                county,
-                incident.get('officer')
-            ))
-            record_id = cursor.lastrowid
-            
-            # Insert command logs if available
-            for log in incident.get('command_logs', []):
-                cursor.execute('''
-                    INSERT INTO command_logs (record_id, timestamp, officer, entry)
-                    VALUES (?, ?, ?, ?)
-                ''', (record_id, log.get('timestamp'), log.get('officer'), log.get('entry')))
-        
-        conn.commit()
-        logging.info(f"✅ Batch #{batch_id} complete: {len(incidents)} incidents indexed")
-        if ingestion_job_id is not None:
-            log_pipeline_event(
-                ingestion_job_id,
-                'normalize',
-                'ok',
-                {
-                    'blotter_id': batch_id,
-                    'incident_count': len(incidents),
-                    'duplicate_incidents_skipped': skipped_duplicates,
-                },
-            )
-            set_ingestion_job_status(ingestion_job_id, 'normalized')
-        # Release writer connection before downstream summary/audit writes.
-        conn.close()
-        conn = None
-
-        _publish_blotter_outputs(
+        batch_id = store_parsed_pdf(
+            pdf_path,
+            parsed,
+            county=county,
+            source_document_id=source_document_id,
+            ingestion_job_id=ingestion_job_id,
+        )
+        publish_blotter(
             batch_id,
             ingestion_job_id=ingestion_job_id,
             label='blotter',
         )
-
         return batch_id
-
     except Exception as e:
-        if conn is not None:
-            conn.rollback()
-        logging.error(f"Database error: {e}")
+        logging.error(f"Pipeline error: {e}")
         if ingestion_job_id is not None:
-            log_pipeline_event(
-                ingestion_job_id,
-                'normalize',
-                'error',
-                {'error': str(e)},
-            )
             increment_ingestion_retry(ingestion_job_id, str(e))
             set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
         raise
-    finally:
-        if conn is not None:
-            conn.close()
 
 
 def process_text_blotter(
@@ -521,8 +617,8 @@ def process_text_blotter(
                 """
                 INSERT INTO records
                     (blotter_id, cfs_number, date, time, incident_type,
-                     incident, location, details, county, officer)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     incident, location, details, county, officer, charge_category)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     blotter_id,
@@ -535,9 +631,12 @@ def process_text_blotter(
                     incident.get('details'),
                     county,
                     incident.get('officer'),
+                    classify_charge(incident_type_val),
                 ),
             )
             record_id = cursor.lastrowid
+            if not record_id:
+                raise RuntimeError('Failed to insert record row — lastrowid is None')
 
             for log in incident.get('command_logs', []):
                 cursor.execute(

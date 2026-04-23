@@ -7,16 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
-    <style>
-    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 6px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s, background 0.15s; }
-    .pnav-link:hover { color: #E8DFD0; background: rgba(255,255,255,0.03); }
-    .pnav-link.active { color: #D4892A !important; }
-    .pnav-secondary-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.52rem; color: #A89880; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 0; font-weight: 600; text-decoration: none; transition: color 0.15s; }
-    .pnav-secondary-link:hover { color: #E8DFD0; }
-    .pnav-secondary-link.active { color: #D4892A !important; }
-    .pnav-divider { color: #5F564C; user-select: none; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='public-redesign.css') }}">
     <title>{{ page_title }} | Montana Blotter</title>
     <meta name="description" content="{{ meta_description }}">
     {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
@@ -29,92 +21,102 @@
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
     {% include "includes/google_analytics.html" %}
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#D4892A">
+    <meta name="theme-color" content="#f7f4ee">
     <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
     {% block extra_head %}{% endblock %}
     {% if recaptcha_site_key %}
     <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
     {% endif %}
 </head>
-<body style="background:#0D0C0B; color:#E8DFD0; font-family:'Spectral',Georgia,serif; min-height:100vh;">
+<body class="public-app {% block body_class %}{% endblock %}">
     {% include "includes/public_official_banner.html" %}
 
     {% block pre_header %}{% endblock %}
 
-    <header style="background:#161513; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-6" style="height:56px;">
-            <a href="/" style="display:flex; align-items:center; gap:14px; text-decoration:none;">
-                <div style="width:36px; height:36px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
+    <header class="public-shell-header">
+        <div class="public-topband">
+            <div class="public-topband__inner max-w-7xl mx-auto px-4 sm:px-6">
+                <p class="public-shell-note">Statewide Public Records Access</p>
+                <p class="public-shell-note public-shell-note--accent">Montana County, City, Jail, Warrant, and Court Lookup</p>
+            </div>
+        </div>
+        <div class="public-shell-core max-w-7xl mx-auto px-4 sm:px-6">
+            <a href="/" class="public-brand">
+                <div class="public-brand__mark">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 </div>
                 <div>
-                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:1rem; color:#E8DFD0; line-height:1.1; letter-spacing:-0.01em;">The Montana Blotter</div>
-                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Daily Public Safety Dispatch</div>
+                    <div class="public-brand__title">The Montana Blotter</div>
+                    <div class="public-brand__tag">Montana Public Records Directory</div>
                 </div>
             </a>
-            <nav class="hidden md:flex items-center gap-0.5">
+            <nav class="public-nav hidden md:flex">
                 {% for item in public_primary_nav_items %}
                 {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
-                <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}">{{ item.label }}</a>
+                <a href="{{ item.href }}" class="public-nav-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_primary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
                 {% if not loop.last %}
-                <span class="pnav-divider pnav-link" style="padding-left:2px; padding-right:2px; background:none;">//</span>
+                <span class="public-nav-divider">//</span>
                 {% endif %}
                 {% endfor %}
-                <a href="/subscribe" class="pnav-link" style="margin-left:8px; background:rgba(212,137,42,0.12); border:1px solid rgba(212,137,42,0.3); color:#D4892A;">Subscribe</a>
+                <a href="/subscribe" class="public-nav-link public-nav-link--cta" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
                 {% if public_user %}
-                <a href="/account" class="pnav-link" style="margin-left:8px; color:#E8DFD0;">{{ public_user.display_name }}</a>
-                <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link">Log Out</a>
-                {% else %}
-                <a href="/login?next={{ request.full_path | urlencode }}" class="pnav-link" style="margin-left:8px;">Log In</a>
-                <a href="/register?next={{ request.full_path | urlencode }}" class="pnav-link">Register</a>
+                <a href="/account" class="public-nav-link" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action">{{ public_user.display_name }}</a>
+                <a href="/logout?next={{ request.full_path | urlencode }}" class="public-nav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_out }}</a>
+            {% else %}
+                <a href="/login?next={{ request.full_path | urlencode }}" class="public-nav-link" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
+                <a href="/register?next={{ request.full_path | urlencode }}" class="public-nav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
                 {% endif %}
             </nav>
-            <button id="pub-mobile-btn" class="hidden" style="background:none; border:none; color:#8A7F72; cursor:pointer; padding:4px;" aria-label="Open menu">
+            <button id="pub-mobile-btn" class="public-mobile-toggle md:hidden" aria-label="Open menu">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="0" y1="4" x2="18" y2="4"/><line x1="0" y1="9" x2="18" y2="9"/><line x1="0" y1="14" x2="18" y2="14"/></svg>
             </button>
         </div>
         {% if public_secondary_nav_items %}
-        <div class="hidden md:block" style="border-top:1px solid #282420;">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-end gap-4">
+        <div class="public-secondary-nav hidden md:block">
+            <div class="public-secondary-nav__inner max-w-7xl mx-auto px-4 sm:px-6">
                 {% for item in public_secondary_nav_items %}
                 {% set is_active = active_nav == item.id %}
-                <a href="{{ item.href }}" class="pnav-secondary-link {% if is_active %}active{% endif %}">{{ item.label }}</a>
+                <a href="{{ item.href }}" class="public-secondary-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_secondary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
                 {% if not loop.last %}
-                <span class="pnav-divider pnav-secondary-link" style="padding:0;">&gt;&gt;</span>
+                <span class="public-nav-divider">&gt;&gt;</span>
                 {% endif %}
                 {% endfor %}
             </div>
         </div>
         {% endif %}
-        <div id="pub-mobile-menu" class="hidden px-4 pb-3 space-y-0.5" style="border-top:1px solid #282420; background:#161513;">
-            <p class="pnav-link" style="display:block; padding:10px 12px 6px; color:#D4892A;">Main</p>
+        <div id="pub-mobile-menu" class="public-mobile-menu hidden md:hidden">
+            <p class="public-mobile-label public-mobile-label--accent">Main</p>
+            {% if public_mobile_short_label_legend %}
+            <p class="public-mobile-label" style="text-transform:none; letter-spacing:0; opacity:0.82;">{{ public_mobile_short_label_legend }}</p>
+            {% endif %}
+            <button id="pub-mobile-label-toggle" type="button" class="public-mobile-link" data-label-toggle="1" data-target-menu="pub-mobile-menu">Show Full Labels</button>
             {% for item in public_primary_nav_items %}
             {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
-            <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}" style="display:block; padding:8px 12px;">{{ item.label }}</a>
+            <a href="{{ item.href }}" class="public-mobile-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="mobile_main" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
             {% endfor %}
-            <a href="/subscribe" class="pnav-link" style="display:block; padding:8px 12px; color:#D4892A;">Subscribe</a>
+            <a href="/subscribe" class="public-mobile-link active" title="{{ public_action_labels.subscribe_full }}" aria-label="{{ public_action_labels.subscribe_full }}" data-nav-track="1" data-nav-location="mobile_main" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
             {% if public_user %}
-            <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Account</p>
-            <a href="/account" class="pnav-link" style="display:block; padding:8px 12px; color:#E8DFD0;">{{ public_user.display_name }}</a>
-            <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link" style="display:block; padding:8px 12px;">Log Out</a>
+            <p class="public-mobile-label">{{ public_action_labels.account }}</p>
+            <a href="/account" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_user.display_name }}</a>
+            <a href="/logout?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.sign_out }}</a>
             {% else %}
-            <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Account</p>
-            <a href="/login?next={{ request.full_path | urlencode }}" class="pnav-link" style="display:block; padding:8px 12px;">Log In</a>
-            <a href="/register?next={{ request.full_path | urlencode }}" class="pnav-link" style="display:block; padding:8px 12px;">Register</a>
+            <p class="public-mobile-label">{{ public_action_labels.account }}</p>
+            <a href="/login?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.sign_in }}</a>
+            <a href="/register?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.join }}</a>
             {% endif %}
             {% if public_secondary_nav_items %}
-            <p class="pnav-link" style="display:block; padding:12px 12px 6px; color:#A89880;">Explore</p>
+            <p class="public-mobile-label">Explore</p>
             {% for item in public_secondary_nav_items %}
             {% set is_active = active_nav == item.id %}
-            <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}" style="display:block; padding:8px 12px;">{{ item.label }}</a>
+            <a href="{{ item.href }}" class="public-mobile-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="mobile_secondary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
             {% endfor %}
             {% endif %}
         </div>
     </header>
 
-    <div class="bg-white border-b border-slate-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 text-xs text-slate-500">
-            <a href="/" class="hover:text-slate-700">Montana Blotter</a>
+    <div class="public-breadcrumb-bar">
+        <div class="public-breadcrumb max-w-7xl mx-auto px-4 sm:px-6">
+            <a href="/">Montana Blotter</a>
             {% block breadcrumb %}{% endblock %}
         </div>
     </div>
@@ -139,6 +141,12 @@
         or request.path.startswith('/county/')
         or request.path.startswith('/city/')
     ) %}
+    {% set show_donation_popup = (
+        donations_enabled|default(true)
+        and not request.path.startswith('/donate')
+        and request.path != '/subscribe'
+        and request.path != '/support'
+    ) %}
 
     {% block hero %}{% endblock %}
 
@@ -148,28 +156,28 @@
         {% include "includes/subscribe_conversion_block.html" %}
     </div>
 
-    <aside id="scroll-subscribe-prompt" class="hidden fixed right-4 bottom-4 z-40 w-[320px] rounded-2xl border border-slate-300 bg-white p-4 shadow-2xl">
-        <button type="button" id="scroll-subscribe-close" class="absolute top-2 right-2 text-slate-400 hover:text-slate-600">
+    <aside id="scroll-subscribe-prompt" class="public-scroll-prompt hidden fixed right-4 bottom-4 z-40 p-4">
+        <button type="button" id="scroll-subscribe-close" class="public-scroll-prompt__close absolute top-2 right-2">
             <i class="fas fa-times text-xs"></i>
         </button>
-        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Still Following?</p>
+        <p class="public-eyebrow">Still Following?</p>
         <h3 class="mt-2 text-base font-black text-slate-900">Get Daily Montana Blotter Alerts</h3>
         <p class="mt-1 text-xs text-slate-600">Free morning email. No spam. Unsubscribe anytime.</p>
         <a href="/subscribe?source=scroll_prompt"
-           class="subscribe-cta-track mt-3 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-white hover:bg-blue-700 transition"
+           class="subscribe-cta-track public-btn public-btn--primary mt-3 inline-flex w-full"
            data-subscribe-source="scroll_prompt">
             Open Signup
         </a>
     </aside>
 
-    <div class="md:hidden fixed left-0 right-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur" style="bottom:56px;">
+    <div class="public-mobile-subscribe-bar md:hidden fixed left-0 right-0 z-40" style="bottom:56px;">
         <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
             <div>
-                <p class="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Daily Alerts</p>
+                <p class="public-eyebrow">Daily Alerts</p>
                 <p class="text-xs text-slate-600">Free, no spam</p>
             </div>
             <a href="/subscribe?source=mobile_sticky"
-               class="subscribe-cta-track inline-flex items-center rounded-xl bg-blue-600 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-white"
+               class="subscribe-cta-track public-btn public-btn--primary inline-flex"
                data-subscribe-source="mobile_sticky">
                 Subscribe
             </a>
@@ -177,35 +185,56 @@
     </div>
     {% endif %}
 
+    {% if show_donation_popup %}
+    <aside id="donate-popup" class="public-donate-popup hidden fixed left-4 bottom-4 z-40 p-4" role="dialog" aria-label="Support Montana Blotter">
+        <button type="button" id="donate-popup-close" class="public-donate-popup__close absolute top-2 right-2" aria-label="Dismiss donation popup">
+            <i class="fas fa-times text-xs"></i>
+        </button>
+        <p class="public-eyebrow">Reader Support</p>
+        <h3 class="mt-2 text-base font-black text-slate-900">Help Keep Montana Blotter Free</h3>
+        <p class="mt-1 text-xs text-slate-600">A small donation helps fund daily updates, archives, and statewide public records access.</p>
+        <div class="public-donate-popup__actions">
+            <a href="/donate?source=popup_prompt"
+               class="public-btn public-btn--secondary inline-flex"
+               data-donate-source="popup_prompt">
+                Donate Now
+            </a>
+            <button type="button" id="donate-popup-dismiss" class="public-donate-popup__dismiss">
+                Not Now
+            </button>
+        </div>
+    </aside>
+    {% endif %}
+
     <div class="pb-16 md:pb-0">
     {% block content %}{% endblock %}
     </div>
 
-    <footer style="background:#161513; border-top:1px solid #282420; margin-top:32px;">
-        <div class="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row md:justify-between gap-6 items-start">
+    <footer class="public-footer">
+        <div class="public-footer__grid max-w-7xl mx-auto px-6">
             <div>
-                <h4 style="font-family:'Playfair Display',Georgia,serif; font-weight:700; color:#E8DFD0; font-size:1.1rem; margin-bottom:8px;">The Montana Blotter</h4>
-                <p style="color:#B1A28E; font-size:0.8rem; line-height:1.6; max-width:280px;">
-                    Free aggregation of Montana law enforcement blotters. Public safety information for everyone.
+                <h4 class="public-footer__title">The Montana Blotter</h4>
+                <p class="public-footer__copy">
+                    Statewide public-records access for Montana blotters, jail rosters, warrant pages, and related safety resources.
                 </p>
                 {% if footer_featured_city_items %}
                 <div style="margin-top:16px;">
-                    <p style="font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.2em; color:#D4892A; font-size:0.55rem; font-weight:700; margin-bottom:10px;">New City Pages</p>
-                    <div class="flex flex-wrap gap-2">
+                    <p class="public-footer__eyebrow">New City Pages</p>
+                    <div class="public-footer__city-links">
                         {% for item in footer_featured_city_items %}
-                        <a href="{{ item.href }}" style="font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.1em; background:rgba(255,255,255,0.03); border:1px solid #282420; color:#8A7F72; font-size:0.52rem; text-decoration:none; padding:4px 10px; border-radius:4px; transition:opacity .15s;">{{ item.label }}</a>
+                        <a href="{{ item.href }}" class="public-footer__city-link">{{ item.label }}</a>
                         {% endfor %}
                     </div>
                 </div>
                 {% endif %}
             </div>
-            <div class="flex flex-col gap-3 items-start md:items-end">
-                <div class="flex flex-wrap gap-4">
+            <div class="public-footer__meta">
+                <div class="public-footer__nav">
                     {% for item in public_footer_items %}
-                    <a href="{{ item.href }}" style="font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.1em; color:#8A7F72; font-size:0.6rem; text-decoration:none; transition:opacity .15s;" onmouseover="this.style.color='#E8DFD0'" onmouseout="this.style.color='#8A7F72'">{{ item.label }}</a>
+                    <a href="{{ item.href }}" class="public-footer__nav-link">{{ item.label }}</a>
                     {% endfor %}
                 </div>
-                <p style="font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:0.1em; color:#5F564C; font-size:0.55rem;">
+                <p class="public-footer__legal">
                     &copy; {{ current_year }} Montana Blotter &middot; Free Public Records
                 </p>
             </div>
@@ -214,12 +243,12 @@
 
     <script>
     (function(){
-        function sendSubscribeEvent(eventType, source) {
+        function sendSubscribeEvent(eventType, source, pagePath) {
             try {
                 var payload = JSON.stringify({
                     event_type: eventType,
                     source: source || '',
-                    page_path: window.location.pathname
+                    page_path: pagePath || window.location.pathname
                 });
                 if (navigator.sendBeacon) {
                     var blob = new Blob([payload], {type: 'application/json'});
@@ -348,6 +377,65 @@
                 });
             }
         }
+
+        var donatePopup = document.getElementById('donate-popup');
+        var donatePopupClose = document.getElementById('donate-popup-close');
+        var donatePopupDismiss = document.getElementById('donate-popup-dismiss');
+        if (donatePopup) {
+            var donatePopupCooldownMs = 7 * 24 * 60 * 60 * 1000;
+            var donatePopupStorageKey = 'montanablotter:donate-popup:dismissed-at';
+            var donatePopupShown = false;
+            var donatePopupSuppressed = false;
+
+            if (window.matchMedia && window.matchMedia('(max-width: 767px)').matches) {
+                donatePopup.style.bottom = mobileSubscribeBar ? '132px' : '68px';
+            }
+
+            try {
+                var dismissedAtRaw = localStorage.getItem(donatePopupStorageKey);
+                var dismissedAt = dismissedAtRaw ? parseInt(dismissedAtRaw, 10) : 0;
+                if (dismissedAt && !Number.isNaN(dismissedAt)) {
+                    donatePopupSuppressed = (Date.now() - dismissedAt) < donatePopupCooldownMs;
+                }
+            } catch (e) {}
+
+            var dismissDonatePopup = function () {
+                donatePopup.classList.add('hidden');
+                try {
+                    localStorage.setItem(donatePopupStorageKey, String(Date.now()));
+                } catch (e) {}
+            };
+
+            var showDonatePopup = function () {
+                if (donatePopupShown || donatePopupSuppressed) return;
+                donatePopup.classList.remove('hidden');
+                donatePopupShown = true;
+                sendDonateEvent('donate_view', 'popup_prompt');
+            };
+
+            if (!donatePopupSuppressed) {
+                var donatePopupTimer = window.setTimeout(showDonatePopup, 14000);
+                var onDonateScroll = function () {
+                    if (donatePopupShown) return;
+                    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+                    if (maxScroll < 500) return;
+                    if ((window.scrollY / maxScroll) >= 0.38) {
+                        window.clearTimeout(donatePopupTimer);
+                        showDonatePopup();
+                        window.removeEventListener('scroll', onDonateScroll);
+                    }
+                };
+                window.addEventListener('scroll', onDonateScroll, {passive: true});
+                onDonateScroll();
+            }
+
+            [donatePopupClose, donatePopupDismiss].forEach(function (button) {
+                if (!button) return;
+                button.addEventListener('click', function () {
+                    dismissDonatePopup();
+                });
+            });
+        }
     })();
     </script>
     {% block extra_scripts %}{% endblock %}
@@ -355,148 +443,148 @@
 <!-- ═══════════════════════════ FOOTER MODALS ═══ -->
 
 <!-- Standards modal -->
-<dialog id="modal-standards" style="max-width:600px; width:90%; background:#161513; border:1px solid #282420; border-radius:8px; color:#E8DFD0; padding:0;">
-  <div style="padding:20px 24px 8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #282420;">
-    <span style="font-family:'Playfair Display',serif; font-size:1rem; font-weight:900;">Editorial Standards</span>
-    <button onclick="document.getElementById('modal-standards').close()" style="background:none;border:none;color:#5F564C;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+<dialog id="modal-standards" class="public-dialog" style="max-width:600px; width:90%;">
+  <div class="public-dialog__header">
+    <span class="public-dialog__title">Editorial Standards</span>
+    <button onclick="document.getElementById('modal-standards').close()" class="public-dialog__close" aria-label="Close editorial standards">&#x2715;</button>
   </div>
-  <div style="padding:20px 24px 24px; font-family:'Spectral',Georgia,serif; font-size:0.875rem; line-height:1.7; color:#C8BFB0; max-height:65vh; overflow-y:auto;">
+  <div class="public-dialog__body">
     <p>Montana Blotter is designed to make public records and public meeting information easier to access. It is not a government office, and it does not replace official notice, clerk records, court files, or agency databases.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">1. Primary Source Rule</strong><br>We prefer direct links to official county, city, court, sheriff, police, and state judiciary pages. Where possible, each page should point readers back to the original public record, agenda, minutes page, or official document listing.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">2. What We Standardize</strong><br>Date and time formatting &mdash; location and body-name labeling &mdash; document labels such as agenda, packet, or minutes &mdash; searchable statewide filters and metadata.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">3. What We Do Not Claim</strong><br>We do not claim to be the official keeper of public records. We do not guarantee that a third-party government site is complete, current, or correctly maintained. We do not treat summaries or extracted text as a substitute for the official source file.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">4. Update Cadence</strong><br>Automated sources are checked on a recurring basis. If a source is stale, broken, or moved, the originating public body remains the authoritative reference until the source is repaired.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">5. Provenance and Visibility</strong><br>We aim to show where information came from, when it was last refreshed, and how users can verify it.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">6. Redactions and Sensitive Material</strong><br>We may review records for obvious sensitivity, legal restrictions, or redaction issues. The existence of a public record does not automatically mean every field or derivative presentation should be amplified without review.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">7. Corrections</strong><br>If a source link breaks, a meeting is mislabeled, a record is duplicated, or a page needs clarification, see the <a href="/corrections" style="color:#D4892A;">Corrections Policy</a> for the reporting workflow.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">8. Government and Clerk Communications</strong><br>If you work for a Montana public body and need a source updated, corrected, or removed, contact us directly. We prefer exact URLs, dates, and a brief explanation of the change.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">9. Contact</strong><br>Montana Blotter &mdash; <a href="mailto:records@montanablotter.com?subject=Montana%20Blotter%20source%20update" style="color:#D4892A;">records@montanablotter.com</a></p>
-    <p style="margin-top:16px;"><a href="/standards" style="color:#D4892A; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em;">Read full standards &rarr;</a></p>
+    <p><strong>1. Primary Source Rule</strong><br>We prefer direct links to official county, city, court, sheriff, police, and state judiciary pages. Where possible, each page should point readers back to the original public record, agenda, minutes page, or official document listing.</p>
+    <p><strong>2. What We Standardize</strong><br>Date and time formatting &mdash; location and body-name labeling &mdash; document labels such as agenda, packet, or minutes &mdash; searchable statewide filters and metadata.</p>
+    <p><strong>3. What We Do Not Claim</strong><br>We do not claim to be the official keeper of public records. We do not guarantee that a third-party government site is complete, current, or correctly maintained. We do not treat summaries or extracted text as a substitute for the official source file.</p>
+    <p><strong>4. Update Cadence</strong><br>Automated sources are checked on a recurring basis. If a source is stale, broken, or moved, the originating public body remains the authoritative reference until the source is repaired.</p>
+    <p><strong>5. Provenance and Visibility</strong><br>We aim to show where information came from, when it was last refreshed, and how users can verify it.</p>
+    <p><strong>6. Redactions and Sensitive Material</strong><br>We may review records for obvious sensitivity, legal restrictions, or redaction issues. The existence of a public record does not automatically mean every field or derivative presentation should be amplified without review.</p>
+    <p><strong>7. Corrections</strong><br>If a source link breaks, a meeting is mislabeled, a record is duplicated, or a page needs clarification, see the <a href="/corrections" class="public-dialog__link">Corrections Policy</a> for the reporting workflow.</p>
+    <p><strong>8. Government and Clerk Communications</strong><br>If you work for a Montana public body and need a source updated, corrected, or removed, contact us directly. We prefer exact URLs, dates, and a brief explanation of the change.</p>
+    <p><strong>9. Contact</strong><br>Montana Blotter &mdash; <a href="mailto:records@montanablotter.com?subject=Montana%20Blotter%20source%20update" class="public-dialog__link">records@montanablotter.com</a></p>
+    <p><a href="/standards" class="public-dialog__link public-dialog__link--mono">Read full standards &rarr;</a></p>
   </div>
 </dialog>
 
 <!-- Corrections modal -->
-<dialog id="modal-corrections" style="max-width:600px; width:90%; background:#161513; border:1px solid #282420; border-radius:8px; color:#E8DFD0; padding:0;">
-  <div style="padding:20px 24px 8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #282420;">
-    <span style="font-family:'Playfair Display',serif; font-size:1rem; font-weight:900;">Corrections Policy</span>
-    <button onclick="document.getElementById('modal-corrections').close()" style="background:none;border:none;color:#5F564C;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+<dialog id="modal-corrections" class="public-dialog" style="max-width:600px; width:90%;">
+  <div class="public-dialog__header">
+    <span class="public-dialog__title">Corrections Policy</span>
+    <button onclick="document.getElementById('modal-corrections').close()" class="public-dialog__close" aria-label="Close corrections policy">&#x2715;</button>
   </div>
-  <div style="padding:20px 24px 24px; font-family:'Spectral',Georgia,serif; font-size:0.875rem; line-height:1.7; color:#C8BFB0; max-height:65vh; overflow-y:auto;">
+  <div class="public-dialog__body">
     <p>We want corrections requests to be specific, easy to verify, and fast to act on. The more concrete the report, the faster it can be reviewed.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">1. What To Report</strong><br>Broken official source links &mdash; moved agenda or minutes pages &mdash; incorrect meeting date, body name, or location label &mdash; duplicate records or meetings &mdash; stale source pages &mdash; material factual errors in a summary or description.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">2. What To Include</strong><br>The exact Montana Blotter URL &mdash; the exact official source URL that should be used &mdash; a short description of what is wrong &mdash; if timing matters, the date and time the official source changed.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">3. Where To Send It</strong><br>Email <a href="mailto:records@montanablotter.com?subject=Correction%20Request" style="color:#D4892A;">records@montanablotter.com</a> with subject line <strong style="color:#E8DFD0;">Correction Request</strong> or <strong style="color:#E8DFD0;">Source Update</strong>. If you represent a government office, say so in the message.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">4. Review Standard</strong><br>We review corrections against the official source when available. If a report cannot be verified, we may ask for a clarifying URL, screenshot, or exact document reference before changing the page.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">5. Response Goal</strong><br>Our goal is to review straightforward source and labeling issues within two business days. Complex disputes, legal issues, and record-sensitivity questions may take longer.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">6. How Fixes Are Handled</strong><br>Broken or moved source URLs are updated at the source-config level when possible. Mislabeled dates, titles, or locations are corrected in the public presentation. If a government source removes or replaces a document, the official source controls.</p>
-    <p style="margin-top:12px;"><strong style="color:#E8DFD0;">7. Limits</strong><br>A correction request does not automatically guarantee removal. Montana Blotter may preserve accurate public-record references while updating labels, links, timestamps, or explanatory text.</p>
-    <p style="margin-top:16px;"><a href="/corrections" style="color:#D4892A; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em;">Read full corrections policy &rarr;</a></p>
+    <p><strong>1. What To Report</strong><br>Broken official source links &mdash; moved agenda or minutes pages &mdash; incorrect meeting date, body name, or location label &mdash; duplicate records or meetings &mdash; stale source pages &mdash; material factual errors in a summary or description.</p>
+    <p><strong>2. What To Include</strong><br>The exact Montana Blotter URL &mdash; the exact official source URL that should be used &mdash; a short description of what is wrong &mdash; if timing matters, the date and time the official source changed.</p>
+    <p><strong>3. Where To Send It</strong><br>Email <a href="mailto:records@montanablotter.com?subject=Correction%20Request" class="public-dialog__link">records@montanablotter.com</a> with subject line <strong>Correction Request</strong> or <strong>Source Update</strong>. If you represent a government office, say so in the message.</p>
+    <p><strong>4. Review Standard</strong><br>We review corrections against the official source when available. If a report cannot be verified, we may ask for a clarifying URL, screenshot, or exact document reference before changing the page.</p>
+    <p><strong>5. Response Goal</strong><br>Our goal is to review straightforward source and labeling issues within two business days. Complex disputes, legal issues, and record-sensitivity questions may take longer.</p>
+    <p><strong>6. How Fixes Are Handled</strong><br>Broken or moved source URLs are updated at the source-config level when possible. Mislabeled dates, titles, or locations are corrected in the public presentation. If a government source removes or replaces a document, the official source controls.</p>
+    <p><strong>7. Limits</strong><br>A correction request does not automatically guarantee removal. Montana Blotter may preserve accurate public-record references while updating labels, links, timestamps, or explanatory text.</p>
+    <p><a href="/corrections" class="public-dialog__link public-dialog__link--mono">Read full corrections policy &rarr;</a></p>
   </div>
 </dialog>
 
 <!-- Laws modal -->
-<dialog id="modal-laws" style="max-width:700px; width:92%; background:#161513; border:1px solid #282420; border-radius:8px; color:#E8DFD0; padding:0;">
-  <div style="padding:20px 24px 8px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #282420;">
-    <span style="font-family:'Playfair Display',serif; font-size:1rem; font-weight:900;">Montana Laws Reference</span>
-    <button onclick="document.getElementById('modal-laws').close()" style="background:none;border:none;color:#5F564C;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+<dialog id="modal-laws" class="public-dialog" style="max-width:700px; width:92%;">
+  <div class="public-dialog__header">
+    <span class="public-dialog__title">Montana Laws Reference</span>
+    <button onclick="document.getElementById('modal-laws').close()" class="public-dialog__close" aria-label="Close laws reference">&#x2715;</button>
   </div>
-  <div style="padding:12px 24px 8px; border-bottom:1px solid #282420;">
+  <div class="public-dialog__search-wrap">
     <input id="modal-laws-search" type="search" placeholder="Search statutes…" oninput="filterLawsModal(this.value)"
-      style="width:100%; background:#0D0C0B; border:1px solid #282420; border-radius:4px; padding:8px 12px; color:#E8DFD0; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; box-sizing:border-box;">
+      class="public-dialog__search">
   </div>
   <div id="modal-laws-list" style="padding:8px 0 24px; max-height:60vh; overflow-y:auto;">
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-5-201</span> Assault
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-201</span> Assault
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-5-101 to 103</span> Homicide
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-101 to 103</span> Homicide
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-6-301</span> Theft
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-6-301</span> Theft
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-6-204</span> Burglary
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-6-204</span> Burglary
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-9</span> Drug Offenses
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-9</span> Drug Offenses
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 61-8-401</span> DUI / Impaired Driving
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-401</span> DUI / Impaired Driving
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-5-502</span> Sexual Assault
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-502</span> Sexual Assault
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-5-206</span> Domestic Violence
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-206</span> Domestic Violence
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 61-8-303</span> Speed Limits
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-303</span> Speed Limits
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 61-9-409</span> Seat Belt Law
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-9-409</span> Seat Belt Law
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 61-8-1011</span> Distracted Driving
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-1011</span> Distracted Driving
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 61-8-301</span> Reckless Driving
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-301</span> Reckless Driving
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 61-6-301</span> Insurance Requirements
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-6-301</span> Insurance Requirements
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 61-8-460</span> Open Container
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-460</span> Open Container
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 61-8-316</span> Fleeing or Eluding
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-316</span> Fleeing or Eluding
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 87-2-102</span> Hunting / Fishing License Requirements
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-2-102</span> Hunting / Fishing License Requirements
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 87-6-414</span> Hunter Orange
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-414</span> Hunter Orange
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 87-6-206</span> Trespassing to Hunt
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-206</span> Trespassing to Hunt
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 87-6-901</span> Poaching
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-901</span> Poaching
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 87-6-209</span> Baiting &amp; Feeding Wildlife
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-209</span> Baiting &amp; Feeding Wildlife
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 87-3-101</span> Fishing Regulations
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-3-101</span> Fishing Regulations
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 87-6-401</span> Firearm Use While Hunting
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-401</span> Firearm Use While Hunting
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">Art. II §12</span> Right to Keep and Bear Arms (Montana Constitution)
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">Art. II §12</span> Right to Keep and Bear Arms (Montana Constitution)
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-8-316</span> Concealed Carry (Constitutional Carry)
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-8-316</span> Concealed Carry (Constitutional Carry)
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-3-102</span> Self-Defense / Stand Your Ground
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-3-102</span> Self-Defense / Stand Your Ground
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-6-203</span> Trespassing
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-6-203</span> Trespassing
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-5-624</span> Public Intoxication
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-624</span> Public Intoxication
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 45-8-213</span> Montana Privacy Law
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-8-213</span> Montana Privacy Law
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 16-12</span> Marijuana Laws
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 16-12</span> Marijuana Laws
     </div>
-    <div data-law-row style="padding:10px 24px; border-bottom:1px solid #1E1C1A; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#C8BFB0;">
-      <span style="color:#D4892A; margin-right:8px;">§ 81-4-101</span> Property Rights &amp; Open Range
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 81-4-101</span> Property Rights &amp; Open Range
     </div>
-    <p style="padding:12px 24px; font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:#8A7F72;">
-      Full reference at <a href="/laws" style="color:#D4892A;">/laws</a>.
+    <p class="public-dialog__muted" style="padding:12px 24px;">
+      Full reference at <a href="/laws" class="public-dialog__link">/laws</a>.
     </p>
   </div>
 </dialog>

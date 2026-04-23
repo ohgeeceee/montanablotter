@@ -42,6 +42,24 @@ def public_register():
     }
 
     if request.method == 'POST':
+        # reCAPTCHA v3 verification
+        recaptcha_token = request.form.get('g-recaptcha-response', '')
+        if not m.verify_recaptcha(recaptcha_token, action='register'):
+            flash('Security verification failed. Please try again.', 'error')
+            return render_template(
+                'register.html',
+                counties=counties,
+                next_url=next_url,
+                form_values=form_values,
+                page_title='Create Account',
+                meta_description='Create a Montana Blotter account to comment and manage email subscription preferences.',
+                canonical_url=f'{m.BASE_URL}/register',
+                og_title='Create Account | Montana Blotter',
+                og_description='Create a Montana Blotter account to comment and manage email subscription preferences.',
+                active_nav='register',
+                current_year=datetime.now().year,
+            )
+
         display_name = (request.form.get('display_name') or '').strip()
         email = (request.form.get('email') or '').strip().lower()
         password = request.form.get('password') or ''
@@ -125,6 +143,23 @@ def public_login():
     next_url = m._safe_next_url(request.values.get('next'), fallback='/')
     email_value = (request.form.get('email') or request.args.get('email') or '').strip().lower()
     if request.method == 'POST':
+        # reCAPTCHA v3 verification
+        recaptcha_token = request.form.get('g-recaptcha-response', '')
+        if not m.verify_recaptcha(recaptcha_token, action='login'):
+            flash('Security verification failed. Please try again.', 'error')
+            return render_template(
+                'login.html',
+                next_url=next_url,
+                email_value=email_value,
+                page_title='Log In',
+                meta_description='Log in to your Montana Blotter account to comment and manage subscriptions.',
+                canonical_url=f'{m.BASE_URL}/login',
+                og_title='Log In | Montana Blotter',
+                og_description='Log in to your Montana Blotter account to comment and manage subscriptions.',
+                active_nav='login',
+                current_year=datetime.now().year,
+            )
+
         password = request.form.get('password') or ''
         conn = get_db()
         row = conn.execute(

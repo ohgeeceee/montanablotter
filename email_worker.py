@@ -3,6 +3,7 @@ Email Worker - Fetches blotter PDFs from IONOS email and processes them
 Unified version replacing email_worker.py and fetch_mail.py
 """
 
+import argparse
 import imaplib
 import email
 import os
@@ -10,12 +11,15 @@ import logging
 import smtplib
 import re
 import contextlib
-from datetime import datetime
+from datetime import datetime, UTC
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from rq import Retry
 import config
 from processor import process_new_blotter, process_text_blotter
 from pdf_parser import parse_text_blotter
+from queue_config import ingestion_q
+from queue_helpers import redis_lock
 from pipeline_state import (
     ensure_ingestion_job,
     ensure_source_document,
@@ -26,6 +30,14 @@ from pipeline_state import (
     sha256_bytes,
     sha256_text,
 )
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+
+
+def utcnow_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
 
 # Setup logging
 logging.basicConfig(
@@ -42,7 +54,7 @@ class EmailWorker:
         self.email_pass = config.EMAIL_PASSWORD
         self.imap_server = config.IMAP_SERVER
         self.imap_port = config.IMAP_PORT
-        self.upload_dir = config.UPLOAD_DIR
+        self.upload_dir = config.UPLOAD_DIR or UPLOAD_DIR
         self.processed_folder = config.PROCESSED_FOLDER
         
         # Ensure upload directory exists
@@ -354,6 +366,106 @@ class EmailWorker:
             logging.error(f"Email worker critical error: {str(e)}")
             return 0
 
+    def scan_mailbox_for_new_items(self) -> list[dict]:
+        """
+        First-pass queue migration path:
+        - fetch unread email
+        - save PDF attachments locally
+        - return enqueue item payloads
+        """
+        config_error = self._validate_imap_config()
+        if config_error:
+            logging.error(f"Email worker config error: {config_error}")
+            return []
+
+        items: list[dict] = []
+
+        try:
+            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
+            mail.login(self.email_user, self.email_pass)
+            mail.select("INBOX")
+
+            status, messages = mail.search(None, "UNSEEN")
+            if status != "OK" or not messages[0]:
+                logging.info("No new emails found for queue scan")
+                mail.logout()
+                return items
+
+            email_ids = messages[0].split()
+            logging.info(f"Queue scan found {len(email_ids)} unread emails")
+
+            for num in email_ids:
+                try:
+                    res, msg_data = mail.fetch(num, "(RFC822)")
+                    if res != "OK":
+                        logging.warning(f"Failed to fetch email id {num!r}")
+                        continue
+
+                    for response_part in msg_data:
+                        if not isinstance(response_part, tuple):
+                            continue
+
+                        msg = email.message_from_bytes(response_part[1])
+                        subject = msg.get("subject", "No Subject")
+                        sender = msg.get("from", "Unknown")
+                        message_id = msg.get("Message-ID", "") or ""
+
+                        if "mailer-daemon" in sender.lower() or "delivery" in subject.lower():
+                            logging.info(f"Skipping bounce/delivery email in queue scan: {subject}")
+                            continue
+
+                        found_pdf = False
+                        for part in msg.walk():
+                            if part.get_content_maintype() == "multipart":
+                                continue
+                            if part.get("Content-Disposition") is None:
+                                continue
+
+                            filename = part.get_filename()
+                            if not (filename and filename.lower().endswith(".pdf")):
+                                continue
+
+                            payload = part.get_payload(decode=True) or b""
+                            if not payload:
+                                continue
+
+                            found_pdf = True
+                            safe_filename = os.path.basename(filename)
+                            filepath = os.path.join(self.upload_dir, safe_filename)
+                            with open(filepath, "wb") as f:
+                                f.write(payload)
+
+                            source_key = message_id or f"{num.decode(errors='ignore')}:{safe_filename}"
+                            items.append(
+                                {
+                                    "source_type": "email",
+                                    "source_key": source_key,
+                                    "attachment_path": filepath,
+                                }
+                            )
+                            logging.info(
+                                f"Queue scan saved PDF attachment: message_id={source_key} path={filepath}"
+                            )
+
+                        if found_pdf:
+                            self._move_to_processed(mail, num)
+                            logging.info(f"Queue scan moved email to processed: {subject}")
+
+                except Exception as e:
+                    logging.error(f"Queue scan failed for email {num}: {e}")
+                    continue
+
+            mail.expunge()
+            mail.logout()
+            return items
+
+        except imaplib.IMAP4.error as e:
+            logging.error(f"IMAP Error during queue scan: {e}")
+            return items
+        except Exception as e:
+            logging.error(f"Queue scan critical error: {e}")
+            return items
+
     def smoke_check_connection(self) -> dict:
         """Read-only IMAP connectivity check used by ingestion smoke tests."""
         config_error = self._validate_imap_config()
@@ -436,15 +548,34 @@ class EmailWorker:
                 )
 
                 try:
-                    batch_id = process_new_blotter(
-                        filepath,
-                        source_document_id=source_document_id,
-                        ingestion_job_id=ingestion_job_id,
-                    )
-                    if batch_id:
-                        logging.info(f"Processed PDF: {filename} -> Batch #{batch_id}")
+                    pipeline_mode = (os.getenv("MB_PIPELINE_MODE", "queue") or "queue").strip().lower()
+                    if pipeline_mode == "inline":
+                        batch_id = process_new_blotter(
+                            filepath,
+                            source_document_id=source_document_id,
+                            ingestion_job_id=ingestion_job_id,
+                        )
+                        if batch_id:
+                            logging.info(f"Processed PDF inline: {filename} -> Batch #{batch_id}")
+                        else:
+                            logging.info(f"Processed PDF inline: {filename} -> duplicate-only, no new batch created")
                     else:
-                        logging.info(f"Processed PDF: {filename} -> duplicate-only, no new batch created")
+                        ingestion_retry = Retry(max=5, interval=[30, 120, 300, 900, 1800])
+                        job = ingestion_q.enqueue(
+                            "tasks.process_incoming_email_item",
+                            {
+                                "source_type": "email",
+                                "source_key": source_message_id or filename,
+                                "attachment_path": filepath,
+                                "source_document_id": int(source_document_id),
+                                "ingestion_job_id": int(ingestion_job_id),
+                            },
+                            job_timeout=15 * 60,
+                            retry=ingestion_retry,
+                            result_ttl=24 * 60 * 60,
+                            failure_ttl=14 * 24 * 60 * 60,
+                        )
+                        logging.info(f"Queued PDF for staged pipeline: {filename} -> job_id={job.id}")
                     any_succeeded = True
                 except Exception as e:
                     logging.error(f"Failed to process PDF {filename}: {str(e)}")
@@ -476,9 +607,8 @@ class EmailWorker:
                 if payload:
                     raw_html = payload.decode(part.get_content_charset() or 'utf-8', errors='replace')
                     # Strip tags with a simple regex for fallback purposes
-                    import re as _re
-                    html = _re.sub(r'<[^>]+>', ' ', raw_html)
-                    html = _re.sub(r'\s+', ' ', html).strip()
+                    html = re.sub(r'<[^>]+>', ' ', raw_html)
+                    html = re.sub(r'\s+', ' ', html).strip()
 
         if plain is not None:
             return plain, 'email_plain'
@@ -491,8 +621,8 @@ class EmailWorker:
         try:
             # Try to create folder if it doesn't exist
             mail.create(self.processed_folder)
-        except:
-            pass  # Folder probably already exists
+        except Exception as e:
+            logging.warning(f"Could not create Processed folder: {e}")
         
         try:
             # Copy to Processed folder
@@ -502,14 +632,19 @@ class EmailWorker:
         except Exception as e:
             logging.warning(f"Could not move email to Processed folder: {e}")
     
+    @staticmethod
+    def _sanitize_header(value: str) -> str:
+        """Strip newlines to prevent email header injection."""
+        return str(value).replace('\r', '').replace('\n', '').strip()
+
     def send_email(self, to_address, subject, body, html_body=None):
         """Send an email via SMTP"""
         try:
             # Create message
             msg = MIMEMultipart('alternative')
-            msg['From'] = config.SMTP_USER
-            msg['To'] = to_address
-            msg['Subject'] = subject
+            msg['From'] = self._sanitize_header(config.SMTP_USER)
+            msg['To'] = self._sanitize_header(to_address)
+            msg['Subject'] = self._sanitize_header(subject)
             
             # Attach plain text version
             msg.attach(MIMEText(body, 'plain'))
@@ -520,13 +655,14 @@ class EmailWorker:
             
             # Connect to Gmail SMTP
             smtp = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT)
-            smtp.starttls()
-            smtp.login(config.SMTP_USER, config.SMTP_PASSWORD)
-
-            # Send from Gmail, reply-to IONOS address
-            msg['Reply-To'] = self.email_user
-            smtp.sendmail(config.SMTP_USER, to_address, msg.as_string())
-            smtp.quit()
+            try:
+                smtp.starttls()
+                smtp.login(config.SMTP_USER, config.SMTP_PASSWORD)
+                # Send from Gmail, reply-to IONOS address
+                msg['Reply-To'] = self.email_user
+                smtp.sendmail(config.SMTP_USER, to_address, msg.as_string())
+            finally:
+                smtp.quit()
             
             logging.info(f"Email sent successfully to {to_address}")
             return True
@@ -551,5 +687,63 @@ def run_worker():
     return count
 
 
-if __name__ == "__main__":
+def scan_mailbox_for_new_items() -> list[dict]:
+    worker = EmailWorker()
+    return worker.scan_mailbox_for_new_items()
+
+
+def process_inline_legacy() -> None:
     run_worker()
+
+
+def enqueue_mode() -> int:
+    queued = 0
+    ingestion_retry = Retry(max=5, interval=[30, 120, 300, 900, 1800])
+
+    with redis_lock("lock:email_worker_scan", timeout=15 * 60) as acquired:
+        if not acquired:
+            print(f"{utcnow_iso()} email_worker scan skipped: lock already held")
+            return 0
+
+        items = scan_mailbox_for_new_items()
+        for item in items:
+            try:
+                job = ingestion_q.enqueue(
+                    "tasks.process_incoming_email_item",
+                    item,
+                    job_timeout=15 * 60,
+                    retry=ingestion_retry,
+                    result_ttl=24 * 60 * 60,
+                    failure_ttl=14 * 24 * 60 * 60,
+                )
+                queued += 1
+                print(
+                    f"{utcnow_iso()} queued ingestion job_id={job.id} "
+                    f"source_key={item.get('source_key')} attachment={item.get('attachment_path')}"
+                )
+            except Exception as e:
+                logging.error(f"Failed to enqueue email item {item}: {e}")
+
+    print(f"{utcnow_iso()} email_worker queued_count={queued}")
+    return queued
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--mode",
+        choices=["queue", "inline"],
+        default="queue",
+        help="queue = discover and enqueue, inline = legacy direct processing",
+    )
+    args = parser.parse_args()
+
+    if args.mode == "inline":
+        process_inline_legacy()
+        return
+
+    enqueue_mode()
+
+
+if __name__ == "__main__":
+    main()

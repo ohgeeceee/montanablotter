@@ -43,33 +43,42 @@
 </script>
 {% endblock %}
 
+{% block body_class %}trends-page{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Trends</span>
+<span>Trends</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-5xl mx-auto">
-        <span class="inline-block bg-amber-500/20 text-amber-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            Montana Weekly Snapshot
-        </span>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">
-            Montana <span class="text-amber-400 italic">Crime Trends</span> This Week
-        </h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            A crawlable weekly trend page built from the latest Montana Blotter record window. Use it to spot the counties driving activity, the incident types showing up most often, and the fastest path into county-level pages.
-        </p>
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <span class="public-eyebrow">Montana Weekly Snapshot</span>
+                <h1 class="public-title public-title--medium">Montana Crime Trends This Week</h1>
+                <p class="public-copy">
+                    A crawlable weekly trend page built from the latest Montana Blotter record window. Use it to spot the counties driving activity, the incident types showing up most often, and the fastest path into county-level pages.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Trend Lens</p>
+                    <h2 class="public-card__title">This page is for movement signals, not final legal outcomes.</h2>
+                    <p class="public-card__text">Use county spikes and incident concentrations as starting points, then click into county pages, arrests, jail rosters, or warrants for verification.</p>
+                </div>
+            </aside>
+        </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+<div class="public-section">
     {% if weekly_snapshot %}
-    <section class="grid lg:grid-cols-[1.35fr,0.9fr] gap-6 items-start">
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Current Window</p>
+    <section class="grid lg:grid-cols-[1.35fr,0.9fr] gap-6 items-start max-w-6xl mx-auto">
+        <div class="public-card p-6">
+            <p class="public-card__eyebrow">Current Window</p>
             <h2 class="mt-2 text-3xl font-black text-slate-900 leading-tight">
                 {{ weekly_snapshot.total_records }} records from {{ weekly_snapshot.start_date }} to {{ weekly_snapshot.end_date }}
             </h2>
@@ -78,8 +87,8 @@
             </p>
 
             <div class="grid md:grid-cols-2 gap-4 mt-6">
-                <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5">
-                    <h3 class="text-sm font-black uppercase tracking-[0.18em] text-slate-500 mb-4">Top Counties</h3>
+                <div class="public-meta-box p-5">
+                    <h3 class="public-card__eyebrow mb-4">Top Counties</h3>
                     <div class="space-y-3">
                         {% for item in weekly_snapshot.top_counties %}
                         <div class="flex items-center justify-between gap-4">
@@ -96,8 +105,8 @@
                     </div>
                 </div>
 
-                <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5">
-                    <h3 class="text-sm font-black uppercase tracking-[0.18em] text-slate-500 mb-4">Top Incident Types</h3>
+                <div class="public-meta-box p-5">
+                    <h3 class="public-card__eyebrow mb-4">Top Incident Types</h3>
                     <div class="space-y-3">
                         {% for item in weekly_snapshot.top_incidents %}
                         <div class="flex items-center justify-between gap-4">
@@ -112,34 +121,33 @@
 
         <aside class="space-y-5">
             {% if latest_weekly_digest %}
-            <div class="bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm p-5">
-                <p class="text-[11px] uppercase tracking-[0.18em] font-black text-emerald-700">Latest Weekly Digest</p>
+            <div class="public-card p-5">
+                <p class="public-card__eyebrow" style="color: var(--public-green);">Latest Weekly Digest</p>
                 <h2 class="mt-2 text-xl font-black text-slate-900 leading-tight">
                     <a href="/blog/{{ latest_weekly_digest.slug }}" class="hover:text-emerald-700 transition">{{ latest_weekly_digest.title }}</a>
                 </h2>
                 {% if latest_weekly_digest.excerpt %}
                 <p class="mt-3 text-sm leading-relaxed text-slate-600">{{ latest_weekly_digest.excerpt }}</p>
                 {% endif %}
-                <a href="/blog/{{ latest_weekly_digest.slug }}"
-                   class="inline-flex items-center gap-2 mt-4 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wider text-white transition hover:bg-emerald-700">
+                <a href="/blog/{{ latest_weekly_digest.slug }}" class="public-btn public-btn--primary mt-4 inline-flex">
                     Read digest <i class="fas fa-arrow-right text-[10px]"></i>
                 </a>
             </div>
             {% endif %}
 
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                <h2 class="text-sm font-black uppercase tracking-[0.18em] text-slate-500 mb-4">Use This Page With</h2>
+            <div class="public-card p-5">
+                <h2 class="public-card__eyebrow mb-4">Use This Page With</h2>
                 <div class="space-y-2">
-                    <a href="/counties" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 transition">
+                    <a href="/counties" class="public-rail-link">
                         Montana county pages <i class="fas fa-map text-blue-500"></i>
                     </a>
-                    <a href="/arrests" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 transition">
+                    <a href="/arrests" class="public-rail-link">
                         Arrest log <i class="fas fa-handcuffs text-blue-500"></i>
                     </a>
-                    <a href="/warrants" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 transition">
+                    <a href="/warrants" class="public-rail-link">
                         Warrant search <i class="fas fa-file-circle-exclamation text-blue-500"></i>
                     </a>
-                    <a href="/subscribe" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 transition">
+                    <a href="/subscribe" class="public-rail-link">
                         Daily digest signup <i class="fas fa-envelope text-blue-500"></i>
                     </a>
                 </div>
@@ -147,8 +155,8 @@
         </aside>
     </section>
 
-    <section class="mt-8 grid lg:grid-cols-2 gap-6">
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+    <section class="mt-8 grid lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+        <div class="public-card p-6">
             <h2 class="text-2xl font-black text-slate-900 mb-3">How to Read Montana Crime Trends</h2>
             <p class="text-sm leading-relaxed text-slate-600 mb-4">
                 A weekly trend page is useful because it compresses a large archive into a short list of movement signals. If one county suddenly jumps, or one incident type dominates the week, readers can click through into the underlying archive instead of guessing from social chatter.
@@ -160,7 +168,7 @@
             </ul>
         </div>
 
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div class="public-card p-6">
             <h2 class="text-2xl font-black text-slate-900 mb-3">FAQ</h2>
             <div class="space-y-4">
                 <div>
@@ -179,7 +187,7 @@
         </div>
     </section>
     {% else %}
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
+    <div class="public-card public-empty-state max-w-6xl mx-auto">
         <h2 class="text-2xl font-black text-slate-900">No weekly trend data yet</h2>
         <p class="mt-3 text-sm text-slate-600">This page will populate automatically once the archive has enough recent record data to summarize.</p>
     </div>

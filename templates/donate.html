@@ -5,114 +5,168 @@
 {% set canonical_url = "https://montanablotter.com/donate" %}
 {% set og_title = (donation_campaign.headline ~ " | Montana Blotter") if donation_campaign and donation_campaign.key else "Donate | Montana Blotter" %}
 {% set og_description = meta_description %}
+{% set funding_items = donation_campaign.funds if donation_campaign and donation_campaign.funds else [
+    'Daily statewide publishing and archive maintenance.',
+    'Source monitoring, verification, and data normalization.',
+    'Public alerts, county pages, and free search access.'
+] %}
+
+{% block body_class %}donate-page{% endblock %}
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Donate</span>
+<span>Donate</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-5xl mx-auto">
-        <div class="inline-flex items-center bg-blue-500/20 text-blue-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            {{ donation_campaign.badge if donation_campaign else 'Support' }}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">{{ donation_campaign.badge if donation_campaign else 'Support' }}</p>
+                <h1 class="public-title public-title--medium">{{ donation_campaign.headline if donation_campaign else 'Support Independent Montana Public Safety Coverage' }}</h1>
+                <p class="public-copy">
+                    {{ donation_campaign.description if donation_campaign else 'Your donation helps keep Montana Blotter free, searchable, and available to the public every day.' }}
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Contribution Modes</p>
+                    <div class="public-stat-grid">
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">One-Time</p>
+                            <p class="public-stat-value">Immediate</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Monthly</p>
+                            <p class="public-stat-value">Recurring</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Checkout</p>
+                            <p class="public-stat-value">Stripe</p>
+                        </div>
+                    </div>
+                    <p class="public-card__text">
+                        Choose a quick one-time contribution or recurring support. Checkout is handled on a secure Stripe-hosted page.
+                    </p>
+                </div>
+            </aside>
         </div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">{{ donation_campaign.headline if donation_campaign else 'Support Independent Montana Public Safety Coverage' }}</h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            {{ donation_campaign.description if donation_campaign else 'Your donation helps keep Montana Blotter free, searchable, and available to the public every day.' }}
-        </p>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <section class="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm p-6 sm:p-8">
-            <h2 class="text-2xl font-black text-slate-900">Make a Donation</h2>
-            <p class="text-sm text-slate-600 mt-2">Choose an amount and frequency. Checkout is handled on a secure payment page.</p>
+<div class="public-route-layout public-route-layout--wide">
+    <main class="public-main-stack">
+        <section class="public-form-card">
+            <div class="public-form-card__body">
+                <p class="public-card__eyebrow">Donation Checkout</p>
+                <h2 class="public-panel-title" style="margin-top:0.75rem;">Choose an amount and frequency.</h2>
+                <p class="public-panel-copy">Checkout is handled on a secure payment page.</p>
 
-            {% if not donations_enabled %}
-            <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                Donations are temporarily disabled.
-            </div>
-            {% elif not stripe_ready %}
-            <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                Secure checkout is not configured yet. Please check back soon.
-            </div>
-            {% endif %}
-
-            <div class="mt-6">
-                <p class="text-xs uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Frequency</p>
-                <div class="inline-flex rounded-xl border border-slate-200 p-1 bg-slate-50" role="tablist" aria-label="Donation frequency">
-                    <button type="button" id="freq-once" class="rounded-lg px-4 py-2 text-sm font-black text-white bg-blue-600">One-time</button>
-                    <button type="button" id="freq-monthly" class="rounded-lg px-4 py-2 text-sm font-black text-slate-700">Monthly</button>
+                {% if not donations_enabled %}
+                <div class="public-note public-note--warning" style="margin-top:1.25rem;">
+                    Donations are temporarily disabled.
                 </div>
-            </div>
-
-            <div class="mt-6">
-                <p class="text-xs uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Amount</p>
-                <div id="amount-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
-                <div class="mt-4">
-                    <label for="custom-amount" class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Custom Amount (USD)</label>
-                    <input id="custom-amount" type="number" min="{{ (donation_min_cents / 100)|int }}" max="{{ (donation_max_cents / 100)|int }}" step="1"
-                           class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                           placeholder="Enter amount in dollars">
-                    <p class="text-xs text-slate-500 mt-2">Minimum ${{ '%.2f'|format(donation_min_cents / 100) }}, maximum ${{ '%.2f'|format(donation_max_cents / 100) }}.</p>
+                {% elif not stripe_ready %}
+                <div class="public-note public-note--warning" style="margin-top:1.25rem;">
+                    Secure checkout is not configured yet. Please check back soon.
                 </div>
-            </div>
+                {% endif %}
 
-            <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label for="donor-name" class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Name (optional)</label>
-                    <input id="donor-name" type="text"
-                           class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                           placeholder="Jane Doe">
+                <div style="margin-top:1.5rem;">
+                    <label class="public-form-label">Frequency</label>
+                    <div class="public-choice-row" role="tablist" aria-label="Donation frequency" style="margin-top:0.7rem;">
+                        <button type="button" id="freq-once" class="public-choice-toggle is-active">One-Time</button>
+                        <button type="button" id="freq-monthly" class="public-choice-toggle">Monthly</button>
+                    </div>
                 </div>
-                <div>
-                    <label for="donor-email" class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Email (optional)</label>
-                    <input id="donor-email" type="email"
-                           class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                           placeholder="you@example.com">
+
+                <div style="margin-top:1.5rem;">
+                    <label class="public-form-label">Amount</label>
+                    <div id="amount-grid" class="public-amount-grid" style="margin-top:0.7rem;"></div>
+                    <div style="margin-top:1rem;">
+                        <label for="custom-amount" class="public-form-label">Custom Amount (USD)</label>
+                        <input id="custom-amount" type="number" min="{{ (donation_min_cents / 100)|int }}" max="{{ (donation_max_cents / 100)|int }}" step="1"
+                               class="public-form-input"
+                               placeholder="Enter amount in dollars">
+                        <p class="public-card__text">Minimum ${{ '%.2f'|format(donation_min_cents / 100) }}, maximum ${{ '%.2f'|format(donation_max_cents / 100) }}.</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="mt-7">
-                <button id="donate-submit" type="button"
-                        class="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black py-3 text-sm uppercase tracking-[0.12em] transition disabled:opacity-60 disabled:cursor-not-allowed"
-                        {% if not donations_enabled or not stripe_ready %}disabled{% endif %}>
-                    Continue to Secure Checkout
-                </button>
-                <p id="donate-error" class="hidden mt-3 text-sm text-red-600"></p>
-            </div>
+                <div class="public-form-grid" style="margin-top:1.5rem; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">
+                    <div>
+                        <label for="donor-name" class="public-form-label">Name Optional</label>
+                        <input id="donor-name" type="text"
+                               value="{{ public_user.display_name if public_user else '' }}"
+                               class="public-form-input"
+                               placeholder="Jane Doe">
+                    </div>
+                    <div>
+                        <label for="donor-email" class="public-form-label">Email Optional</label>
+                        <input id="donor-email" type="email"
+                               value="{{ public_user.email if public_user else '' }}"
+                               class="public-form-input"
+                               placeholder="you@example.com">
+                    </div>
+                </div>
 
-            <p class="text-xs text-slate-500 mt-4">
-                By donating, you agree to our
-                <a class="underline hover:text-slate-700" href="/terms-of-use">Terms of Use</a>
-                and
-                <a class="underline hover:text-slate-700" href="/privacy">Privacy Policy</a>.
-            </p>
+                <div style="margin-top:1.6rem;">
+                    <button id="donate-submit" type="button"
+                            class="public-btn public-btn--primary"
+                            style="width:100%;"
+                            {% if not donations_enabled or not stripe_ready %}disabled{% endif %}>
+                        Continue to Secure Checkout
+                    </button>
+                    <p id="donate-error" class="public-note public-note--error hidden" style="margin-top:1rem;"></p>
+                </div>
+
+                <p class="public-card__text" style="margin-top:1rem;">
+                    By donating, you agree to our
+                    <a class="public-policy-inline-link" href="/terms-of-use">Terms of Use</a>
+                    and
+                    <a class="public-policy-inline-link" href="/privacy">Privacy Policy</a>.
+                </p>
+            </div>
         </section>
+    </main>
 
-        <aside class="lg:col-span-2 space-y-4">
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-                <h3 class="text-lg font-black text-slate-900">What Your Support Funds</h3>
-                <ul class="mt-3 space-y-2 text-sm text-slate-600">
-                    {% for item in donation_campaign.funds %}
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">What Your Support Funds</p>
+                <ul class="public-policy-list">
+                    {% for item in funding_items %}
                     <li>{{ item }}</li>
                     {% endfor %}
                 </ul>
             </div>
-            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-                <h3 class="text-lg font-black text-slate-900">Trust & Security</h3>
-                <ul class="mt-3 space-y-2 text-sm text-slate-600">
-                    <li>Checkout runs on Stripe-hosted secure pages.</li>
-                    <li>No card numbers are stored by Montana Blotter.</li>
-                    <li>Monthly support can be canceled through Stripe billing tools.</li>
-                </ul>
+        </section>
+
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Trust & Security</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <div class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Stripe</div>
+                        <div class="public-rail-link__title">Secure hosted checkout</div>
+                        <div class="public-rail-link__copy">Card entry happens on Stripe-hosted pages, not on Montana Blotter servers.</div>
+                    </div>
+                    <div class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Storage</div>
+                        <div class="public-rail-link__title">No card numbers retained</div>
+                        <div class="public-rail-link__copy">Montana Blotter stores only limited transaction metadata needed for accounting and operations.</div>
+                    </div>
+                    <div class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Monthly</div>
+                        <div class="public-rail-link__title">Cancelable through billing tools</div>
+                        <div class="public-rail-link__copy">Recurring support can be managed through Stripe billing controls.</div>
+                    </div>
+                </div>
             </div>
-        </aside>
-    </div>
+        </section>
+    </aside>
 </div>
 
 <script>
@@ -121,7 +175,7 @@
     var minCents = {{ donation_min_cents }};
     var maxCents = {{ donation_max_cents }};
     var donateSource = {{ donate_source | tojson }};
-    var selectedMode = 'one_time';
+    var selectedMode = {{ ('monthly' if donation_campaign and donation_campaign.key == 'bondsman_command_center' else 'one_time') | tojson }};
     var selectedAmountCents = suggested.length ? suggested[0] : minCents;
 
     var amountGrid = document.getElementById('amount-grid');
@@ -136,12 +190,8 @@
     function setMode(mode) {
         selectedMode = mode;
         var onceActive = mode === 'one_time';
-        onceBtn.className = onceActive
-            ? 'rounded-lg px-4 py-2 text-sm font-black text-white bg-blue-600'
-            : 'rounded-lg px-4 py-2 text-sm font-black text-slate-700';
-        monthlyBtn.className = !onceActive
-            ? 'rounded-lg px-4 py-2 text-sm font-black text-white bg-blue-600'
-            : 'rounded-lg px-4 py-2 text-sm font-black text-slate-700';
+        onceBtn.className = onceActive ? 'public-choice-toggle is-active' : 'public-choice-toggle';
+        monthlyBtn.className = !onceActive ? 'public-choice-toggle is-active' : 'public-choice-toggle';
     }
 
     function setSelectedAmount(cents) {
@@ -149,9 +199,7 @@
         var buttons = amountGrid.querySelectorAll('button[data-amount]');
         buttons.forEach(function (button) {
             var active = Number(button.getAttribute('data-amount')) === cents;
-            button.className = active
-                ? 'rounded-xl border border-blue-600 bg-blue-600 text-white px-3 py-2 text-sm font-black'
-                : 'rounded-xl border border-slate-300 bg-white text-slate-700 px-3 py-2 text-sm font-black hover:border-slate-400';
+            button.className = active ? 'public-amount-btn is-active' : 'public-amount-btn';
         });
     }
 
@@ -200,6 +248,7 @@
         amountGrid.appendChild(btn);
     });
     setSelectedAmount(selectedAmountCents);
+    setMode(selectedMode);
     sendDonateEvent('donate_view', selectedAmountCents);
 
     onceBtn.addEventListener('click', function () { setMode('one_time'); });

@@ -339,6 +339,9 @@ def main() -> None:
         f"skipped_published={stats.skipped_published}, skipped_missing={stats.skipped_missing}, "
         f"failed={stats.failed})"
     )
+    successful = stats.processed + stats.created_blotters + stats.duplicate_only + stats.skipped_published + stats.skipped_missing
+    if stats.selected and stats.failed and successful == 0:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

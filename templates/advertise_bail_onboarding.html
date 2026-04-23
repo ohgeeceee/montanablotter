@@ -19,6 +19,17 @@
         <h1 class="text-2xl font-black text-slate-900">Creative Onboarding</h1>
         <p class="text-sm text-slate-600 mt-2">Order for <span class="font-semibold">{{ order.business_name }}</span> · Package <span class="font-semibold">{{ order.package_name }}</span> · {{ order.billing_cycle }}</p>
         <p class="text-xs text-slate-500 mt-1">Status: {{ order.status }}</p>
+        <div class="mt-4 flex flex-wrap gap-3">
+            <a href="/advertise/bail-bonds/control-panel/{{ order.onboarding_token }}"
+               class="inline-flex items-center justify-center rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] transition">
+                Open Control Panel
+            </a>
+            <a href="{{ contract_info.url }}"
+               {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %}
+               class="inline-flex items-center justify-center rounded-xl border border-amber-300 hover:bg-amber-50 text-amber-800 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] transition">
+                View Contract
+            </a>
+        </div>
     </div>
 
     {% if submitted %}
@@ -71,6 +82,15 @@
 
         <aside class="lg:col-span-2 space-y-4">
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h2 class="text-lg font-black text-slate-900">Contract Reference</h2>
+                <p class="text-sm text-slate-600 mt-2">Need to double-check terms while submitting creative? Review the signed flow requirements here.</p>
+                <a href="{{ contract_info.url }}"
+                   {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %}
+                   class="mt-3 inline-flex items-center justify-center rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition">
+                    Open Contract
+                </a>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
                 <h2 class="text-lg font-black text-slate-900">Review Standards</h2>
                 <ul class="mt-3 space-y-2 text-sm text-slate-600 list-disc list-inside">
                     <li>No misleading legal or outcome claims.</li>
@@ -87,6 +107,15 @@
                 {% endif %}
                 {% if creative.logo_path %}
                 <img src="{{ creative.logo_path }}" alt="Current ad creative" class="mt-3 rounded-lg border border-slate-200 max-h-48 object-contain bg-slate-50">
+                {% endif %}
+            </div>
+            {% elif simulator_preview.logo_path %}
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+                <h2 class="text-lg font-black text-slate-900">Imported Simulator Preview</h2>
+                <p class="text-sm text-slate-600 mt-2">This preview asset came from the ad simulator and will be preserved unless you upload a replacement creative.</p>
+                <img src="{{ simulator_preview.logo_path }}" alt="Imported simulator asset" class="mt-3 rounded-lg border border-slate-200 max-h-48 object-contain bg-slate-50">
+                {% if simulator_preview.target_url %}
+                <p class="text-xs text-slate-500 mt-3">Imported target URL: {{ simulator_preview.target_url }}</p>
                 {% endif %}
             </div>
             {% endif %}

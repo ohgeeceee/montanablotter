@@ -18,9 +18,11 @@ import hashlib
 import html
 import json
 import logging
+import os
 import re
 import sqlite3
 import string
+import time
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
@@ -37,7 +39,10 @@ logger = logging.getLogger(__name__)
 
 DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
 DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
+DB_LOCK_RETRY_ATTEMPTS = int(getattr(config, "DB_LOCK_RETRY_ATTEMPTS", 3))
+DB_LOCK_RETRY_SLEEP_SECONDS = float(getattr(config, "DB_LOCK_RETRY_SLEEP_SECONDS", 2.0))
 MISSOULA_CHARGE_LOOKBACK_DAYS = int(getattr(config, "MISSOULA_CHARGE_LOOKBACK_DAYS", 30))
+PUBLISHER_PAYLOAD_PATH = str(getattr(config, "NEXTJS_JAIL_BOOKING_PAYLOAD_PATH", "") or "").strip()
 
 SUPPORTED_ADAPTERS = {"broadwater", "flathead", "jefferson", "missoula", "sanders", "yellowstone"}
 SKIPPED_SOURCES = {
@@ -121,6 +126,10 @@ class SyncStats:
     updated_count: int = 0
     missing_count: int = 0
     alert_candidates: list[dict[str, object]] = field(default_factory=list)
+
+
+class SourceTemporarilyUnavailable(RuntimeError):
+    """Raised when an external roster endpoint is temporarily unreachable."""
 
 
 def _normalize_hash_value(value: object) -> str:
@@ -208,8 +217,14 @@ def _connect_db() -> sqlite3.Connection:
     conn = sqlite3.connect(config.DB_PATH, timeout=DB_TIMEOUT_SECONDS)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute(f"PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS}")
     return conn
+
+
+def _is_lock_error(exc: Exception) -> bool:
+    return "database is locked" in str(exc).lower()
 
 
 def _ensure_tracked_sources(conn: sqlite3.Connection) -> None:
@@ -986,52 +1001,55 @@ def fetch_sanders_bookings(source_url: str) -> list[JailBookingRecord]:
 
     results: list[JailBookingRecord] = []
     seen: set[str] = set()
-    for letter in string.ascii_uppercase:
-        response = session.post(
-            f"{base_url}/functions/search.php",
-            data={
-                "nx": "",
-                "last": letter,
-                "first": "",
-                "jkt": "",
-                "middle": "",
-                "dob_yr": "",
-            },
-            timeout=45,
-        )
-        response.raise_for_status()
-        for row in _parse_sanders_search_results(response.text, base_url):
-            detail_url = row["detail_url"]
-            source_record_id = detail_url or row["jacket_number"]
-            if not source_record_id or source_record_id in seen:
-                continue
-            seen.add(source_record_id)
-
-            detail_html = ""
-            charges_summary = "Charge details available on the official Sanders County inmate page."
-            booking_at = None
-            if detail_url:
-                detail_response = session.get(detail_url, timeout=45)
-                detail_response.raise_for_status()
-                detail_html = detail_response.text
-            if detail_html:
-                detail = _parse_sanders_detail(detail_html)
-                charges_summary = str(detail["charges_summary"] or charges_summary)
-                booking_at = _normalize_datetime(str(detail["booking_date"] or ""))
-            else:
-                detail = {}
-
-            results.append(
-                JailBookingRecord(
-                    source_record_id=source_record_id,
-                    person_name=str(detail.get("person_name") or row["person_name"]),
-                    age=None,
-                    booking_number=str(detail.get("booking_number") or row["jacket_number"]),
-                    booking_at=booking_at,
-                    charges_summary=charges_summary,
-                    source_url=detail_url or f"{base_url}/index.php",
-                )
+    try:
+        for letter in string.ascii_uppercase:
+            response = session.post(
+                f"{base_url}/functions/search.php",
+                data={
+                    "nx": "",
+                    "last": letter,
+                    "first": "",
+                    "jkt": "",
+                    "middle": "",
+                    "dob_yr": "",
+                },
+                timeout=45,
             )
+            response.raise_for_status()
+            for row in _parse_sanders_search_results(response.text, base_url):
+                detail_url = row["detail_url"]
+                source_record_id = detail_url or row["jacket_number"]
+                if not source_record_id or source_record_id in seen:
+                    continue
+                seen.add(source_record_id)
+
+                detail_html = ""
+                charges_summary = "Charge details available on the official Sanders County inmate page."
+                booking_at = None
+                if detail_url:
+                    detail_response = session.get(detail_url, timeout=45)
+                    detail_response.raise_for_status()
+                    detail_html = detail_response.text
+                if detail_html:
+                    detail = _parse_sanders_detail(detail_html)
+                    charges_summary = str(detail["charges_summary"] or charges_summary)
+                    booking_at = _normalize_datetime(str(detail["booking_date"] or ""))
+                else:
+                    detail = {}
+
+                results.append(
+                    JailBookingRecord(
+                        source_record_id=source_record_id,
+                        person_name=str(detail.get("person_name") or row["person_name"]),
+                        age=None,
+                        booking_number=str(detail.get("booking_number") or row["jacket_number"]),
+                        booking_at=booking_at,
+                        charges_summary=charges_summary,
+                        source_url=detail_url or f"{base_url}/index.php",
+                    )
+                )
+    except requests.exceptions.RequestException as exc:
+        raise SourceTemporarilyUnavailable(f"Sanders roster temporarily unavailable: {exc}") from exc
 
     return results
 
@@ -1132,6 +1150,7 @@ def _mark_source_checked(
     *,
     success: bool,
     notes: str = "",
+    latest_error: str = "",
 ) -> None:
     if success:
         conn.execute(
@@ -1139,6 +1158,7 @@ def _mark_source_checked(
             UPDATE jail_booking_sources
             SET last_checked_at = datetime('now'),
                 last_success_at = datetime('now'),
+                latest_error = '',
                 notes = CASE WHEN ? != '' THEN ? ELSE notes END
             WHERE id = ?
             ''',
@@ -1149,10 +1169,11 @@ def _mark_source_checked(
             '''
             UPDATE jail_booking_sources
             SET last_checked_at = datetime('now'),
+                latest_error = CASE WHEN ? != '' THEN ? ELSE latest_error END,
                 notes = CASE WHEN ? != '' THEN ? ELSE notes END
             WHERE id = ?
             ''',
-            (notes[:1000], notes[:1000], source_id),
+            (latest_error[:2000], latest_error[:2000], notes[:1000], notes[:1000], source_id),
         )
 
 
@@ -1177,6 +1198,12 @@ def _sync_records(
         (source["id"],),
     ).fetchall()
     existing_by_key = {row["source_record_id"]: row for row in existing_rows if row["source_record_id"]}
+    current_existing_count = sum(1 for row in existing_rows if int(row["is_current"] or 0) == 1)
+    if not payload and current_existing_count:
+        raise RuntimeError(
+            f"Parsed zero jail booking rows for {source['county_name']} with "
+            f"{current_existing_count} current booking(s); refusing to mark releases."
+        )
     seen_ids: set[str] = set()
 
     for record in payload:
@@ -1209,7 +1236,7 @@ def _sync_records(
                     last_seen_at,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'current', 1, datetime('now'), datetime('now'), datetime('now'), datetime('now'))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'current', 1, datetime('now'), datetime('now'), datetime('now'), datetime('now'))
                 ''',
                 (
                     source["id"],
@@ -1323,34 +1350,40 @@ def _sync_records(
     return stats
 
 
-def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool = False) -> SyncStats:
+def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool = False) -> tuple[SyncStats, str]:
     county_slug = source["county_slug"]
     roster_url = (source["roster_url"] or "").strip()
     if county_slug in SKIPPED_SOURCES:
         note = SKIPPED_SOURCES[county_slug]
         _record_run(conn, source_id=source["id"], run_type="scheduled", status="skipped", notes=note)
-        _mark_source_checked(conn, source["id"], success=False, notes=note)
-        return SyncStats()
+        _mark_source_checked(conn, source["id"], success=False, notes=note, latest_error=note)
+        return SyncStats(), "skipped"
     if county_slug not in SUPPORTED_ADAPTERS:
         note = "No automated county adapter has been added yet."
         _record_run(conn, source_id=source["id"], run_type="scheduled", status="skipped", notes=note)
-        _mark_source_checked(conn, source["id"], success=False, notes=note)
-        return SyncStats()
+        _mark_source_checked(conn, source["id"], success=False, notes=note, latest_error=note)
+        return SyncStats(), "skipped"
 
-    if county_slug == "broadwater":
-        records = fetch_broadwater_bookings(roster_url)
-    elif county_slug == "flathead":
-        records = fetch_flathead_bookings(roster_url)
-    elif county_slug == "jefferson":
-        records = fetch_jefferson_bookings(roster_url)
-    elif county_slug == "missoula":
-        records = fetch_missoula_bookings(roster_url)
-    elif county_slug == "sanders":
-        records = fetch_sanders_bookings(roster_url)
-    elif county_slug == "yellowstone":
-        records = fetch_yellowstone_bookings(roster_url)
-    else:
-        raise RuntimeError(f"No adapter for county slug: {county_slug}")
+    try:
+        if county_slug == "broadwater":
+            records = fetch_broadwater_bookings(roster_url)
+        elif county_slug == "flathead":
+            records = fetch_flathead_bookings(roster_url)
+        elif county_slug == "jefferson":
+            records = fetch_jefferson_bookings(roster_url)
+        elif county_slug == "missoula":
+            records = fetch_missoula_bookings(roster_url)
+        elif county_slug == "sanders":
+            records = fetch_sanders_bookings(roster_url)
+        elif county_slug == "yellowstone":
+            records = fetch_yellowstone_bookings(roster_url)
+        else:
+            raise RuntimeError(f"No adapter for county slug: {county_slug}")
+    except SourceTemporarilyUnavailable as exc:
+        note = str(exc)
+        _record_run(conn, source_id=source["id"], run_type="scheduled", status="skipped", notes=note)
+        _mark_source_checked(conn, source["id"], success=False, notes=note, latest_error=note)
+        return SyncStats(), "skipped"
 
     stats = _sync_records(conn, source, records, dry_run=dry_run)
     alert_summary = {'matched': 0, 'sent': 0, 'failed': 0, 'skipped': 0}
@@ -1378,55 +1411,171 @@ def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool 
         notes=note,
     )
     _mark_source_checked(conn, source["id"], success=True, notes=note)
-    return stats
+    return stats, "success"
+
+
+def _classify_scraper_failure(exc: Exception) -> tuple[str, str]:
+    message = str(exc).strip() or exc.__class__.__name__
+    lowered = message.lower()
+    if isinstance(exc, requests.exceptions.Timeout) or "timed out" in lowered or "timeout" in lowered:
+        return "network_timeout", message
+    if isinstance(exc, requests.exceptions.RequestException):
+        return "network_error", message
+    if any(token in lowered for token in ("not found", "unexpected", "selector", "viewstate", "prompt", "table")):
+        return "dom_change", message
+    return "scraper_error", message
+
+
+def _build_publisher_payload(
+    conn: sqlite3.Connection,
+    *,
+    successful_source_ids: list[int],
+    failed_counties: dict[str, str],
+) -> dict[str, object]:
+    now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    if not successful_source_ids:
+        return {
+            "generated_at": now_iso,
+            "status": "empty",
+            "successful_counties": [],
+            "failed_counties": failed_counties,
+            "record_count": 0,
+            "records": [],
+        }
+
+    placeholders = ",".join("?" for _ in successful_source_ids)
+    rows = conn.execute(
+        f"""
+        SELECT
+            jb.id,
+            jb.county_slug,
+            jb.county_name,
+            jb.person_name,
+            jb.age,
+            jb.booking_number,
+            jb.booking_at,
+            jb.charges_summary,
+            jb.source_url,
+            jb.source_record_id,
+            jb.first_seen_at,
+            jb.last_seen_at
+        FROM jail_bookings jb
+        WHERE jb.source_id IN ({placeholders})
+          AND COALESCE(jb.is_current, 1) = 1
+        ORDER BY datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) DESC, jb.id DESC
+        """,
+        successful_source_ids,
+    ).fetchall()
+    records = [dict(row) for row in rows]
+    success_rows = conn.execute(
+        f"SELECT county_slug, county_name FROM jail_booking_sources WHERE id IN ({placeholders}) ORDER BY county_name ASC",
+        successful_source_ids,
+    ).fetchall()
+    successful_counties = [dict(row) for row in success_rows]
+    return {
+        "generated_at": now_iso,
+        "status": "partial" if failed_counties else "success",
+        "successful_counties": successful_counties,
+        "failed_counties": failed_counties,
+        "record_count": len(records),
+        "records": records,
+    }
+
+
+def _publish_payload_to_disk(payload: dict[str, object]) -> None:
+    if not PUBLISHER_PAYLOAD_PATH:
+        return
+    target_dir = os.path.dirname(PUBLISHER_PAYLOAD_PATH) or "."
+    os.makedirs(target_dir, exist_ok=True)
+    tmp_path = f"{PUBLISHER_PAYLOAD_PATH}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+    os.replace(tmp_path, PUBLISHER_PAYLOAD_PATH)
 
 
 def ingest_jail_bookings(*, county_slug: str = "", dry_run: bool = False) -> dict[str, SyncStats]:
-    conn = _connect_db()
-    try:
-        _ensure_tracked_sources(conn)
-        if county_slug:
-            sources = conn.execute(
-                '''
-                SELECT *
-                FROM jail_booking_sources
-                WHERE county_slug = ? AND COALESCE(is_enabled, 1) = 1
-                ORDER BY county_name ASC
-                ''',
-                (county_slug,),
-            ).fetchall()
-        else:
-            sources = conn.execute(
-                '''
-                SELECT *
-                FROM jail_booking_sources
-                WHERE COALESCE(is_enabled, 1) = 1
-                ORDER BY COALESCE(is_featured, 0) DESC, county_name ASC
-                '''
-            ).fetchall()
+    attempt = 1
+    max_attempts = max(1, DB_LOCK_RETRY_ATTEMPTS)
+    while True:
+        conn = _connect_db()
+        try:
+            _ensure_tracked_sources(conn)
+            if county_slug:
+                sources = conn.execute(
+                    '''
+                    SELECT *
+                    FROM jail_booking_sources
+                    WHERE county_slug = ? AND COALESCE(is_enabled, 1) = 1
+                    ORDER BY county_name ASC
+                    ''',
+                    (county_slug,),
+                ).fetchall()
+            else:
+                sources = conn.execute(
+                    '''
+                    SELECT *
+                    FROM jail_booking_sources
+                    WHERE COALESCE(is_enabled, 1) = 1
+                    ORDER BY COALESCE(is_featured, 0) DESC, county_name ASC
+                    '''
+                ).fetchall()
 
-        results: dict[str, SyncStats] = {}
-        for source in sources:
-            logger.info("Processing jail roster source: %s", source["county_name"])
+            results: dict[str, SyncStats] = {}
+            successful_source_ids: list[int] = []
+            failed_counties: dict[str, str] = {}
+            for source in sources:
+                logger.info("Processing jail roster source: %s", source["county_name"])
+                try:
+                    stats, run_status = _run_source(conn, source, dry_run=dry_run)
+                    results[source["county_slug"]] = stats
+                    if run_status == "success":
+                        successful_source_ids.append(int(source["id"]))
+                    conn.commit()
+                except Exception as exc:
+                    failure_type, exact_error = _classify_scraper_failure(exc)
+                    logger.exception("Jail booking ingest failed for %s", source["county_slug"])
+                    failed_counties[source["county_slug"]] = f"{failure_type}: {exact_error}"
+                    results[source["county_slug"]] = SyncStats()
+                    _record_run(
+                        conn,
+                        source_id=source["id"],
+                        run_type="scheduled" if not dry_run else "dry_run",
+                        status="failed",
+                        notes=f"{failure_type}: {exact_error}",
+                    )
+                    _mark_source_checked(
+                        conn,
+                        source["id"],
+                        success=False,
+                        notes=f"{failure_type}: {exact_error}",
+                        latest_error=exact_error,
+                    )
+                    conn.commit()
+                    continue
+
+            payload = _build_publisher_payload(
+                conn,
+                successful_source_ids=successful_source_ids,
+                failed_counties=failed_counties,
+            )
             try:
-                stats = _run_source(conn, source, dry_run=dry_run)
-                results[source["county_slug"]] = stats
-                conn.commit()
+                _publish_payload_to_disk(payload)
             except Exception as exc:
-                logger.exception("Jail booking ingest failed for %s", source["county_slug"])
-                _record_run(
-                    conn,
-                    source_id=source["id"],
-                    run_type="scheduled" if not dry_run else "dry_run",
-                    status="failed",
-                    notes=str(exc),
-                )
-                _mark_source_checked(conn, source["id"], success=False, notes=str(exc))
-                conn.commit()
+                logger.warning("Failed to write publisher payload: %s", exc)
+            return results
+        except sqlite3.OperationalError as exc:
+            if not _is_lock_error(exc) or attempt >= max_attempts:
                 raise
-        return results
-    finally:
-        conn.close()
+            logger.warning(
+                "SQLite was locked during jail ingest (attempt %s/%s); retrying in %.1fs",
+                attempt,
+                max_attempts,
+                DB_LOCK_RETRY_SLEEP_SECONDS,
+            )
+            time.sleep(max(0.0, DB_LOCK_RETRY_SLEEP_SECONDS))
+            attempt += 1
+        finally:
+            conn.close()
 
 
 def main() -> None:

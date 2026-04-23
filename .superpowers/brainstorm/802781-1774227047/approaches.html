@@ -1,0 +1,47 @@
+<h2>Three Navigation Approaches</h2>
+<p class="subtitle">The core problem: visitors think "Cascade County" but the site is organized by content type. Which approach fixes this best?</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Geography-First Nav</h3>
+      <p>Replace the type-based top nav with a county selector as the primary entry point. Every page stays anchored to a county context. "Pick your county → see everything for it."</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Matches how visitors think</li><li>One click to your local data</li><li>Works for all 56 counties</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Biggest nav restructure</li><li>First-time visitors still need to pick a county</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Homepage County Hub</h3>
+      <p>Keep current nav but redesign the homepage as a county-picker landing page: prominent search bar + browsable county cards. Once you pick, a sticky "county context" bar follows you through the site.</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Low risk — nav stays the same</li><li>Immediate orientation on arrival</li><li>Sticky context prevents getting lost</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Doesn't fix nav for direct/deep links</li><li>Two UX paradigms in parallel</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Grouped Mega-Nav + County Breadcrumb</h3>
+      <p>Reorganize the top nav into grouped dropdowns (Records, Courts, Community, Resources) and add a county breadcrumb/switcher that appears on every data page. Best of both worlds.</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4><ul><li>Scales to all content types</li><li>Fixes both "what is this site?" and "where am I?"</li><li>Works on mobile as a drawer</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Most moving pieces</li><li>Dropdown UX can be finicky on mobile</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:24px; padding:16px; background:rgba(212,137,42,0.08); border:1px solid rgba(212,137,42,0.2); border-radius:6px;">
+  <p class="label">My recommendation</p>
+  <p style="margin-top:6px;">Start with <strong>B</strong> — it solves the immediate problem (visitors arriving at the homepage lost) with the least risk. Then layer in elements of C over time as the site grows. A is the eventual ideal but requires the most restructuring.</p>
+</div>

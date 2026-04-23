@@ -14,56 +14,63 @@
     {% endif %}
     {% endwith %}
 
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-600">Overview</p>
-            <h1 class="text-3xl font-black text-slate-900 mt-2">Admin Dashboard</h1>
-            <p class="text-sm text-slate-500 mt-2">Operational summary across ingestion, review, audience, and security.</p>
+    <section class="rounded-[28px] border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-6 py-6 border-b border-slate-200 bg-slate-950 text-white">
+            <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.22em] font-black text-amber-300">Statewide Operations</p>
+                    <h1 class="mt-2 text-3xl font-black">Admin Dashboard</h1>
+                    <p class="mt-2 max-w-3xl text-sm text-slate-300">
+                        Control center for ingestion, review, audience operations, publishing, and statewide source coverage.
+                    </p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <a href="/admin/upload" class="inline-flex items-center justify-center rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-black text-slate-950 hover:bg-amber-300 transition">Upload PDF</a>
+                    <a href="/admin/operations/sources" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 transition">Source Registry</a>
+                    <a href="/admin/operations/redaction" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 transition">Review Queue</a>
+                </div>
+            </div>
         </div>
-        <div class="flex flex-wrap gap-3">
-            <a href="/admin/upload" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">Upload PDF</a>
-            <a href="/admin/operations/sources" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Open Source Registry</a>
-            <a href="/admin/operations/redaction" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Open Review Queue</a>
-        </div>
-    </div>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Total Records</p>
-            <p class="text-3xl font-black text-slate-900 mt-2">{{ total_records }}</p>
+        <div class="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 xl:grid-cols-6">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Total Records</p>
+                <p class="mt-2 text-3xl font-black text-slate-950">{{ total_records }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Blotters</p>
+                <p class="mt-2 text-3xl font-black text-slate-950">{{ total_blotters }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Counties</p>
+                <p class="mt-2 text-3xl font-black text-slate-950">{{ total_counties }}</p>
+            </div>
+            <div class="rounded-2xl border {% if failed_ingestions %}border-amber-200 bg-amber-50{% else %}border-slate-200 bg-slate-50{% endif %} px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Failed Ingestions</p>
+                <p class="mt-2 text-3xl font-black {% if failed_ingestions %}text-amber-700{% else %}text-slate-950{% endif %}">{{ failed_ingestions }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Active Admins</p>
+                <p class="mt-2 text-3xl font-black text-slate-950">{{ active_admin_users }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Audit Events 7d</p>
+                <p class="mt-2 text-3xl font-black text-slate-950">{{ recent_audit_actions }}</p>
+            </div>
         </div>
-        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Blotters</p>
-            <p class="text-3xl font-black text-slate-900 mt-2">{{ total_blotters }}</p>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Counties</p>
-            <p class="text-3xl font-black text-slate-900 mt-2">{{ total_counties }}</p>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Failed Ingestions</p>
-            <p class="text-3xl font-black {% if failed_ingestions %}text-amber-700{% else %}text-slate-900{% endif %} mt-2">{{ failed_ingestions }}</p>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Active Admins</p>
-            <p class="text-3xl font-black text-slate-900 mt-2">{{ active_admin_users }}</p>
-        </div>
-        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Audit Events 7d</p>
-            <p class="text-3xl font-black text-slate-900 mt-2">{{ recent_audit_actions }}</p>
-        </div>
-    </div>
+    </section>
 
-    <div class="rounded-2xl border {% if alert_rollup.total %}border-rose-200 bg-rose-50{% else %}border-emerald-200 bg-emerald-50{% endif %} shadow-sm overflow-hidden">
+    <section class="rounded-2xl border {% if alert_rollup.total %}border-rose-200 bg-rose-50{% else %}border-emerald-200 bg-emerald-50{% endif %} shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b {% if alert_rollup.total %}border-rose-200 bg-rose-100/70{% else %}border-emerald-200 bg-emerald-100/70{% endif %}">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h2 class="text-lg font-black {% if alert_rollup.total %}text-rose-900{% else %}text-emerald-900{% endif %}">Open Source Alerts</h2>
-                    <p class="text-sm mt-1 {% if alert_rollup.total %}text-rose-700{% else %}text-emerald-700{% endif %}">
+                    <p class="text-[10px] uppercase tracking-[0.16em] font-black {% if alert_rollup.total %}text-rose-700{% else %}text-emerald-700{% endif %}">Operational Alerts</p>
+                    <h2 class="mt-2 text-xl font-black {% if alert_rollup.total %}text-rose-950{% else %}text-emerald-950{% endif %}">Open source and pipeline issues</h2>
+                    <p class="mt-1 text-sm {% if alert_rollup.total %}text-rose-700{% else %}text-emerald-700{% endif %}">
                         {% if alert_rollup.total %}
-                        {{ alert_rollup.total }} active issue{% if alert_rollup.total != 1 %}s{% endif %} need review across ingestion, courts, and meetings.
+                        {{ alert_rollup.total }} active issue{% if alert_rollup.total != 1 %}s{% endif %} require review across ingestion, court sources, and meetings.
                         {% else %}
-                        No open source alerts right now. All monitored pipelines are currently healthy.
+                        No open source alerts right now. Monitored pipelines are currently healthy.
                         {% endif %}
                     </p>
                 </div>
@@ -76,97 +83,159 @@
         <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-3">
             <a href="/admin/ingestion" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
                 <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Blotter Ingestion</p>
-                <p class="text-3xl font-black {% if alert_rollup.ingestion %}text-rose-700{% else %}text-slate-900{% endif %} mt-2">{{ alert_rollup.ingestion }}</p>
-                <p class="text-sm text-slate-500 mt-2">Open ingest-source alerts and job issues.</p>
+                <p class="mt-2 text-3xl font-black {% if alert_rollup.ingestion %}text-rose-700{% else %}text-slate-950{% endif %}">{{ alert_rollup.ingestion }}</p>
+                <p class="mt-2 text-sm text-slate-500">Open ingest-source alerts and job failures.</p>
             </a>
             <a href="/admin/operations/courts" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
                 <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Court Sources</p>
-                <p class="text-3xl font-black {% if alert_rollup.courts %}text-rose-700{% else %}text-slate-900{% endif %} mt-2">{{ alert_rollup.courts }}</p>
-                <p class="text-sm text-slate-500 mt-2">Open stale or failing court-source alerts.</p>
+                <p class="mt-2 text-3xl font-black {% if alert_rollup.courts %}text-rose-700{% else %}text-slate-950{% endif %}">{{ alert_rollup.courts }}</p>
+                <p class="mt-2 text-sm text-slate-500">Open stale or failing court-source alerts.</p>
             </a>
             <a href="/admin/operations/meetings" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
                 <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Meetings Sources</p>
-                <p class="text-3xl font-black {% if alert_rollup.meetings %}text-rose-700{% else %}text-slate-900{% endif %} mt-2">{{ alert_rollup.meetings }}</p>
-                <p class="text-sm text-slate-500 mt-2">Open stale or failing agendas-source alerts.</p>
+                <p class="mt-2 text-3xl font-black {% if alert_rollup.meetings %}text-rose-700{% else %}text-slate-950{% endif %}">{{ alert_rollup.meetings }}</p>
+                <p class="mt-2 text-sm text-slate-500">Open stale or failing meeting-source alerts.</p>
             </a>
         </div>
-    </div>
+    </section>
 
-    <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
-                <h2 class="text-lg font-black text-slate-900">Operational Queues</h2>
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Command Center</p>
+                <h2 class="mt-2 text-xl font-black text-slate-950">Primary control lanes</h2>
             </div>
             <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                 <a href="/admin/ingestion?status=failed" class="rounded-2xl bg-amber-500 px-5 py-5 text-white shadow-sm transition hover:bg-amber-600">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Ops</p>
-                    <p class="text-xl font-black mt-2">Ingestion Health</p>
-                    <p class="text-sm opacity-90 mt-2">Investigate failed jobs and stale sources.</p>
+                    <p class="mt-2 text-xl font-black">Ingestion Health</p>
+                    <p class="mt-2 text-sm opacity-90">Investigate failed jobs and stale sources.</p>
                 </a>
                 <a href="/admin/operations/sources" class="rounded-2xl bg-blue-700 px-5 py-5 text-white shadow-sm transition hover:bg-blue-800">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Coverage</p>
-                    <p class="text-xl font-black mt-2">Source Registry</p>
-                    <p class="text-sm opacity-90 mt-2">Official source coverage, freshness, and health.</p>
+                    <p class="mt-2 text-xl font-black">Source Registry</p>
+                    <p class="mt-2 text-sm opacity-90">Official source coverage, freshness, and health.</p>
                 </a>
                 <a href="/admin/operations/redaction" class="rounded-2xl bg-slate-900 px-5 py-5 text-white shadow-sm transition hover:bg-slate-800">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Review</p>
-                    <p class="text-xl font-black mt-2">Redaction Queue</p>
-                    <p class="text-sm opacity-90 mt-2">Pending, flagged, and clean editorial review states.</p>
+                    <p class="mt-2 text-xl font-black">Redaction Queue</p>
+                    <p class="mt-2 text-sm opacity-90">Pending, flagged, and clean editorial review states.</p>
                 </a>
                 <a href="/admin/analytics" class="rounded-2xl bg-emerald-600 px-5 py-5 text-white shadow-sm transition hover:bg-emerald-700">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Reporting</p>
-                    <p class="text-xl font-black mt-2">Analytics Hub</p>
-                    <p class="text-sm opacity-90 mt-2">Traffic, content, and pattern-conversion performance.</p>
+                    <p class="mt-2 text-xl font-black">Analytics Hub</p>
+                    <p class="mt-2 text-sm opacity-90">Traffic, content, and conversion performance.</p>
+                </a>
+                <a href="/admin/office" class="rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-sm transition hover:bg-sky-800">
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Live Ops</p>
+                    <p class="mt-2 text-xl font-black">Office Control Panel</p>
+                    <p class="mt-2 text-sm opacity-90">Watch agents and client traffic in real time.</p>
                 </a>
                 <a href="/admin/audience/subscribers" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Audience</p>
-                    <p class="text-xl font-black text-slate-900 mt-2">Subscribers</p>
-                    <p class="text-sm text-slate-500 mt-2">Manage audience status, counties, and exports.</p>
+                    <p class="mt-2 text-xl font-black text-slate-950">Subscribers</p>
+                    <p class="mt-2 text-sm text-slate-500">Manage status, county coverage, and exports.</p>
                 </a>
                 <a href="/admin/operations/jail-bookings" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Bookings</p>
-                    <p class="text-xl font-black text-slate-900 mt-2">Jail Bookings</p>
-                    <p class="text-sm text-slate-500 mt-2">Publish and manage daily jail booking entries for major counties.</p>
+                    <p class="mt-2 text-xl font-black text-slate-950">Jail Bookings</p>
+                    <p class="mt-2 text-sm text-slate-500">Publish and manage daily jail booking entries.</p>
                 </a>
                 <a href="/admin/content/seo" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Growth</p>
-                    <p class="text-xl font-black text-slate-900 mt-2">SEO Console</p>
-                    <p class="text-sm text-slate-500 mt-2">Search Console imports, CTR opportunities, and snippets.</p>
+                    <p class="mt-2 text-xl font-black text-slate-950">SEO Console</p>
+                    <p class="mt-2 text-sm text-slate-500">Search Console imports, snippets, and CTR opportunities.</p>
+                </a>
+                <a href="/admin/audience/email-ops" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Delivery</p>
+                    <p class="mt-2 text-xl font-black text-slate-950">Email Ops</p>
+                    <p class="mt-2 text-sm text-slate-500">Test digests, inspect failures, and retry runs.</p>
                 </a>
             </div>
-        </div>
+        </section>
 
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
-                <h2 class="text-lg font-black text-slate-900">Official Coverage Snapshot</h2>
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Coverage</p>
+                <h2 class="mt-2 text-xl font-black text-slate-950">Official Coverage Snapshot</h2>
             </div>
             <div class="p-5 grid grid-cols-2 gap-3">
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-emerald-700">Live</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1">{{ source_coverage.summary.live }}</p>
+                    <p class="mt-1 text-2xl font-black text-slate-950">{{ source_coverage.summary.live }}</p>
                 </div>
                 <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-blue-700">Covered</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1">{{ source_coverage.summary.covered }}</p>
+                    <p class="mt-1 text-2xl font-black text-slate-950">{{ source_coverage.summary.covered }}</p>
                 </div>
                 <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-amber-700">Candidate</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1">{{ source_coverage.summary.candidate }}</p>
+                    <p class="mt-1 text-2xl font-black text-slate-950">{{ source_coverage.summary.candidate }}</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-600">No Source</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1">{{ source_coverage.summary.no_source }}</p>
+                    <p class="mt-1 text-2xl font-black text-slate-950">{{ source_coverage.summary.no_source }}</p>
                 </div>
             </div>
             <div class="px-5 pb-5 space-y-3">
                 {% for item in source_coverage.entries[:5] %}
                 <div class="rounded-xl border border-slate-200 px-4 py-3">
-                    <p class="text-sm font-black text-slate-900">{{ item.agency }}</p>
-                    <p class="text-xs text-slate-500 mt-1">{{ item.category|replace('_', ' ')|title }}{% if item.freshness %} · {{ item.freshness }}{% endif %}</p>
+                    <p class="text-sm font-black text-slate-950">{{ item.agency }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ item.category|replace('_', ' ')|title }}{% if item.freshness %} · {{ item.freshness }}{% endif %}</p>
+                </div>
+                {% else %}
+                <div class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">
+                    No official source coverage entries available yet.
                 </div>
                 {% endfor %}
             </div>
-        </div>
+        </section>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Recent Intake</p>
+                <h2 class="mt-2 text-xl font-black text-slate-950">Recent source files</h2>
+            </div>
+            <div class="divide-y divide-slate-200">
+                {% for blotter in recent_blotters[:6] %}
+                <div class="px-5 py-4 flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-black text-slate-950">{{ blotter.filename }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ blotter.county or 'Unknown county' }}{% if blotter.upload_date %} · {{ blotter.upload_date }}{% endif %}</p>
+                    </div>
+                    <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">{{ blotter.status or 'queued' }}</span>
+                </div>
+                {% else %}
+                <div class="px-5 py-6 text-sm text-slate-500">
+                    No recent blotter uploads available.
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <p class="text-[10px] uppercase tracking-[0.16em] font-black text-slate-500">Statewide Volume</p>
+                <h2 class="mt-2 text-xl font-black text-slate-950">County record volume</h2>
+            </div>
+            <div class="divide-y divide-slate-200">
+                {% for row in county_stats[:6] %}
+                <div class="px-5 py-4 flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-black text-slate-950">{{ row.county or 'Unknown county' }}</p>
+                        <p class="mt-1 text-xs text-slate-500">Indexed records in current database</p>
+                    </div>
+                    <span class="text-lg font-black text-slate-950">{{ row.count }}</span>
+                </div>
+                {% else %}
+                <div class="px-5 py-6 text-sm text-slate-500">
+                    County record totals are not available yet.
+                </div>
+                {% endfor %}
+            </div>
+        </section>
     </div>
 </div>
 {% endblock %}

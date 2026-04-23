@@ -17,6 +17,15 @@ from facebook_publisher import (
     run_facebook_queue,
     save_facebook_settings,
 )
+from missing_persons import (
+    create_missing_person,
+    dispatch_missing_person_alerts,
+    get_missing_person_by_id,
+    missing_person_admin_context,
+    sync_official_missing_persons,
+    update_missing_person,
+    update_missing_person_status,
+)
 from public_meetings import ensure_public_meeting_schema, meeting_admin_context
 from utils.auth_constants import ADMIN_ACCESS_ROLES, ADMIN_MANAGEMENT_ROLES, OPERATIONS_ROLES
 from utils.app_settings import _save_app_setting
@@ -396,6 +405,178 @@ def admin_jail_booking_status(booking_id):
     return redirect(url_for('admin.admin_jail_bookings'))
 
 
+@admin_bp.route('/operations/missing-persons')
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_missing_persons():
+    conn = get_db()
+    context = missing_person_admin_context(
+        conn,
+        status_filter=request.args.get('status'),
+        q=request.args.get('q'),
+    )
+    editing_person = None
+    edit_id = request.args.get('edit', type=int)
+    if edit_id:
+        editing_person = get_missing_person_by_id(conn, edit_id)
+    conn.close()
+    return render_template(
+        'admin_missing_persons.html',
+        **context,
+        editing_person=editing_person,
+    )
+
+
+@admin_bp.route('/operations/missing-persons/sync', methods=['POST'])
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_missing_person_sync():
+    actor = getattr(current_user, 'username', '') or getattr(current_user, 'email', '') or 'admin'
+    conn = get_db()
+    try:
+        result = sync_official_missing_persons(conn, actor=actor)
+        _log_admin_action(
+            'missing_person.synced',
+            target_type='missing_person_sync',
+            metadata={
+                'active_total': result['active_total'],
+                'created': result['created'],
+                'updated': result['updated'],
+                'reactivated': result['reactivated'],
+                'resolved': result['resolved'],
+                'official_last_updated': result['official_last_updated'],
+            },
+            conn=conn,
+        )
+        conn.commit()
+        flash(
+            'Official Montana DOJ sync completed: '
+            f"{result['active_total']} active, {result['created']} new, "
+            f"{result['reactivated']} reactivated, {result['resolved']} no longer listed.",
+            'success',
+        )
+    except Exception as exc:
+        conn.rollback()
+        flash(f'Official missing-person sync failed: {exc}', 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin.admin_missing_persons'))
+
+
+@admin_bp.route('/operations/missing-persons/save', methods=['POST'])
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_missing_person_save():
+    actor = getattr(current_user, 'username', '') or getattr(current_user, 'email', '') or 'admin'
+    person_id_raw = (request.form.get('person_id') or '').strip()
+    payload = {
+        'full_name': request.form.get('full_name'),
+        'age': request.form.get('age'),
+        'city': request.form.get('city'),
+        'county': request.form.get('county'),
+        'last_seen_at': request.form.get('last_seen_at'),
+        'last_seen_location': request.form.get('last_seen_location'),
+        'summary': request.form.get('summary'),
+        'physical_description': request.form.get('physical_description'),
+        'contact_info': request.form.get('contact_info'),
+        'source_name': request.form.get('source_name'),
+        'source_url': request.form.get('source_url'),
+        'photo_url': request.form.get('photo_url'),
+        'status': request.form.get('status'),
+        'resolution_summary': request.form.get('resolution_summary'),
+    }
+
+    conn = get_db()
+    try:
+        if person_id_raw.isdigit():
+            person, should_notify = update_missing_person(conn, int(person_id_raw), payload, actor=actor)
+            action_name = 'missing_person.updated'
+            flash_message = f'Updated missing-person record for {person["full_name"]}.'
+        else:
+            person = create_missing_person(conn, payload, actor=actor)
+            should_notify = person['status'] == 'missing'
+            action_name = 'missing_person.created'
+            flash_message = f'Created missing-person record for {person["full_name"]}.'
+
+        email_stats = {'sent': 0, 'failed': 0, 'skipped': 0}
+        if should_notify:
+            email_stats = dispatch_missing_person_alerts(conn, person)
+            flash_message += (
+                f" Subscriber alerts: {email_stats['sent']} sent"
+                f"{', ' + str(email_stats['failed']) + ' failed' if email_stats['failed'] else ''}."
+            )
+
+        _log_admin_action(
+            action_name,
+            target_type='missing_person',
+            target_id=person['id'],
+            metadata={
+                'status': person['status'],
+                'county': person.get('county'),
+                'city': person.get('city'),
+                'emails_sent': email_stats['sent'],
+                'emails_failed': email_stats['failed'],
+            },
+            conn=conn,
+        )
+        conn.commit()
+        flash(flash_message, 'success')
+    except ValueError as exc:
+        conn.rollback()
+        flash(str(exc), 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin.admin_missing_persons'))
+
+
+@admin_bp.route('/operations/missing-persons/<int:person_id>/status', methods=['POST'])
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_missing_person_status(person_id):
+    actor = getattr(current_user, 'username', '') or getattr(current_user, 'email', '') or 'admin'
+    new_status = request.form.get('status')
+    resolution_summary = request.form.get('resolution_summary') or ''
+
+    conn = get_db()
+    try:
+        person, should_notify = update_missing_person_status(
+            conn,
+            person_id,
+            status=new_status,
+            actor=actor,
+            resolution_summary=resolution_summary,
+        )
+        email_stats = {'sent': 0, 'failed': 0, 'skipped': 0}
+        if should_notify:
+            email_stats = dispatch_missing_person_alerts(conn, person)
+        _log_admin_action(
+            'missing_person.status_changed',
+            target_type='missing_person',
+            target_id=person['id'],
+            metadata={
+                'status': person['status'],
+                'emails_sent': email_stats['sent'],
+                'emails_failed': email_stats['failed'],
+            },
+            conn=conn,
+        )
+        conn.commit()
+        flash(
+            f"{person['full_name']} marked {person['status_label'].lower()}."
+            + (
+                f" Subscriber alerts: {email_stats['sent']} sent."
+                if should_notify else ''
+            ),
+            'success',
+        )
+    except ValueError as exc:
+        conn.rollback()
+        flash(str(exc), 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin.admin_missing_persons'))
+
+
 @admin_bp.route('/facebook', methods=['GET', 'POST'])
 @login_required
 def admin_facebook():
@@ -716,7 +897,7 @@ def admin_settings():
 @login_required
 def admin_emails():
     """Legacy route redirected to the current digest email ops console."""
-    return redirect(url_for('admin_email_ops'))
+    return redirect(url_for('admin.admin_email_ops'))
 
 
 @admin_bp.route('/emails/template/<template_type>')

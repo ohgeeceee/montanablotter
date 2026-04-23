@@ -6,16 +6,18 @@
 {% set og_title = "Subscribe | Montana Blotter" %}
 {% set og_description = meta_description %}
 
+{% block body_class %}subscribe-page{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Subscribe</span>
+<span>Subscribe</span>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-lg mx-auto px-6 py-14">
+<div class="public-section public-section--narrow">
 
     {% if unsubscribed %}
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
+    <div class="public-card public-empty-state">
         <div class="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <i class="fas fa-check text-slate-500 text-xl"></i>
         </div>
@@ -29,7 +31,7 @@
     </div>
 
     {% elif success %}
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
+    <div class="public-card public-empty-state">
         <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <i class="fas fa-envelope-open-text text-green-600 text-xl"></i>
         </div>
@@ -41,20 +43,21 @@
         </p>
         <p class="text-slate-400 text-xs mb-6">Unsubscribe any time via the link in each email.</p>
         <div class="flex items-center justify-center gap-2 flex-wrap">
-            <a href="/" class="inline-block bg-slate-900 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition">
+            <a href="/" class="public-btn public-btn--primary">
                 View Latest Reports
             </a>
-            <a href="/trends" class="inline-block bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition">
+            <a href="/trends" class="public-btn public-btn--secondary">
                 Open Trends
             </a>
-            <a href="/donate?source=subscribe_success" class="inline-block bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition">
+            <a href="/donate?source=subscribe_success" class="public-btn public-btn--secondary">
                 Support With Donation
             </a>
         </div>
     </div>
 
     {% else %}
-    <div class="text-center mb-7 rounded-[28px] border px-6 py-8" style="background:#141210; border-color:#282420;">
+    <div class="public-form-card mb-7">
+        <div class="public-form-card__body text-center">
         <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(212,137,42,0.16);">
             <i class="fas fa-envelope text-white text-xl"></i>
         </div>
@@ -62,6 +65,7 @@
         <p class="text-white/80 text-sm">
             One quick signup. No account required.
         </p>
+        </div>
     </div>
 
     {% if error %}
@@ -70,21 +74,23 @@
     </div>
     {% endif %}
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-        <form method="POST" action="/subscribe" class="space-y-5 subscribe-form-track" data-subscribe-source="{{ source or 'subscribe_page' }}">
+    <div class="public-form-card">
+        <div class="public-form-card__body">
+        <form method="POST" action="/subscribe" id="subscribe-form" class="space-y-5 subscribe-form-track" data-subscribe-source="{{ source or 'subscribe_page' }}">
             <input type="hidden" name="source" value="{{ source or 'subscribe_page' }}">
+            <input type="hidden" name="g-recaptcha-response" id="recaptcha-token">
 
             <div>
-                <label class="block text-sm font-bold text-slate-700 mb-2">
+                <label class="public-form-label">
                     Email Address
                 </label>
                 <input type="email" name="email" required
                        placeholder="you@example.com"
-                       class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                       class="public-form-input">
             </div>
 
             <button type="submit"
-                    class="subscribe-cta-track w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl text-sm uppercase tracking-wide transition"
+                    class="subscribe-cta-track public-btn public-btn--primary w-full"
                     data-subscribe-source="{{ source or 'subscribe_page' }}">
                 <i class="fas fa-envelope mr-2"></i>Subscribe — It's Free
             </button>
@@ -105,7 +111,25 @@
                 </p>
             </div>
         </form>
+        </div>
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if recaptcha_site_key %}
+<script>
+document.getElementById('subscribe-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = this;
+    grecaptcha.ready(function() {
+        grecaptcha.execute('{{ recaptcha_site_key }}', {action: 'subscribe'}).then(function(token) {
+            document.getElementById('recaptcha-token').value = token;
+            form.submit();
+        });
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

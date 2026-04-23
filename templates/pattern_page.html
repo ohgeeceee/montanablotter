@@ -250,7 +250,7 @@
                     <a href="/county/{{ county.slug }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 transition">
                         {{ county.name }} County page <i class="fas fa-map text-blue-500"></i>
                     </a>
-                    <a href="/posts?county={{ county.name | urlencode }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 transition">
+                    <a href="/?county={{ county.name | urlencode }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 transition">
                         All {{ county.name }} reports <i class="fas fa-newspaper text-blue-500"></i>
                     </a>
                     {% endif %}

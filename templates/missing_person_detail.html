@@ -1,0 +1,153 @@
+{% extends "public_page_base.html" %}
+
+{% set active_nav = "missing_persons" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/missing-persons" class="hover:text-slate-700">Missing Persons</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ person.full_name }}</span>
+{% endblock %}
+
+{% block content %}
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid lg:grid-cols-[minmax(0,1fr)_320px] gap-8">
+    <section class="space-y-6">
+        <div class="rounded-[28px] overflow-hidden border" style="background:#F7F3EB; border-color:#E7DECF; color:#1E1B18;">
+            <div class="px-6 sm:px-8 py-6" style="background:#7C2D12; color:#FFF7ED;">
+                <div class="flex flex-wrap items-center gap-2 mb-4 text-[11px] uppercase tracking-[0.18em] font-black" style="font-family:'IBM Plex Mono',monospace;">
+                    <span class="px-3 py-1 rounded-full" style="background:rgba(255,255,255,0.12); color:#FED7AA;">{{ person.status_label }}</span>
+                    {% if person.county %}
+                    <span class="px-3 py-1 rounded-full" style="background:rgba(255,255,255,0.08); color:#FFEDD5;">{{ person.county }}</span>
+                    {% endif %}
+                </div>
+                <h1 class="text-3xl sm:text-5xl leading-tight font-black" style="font-family:'Playfair Display',Georgia,serif;">{{ person.full_name }}</h1>
+                <p class="mt-4 text-sm sm:text-base max-w-3xl" style="color:#FED7AA;">
+                    Last seen {{ person.last_seen_at_label }}{% if person.last_seen_location %} near {{ person.last_seen_location }}{% endif %}{% if person.city %} · {{ person.city }}, Montana{% endif %}
+                </p>
+            </div>
+
+            <div class="p-6 sm:p-8">
+                <div class="grid lg:grid-cols-[240px_minmax(0,1fr)] gap-6 mb-8">
+                    {% if person.photo_gallery %}
+                    <div>
+                        <img src="{{ person.photo_gallery[0].url }}" alt="{{ person.full_name }}" class="w-full rounded-[24px] border border-slate-200 bg-white object-cover">
+                        {% if person.photo_gallery|length > 1 %}
+                        <div class="mt-3 grid grid-cols-4 gap-2">
+                            {% for item in person.photo_gallery[1:5] %}
+                            <img src="{{ item.url }}" alt="{{ person.full_name }} reference image" class="w-full aspect-square rounded-xl border border-slate-200 bg-white object-cover">
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="grid sm:grid-cols-3 gap-4">
+                    <div class="rounded-2xl p-4 bg-slate-50">
+                        <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">County</p>
+                        <p class="mt-2 font-bold text-slate-900">{{ person.county or 'Montana' }}</p>
+                    </div>
+                    <div class="rounded-2xl p-4 bg-slate-50">
+                        <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Age</p>
+                        <p class="mt-2 font-bold text-slate-900">{{ person.age if person.age is not none else 'Not provided' }}</p>
+                    </div>
+                    <div class="rounded-2xl p-4 bg-slate-50">
+                        <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Updated</p>
+                        <p class="mt-2 font-bold text-slate-900">{{ person.updated_at_label }}</p>
+                    </div>
+                    <div class="rounded-2xl p-4 bg-slate-50">
+                        <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Gender</p>
+                        <p class="mt-2 font-bold text-slate-900">{{ person.gender or 'Not provided' }}</p>
+                    </div>
+                    <div class="rounded-2xl p-4 bg-slate-50">
+                        <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Race</p>
+                        <p class="mt-2 font-bold text-slate-900">{{ person.race or 'Not provided' }}</p>
+                    </div>
+                    <div class="rounded-2xl p-4 bg-slate-50">
+                        <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Height / Weight</p>
+                        <p class="mt-2 font-bold text-slate-900">{{ person.height_label or 'Not provided' }}{% if person.weight_lbs %} · {{ person.weight_lbs }} lbs{% endif %}</p>
+                    </div>
+                    </div>
+                </div>
+
+                <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400 mb-3">Public Summary</h2>
+                <p class="text-slate-700 leading-7 text-[1.02rem]">{{ person.summary }}</p>
+
+                {% if person.physical_description %}
+                <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400 mt-8 mb-3">Physical Description</h2>
+                <p class="text-slate-700 leading-7 text-[1.02rem]">{{ person.physical_description }}</p>
+                {% endif %}
+
+                {% if person.contact_info %}
+                <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400 mt-8 mb-3">Contact Guidance</h2>
+                <p class="text-slate-700 leading-7 text-[1.02rem]">{{ person.contact_info }}</p>
+                {% endif %}
+
+                {% if person.aliases_list %}
+                <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400 mt-8 mb-3">Aliases</h2>
+                <p class="text-slate-700 leading-7 text-[1.02rem]">{{ person.aliases_list|join(', ') }}</p>
+                {% endif %}
+
+                {% if person.resolution_summary %}
+                <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400 mt-8 mb-3">Resolution Notes</h2>
+                <p class="text-slate-700 leading-7 text-[1.02rem]">{{ person.resolution_summary }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <aside class="space-y-5">
+        <section class="public-sidebar-card p-5">
+            <h2 class="public-sidebar-card__eyebrow mb-4">Case Facts</h2>
+            <div class="space-y-3 text-sm">
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Last Seen</p>
+                    <p class="public-sidebar-card__title mt-2">{{ person.last_seen_at_label }}</p>
+                    {% if person.last_seen_location %}
+                    <p class="mt-1 text-xs leading-5 text-slate-500">{{ person.last_seen_location }}</p>
+                    {% endif %}
+                </div>
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Source</p>
+                    <p class="public-sidebar-card__title mt-2">{{ person.source_name or 'Montana Blotter' }}</p>
+                    {% if person.investigating_agency %}
+                    <p class="mt-1 text-xs leading-5 text-slate-500">{{ person.investigating_agency }}</p>
+                    {% endif %}
+                    {% if person.source_url %}
+                    <a href="{{ person.source_url }}" target="_blank" rel="noopener" class="public-btn public-btn--primary mt-3 inline-flex">
+                        Open Source Link
+                    </a>
+                    {% endif %}
+                </div>
+                {% if person.official_last_updated %}
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Official Sync</p>
+                    <p class="public-sidebar-card__title mt-2">{{ person.official_last_updated }}</p>
+                    {% if person.official_last_checked %}
+                    <p class="mt-1 text-xs leading-5 text-slate-500">Checked {{ person.official_last_checked }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="public-sidebar-card__panel">
+                    <p class="public-sidebar-card__eyebrow">Record Status</p>
+                    <p class="public-sidebar-card__title mt-2">{{ person.status_label }}</p>
+                    <p class="mt-1 text-xs leading-5 text-slate-500">Created {{ person.created_at_label }}{% if person.resolved_at %} · Resolved {{ person.resolved_at_label }}{% endif %}</p>
+                </div>
+            </div>
+        </section>
+
+        {% if related_rows %}
+        <section class="public-sidebar-card p-5">
+            <h2 class="public-sidebar-card__eyebrow mb-4">Other Active Alerts</h2>
+            <div class="space-y-2">
+                {% for related in related_rows %}
+                <a href="{{ related.public_href }}" class="public-link-tile">
+                    <p class="public-link-tile__eyebrow">{{ related.county or 'Montana' }}</p>
+                    <p class="public-link-tile__title mt-1">{{ related.full_name }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ related.last_seen_at_label }}</p>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </aside>
+</main>
+{% endblock %}

@@ -30,33 +30,37 @@
 </script>
 {% endblock %}
 
+{% block body_class %}laws-page{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Montana Laws</span>
+<span>Montana Laws</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-4xl mx-auto text-center">
-        <div class="inline-flex items-center bg-indigo-500/20 text-indigo-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+<section class="public-hero">
+        <div class="public-hero__frame">
+        <div class="max-w-4xl mx-auto text-center">
+        <div class="public-eyebrow mb-4" style="color: var(--public-steel);">
             <i class="fas fa-scale-balanced mr-2"></i>Reference Guide
         </div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Montana <span class="text-indigo-300 italic">Laws</span></h1>
-        <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+        <h1 class="public-title public-title--medium mx-auto">Montana Laws</h1>
+        <p class="public-copy mx-auto">
             A plain-language overview of key Montana statutes. For full legal text, always consult the
-            <a href="https://leg.mt.gov/bills/mca/" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">official Montana Code Annotated (MCA)</a>.
+            <a href="https://leg.mt.gov/bills/mca/" target="_blank" class="underline" style="color:var(--public-red);">official Montana Code Annotated (MCA)</a>.
         </p>
+        </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-    <div class="bg-white border-b border-slate-200 sticky top-14 z-40">
+    <div class="public-card border-b sticky top-14 z-40 max-w-4xl mx-auto mt-4 overflow-x-auto">
         <div class="max-w-4xl mx-auto px-4 flex gap-6 overflow-x-auto py-3 text-sm font-bold">
-            <a href="#criminal" class="text-slate-600 hover:text-indigo-600 whitespace-nowrap transition"><i class="fas fa-gavel mr-1"></i>Criminal</a>
-            <a href="#traffic"  class="text-slate-600 hover:text-indigo-600 whitespace-nowrap transition"><i class="fas fa-car mr-1"></i>Traffic</a>
-            <a href="#hunting"  class="text-slate-600 hover:text-indigo-600 whitespace-nowrap transition"><i class="fas fa-crosshairs mr-1"></i>Hunting &amp; Fishing</a>
-            <a href="#general"  class="text-slate-600 hover:text-indigo-600 whitespace-nowrap transition"><i class="fas fa-book mr-1"></i>General Statutes</a>
+            <a href="#criminal" class="text-slate-600 whitespace-nowrap transition hover:text-red-700"><i class="fas fa-gavel mr-1"></i>Criminal</a>
+            <a href="#traffic"  class="text-slate-600 whitespace-nowrap transition hover:text-red-700"><i class="fas fa-car mr-1"></i>Traffic</a>
+            <a href="#hunting"  class="text-slate-600 whitespace-nowrap transition hover:text-red-700"><i class="fas fa-crosshairs mr-1"></i>Hunting &amp; Fishing</a>
+            <a href="#general"  class="text-slate-600 whitespace-nowrap transition hover:text-red-700"><i class="fas fa-book mr-1"></i>General Statutes</a>
         </div>
     </div>
 
@@ -85,7 +89,7 @@
                 ] %}
 
                 {% for title, desc in criminal_laws %}
-                <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+                <div class="public-card p-5">
                     <h3 class="font-black text-slate-900 mb-1">{{ title }}</h3>
                     <p class="text-slate-600 text-sm leading-relaxed">{{ desc }}</p>
                 </div>
@@ -121,7 +125,7 @@
                 ] %}
 
                 {% for title, desc in traffic_laws %}
-                <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+                <div class="public-card p-5">
                     <h3 class="font-black text-slate-900 mb-1">{{ title }}</h3>
                     <p class="text-slate-600 text-sm leading-relaxed">{{ desc }}</p>
                 </div>
@@ -157,7 +161,7 @@
                 ] %}
 
                 {% for title, desc in hunting_laws %}
-                <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+                <div class="public-card p-5">
                     <h3 class="font-black text-slate-900 mb-1">{{ title }}</h3>
                     <p class="text-slate-600 text-sm leading-relaxed">{{ desc }}</p>
                 </div>
@@ -193,7 +197,7 @@
                 ] %}
 
                 {% for title, desc in general_laws %}
-                <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+                <div class="public-card p-5">
                     <h3 class="font-black text-slate-900 mb-1">{{ title }}</h3>
                     <p class="text-slate-600 text-sm leading-relaxed">{{ desc }}</p>
                 </div>
@@ -205,6 +209,34 @@
                 </a>
             </div>
         </section>
+
+        {% if explainers %}
+        <!-- Charge Explainer Index -->
+        <section class="public-card overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-200">
+                <h2 class="text-lg font-black text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">Montana Charge Explainers</h2>
+                <p class="text-sm mt-1 text-slate-600">Plain-language guides to charges that appear in Montana police blotters.</p>
+            </div>
+            <div class="divide-y divide-slate-200">
+                {% for e in explainers %}
+                <a href="/laws/charge/{{ e.slug }}" class="flex items-start justify-between gap-4 px-6 py-4 transition hover:bg-slate-50">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-slate-900">{{ e.incident_type }}</p>
+                        {% if e.excerpt %}
+                        <p class="mt-0.5 text-xs leading-5 line-clamp-1 text-slate-500">{{ e.excerpt[:100] }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        {% if e.charge_category %}
+                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full" style="background:var(--public-red-soft); color:var(--public-red);">{{ e.charge_category | replace('_',' ') }}</span>
+                        {% endif %}
+                        <span class="text-xs font-black text-slate-400" style="font-family:'IBM Plex Mono',monospace;">→</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
         <!-- Disclaimer -->
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-900">

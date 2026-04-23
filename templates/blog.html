@@ -42,27 +42,30 @@
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Blog</span>
+<span>Blog</span>
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-6">
-    <div class="max-w-3xl mx-auto text-center">
-        <span class="inline-block bg-emerald-500 text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-4">Montana Blotter Blog</span>
-        <h1 class="text-3xl font-black uppercase italic tracking-tight mb-2">News &amp; Analysis</h1>
-        <p class="text-slate-400 text-sm">Insights on Montana public safety, records access, and community reporting.</p>
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-3xl mx-auto text-center">
+            <span class="public-eyebrow">Montana Blotter Blog</span>
+            <h1 class="public-title public-title--medium mx-auto">News &amp; Analysis</h1>
+            <p class="public-copy mx-auto">Insights on Montana public safety, records access, and community reporting.</p>
+        </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto px-6 py-10">
+<div class="public-section public-section--narrow">
 
     {% if latest_weekly_digest %}
-    <section class="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+    <section class="public-card mb-8">
+        <div class="public-card__body">
         <div class="flex items-start justify-between gap-4 flex-wrap">
             <div>
-                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">Latest Weekly Digest</p>
+                <p class="public-card__eyebrow" style="color: var(--public-green);">Latest Weekly Digest</p>
                 <h2 class="mt-2 text-2xl font-black leading-tight text-slate-900">
                     <a href="/blog/{{ latest_weekly_digest.slug }}" class="hover:text-emerald-700 transition">{{ latest_weekly_digest.title }}</a>
                 </h2>
@@ -71,26 +74,27 @@
                 {% endif %}
             </div>
             <a href="/blog/{{ latest_weekly_digest.slug }}"
-               class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wider text-white transition hover:bg-emerald-700">
+               class="public-btn public-btn--primary">
                 Read digest <i class="fas fa-arrow-right text-[10px]"></i>
             </a>
+        </div>
         </div>
     </section>
     {% endif %}
 
-    <div style="margin-bottom:20px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-      <a href="/blog" style="font-family:'IBM Plex Mono',monospace; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; padding:5px 12px; border-radius:3px; text-decoration:none; {% if not active_category %}background:#D4892A; color:#0D0C0B;{% else %}color:#8A7F72; border:1px solid #282420;{% endif %}">All Posts</a>
-      <a href="/blog?category=guide" style="font-family:'IBM Plex Mono',monospace; font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; padding:5px 12px; border-radius:3px; text-decoration:none; {% if active_category == 'guide' %}background:#D4892A; color:#0D0C0B;{% else %}color:#8A7F72; border:1px solid #282420;{% endif %}">Guides</a>
+    <div class="public-filter-row">
+      <a href="/blog" class="public-filter-pill {% if not active_category %}active{% endif %}">All Posts</a>
+      <a href="/blog?category=guide" class="public-filter-pill {% if active_category == 'guide' %}active{% endif %}">Guides</a>
     </div>
 
     {% if posts %}
-        <p class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-6">{{ total }} post{{ 's' if total != 1 else '' }}</p>
+        <p class="public-card__eyebrow mb-6">{{ total }} post{{ 's' if total != 1 else '' }}</p>
 
-        <div class="space-y-8">
+        <div>
         {% for post in posts %}
-            <article class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition">
-                <div class="p-6">
-                    <div class="flex items-center gap-2 mb-3">
+            <article class="public-card public-card--lift public-list-card overflow-hidden">
+                <div class="public-card__body">
+                    <div class="public-list-meta mb-3">
                         <span class="text-xs text-slate-400 font-medium">
                             <i class="fas fa-calendar-alt mr-1"></i>
                             {{ post.created_at[:10] if post.created_at else '' }}
@@ -107,7 +111,7 @@
                     <p class="text-slate-600 text-sm leading-relaxed mb-4">{{ post.excerpt }}</p>
                     {% endif %}
                     <a href="/blog/{{ post.slug }}"
-                       class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-wider transition">
+                       class="public-inline-link inline-flex items-center gap-1.5">
                         Read more <i class="fas fa-arrow-right text-[10px]"></i>
                     </a>
                 </div>
@@ -120,17 +124,17 @@
             <p class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }}</p>
             <div class="flex gap-2">
                 {% if page > 1 %}
-                <a href="?page={{ page - 1 }}" class="px-4 py-2 border border-slate-300 rounded text-sm hover:bg-slate-100">&larr; Prev</a>
+                <a href="?page={{ page - 1 }}" class="public-btn public-btn--secondary">&larr; Prev</a>
                 {% endif %}
                 {% if page < total_pages %}
-                <a href="?page={{ page + 1 }}" class="px-4 py-2 border border-slate-300 rounded text-sm hover:bg-slate-100">Next &rarr;</a>
+                <a href="?page={{ page + 1 }}" class="public-btn public-btn--secondary">Next &rarr;</a>
                 {% endif %}
             </div>
         </nav>
         {% endif %}
 
     {% else %}
-        <div class="bg-white rounded-xl border border-slate-200 p-16 text-center text-slate-400">
+        <div class="public-card public-empty-state text-slate-400">
             <i class="fas fa-pen-nib text-4xl mb-4 block"></i>
             <p class="text-lg font-semibold">No posts yet</p>
             <p class="text-sm mt-1">Check back soon for updates and analysis.</p>

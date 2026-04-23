@@ -1,167 +1,123 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-    .anav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s; }
-    .anav-link:hover { color: #E8DFD0; }
-    .anav-logout { color: #C94A3A !important; }
-    .anav-logout:hover { color: #E07060 !important; }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <title>Visitor Analytics | Admin Panel</title>
-</head>
-<body class="bg-slate-50 font-sans">
+{% extends "base.html" %}
 
-        <nav style="background:#0D0C0B; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-4" style="height:54px;">
-            <div class="flex items-center gap-3">
-                <div style="width:32px; height:32px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div>
-                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:0.9rem; color:#E8DFD0; line-height:1.1;">The Montana Blotter</div>
-                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.18em;">Admin Panel</div>
-                </div>
-            </div>
-            <div class="hidden md:flex items-center gap-0.5">
-                <a href="/admin" class="anav-link">Dashboard</a>
-                <a href="/admin/blotters" class="anav-link">Blotters</a>
-                <a href="/admin/upload" class="anav-link">Upload</a>
-                <a href="/admin/blog" class="anav-link">Blog</a>
-                <a href="/admin/analytics" class="anav-link">Analytics</a>
-                <a href="/admin/visitors" class="anav-link">Visitors</a>
-                {% if current_user.role == 'super_admin' %}
-                <a href="/admin/security/users" class="anav-link">Users</a>
-                <a href="/admin/security/audit" class="anav-link">Audit</a>
-                {% endif %}
-                <a href="/" class="anav-link" style="margin-left:8px;">↗ Public</a>
-                <a href="/admin/logout" class="anav-link anav-logout" style="margin-left:4px;">Logout</a>
-            </div>
+{% block title %}Visitor Analytics | Admin Panel{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6">
+
+    <h1 class="text-3xl font-black text-slate-900 mb-8">Visitor Analytics</h1>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <p class="text-3xl font-black text-teal-600">{{ today }}</p>
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Views Today</p>
+            <p class="text-sm text-slate-400 mt-1">{{ unique_today }} unique</p>
         </div>
-    </nav>
-
-    <div class="max-w-7xl mx-auto p-6">
-
-        <h1 class="text-3xl font-black text-slate-900 mb-8">Visitor Analytics</h1>
-
-        <!-- Page View Summary -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <p class="text-3xl font-black text-teal-600">{{ today }}</p>
-                <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Views Today</p>
-                <p class="text-sm text-slate-400 mt-1">{{ unique_today }} unique</p>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <p class="text-3xl font-black text-blue-600">{{ this_week }}</p>
-                <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Last 7 Days</p>
-                <p class="text-sm text-slate-400 mt-1">{{ unique_week }} unique</p>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <p class="text-3xl font-black text-purple-600">{{ this_month }}</p>
-                <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">This Month</p>
-                <p class="text-sm text-slate-400 mt-1">{{ unique_month }} unique</p>
-            </div>
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <p class="text-3xl font-black text-slate-900">{{ all_time }}</p>
-                <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">All Time</p>
-                <p class="text-sm text-slate-400 mt-1">total views</p>
-            </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <p class="text-3xl font-black text-blue-600">{{ this_week }}</p>
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Last 7 Days</p>
+            <p class="text-sm text-slate-400 mt-1">{{ unique_week }} unique</p>
         </div>
-
-        <!-- Views per day chart -->
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
-            <h2 class="font-black text-lg mb-4 flex items-center gap-2">
-                <i class="fas fa-chart-line text-teal-600"></i>
-                Page Views — Last 30 Days
-            </h2>
-            {% if daily_labels %}
-            <canvas id="dailyChart" height="70"></canvas>
-            {% else %}
-            <p class="text-slate-400 text-sm">No data yet. Views will appear here once visitors browse the site.</p>
-            {% endif %}
+        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <p class="text-3xl font-black text-purple-600">{{ this_month }}</p>
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">This Month</p>
+            <p class="text-sm text-slate-400 mt-1">{{ unique_month }} unique</p>
         </div>
-
-        <!-- Top pages + Top referrers -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div class="p-5 border-b border-slate-100 bg-slate-50">
-                    <h2 class="font-black text-base flex items-center gap-2">
-                        <i class="fas fa-file-alt text-blue-500"></i>
-                        Top Pages (Last 30 Days)
-                    </h2>
-                </div>
-                <div class="divide-y divide-slate-50">
-                    {% if top_pages %}
-                        {% for row in top_pages %}
-                        <div class="flex justify-between items-center px-5 py-3 hover:bg-slate-50">
-                            <span class="text-sm font-mono text-slate-700 truncate max-w-xs">{{ row.path }}</span>
-                            <span class="text-sm font-black text-slate-900 ml-4 shrink-0">{{ row.cnt }}</span>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="px-5 py-4 text-sm text-slate-400">No data yet.</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div class="p-5 border-b border-slate-100 bg-slate-50">
-                    <h2 class="font-black text-base flex items-center gap-2">
-                        <i class="fas fa-external-link-alt text-purple-500"></i>
-                        Top Referrers (Last 30 Days)
-                    </h2>
-                </div>
-                <div class="divide-y divide-slate-50">
-                    {% if top_referrers %}
-                        {% for row in top_referrers %}
-                        <div class="flex justify-between items-center px-5 py-3 hover:bg-slate-50">
-                            <span class="text-sm text-slate-700 truncate max-w-xs">{{ row.referrer }}</span>
-                            <span class="text-sm font-black text-slate-900 ml-4 shrink-0">{{ row.cnt }}</span>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="px-5 py-4 text-sm text-slate-400">No referrer data yet.</p>
-                    {% endif %}
-                </div>
-            </div>
-
+        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <p class="text-3xl font-black text-slate-900">{{ all_time }}</p>
+            <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">All Time</p>
+            <p class="text-sm text-slate-400 mt-1">total views</p>
         </div>
-
     </div>
 
-    {% if daily_labels %}
-    <script>
-        const dailyLabels = {{ daily_labels | tojson }};
-        const dailyCounts = {{ daily_counts | tojson }};
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+        <h2 class="font-black text-lg mb-4 flex items-center gap-2">
+            <i class="fas fa-chart-line text-teal-600"></i>
+            Page Views — Last 30 Days
+        </h2>
+        {% if daily_labels %}
+        <canvas id="dailyChart" height="70"></canvas>
+        {% else %}
+        <p class="text-slate-400 text-sm">No data yet. Views will appear here once visitors browse the site.</p>
+        {% endif %}
+    </div>
 
-        new Chart(document.getElementById('dailyChart'), {
-            type: 'line',
-            data: {
-                labels: dailyLabels,
-                datasets: [{
-                    label: 'Page Views',
-                    data: dailyCounts,
-                    borderColor: '#0d9488',
-                    backgroundColor: 'rgba(13,148,136,0.1)',
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 3,
-                }]
-            },
-            options: {
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    </script>
-    {% endif %}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-slate-50">
+                <h2 class="font-black text-base flex items-center gap-2">
+                    <i class="fas fa-file-alt text-blue-500"></i>
+                    Top Pages (Last 30 Days)
+                </h2>
+            </div>
+            <div class="divide-y divide-slate-50">
+                {% if top_pages %}
+                    {% for row in top_pages %}
+                    <div class="flex justify-between items-center px-5 py-3 hover:bg-slate-50">
+                        <span class="text-sm font-mono text-slate-700 truncate max-w-xs">{{ row.path }}</span>
+                        <span class="text-sm font-black text-slate-900 ml-4 shrink-0">{{ row.cnt }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="px-5 py-4 text-sm text-slate-400">No data yet.</p>
+                {% endif %}
+            </div>
+        </div>
 
-</body>
-</html>
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-slate-50">
+                <h2 class="font-black text-base flex items-center gap-2">
+                    <i class="fas fa-external-link-alt text-purple-500"></i>
+                    Top Referrers (Last 30 Days)
+                </h2>
+            </div>
+            <div class="divide-y divide-slate-50">
+                {% if top_referrers %}
+                    {% for row in top_referrers %}
+                    <div class="flex justify-between items-center px-5 py-3 hover:bg-slate-50">
+                        <span class="text-sm text-slate-700 truncate max-w-xs">{{ row.referrer }}</span>
+                        <span class="text-sm font-black text-slate-900 ml-4 shrink-0">{{ row.cnt }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="px-5 py-4 text-sm text-slate-400">No referrer data yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if daily_labels %}
+<script>
+const dailyLabels = {{ daily_labels | tojson }};
+const dailyCounts = {{ daily_counts | tojson }};
+
+new Chart(document.getElementById('dailyChart'), {
+    type: 'line',
+    data: {
+        labels: dailyLabels,
+        datasets: [{
+            label: 'Page Views',
+            data: dailyCounts,
+            borderColor: '#0d9488',
+            backgroundColor: 'rgba(13,148,136,0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+        }]
+    },
+    options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

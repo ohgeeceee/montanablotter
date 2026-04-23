@@ -313,13 +313,6 @@ def generate_posts(
     conn.commit()
     conn.close()
 
-    # Optional social automation: enqueue freshly-generated posts for Facebook publishing.
-    try:
-        from facebook_publisher import auto_queue_post_if_enabled
-        auto_queue_post_if_enabled(post_id)
-    except Exception as exc:
-        logger.warning("facebook auto-queue failed for post_id=%s: %s", post_id, exc)
-
     if ingestion_job_id is not None:
         details = {
             **summary_method,
@@ -421,10 +414,10 @@ def _call_openai(api_key, model, county, date, agency_type, agency_name, filenam
         parsed = _parse_json_block(raw)
         if parsed:
             return parsed
-        logger.warning("OpenAI response was not valid JSON – using fallback/provider fallback")
+        logger.error("OpenAI response was not valid JSON – using fallback/provider fallback")
         return {}
     except Exception as e:
-        logger.warning(f"OpenAI API error: {e} – trying Anthropic or fallback digest")
+        logger.error(f"OpenAI API error: {e} – trying Anthropic or fallback digest")
         return {}
 
 
@@ -450,12 +443,15 @@ def _call_claude(client, county, date, agency_type, agency_name, filename, incid
         )
         raw = message.content[0].text.strip()
         parsed = _parse_json_block(raw)
+        if not parsed.get("title") or not parsed.get("summary"):
+            logger.error("Claude response missing required fields (title/summary), using fallback digest")
+            return {}
         if parsed:
             return parsed
-        logger.warning("Claude response was not valid JSON – using fallback digest")
+        logger.error("Claude response was not valid JSON – using fallback digest")
         return {}
     except Exception as e:
-        logger.warning(f"Claude API error: {e} – using fallback digest")
+        logger.error(f"Claude API error: {e} – using fallback digest")
         return {}
 
 

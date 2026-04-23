@@ -1,5 +1,8 @@
 venv/
 *.db
+*.db-wal
+*.db-shm
+*.db-journal
 *.db.backup.*
 *.db.pre_reset_*
 __pycache__/

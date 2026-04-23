@@ -128,6 +128,14 @@ class PublicMeetingsTests(unittest.TestCase):
         self.assertIn('Public Meetings', html)
         self.assertIn('Regular Session', html)
         self.assertIn('Agenda PDF', html)
+        self.assertIn('https://montanablotter.com/meetings', html)
+
+    def test_legacy_public_meetings_route_redirects(self) -> None:
+        client = app_module.app.test_client()
+        response = client.get('/public-meetings')
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.headers['Location'], '/meetings')
 
     def test_agendas_host_uses_dashboard_on_root(self) -> None:
         self._seed_meetings()

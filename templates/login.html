@@ -1,48 +1,74 @@
 {% extends "public_page_base.html" %}
 
+{% set page_title = "Log In" %}
+{% set meta_description = "Log in to your Montana Blotter public account to comment and manage alerts." %}
+{% set canonical_url = "https://montanablotter.com/login" %}
+
+{% block body_class %}login-page{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span class="text-slate-900 font-semibold">Log In</span>
+<span>Log In</span>
 {% endblock %}
 
 {% block content %}
-<main class="max-w-4xl mx-auto px-4 sm:px-6 py-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-    <section class="rounded-[28px] border overflow-hidden" style="background:#F7F3EB; border-color:#E7DECF; color:#1E1B18;">
-        <div class="px-6 sm:px-8 py-7" style="background:#141210; color:#F0E8D8;">
-            <p class="text-[10px] uppercase tracking-[0.22em] font-black" style="font-family:'IBM Plex Mono',monospace; color:#D4892A;">Public Account</p>
-            <h1 class="mt-2 text-3xl sm:text-4xl font-black leading-tight" style="font-family:'Playfair Display',Georgia,serif;">Log in to comment and manage alerts</h1>
-            <p class="mt-3 text-sm leading-6" style="color:#C9B99F;">Use the email address you registered with. Public login is separate from the admin panel.</p>
+<main class="public-route-layout">
+    <section class="public-main-stack">
+    <section class="public-detail-frame">
+        <div class="public-detail-frame__header">
+            <p class="public-card__eyebrow" style="color: var(--public-amber);">Public Account</p>
+            <h1 class="public-detail-title mt-2">Log in to comment and manage alerts</h1>
+            <p class="public-detail-subtitle mt-3">Use the email address you registered with. Public login is separate from the admin panel.</p>
         </div>
 
-        <form method="post" action="/login" class="p-6 sm:p-8 space-y-5">
+        <form method="post" action="/login" id="login-form" class="public-detail-frame__body space-y-5">
             <input type="hidden" name="next" value="{{ next_url }}">
+            <input type="hidden" name="g-recaptcha-response" id="recaptcha-token">
 
             <div>
-                <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Email</label>
+                <label class="public-form-label">Email</label>
                 <input type="email" name="email" value="{{ email_value }}" required maxlength="255"
-                       class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                       class="public-form-input"
                        placeholder="name@example.com">
             </div>
 
             <div>
-                <label class="block text-[11px] uppercase tracking-[0.16em] font-black text-slate-500 mb-2">Password</label>
+                <label class="public-form-label">Password</label>
                 <input type="password" name="password" required
-                       class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                       class="public-form-input"
                        placeholder="Your password">
             </div>
 
-            <button type="submit" class="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.16em]" style="background:#D4892A; color:#0D0C0B;">
+            <button type="submit" class="public-btn public-btn--primary inline-flex">
                 Log In
             </button>
         </form>
     </section>
+    </section>
 
-    <aside class="space-y-5">
-        <section class="rounded-[24px] border p-5" style="background:#12110F; border-color:#282420;">
-            <h2 class="text-xs font-black uppercase tracking-[0.18em]" style="font-family:'IBM Plex Mono',monospace; color:#A89880;">Need an account?</h2>
-            <p class="mt-3 text-sm leading-6" style="color:#C9B99F;">Register once, then use the same account everywhere public comments appear on the site.</p>
-            <a href="/register?next={{ next_url | urlencode }}" class="mt-4 inline-flex items-center rounded-xl border px-4 py-3 text-sm font-bold" style="border-color:#35302A; color:#F0E8D8; text-decoration:none;">Create account</a>
+    <aside class="public-sidebar-stack">
+        <section class="public-card p-5">
+            <h2 class="public-card__eyebrow">Need an account?</h2>
+            <p class="mt-3 text-sm leading-6 text-slate-600">Register once, then use the same account everywhere public comments appear on the site.</p>
+            <a href="/register?next={{ next_url | urlencode }}" class="public-btn public-btn--secondary mt-4 inline-flex">Create account</a>
         </section>
     </aside>
 </main>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if recaptcha_site_key %}
+<script>
+document.getElementById('login-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = this;
+    grecaptcha.ready(function() {
+        grecaptcha.execute('{{ recaptcha_site_key }}', {action: 'login'}).then(function(token) {
+            document.getElementById('recaptcha-token').value = token;
+            form.submit();
+        });
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

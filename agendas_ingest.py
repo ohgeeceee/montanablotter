@@ -7,7 +7,7 @@ import config
 from agendas_scraper.browser import launch_browser
 from agendas_scraper.config import load_city_configs
 from agendas_scraper.factory import create_provider
-from app import get_db
+from db import connect_db
 from public_meetings import (
     ensure_public_meeting_schema,
     record_source_scrape_error,
@@ -30,7 +30,7 @@ def ingest_configs(config_path: str, *, city_slug: str = '') -> list[dict]:
         try:
             for city_config in configs:
                 provider = create_provider(city_config)
-                conn = get_db()
+                conn = connect_db()
                 ensure_public_meeting_schema(conn)
                 try:
                     meetings = provider.scrape(browser)

@@ -7,7 +7,7 @@ BASH_ENV=/root/montanablotter/.env
 0 0 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name cleanup --log /root/montanablotter/cleanup.log --workdir /root/montanablotter -- /root/montanablotter/cleanup.sh
 
 # Fetch and process blotter emails every 15 minutes
-*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_worker --log /root/montanablotter/mail.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py
+*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_worker --log /root/montanablotter/mail.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py --mode queue
 
 # Facebook autopost worker every 15 minutes (only publishes when auto-publish is enabled in admin settings)
 5,20,35,50 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name facebook_worker --log /root/montanablotter/facebook_worker.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/facebook_worker.py
@@ -37,7 +37,7 @@ BASH_ENV=/root/montanablotter/.env
 45 8 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name script_watchdog --log /root/montanablotter/cron_errors.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/script_watchdog.py
 
 # Daily DB backup at 2am
-0 2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name backup_db --log /root/montanablotter/backup.log --workdir /root/montanablotter -- /root/montanablotter/backup_db.sh
+0 2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name backup_db --log /root/montanablotter/backup.log --workdir /root/montanablotter --timeout 43200 -- /root/montanablotter/backup_db.sh
 
 # Court tracker sources — refresh every 3 hours
 18 */3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name court_refresh --log /root/montanablotter/court_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/court_refresh.py
@@ -76,6 +76,8 @@ BASH_ENV=/root/montanablotter/.env
 
 # Sanders County jail roster — poll every 2 hours
 35 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_sanders --log /root/montanablotter/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county sanders
+# Gallatin County jail roster is tracked in-app but not scheduled until an automated adapter is implemented.
+
 
 # Bozeman Police Department calls-for-service dashboard — poll hourly with 2-day overlap
 40 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bozeman_police_calls --log /root/montanablotter/bozeman_calls.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/bozeman_police_fetcher.py --dataset calls
@@ -85,3 +87,6 @@ BASH_ENV=/root/montanablotter/.env
 
 # Admin alerts for stale or failing ingest sources — check every 30 minutes
 12,42 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name ingestion_alerts --log /root/montanablotter/ingestion_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/ingestion_alerts.py
+
+# Montana missing-person watch — sync hourly and notify on newly listed people
+0 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missing_person_watch --log /root/montanablotter/missing_person_watch.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/missing_person_watch.py

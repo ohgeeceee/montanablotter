@@ -26,7 +26,8 @@ def normalize_date(value: str) -> str:
             return datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
         except ValueError:
             continue
-    return normalize_text(raw)
+    fallback = normalize_text(raw)
+    return fallback if len(fallback) >= 4 else ""
 
 
 def normalize_time(value: str) -> str:
@@ -41,7 +42,8 @@ def normalize_time(value: str) -> str:
     match = re.search(r"\b(\d{1,2}):(\d{2})(?::\d{2})?\b", raw)
     if match:
         return f"{int(match.group(1)):02d}:{match.group(2)}"
-    return normalize_text(raw)
+    fallback = normalize_text(raw)
+    return fallback if len(fallback) >= 3 else ""
 
 
 def incident_keys(item, county: str | None = None) -> set[str]:
@@ -69,6 +71,8 @@ def incident_keys(item, county: str | None = None) -> set[str]:
 
 
 def incident_key_set(items, county: str | None = None) -> set[str]:
+    if not isinstance(items, (list, tuple)):
+        return set()
     keys = set()
     for item in items or []:
         keys.update(incident_keys(item, county=county))

@@ -9,7 +9,7 @@
 
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-bottom:3rem;">
     {% for pkg in packages %}
-    <div style="border:{% if pkg.highlight %}2px solid #c9a227{% else %}1px solid #ddd{% endif %};border-radius:8px;padding:1.5rem;background:{% if pkg.highlight %}#fffdf0{% else %}#fff{% endif %};position:relative;">
+    <div style="border:{% if pkg.highlight %}2px solid #c9a227{% else %}1px solid #ddd{% endif %};border-radius:8px;padding:1.5rem;background:{% if pkg.highlight %}#fffdf0{% else %}#fff{% endif %};position:relative;color:#1f2937;">
       {% if pkg.highlight %}<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#c9a227;color:#fff;padding:.2rem .8rem;border-radius:12px;font-size:.8rem;font-weight:600;">MOST POPULAR</div>{% endif %}
       <h3 style="margin:0 0 .5rem;">{{ pkg.name }}</h3>
       <p style="font-size:1.5rem;font-weight:700;margin:.5rem 0;">{{ pkg.price_label }}</p>
