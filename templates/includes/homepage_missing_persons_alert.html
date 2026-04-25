@@ -3,10 +3,10 @@
     <div class="dispatch-card" style="padding: 1rem 1.1rem 1.15rem; border-color: var(--amber-border); background: linear-gradient(180deg, rgba(212,137,42,0.08), rgba(255,255,255,0.02)), var(--surface);">
         <div class="flex items-start justify-between gap-4 flex-wrap">
             <div>
-                <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Statewide Missing Person Alert</p>
-                <h2 class="serif" style="font-size: 1.45rem; line-height: 1.1; margin-top: 0.35rem;">{{ missing_persons_alert.total_active }} active missing-person alert{% if missing_persons_alert.total_active != 1 %}s{% endif %} in the Montana database.</h2>
+                <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Statewide Missing Person Database</p>
+                <h2 class="serif" style="font-size: 1.45rem; line-height: 1.1; margin-top: 0.35rem;">{{ missing_persons_alert.total_active }} active missing-person alert{% if missing_persons_alert.total_active != 1 %}s{% endif %} and resolved cases kept visible.</h2>
                 <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem; max-width: 56rem;">
-                    These public alerts stay visible on the website until a case is marked located or resolved. {% if missing_persons_alert.latest_update_label %}Last updated {{ missing_persons_alert.latest_update_label }}.{% endif %}
+                    The database stays current as alerts are added, updated, and closed. {% if missing_persons_alert.latest_update_label %}Last updated {{ missing_persons_alert.latest_update_label }}.{% endif %}
                 </p>
             </div>
             <a href="/missing-persons" class="mono uppercase tracking-widest px-3 py-2 rounded transition hover:opacity-90"
@@ -15,21 +15,43 @@
             </a>
         </div>
 
-        <div class="grid md:grid-cols-3 gap-3 mt-4">
-            {% for person in missing_persons_alert.rows %}
-            <article class="panel" style="padding: 0.95rem;">
-                <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">{{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}</p>
-                <h3 style="font-size: 1.05rem; font-weight: 700; margin-top: 0.35rem; color: var(--text);">{{ person.full_name }}</h3>
-                <p style="color: var(--text-muted); font-size: 0.78rem; line-height: 1.5; margin-top: 0.5rem;">Last seen {{ person.last_seen_at_label }}{% if person.last_seen_location %} near {{ person.last_seen_location }}{% endif %}.</p>
-                <p style="color: var(--text-dim); font-size: 0.78rem; line-height: 1.55; margin-top: 0.55rem;">{{ person.summary[:180] }}{% if person.summary|length > 180 %}...{% endif %}</p>
-                <div class="flex flex-wrap gap-2 mt-3">
-                    <a href="{{ person.public_href }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
-                       style="background: var(--amber); color: var(--bg); text-decoration: none; font-size: 0.55rem; font-weight: 700;">
-                        View alert
-                    </a>
+        <div class="grid gap-3 mt-4 md:grid-cols-2">
+            <div>
+                <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">Newest Alerts</p>
+                <div class="grid gap-3 mt-2">
+                    {% for person in missing_persons_alert.rows %}
+                    <article class="panel" style="padding: 0.95rem;">
+                        <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">{{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; margin-top: 0.35rem; color: var(--text);">{{ person.full_name }}</h3>
+                        <p style="color: var(--text-muted); font-size: 0.78rem; line-height: 1.5; margin-top: 0.5rem;">Last seen {{ person.last_seen_at_label }}{% if person.last_seen_location %} near {{ person.last_seen_location }}{% endif %}.</p>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <a href="{{ person.public_href }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                               style="background: var(--amber); color: var(--bg); text-decoration: none; font-size: 0.55rem; font-weight: 700;">
+                                View alert
+                            </a>
+                        </div>
+                    </article>
+                    {% endfor %}
                 </div>
-            </article>
-            {% endfor %}
+            </div>
+            <div>
+                <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">Recently Found</p>
+                <div class="grid gap-3 mt-2">
+                    {% for person in missing_persons_alert.resolved_rows %}
+                    <article class="panel" style="padding: 0.95rem; border-color: rgba(47,127,86,0.18); background: rgba(47,127,86,0.04);">
+                        <p class="mono uppercase tracking-widest" style="color: var(--text-dim); font-size: 0.52rem;">{{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}</p>
+                        <h3 style="font-size: 1.05rem; font-weight: 700; margin-top: 0.35rem; color: var(--text);">{{ person.full_name }}</h3>
+                        <p style="color: var(--text-muted); font-size: 0.78rem; line-height: 1.5; margin-top: 0.5rem;">{% if person.resolved_at_label %}Found {{ person.resolved_at_label }}{% else %}Located / resolved{% endif %}{% if person.resolution_summary %} · {{ person.resolution_summary }}{% endif %}</p>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <a href="{{ person.public_href }}" class="mono uppercase tracking-widest px-2.5 py-1.5 rounded"
+                               style="background: var(--green); color: var(--bg); text-decoration: none; font-size: 0.55rem; font-weight: 700;">
+                                View update
+                            </a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 </section>

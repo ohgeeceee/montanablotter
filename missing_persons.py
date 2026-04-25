@@ -291,6 +291,7 @@ def _decorate_person_row(row: sqlite3.Row | dict[str, Any] | None) -> dict[str, 
     item['status_label'] = 'Active Missing Alert' if item['status'] == STATUS_MISSING else 'Located / Resolved'
     item['last_seen_at_label'] = _display_datetime(item.get('last_seen_at'))
     item['resolved_at_label'] = _display_datetime(item.get('resolved_at'))
+    item['last_alerted_at_label'] = _display_datetime(item.get('last_alerted_at'))
     item['updated_at_label'] = _display_datetime(item.get('updated_at'))
     item['created_at_label'] = _display_datetime(item.get('created_at'))
     item['public_href'] = f"/missing-persons/{item['slug']}" if item.get('slug') else '/missing-persons'
@@ -310,6 +311,72 @@ def _decorate_person_row(row: sqlite3.Row | dict[str, Any] | None) -> dict[str, 
     if item.get('photo_url') and not item['photo_gallery']:
         item['photo_gallery'] = [{'url': item['photo_url'], 'label': ''}]
     return item
+
+
+def _fetch_missing_person_rows(
+    conn: sqlite3.Connection,
+    *,
+    status: str | None = None,
+    q: str = '',
+    county: str = '',
+    sort: str = 'updated_desc',
+    limit: int | None = None,
+) -> list[sqlite3.Row]:
+    sql = ['SELECT * FROM missing_persons WHERE 1 = 1']
+    params: list[Any] = []
+    if status:
+        sql.append('AND status = ?')
+        params.append(status)
+    search_term = _single_line(q, max_len=120)
+    if search_term:
+        token = f'%{search_term}%'
+        sql.append(
+            '''
+            AND (
+                full_name LIKE ?
+                OR county LIKE ?
+                OR city LIKE ?
+                OR last_seen_location LIKE ?
+                OR summary LIKE ?
+            )
+            '''
+        )
+        params.extend([token, token, token, token, token])
+    county_term = _single_line(county, max_len=120)
+    if county_term:
+        sql.append('AND county = ?')
+        params.append(county_term)
+
+    normalized_sort = _single_line(sort, max_len=32).lower()
+    if normalized_sort in {'newest', 'newest_alerts', 'created_desc'}:
+        sql.append('ORDER BY CASE WHEN status = ? THEN 0 ELSE 1 END, datetime(created_at) DESC, datetime(updated_at) DESC, id DESC')
+        params.append(STATUS_MISSING)
+    elif normalized_sort in {'recently_resolved', 'found', 'resolved_desc'}:
+        sql.append('ORDER BY CASE WHEN status = ? THEN 0 ELSE 1 END, datetime(resolved_at) DESC, datetime(updated_at) DESC, id DESC')
+        params.append(STATUS_LOCATED)
+    elif normalized_sort in {'name', 'name_asc'}:
+        sql.append('ORDER BY full_name COLLATE NOCASE ASC, datetime(updated_at) DESC, id DESC')
+    else:
+        sql.append('ORDER BY CASE WHEN status = ? THEN 0 ELSE 1 END, datetime(updated_at) DESC, id DESC')
+        params.append(STATUS_MISSING)
+
+    if limit is not None:
+        sql.append('LIMIT ?')
+        params.append(int(limit))
+
+    return conn.execute(' '.join(sql), params).fetchall()
+
+
+def _list_missing_person_counties(conn: sqlite3.Connection) -> list[str]:
+    rows = conn.execute(
+        '''
+        SELECT DISTINCT county
+        FROM missing_persons
+        WHERE TRIM(COALESCE(county, '')) != ''
+        ORDER BY county COLLATE NOCASE ASC
+        '''
+    ).fetchall()
+    return [str(row['county']) for row in rows if row['county']]
 
 
 def get_missing_person_by_id(conn: sqlite3.Connection, person_id: int) -> dict[str, Any] | None:
@@ -332,16 +399,8 @@ def get_missing_person_by_slug(conn: sqlite3.Connection, slug: str) -> dict[str,
 
 def missing_person_homepage_context(conn: sqlite3.Connection, *, limit: int = 3) -> dict[str, Any]:
     ensure_missing_person_schema(conn)
-    rows = conn.execute(
-        '''
-        SELECT *
-        FROM missing_persons
-        WHERE status = ?
-        ORDER BY datetime(updated_at) DESC, id DESC
-        LIMIT ?
-        ''',
-        (STATUS_MISSING, int(limit)),
-    ).fetchall()
+    rows = _fetch_missing_person_rows(conn, status=STATUS_MISSING, sort='newest_alerts', limit=limit)
+    resolved_rows = _fetch_missing_person_rows(conn, status=STATUS_LOCATED, sort='recently_resolved', limit=limit)
     total_active = conn.execute(
         'SELECT COUNT(*) AS total FROM missing_persons WHERE status = ?',
         (STATUS_MISSING,),
@@ -357,6 +416,7 @@ def missing_person_homepage_context(conn: sqlite3.Connection, *, limit: int = 3)
     source_stats = _get_missing_person_source_stats(conn)
     return {
         'rows': [_decorate_person_row(row) for row in rows],
+        'resolved_rows': [_decorate_person_row(row) for row in resolved_rows],
         'total_active': int(source_stats.get('total_active') or total_active or 0),
         'latest_update': latest_update,
         'latest_update_label': source_stats.get('official_last_updated') or (_display_datetime(latest_update) if latest_update else ''),
@@ -369,41 +429,42 @@ def missing_person_public_context(
     *,
     status_filter: str = 'active',
     q: str = '',
+    county: str = '',
+    sort: str = 'updated_desc',
 ) -> dict[str, Any]:
     ensure_missing_person_schema(conn)
     normalized_status = (status_filter or 'active').strip().lower()
     if normalized_status not in {'active', 'located', 'all'}:
         normalized_status = 'active'
     search_term = _single_line(q, max_len=120)
+    county_term = _single_line(county, max_len=120)
+    normalized_sort = _single_line(sort, max_len=32).lower()
+    if normalized_sort not in {'updated_desc', 'newest', 'newest_alerts', 'recently_resolved', 'found', 'resolved_desc', 'name', 'name_asc'}:
+        normalized_sort = 'updated_desc'
 
-    sql = '''
-        SELECT *
-        FROM missing_persons
-        WHERE 1 = 1
-    '''
-    params: list[Any] = []
-    if normalized_status == 'active':
-        sql += ' AND status = ?'
-        params.append(STATUS_MISSING)
-    elif normalized_status == 'located':
-        sql += ' AND status = ?'
-        params.append(STATUS_LOCATED)
-    if search_term:
-        token = f'%{search_term}%'
-        sql += '''
-            AND (
-                full_name LIKE ?
-                OR county LIKE ?
-                OR city LIKE ?
-                OR last_seen_location LIKE ?
-                OR summary LIKE ?
-            )
-        '''
-        params.extend([token, token, token, token, token])
-    sql += ' ORDER BY CASE WHEN status = ? THEN 0 ELSE 1 END, datetime(updated_at) DESC, id DESC'
-    params.append(STATUS_MISSING)
-
-    rows = conn.execute(sql, params).fetchall()
+    rows = _fetch_missing_person_rows(
+        conn,
+        status=STATUS_MISSING if normalized_status == 'active' else (STATUS_LOCATED if normalized_status == 'located' else None),
+        q=search_term,
+        county=county_term,
+        sort=normalized_sort,
+    )
+    newest_alerts = _fetch_missing_person_rows(
+        conn,
+        status=STATUS_MISSING,
+        q=search_term,
+        county=county_term,
+        sort='newest_alerts',
+        limit=4,
+    )
+    recent_resolved = _fetch_missing_person_rows(
+        conn,
+        status=STATUS_LOCATED,
+        q=search_term,
+        county=county_term,
+        sort='recently_resolved',
+        limit=4,
+    )
     active_count = conn.execute(
         'SELECT COUNT(*) AS total FROM missing_persons WHERE status = ?',
         (STATUS_MISSING,),
@@ -426,17 +487,21 @@ def missing_person_public_context(
         SELECT *
         FROM missing_persons
         WHERE status = ?
-        ORDER BY datetime(updated_at) DESC, id DESC
+        ORDER BY datetime(created_at) DESC, datetime(updated_at) DESC, id DESC
         LIMIT 1
         ''',
         (STATUS_MISSING,),
     ).fetchone()
     source_stats = _get_missing_person_source_stats(conn)
+    county_options = _list_missing_person_counties(conn)
 
     return {
         'rows': [_decorate_person_row(row) for row in rows],
         'status_filter': normalized_status,
         'q': search_term,
+        'county_filter': county_term,
+        'sort_filter': normalized_sort,
+        'county_options': county_options,
         'summary': {
             'active': int(source_stats.get('total_active') or active_count or 0),
             'located': int(located_count or 0),
@@ -450,6 +515,8 @@ def missing_person_public_context(
             'synced_at': source_stats.get('synced_at') or '',
         },
         'latest_active': _decorate_person_row(latest_active),
+        'newest_alerts': [_decorate_person_row(row) for row in newest_alerts],
+        'recent_resolved': [_decorate_person_row(row) for row in recent_resolved],
         'source_stats': source_stats,
     }
 

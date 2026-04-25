@@ -9,44 +9,37 @@
 
 {% block hero %}
 <section class="bg-gradient-to-br from-slate-950 via-amber-950 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-6xl mx-auto">
-        <div class="max-w-3xl">
+    <div class="max-w-7xl mx-auto">
+        <div class="max-w-4xl">
             <div class="inline-flex items-center rounded-full bg-amber-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
                 Montana Missing Persons Database
             </div>
-            <h1 class="mt-4 text-4xl font-black tracking-tight">Active missing-person alerts and recent resolved cases across Montana.</h1>
-            <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
-                This statewide page keeps active missing-person alerts visible in one place, with last-seen details, public contact guidance, and recent located updates when a case closes.
+            <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Search active alerts, track new cases, and watch resolved records move to found.</h1>
+            <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                This page is built like a public records database: filter the current list, open an individual record, and scan the newest alerts and located updates without losing the broader statewide context.
             </p>
         </div>
 
-        <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
                 <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Active Alerts</p>
                 <p class="mt-2 text-3xl font-black">{{ summary.active }}</p>
             </div>
             <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Children</p>
-                <p class="mt-2 text-3xl font-black">{{ summary.children }}</p>
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Located / Resolved</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.located }}</p>
             </div>
             <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Indigenous</p>
-                <p class="mt-2 text-3xl font-black">{{ summary.indigenous }}</p>
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">New in 7 Days</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.new_7d }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Children</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.children }}</p>
             </div>
             <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-5 py-4">
                 <p class="text-[10px] font-black uppercase tracking-[0.16em] text-amber-200">Official Last Updated</p>
                 <p class="mt-2 text-sm leading-6 text-amber-50">{{ summary.official_last_updated or 'Not synced yet' }}</p>
-            </div>
-        </div>
-
-        <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
-            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Missing Less Than 1 Year</p>
-                <p class="mt-2 text-3xl font-black">{{ summary.missing_less_than_year }}</p>
-            </div>
-            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Missing More Than 1 Year</p>
-                <p class="mt-2 text-3xl font-black">{{ summary.missing_more_than_year }}</p>
             </div>
         </div>
     </div>
@@ -54,123 +47,254 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-4 py-10 space-y-8">
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <form method="get" class="grid gap-4 lg:grid-cols-[1.25fr_0.75fr_auto]">
+<div class="max-w-7xl mx-auto px-4 py-10 sm:px-6">
+    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <form method="get" class="grid gap-4 lg:grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_auto]">
             <div>
-                <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">Search</label>
-                <input type="text" name="q" value="{{ q }}" placeholder="Name, county, city, last seen location"
-                       class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                <label class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Search</label>
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ q }}"
+                    placeholder="Name, county, city, last seen location"
+                    class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800"
+                >
             </div>
             <div>
-                <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">Status</label>
+                <label class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Status</label>
                 <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
                     <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active alerts</option>
                     <option value="located" {% if status_filter == 'located' %}selected{% endif %}>Located / resolved</option>
                     <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All records</option>
                 </select>
             </div>
+            <div>
+                <label class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">County</label>
+                <select name="county" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    <option value="">All counties</option>
+                    {% for county_name in county_options %}
+                    <option value="{{ county_name }}" {% if county_filter == county_name %}selected{% endif %}>{{ county_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Sort</label>
+                <select name="sort" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    <option value="updated_desc" {% if sort_filter == 'updated_desc' %}selected{% endif %}>Recently updated</option>
+                    <option value="newest_alerts" {% if sort_filter == 'newest_alerts' %}selected{% endif %}>Newest alerts</option>
+                    <option value="recently_resolved" {% if sort_filter == 'recently_resolved' %}selected{% endif %}>Recently found</option>
+                    <option value="name_asc" {% if sort_filter == 'name_asc' %}selected{% endif %}>Name A-Z</option>
+                </select>
+            </div>
             <div class="flex items-end gap-3">
-                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800 transition">Apply</button>
-                <a href="/missing-persons" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Reset</a>
+                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800">
+                    Apply
+                </button>
+                <a href="/missing-persons" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                    Reset
+                </a>
             </div>
         </form>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-[1.45fr_0.55fr]">
-        <div class="space-y-4">
-            {% if rows %}
-            {% for person in rows %}
-            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                    <div class="flex gap-4">
-                        {% if person.photo_url %}
-                        <img src="{{ person.photo_url }}" alt="{{ person.full_name }}" class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border border-slate-200 bg-slate-100 flex-shrink-0">
-                        {% endif %}
-                        <div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] {% if person.is_active %}bg-amber-100 text-amber-800{% else %}bg-slate-100 text-slate-600{% endif %}">
-                                {{ person.status_label }}
-                            </span>
-                            {% if person.county %}
-                            <span class="inline-flex rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-white">{{ person.county }}</span>
-                            {% endif %}
-                            {% if person.city %}
-                            <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">{{ person.city }}</span>
-                            {% endif %}
-                        </div>
-                        <h2 class="mt-4 text-2xl font-black text-slate-900">{{ person.full_name }}</h2>
-                        <p class="mt-2 text-sm leading-6 text-slate-600">
-                            Last seen {{ person.last_seen_at_label }}{% if person.last_seen_location %} near {{ person.last_seen_location }}{% endif %}.
-                            {% if person.age %} Age {{ person.age }}.{% endif %}
-                        </p>
-                        {% if person.investigating_agency %}
-                        <p class="mt-2 text-xs uppercase tracking-[0.14em] font-black text-slate-500">{{ person.investigating_agency }}</p>
-                        {% endif %}
-                        </div>
-                    </div>
-                    <div class="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 lg:min-w-[220px]">
-                        <p><span class="font-black text-slate-900">Updated:</span> {{ person.updated_at_label }}</p>
-                        <p class="mt-2"><span class="font-black text-slate-900">Created:</span> {{ person.created_at_label }}</p>
-                        {% if person.height_label or person.weight_lbs %}
-                        <p class="mt-2"><span class="font-black text-slate-900">Physical:</span> {{ person.height_label or '-' }}{% if person.weight_lbs %} · {{ person.weight_lbs }} lbs{% endif %}</p>
-                        {% endif %}
-                        {% if person.resolved_at %}
-                        <p class="mt-2"><span class="font-black text-slate-900">Resolved:</span> {{ person.resolved_at_label }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <p class="mt-5 text-sm leading-7 text-slate-700">{{ person.summary }}</p>
-                {% if person.physical_description %}
-                <p class="mt-4 text-sm leading-7 text-slate-600"><strong class="text-slate-900">Physical description:</strong> {{ person.physical_description }}</p>
-                {% endif %}
-                {% if person.aliases_list %}
-                <p class="mt-4 text-sm leading-7 text-slate-600"><strong class="text-slate-900">Aliases:</strong> {{ person.aliases_list|join(', ') }}</p>
-                {% endif %}
-                {% if person.contact_info %}
-                <p class="mt-4 text-sm leading-7 text-slate-600"><strong class="text-slate-900">Contact guidance:</strong> {{ person.contact_info }}</p>
-                {% endif %}
-                {% if person.resolution_summary %}
-                <p class="mt-4 text-sm leading-7 text-slate-600"><strong class="text-slate-900">Resolution:</strong> {{ person.resolution_summary }}</p>
-                {% endif %}
-
-                <div class="mt-5 flex flex-wrap gap-3">
-                    <a href="{{ person.public_href }}" class="inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white hover:bg-amber-700 transition">Open Record</a>
-                    {% if person.source_url %}
-                    <a href="{{ person.source_url }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Source Link</a>
+    <div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_360px]">
+        <section class="space-y-4">
+            <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700">Current View</p>
+                <h2 class="mt-2 text-2xl font-black text-slate-900">
+                    {% if status_filter == 'located' %}
+                        Located / resolved records
+                    {% elif status_filter == 'all' %}
+                        All missing-person records
+                    {% else %}
+                        Active missing-person alerts
                     {% endif %}
+                </h2>
+                <p class="mt-2 text-sm leading-6 text-amber-950">
+                    Status changes stay visible here, so a case can move from active alert to found without disappearing from the database.
+                </p>
+            </div>
+
+            {% if rows %}
+            <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div class="grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.9fr)] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span>Record</span>
+                    <span>Last Seen</span>
+                    <span>Updated / Found</span>
                 </div>
-            </article>
-            {% endfor %}
+                <div class="divide-y divide-slate-200">
+                    {% for person in rows %}
+                    <article class="px-5 py-5">
+                        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] {% if person.is_active %}bg-amber-100 text-amber-800{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                        {{ person.status_label }}
+                                    </span>
+                                    {% if person.county %}
+                                    <span class="inline-flex rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-white">{{ person.county }}</span>
+                                    {% endif %}
+                                    {% if person.city %}
+                                    <span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">{{ person.city }}</span>
+                                    {% endif %}
+                                </div>
+                                <h3 class="mt-3 text-2xl font-black text-slate-900">{{ person.full_name }}</h3>
+                                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                                    {{ person.summary }}
+                                </p>
+                                <dl class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                                        <dt class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Last Seen</dt>
+                                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ person.last_seen_at_label }}</dd>
+                                        <dd class="mt-1 text-sm text-slate-600">{{ person.last_seen_location or 'Not provided' }}</dd>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                                        <dt class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Physical</dt>
+                                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ person.height_label or 'Not provided' }}{% if person.weight_lbs %} · {{ person.weight_lbs }} lbs{% endif %}</dd>
+                                        <dd class="mt-1 text-sm text-slate-600">{{ person.physical_description or 'No additional description' }}</dd>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                                        <dt class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Source</dt>
+                                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ person.source_name or 'Montana Blotter' }}</dd>
+                                        <dd class="mt-1 text-sm text-slate-600">{{ person.updated_at_label }}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                            <div class="flex shrink-0 flex-wrap gap-3 xl:w-52 xl:flex-col xl:items-stretch">
+                                <a href="{{ person.public_href }}" class="inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white transition hover:bg-amber-700">
+                                    Open Record
+                                </a>
+                                {% if person.source_url %}
+                                <a href="{{ person.source_url }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                                    Source Link
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if person.resolution_summary %}
+                        <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-950">
+                            <span class="font-black uppercase tracking-[0.14em] text-emerald-700">Found / resolved</span>
+                            <div class="mt-1">{{ person.resolution_summary }}</div>
+                        </div>
+                        {% endif %}
+
+                        <details class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <summary class="cursor-pointer list-none text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">
+                                More record details
+                            </summary>
+                            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                <div class="rounded-2xl bg-white px-4 py-3">
+                                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Official ID</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ person.source_person_id or 'Not provided' }}</p>
+                                </div>
+                                <div class="rounded-2xl bg-white px-4 py-3">
+                                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Gender / Race</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">
+                                        {{ person.gender or 'Not provided' }}{% if person.gender and person.race %} · {% endif %}{{ person.race or '' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-2xl bg-white px-4 py-3">
+                                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Age Missing</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ person.age_missing if person.age_missing is not none else 'Not provided' }}</p>
+                                </div>
+                                <div class="rounded-2xl bg-white px-4 py-3">
+                                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Hair / Eyes</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">
+                                        {{ person.hair_color or 'Not provided' }}{% if person.hair_color and person.eye_color %} / {% endif %}{{ person.eye_color or '' }}
+                                    </p>
+                                </div>
+                                <div class="rounded-2xl bg-white px-4 py-3">
+                                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Last Alerted</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ person.last_alerted_at_label }}</p>
+                                </div>
+                                <div class="rounded-2xl bg-white px-4 py-3">
+                                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Source Updated</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ person.official_last_updated or 'Not provided' }}</p>
+                                </div>
+                            </div>
+                        </details>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
             {% else %}
-            <div class="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-                <h2 class="text-xl font-black text-slate-900">No missing-person records matched those filters.</h2>
+            <div class="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+                <h3 class="text-xl font-black text-slate-900">No missing-person records matched those filters.</h3>
                 <p class="mt-3 text-sm leading-7 text-slate-600">
-                    Try a broader search or switch back to the active statewide alert list.
+                    Try a broader search, switch to All records, or remove the county filter.
                 </p>
             </div>
             {% endif %}
-        </div>
+        </section>
 
         <aside class="space-y-5">
+            <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Newest Alerts</p>
+                <div class="mt-4 space-y-3">
+                    {% for person in newest_alerts %}
+                    <a href="{{ person.public_href }}" class="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-amber-300 hover:bg-amber-50">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="font-black text-slate-900">{{ person.full_name }}</p>
+                            <span class="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-800">
+                                Active
+                            </span>
+                        </div>
+                        <p class="mt-2 text-xs leading-5 text-slate-600">{{ person.last_seen_at_label }}{% if person.last_seen_location %} near {{ person.last_seen_location }}{% endif %}</p>
+                        <p class="mt-2 text-xs leading-5 text-slate-500">
+                            {{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}
+                            {% if person.age_missing is not none %} · Age {{ person.age_missing }}{% endif %}
+                        </p>
+                    </a>
+                    {% else %}
+                    <p class="text-sm leading-6 text-slate-600">No active alerts were available for this view.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Found / Resolved Updates</p>
+                <div class="mt-4 space-y-3">
+                    {% for person in recent_resolved %}
+                    <a href="{{ person.public_href }}" class="block rounded-2xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-300 hover:bg-emerald-100">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="font-black text-slate-900">{{ person.full_name }}</p>
+                            <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-800">
+                                Located
+                            </span>
+                        </div>
+                        <p class="mt-2 text-xs leading-5 text-slate-600">{{ person.resolved_at_label }}{% if person.resolution_summary %} · {{ person.resolution_summary }}{% endif %}</p>
+                        <p class="mt-2 text-xs leading-5 text-slate-500">
+                            {{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}
+                            {% if person.source_person_id %} · ID {{ person.source_person_id }}{% endif %}
+                        </p>
+                    </a>
+                    {% else %}
+                    <p class="text-sm leading-6 text-slate-600">No located records are currently surfaced in this lane.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
             {% if latest_active %}
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <section class="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
                 <p class="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700">Newest Active Alert</p>
-                <h2 class="mt-3 text-xl font-black text-slate-900">{{ latest_active.full_name }}</h2>
+                <h3 class="mt-3 text-xl font-black text-slate-900">{{ latest_active.full_name }}</h3>
                 <p class="mt-3 text-sm leading-7 text-amber-950">{{ latest_active.summary }}</p>
-                <a href="{{ latest_active.public_href }}" class="mt-4 inline-flex items-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white hover:bg-amber-700 transition">Open Alert</a>
-            </div>
+                <a href="{{ latest_active.public_href }}" class="mt-4 inline-flex items-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white transition hover:bg-amber-700">
+                    Open Alert
+                </a>
+            </section>
             {% endif %}
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Official Source</p>
                 <ul class="mt-3 space-y-3 text-sm leading-6 text-slate-700">
                     <li>Official last updated: {{ summary.official_last_updated or 'Not synced yet' }}</li>
                     <li>Official last checked: {{ summary.official_last_checked or 'Not synced yet' }}</li>
                     <li>Located / resolved records stored locally: {{ summary.located }}</li>
+                    <li>Children in the database: {{ summary.children }}</li>
                 </ul>
-            </div>
+            </section>
         </aside>
     </div>
 </div>

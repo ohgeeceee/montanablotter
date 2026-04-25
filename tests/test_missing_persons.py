@@ -69,6 +69,108 @@ class MissingPersonsTests(unittest.TestCase):
             session['_fresh'] = True
             session['_csrf_token'] = 'test-csrf-token'
 
+    def _seed_missing_persons(self) -> None:
+        conn = app_module.get_db()
+        conn.execute(
+            """
+            INSERT INTO missing_persons (
+                slug, full_name, county, city, last_seen_location, summary,
+                source_name, source_url, status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                'active-person-1',
+                'Active Person',
+                'Yellowstone',
+                'Billings',
+                'Billings',
+                'Active case summary for the database view.',
+                'Montana DOJ Missing Persons Database',
+                'https://example.com/active-person',
+                'missing',
+                '2026-04-25 08:00:00',
+                '2026-04-25 08:00:00',
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO missing_persons (
+                slug, full_name, county, city, last_seen_location, summary,
+                source_name, source_url, status, resolution_summary, resolved_at,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                'located-person-1',
+                'Located Person',
+                'Cascade',
+                'Great Falls',
+                'Great Falls',
+                'Located case summary for the resolved lane.',
+                'Montana DOJ Missing Persons Database',
+                'https://example.com/located-person',
+                'located',
+                'Found safe and removed from the active list.',
+                '2026-04-24 16:30:00',
+                '2026-04-24 08:00:00',
+                '2026-04-25 09:15:00',
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+    def _seed_rich_missing_person(self) -> str:
+        conn = app_module.get_db()
+        slug = 'rich-person-1'
+        conn.execute(
+            """
+            INSERT INTO missing_persons (
+                slug, full_name, county, city, last_seen_at, last_seen_location,
+                summary, physical_description, contact_info, source_name, source_url,
+                photo_url, status, resolution_summary, source_person_id, gender, race,
+                hair_color, eye_color, height_raw, weight_lbs, age, age_missing,
+                investigating_agency, aliases, photo_gallery_json, official_last_updated,
+                official_last_checked, created_at, updated_at, last_alerted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                slug,
+                'Rich Detail Person',
+                'Gallatin',
+                'Bozeman',
+                '2026-04-20 14:00:00',
+                'Bozeman Trail',
+                'Rich detail summary for the public detail page.',
+                'Tall, brown hair, blue eyes.',
+                'Call Gallatin County Sheriff at 406-555-1212.',
+                'Montana DOJ Missing Persons Database',
+                'https://example.com/rich-person',
+                'https://example.com/rich-person-primary.jpg',
+                'located',
+                'Located safe after a community tip.',
+                '77777',
+                'FEMALE',
+                'WHITE',
+                'BROWN',
+                'BLUE',
+                '511',
+                140,
+                21,
+                19,
+                'GALLATIN COUNTY SHERIFF',
+                'Smith, Jane; Doe, J.',
+                '[{"url":"https://example.com/rich-person-primary.jpg","label":"Primary"},{"url":"https://example.com/rich-person-secondary.jpg","label":"Secondary"}]',
+                '2026-04-20 18:30:00',
+                '2026-04-20 18:45:00',
+                '2026-04-20 09:00:00',
+                '2026-04-25 10:00:00',
+                '2026-04-25 09:00:00',
+            ),
+        )
+        conn.commit()
+        conn.close()
+        return slug
+
     def test_parse_official_card_records_and_counts(self) -> None:
         html = """
         <div id="resultsInfo">
@@ -193,6 +295,39 @@ class MissingPersonsTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Missing Persons', html)
         self.assertIn('Sync Official Database', html)
+
+    def test_public_missing_persons_page_renders_database_lanes(self) -> None:
+        self._seed_missing_persons()
+
+        client = app_module.app.test_client()
+        response = client.get('/missing-persons?status=all&sort=recently_resolved')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Newest Alerts', html)
+        self.assertIn('Found / Resolved Updates', html)
+        self.assertIn('Active Person', html)
+        self.assertIn('Located Person', html)
+        self.assertIn('Located / resolved', html)
+        self.assertIn('Yellowstone', html)
+
+    def test_public_missing_person_detail_renders_full_dossier(self) -> None:
+        slug = self._seed_rich_missing_person()
+
+        client = app_module.app.test_client()
+        response = client.get(f'/missing-persons/{slug}')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Rich Detail Person', html)
+        self.assertIn('Photo Gallery', html)
+        self.assertIn('Record Dossier', html)
+        self.assertIn('Official Source ID', html)
+        self.assertIn('77777', html)
+        self.assertIn('GALLATIN COUNTY SHERIFF', html)
+        self.assertIn('Smith, Jane, Doe, J.', html)
+        self.assertIn('Located safe after a community tip.', html)
+        self.assertIn('Primary', html)
 
 
 if __name__ == '__main__':
