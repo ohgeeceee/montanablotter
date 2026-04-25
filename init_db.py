@@ -11,6 +11,7 @@ from case_journeys import ensure_case_journey_schema, seed_case_journeys
 from court_tracker import ensure_court_tracker_schema
 from bail_bonds_alerts import ensure_bail_bonds_alert_schema
 from bondsman_command_center import ensure_bondsman_command_center_schema
+from agent_mission_control import ensure_agent_mission_control_schema
 from incident_notifications import ensure_incident_notification_schema
 from missing_persons import ensure_missing_person_schema
 from public_meetings import ensure_public_meeting_schema
@@ -372,6 +373,7 @@ def init_database():
     _configure_sqlite(conn)
     cursor = conn.cursor()
     _create_core_tables(cursor)
+    ensure_source_material_schema(conn)
     ensure_public_meeting_schema(conn)
     ensure_public_engagement_schema(conn)
     ensure_incident_notification_schema(conn)
@@ -379,6 +381,7 @@ def init_database():
     ensure_jail_booking_schema(conn)
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
+    ensure_agent_mission_control_schema(conn)
     
     conn.commit()
     conn.close()
@@ -390,6 +393,96 @@ def init_database():
     print("  - blotters (PDF batch tracking)")
     print("  - records (individual incidents)")
     print("  - command_logs (detailed event logs)")
+
+
+def ensure_source_material_schema(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS source_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_type TEXT NOT NULL,
+            source_message_id TEXT,
+            source_sender TEXT,
+            source_subject TEXT,
+            source_received_at TEXT,
+            filename TEXT,
+            content_sha256 TEXT NOT NULL,
+            storage_path TEXT,
+            raw_text TEXT,
+            extraction_method TEXT,
+            extraction_warnings TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(source_type, content_sha256)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS source_registry (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL UNIQUE,
+            source_type TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            base_url TEXT,
+            adapter_name TEXT,
+            poll_interval_seconds INTEGER NOT NULL DEFAULT 900,
+            is_enabled INTEGER NOT NULL DEFAULT 1,
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS source_artifacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_registry_id INTEGER NOT NULL,
+            source_document_id INTEGER,
+            artifact_kind TEXT NOT NULL DEFAULT 'raw',
+            source_url TEXT,
+            storage_path TEXT,
+            content_sha256 TEXT,
+            fetched_at TEXT DEFAULT (datetime('now')),
+            metadata_json TEXT DEFAULT '{}',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (source_registry_id) REFERENCES source_registry(id) ON DELETE CASCADE,
+            FOREIGN KEY (source_document_id) REFERENCES source_documents(id) ON DELETE SET NULL,
+            UNIQUE(source_registry_id, artifact_kind, content_sha256)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ingestion_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_document_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            retry_count INTEGER DEFAULT 0,
+            last_error TEXT,
+            started_at TEXT DEFAULT (datetime('now')),
+            finished_at TEXT,
+            FOREIGN KEY (source_document_id) REFERENCES source_documents(id) ON DELETE CASCADE,
+            UNIQUE(source_document_id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pipeline_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ingestion_job_id INTEGER NOT NULL,
+            stage TEXT NOT NULL,
+            status TEXT NOT NULL,
+            details_json TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (ingestion_job_id) REFERENCES ingestion_jobs(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_source_documents_sha ON source_documents(content_sha256)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_source_registry_type_enabled ON source_registry(source_type, is_enabled)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_source_artifacts_registry ON source_artifacts(source_registry_id, fetched_at)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_source_artifacts_document ON source_artifacts(source_document_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status ON ingestion_jobs(status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_pipeline_events_job_stage ON pipeline_events(ingestion_job_id, stage)')
 
 
 def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
@@ -444,12 +537,14 @@ def migrate():
     _configure_sqlite(conn)
     cursor = conn.cursor()
     _create_core_tables(cursor)
+    ensure_source_material_schema(conn)
     ensure_public_meeting_schema(conn)
     ensure_public_engagement_schema(conn)
     ensure_jail_booking_schema(conn)
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
     ensure_recovery_ad_schema(conn)
+    ensure_agent_mission_control_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -608,6 +703,65 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_blog_slug ON blog_posts(slug)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_blog_published ON blog_posts(published)')
 
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS story_candidates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_type TEXT NOT NULL DEFAULT 'news_story',
+            source_type TEXT NOT NULL,
+            source_url TEXT NOT NULL,
+            secondary_source_url TEXT,
+            headline_hint TEXT NOT NULL,
+            facts_json TEXT NOT NULL,
+            location_label TEXT,
+            occurred_at TEXT,
+            agency_name TEXT,
+            source_record_ids_json TEXT,
+            dedupe_key TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL DEFAULT 'new',
+            score REAL NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_story_candidates_status ON story_candidates(status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_story_candidates_score ON story_candidates(score)')
+
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS blog_draft_reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blog_post_id INTEGER NOT NULL,
+            story_candidate_id INTEGER NOT NULL,
+            decision TEXT NOT NULL,
+            reason TEXT,
+            evidence_json TEXT,
+            reviewed_at TEXT DEFAULT (datetime('now')),
+            reviewer_agent TEXT NOT NULL,
+            FOREIGN KEY (blog_post_id) REFERENCES blog_posts(id) ON DELETE CASCADE,
+            FOREIGN KEY (story_candidate_id) REFERENCES story_candidates(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_blog_draft_reviews_post ON blog_draft_reviews(blog_post_id)')
+
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS blog_post_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blog_post_id INTEGER NOT NULL,
+            source_url TEXT NOT NULL,
+            source_type TEXT NOT NULL,
+            source_title TEXT,
+            source_published_at TEXT,
+            notes TEXT,
+            FOREIGN KEY (blog_post_id) REFERENCES blog_posts(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_blog_post_sources_post ON blog_post_sources(blog_post_id)')
+
     # Search Console CSV imports for workflow/SEO tuning
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS search_console_imports (
@@ -665,55 +819,6 @@ def migrate():
         )
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_emailed_agency ON emailed_agencies(agency_name)')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS source_documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_type TEXT NOT NULL,
-            source_message_id TEXT,
-            source_sender TEXT,
-            source_subject TEXT,
-            source_received_at TEXT,
-            filename TEXT,
-            content_sha256 TEXT NOT NULL,
-            storage_path TEXT,
-            raw_text TEXT,
-            extraction_method TEXT,
-            extraction_warnings TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            UNIQUE(source_type, content_sha256)
-        )
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ingestion_jobs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_document_id INTEGER NOT NULL,
-            status TEXT NOT NULL,
-            retry_count INTEGER DEFAULT 0,
-            last_error TEXT,
-            started_at TEXT DEFAULT (datetime('now')),
-            finished_at TEXT,
-            FOREIGN KEY (source_document_id) REFERENCES source_documents(id) ON DELETE CASCADE,
-            UNIQUE(source_document_id)
-        )
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS pipeline_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ingestion_job_id INTEGER NOT NULL,
-            stage TEXT NOT NULL,
-            status TEXT NOT NULL,
-            details_json TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (ingestion_job_id) REFERENCES ingestion_jobs(id) ON DELETE CASCADE
-        )
-    ''')
-
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_source_documents_sha ON source_documents(content_sha256)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status ON ingestion_jobs(status)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_pipeline_events_job_stage ON pipeline_events(ingestion_job_id, stage)')
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS ingestion_source_alerts (

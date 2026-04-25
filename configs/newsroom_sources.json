@@ -1,0 +1,20 @@
+[
+  {
+    "source_type": "montana_public_records",
+    "source_url": "https://courts.mt.gov/external/orders/dailyorders",
+    "format": "rss",
+    "facts": {
+      "county": "Statewide",
+      "agency_name": "Montana Judicial Branch"
+    }
+  },
+  {
+    "source_type": "montana_public_records",
+    "source_url": "https://webapps.missoulacounty.us/dailypublicreport/",
+    "format": "rss",
+    "facts": {
+      "county": "Missoula",
+      "agency_name": "Missoula County"
+    }
+  }
+]

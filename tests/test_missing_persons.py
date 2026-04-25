@@ -71,21 +71,31 @@ class MissingPersonsTests(unittest.TestCase):
 
     def test_parse_official_card_records_and_counts(self) -> None:
         html = """
-        <div class="infoBox">
-            <div class="missingCount totalCount"><span class="underline">165 Individuals</span></div>
-            <div class="missingCount lessThanAYearCount"><span class="underline">49</span></div>
-            <div class="missingCount moreThanAYearCount"><span class="underline">116</span></div>
+        <div id="resultsInfo">
+            <span>158 individuals match search criteria </span>
+            <span>42 missing less than a year </span>
+            <span>116 missing more than a year </span>
         </div>
-        <div class="personCard" data-sort="45849" data-name="WAGNER, TRENTON CHRISTOPHER" data-agenow="17" data-agemissing="17">
+        <ul id="resultsList">
+        <li class="personCard" data-sort="45849" data-time="1744243200" data-name="WAGNER, TRENTON CHRISTOPHER" data-agenow="17" data-agemissing="17">
+            <div class="personDetailsFirst">
+                <h2>Wagner, Trenton Christopher</h2>
+                <p><b>Age Now: </b>17
+                <br><b>Gender: </b>Male
+                <br><b>Race: </b>White</p>
+                <button class="personDetailsButton" onclick='OpenDetailsWindow([{"0":"640cc8"}],["03\\/20\\/2026"],"Wagner, Trenton Christopher","MALE","17","WHITE","BROWN","BLUE","510","150","04/09/2026","YELLOWSTONE COUNTY SHERIFF","","45849")'
+                 aria-expanded="false" aria-label="Full details for WAGNER, TRENTON CHRISTOPHER">Full Details</button>
+            </div>
             <div class="personImageContainer"><img src="images\\mmps_img\\640cc8.jpg" class="personImage" alt="Person Image"/></div>
-            <button class="detailsButton" onclick='detailOnClickXML([{"0":"640cc8"}],["03\\/20\\/2026"],"WAGNER, TRENTON CHRISTOPHER","MALE","17","WHITE","BROWN","BLUE","510","150","04/09/2026","YELLOWSTONE COUNTY SHERIFF","","45849")'>Details</button>
-        </div>
+            <div class="personDetailsSecond"><p><b>Date of Last Contact:</b> 04/09/2026</p></div>
+        </li>
+        </ul>
         """
         counts = missing_persons_module._parse_official_counts(html)
         records = missing_persons_module._parse_official_card_records(html)
 
-        self.assertEqual(counts['total_active'], 165)
-        self.assertEqual(counts['missing_less_than_year'], 49)
+        self.assertEqual(counts['total_active'], 158)
+        self.assertEqual(counts['missing_less_than_year'], 42)
         self.assertEqual(counts['missing_more_than_year'], 116)
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0]['source_person_id'], '45849')

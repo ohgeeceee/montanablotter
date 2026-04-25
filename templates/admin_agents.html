@@ -113,6 +113,12 @@
         <div class="ops-panel overflow-hidden">
           <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center gap-2">
             <h3 class="font-black text-slate-900 mr-auto">Agent Live Feed</h3>
+            <span
+              id="agent-stream-config"
+              class="hidden"
+              data-stream-url="/admin/agents/stream"
+              aria-hidden="true"
+            >/admin/agents/stream</span>
             {% for name in known_agents %}
             <button class="filter-btn px-2 py-1 rounded-md text-xs font-bold border border-slate-300 bg-white text-slate-700 hover:bg-slate-100" data-filter="{{ name }}" onclick="toggleFilter(this)">{{ name }}</button>
             {% endfor %}

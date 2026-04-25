@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}AI Console | Admin Panel{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <section class="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div class="border-b border-slate-200 bg-slate-950 px-6 py-6 text-white">
+      <p class="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-300">Admin Tools</p>
+      <h1 class="mt-2 text-3xl font-black">Admin AI Console</h1>
+      <p class="mt-2 max-w-2xl text-sm text-slate-300">Ask Montana Blotter AI</p>
+    </div>
+    <div class="px-6 py-8 space-y-6">
+      <form method="post" action="/admin/ai/query" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="ai-console-query" class="block text-sm font-semibold text-slate-700">
+          Ask Montana Blotter AI
+        </label>
+        <textarea
+          id="ai-console-query"
+          name="question"
+          rows="6"
+          class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
+          placeholder="Ask about records, missing persons, posts, subscribers, or request a draft action."
+        >{{ question or '' }}</textarea>
+        <button
+          type="submit"
+          class="inline-flex items-center rounded-full bg-slate-950 px-5 py-2 text-sm font-semibold text-white"
+        >
+          Send
+        </button>
+      </form>
+
+      {% if transcript %}
+      <section class="space-y-3">
+        {% for message in transcript %}
+        <article class="rounded-2xl border border-slate-200 px-4 py-3">
+          <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{{ message.role }}</p>
+          <pre class="mt-2 whitespace-pre-wrap text-sm text-slate-800">{{ message.content }}</pre>
+        </article>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% if pending_action %}
+      <section class="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-4">
+        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700">Confirm Draft Action</p>
+        <p class="mt-2 text-sm font-semibold text-slate-900">{{ pending_action.summary }}</p>
+        <p class="mt-2 text-xs text-slate-600">{{ pending_action.tool_name }}</p>
+        <pre class="mt-3 whitespace-pre-wrap text-xs text-slate-700">{{ pending_action.arguments | tojson(indent=2) }}</pre>
+        <div class="mt-4 flex flex-wrap gap-3">
+          <form method="post" action="/admin/ai/confirm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="token" value="{{ pending_action.token }}">
+            <button
+              type="submit"
+              class="inline-flex items-center rounded-full bg-slate-950 px-5 py-2 text-sm font-semibold text-white"
+            >
+              Confirm Draft Action
+            </button>
+          </form>
+          <form method="post" action="/admin/ai/cancel">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button
+              type="submit"
+              class="inline-flex items-center rounded-full border border-slate-300 px-5 py-2 text-sm font-semibold text-slate-700"
+            >
+              Cancel Pending Action
+            </button>
+          </form>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if recent_actions %}
+      <section class="rounded-2xl border border-slate-200 px-4 py-4">
+        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Recent AI Actions</p>
+        <ul class="mt-3 space-y-2 text-sm text-slate-700">
+          {% for action in recent_actions %}
+          <li class="rounded-xl bg-slate-50 px-3 py-2">
+            {{ action.action }} · {{ action.timestamp }}
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

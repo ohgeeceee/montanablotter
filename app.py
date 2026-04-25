@@ -41,7 +41,7 @@ from court_tracker import (
     court_hearing_feed_context,
     ensure_court_tracker_schema,
 )
-from db import connect_db, get_db
+from db import connect_db, connect_page_views, get_db
 from dedupe import incident_key_set
 from morning_briefing import (
     build_html as build_morning_briefing_html,
@@ -65,6 +65,7 @@ from facebook_publisher import (
     save_facebook_settings,
 )
 from bondsman_command_center import register_bondsman_command_center
+from agent_dashboard import register_agent_dashboard
 
 try:
     import stripe
@@ -1027,6 +1028,11 @@ def enforce_admin_csrf():
         return
     if not request.path.startswith('/admin'):
         return
+    if (
+        request.path == '/admin/api/mission-control/heartbeat'
+        and (request.headers.get('X-Internal-Mission-Control') or '').strip() == 'local'
+    ):
+        return
 
     session_token = session.get('_csrf_token')
     submitted_token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
@@ -1324,6 +1330,12 @@ register_bondsman_command_center(
     app,
     get_db=get_db,
     get_public_user=_get_public_user,
+    base_url=BASE_URL,
+)
+
+register_agent_dashboard(
+    app,
+    get_db=get_db,
     base_url=BASE_URL,
 )
 
@@ -2281,14 +2293,17 @@ def _bail_help_contact(default_phone=''):
     }
 
 
-def _bail_ad_contract_context():
+def _bail_ad_contract_context(onboarding_token: str | None = None):
     configured_url = (getattr(config, 'LETSBAIL_AD_CONTRACT_URL', '') or '').strip()
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
         or 'support@montanablotter.com'
     )
-    contract_url = configured_url or url_for('payments.advertise_bail_contract')
+    safe_token = (onboarding_token or '').strip()[:128]
+    contract_url = configured_url
+    if not contract_url and safe_token:
+        contract_url = url_for('payments.advertise_bail_private_contract', token=safe_token)
     return {
         'title': "Affordable Bail Bonds Advertising Contract",
         'partner_name': "Affordable Bail Bonds",
@@ -5258,7 +5273,8 @@ def _homepage_recent_records(
 
 def _homepage_most_viewed_pages(conn, limit=5):
     try:
-        path_rows = conn.execute(
+        pv_conn = connect_page_views()
+        path_rows = pv_conn.execute(
             """
             SELECT path, COUNT(*) AS view_count, MAX(created_at) AS last_viewed_at
             FROM page_views
@@ -5279,7 +5295,8 @@ def _homepage_most_viewed_pages(conn, limit=5):
             """,
             (limit * 3,),
         ).fetchall()
-    except sqlite3.Error:
+        pv_conn.close()
+    except (sqlite3.Error, Exception):
         return []
 
     if not path_rows:
@@ -6375,21 +6392,21 @@ def track_page_view():
     referrer = (request.referrer or '')[:500]
     conn = None
     try:
-        # Visitor analytics must never sit on the request path behind a long DB
-        # lock; skip the write if SQLite is busy.
-        conn = connect_db(row_factory=None, timeout_seconds=0.25, busy_timeout_ms=250)
+        # page_views lives in a separate local SQLite database to avoid
+        # bloating the Turso-synced main database.
+        conn = connect_page_views(row_factory=None)
         conn.execute(
             'INSERT INTO page_views (path, ip_hash, referrer) VALUES (?, ?, ?)',
             (request.path, ip_hash, referrer)
         )
         conn.commit()
-    except sqlite3.Error:
+    except (sqlite3.Error, Exception):
         pass  # Never break the site for analytics
     finally:
         if conn is not None:
             try:
                 conn.close()
-            except sqlite3.Error:
+            except (sqlite3.Error, Exception):
                 pass
 
 
@@ -6975,11 +6992,12 @@ def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
     total_page_views = 0
     unique_visitors = 0
     try:
-        total_page_views = conn.execute(
+        pv_conn = connect_page_views()
+        total_page_views = pv_conn.execute(
             f'SELECT COUNT(*) FROM page_views {page_view_where_sql}',
             page_view_params,
         ).fetchone()[0]
-        page_daily_rows = conn.execute(
+        page_daily_rows = pv_conn.execute(
             f'''
             SELECT date(created_at) AS day, COUNT(*) AS cnt
             FROM page_views
@@ -6988,7 +7006,7 @@ def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
             ''',
             page_view_params,
         ).fetchall()
-        top_pages = conn.execute(
+        top_pages = pv_conn.execute(
             f'''
             SELECT path, COUNT(*) AS cnt
             FROM page_views INDEXED BY idx_page_views_created_path
@@ -6997,7 +7015,7 @@ def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
             ''',
             page_view_params,
         ).fetchall()
-        top_referrers = conn.execute(
+        top_referrers = pv_conn.execute(
             f'''
             SELECT referrer, COUNT(*) AS cnt
             FROM page_views INDEXED BY idx_page_views_created_referrer
@@ -7006,10 +7024,11 @@ def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
             ''',
             page_view_params,
         ).fetchall()
-        unique_visitors = conn.execute(
+        unique_visitors = pv_conn.execute(
             f"SELECT COUNT(DISTINCT ip_hash) FROM page_views INDEXED BY idx_page_views_created_ip {page_view_where_sql}",
             page_view_params,
         ).fetchone()[0]
+        pv_conn.close()
     except Exception as e:
         log.error("Analytics traffic query failed: %s", e)
 
@@ -7023,9 +7042,14 @@ def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
         ORDER BY cnt DESC, placement ASC
         ''',
     ).fetchall()
-    homepage_page_views_30d = conn.execute(
-        "SELECT COUNT(*) FROM page_views WHERE path = '/' AND created_at >= date('now', '-7 days')"
-    ).fetchone()[0]
+    try:
+        pv_conn2 = connect_page_views()
+        homepage_page_views_30d = pv_conn2.execute(
+            "SELECT COUNT(*) FROM page_views WHERE path = '/' AND created_at >= date('now', '-7 days')"
+        ).fetchone()[0]
+        pv_conn2.close()
+    except Exception:
+        homepage_page_views_30d = 0
     homepage_pattern_clicks_30d = conn.execute(
         "SELECT COUNT(*) FROM pattern_clicks WHERE placement = 'homepage_pattern_promos' AND created_at >= date('now', '-7 days')"
     ).fetchone()[0]

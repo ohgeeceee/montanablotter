@@ -722,3 +722,92 @@ def developers_api():
         active_nav='api',
         current_year=__import__('datetime').datetime.now().year,
     )
+
+
+# ---------------------------------------------------------------------------
+# Raw Records Endpoints (for dashboard Live Feed)
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/records')
+def api_records():
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = max(1, min(100, request.args.get('per_page', 50, type=int)))
+    offset = (page - 1) * per_page
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    where = ["1=1"]
+    params = []
+
+    county = (request.args.get('county') or '').strip()
+    if county:
+        where.append("county = ?")
+        params.append(county)
+
+    incident_type = (request.args.get('type') or '').strip()
+    if incident_type:
+        where.append("incident_type = ?")
+        params.append(incident_type)
+
+    status = (request.args.get('status') or '').strip()
+    if status:
+        where.append("status = ?")
+        params.append(status)
+
+    search = (request.args.get('q') or '').strip()
+    if search:
+        where.append("(location LIKE ? OR incident LIKE ? OR summary LIKE ?)")
+        params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+
+    where_sql = ' AND '.join(where)
+
+    # Total count
+    cur.execute(f"SELECT COUNT(*) as total FROM records WHERE {where_sql}", params)
+    total = cur.fetchone()['total']
+
+    # Records
+    cur.execute(
+        f"SELECT id, date, time, location, county, incident_type, incident, status, summary, details, officer, charge_category, created_at FROM records WHERE {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
+        params + [per_page, offset]
+    )
+    records = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    return jsonify({
+        'records': records,
+        'total': int(total),
+        'page': page,
+        'per_page': per_page,
+        'total_pages': max(1, (int(total) + per_page - 1) // per_page)
+    })
+
+
+@api_bp.route('/api/records/recent')
+def api_records_recent():
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Get 50 most recent records
+    cur.execute(
+        "SELECT id, date, time, location, county, incident_type, incident, status, summary, details, officer, charge_category, created_at FROM records ORDER BY id DESC LIMIT 50"
+    )
+    records = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    return jsonify({'records': records})
+
+
+@api_bp.route('/api/records/timeline')
+def api_records_timeline():
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Daily counts for last 30 days
+    cur.execute(
+        "SELECT date, COUNT(*) as count FROM records WHERE date >= date('now', '-30 days') GROUP BY date ORDER BY date"
+    )
+    timeline = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    return jsonify({'timeline': timeline})

@@ -13,7 +13,7 @@ from flask_login import login_required
 
 from agent_status import system_snapshot
 from blueprints.admin import admin_bp
-from db import connect_db
+from db import connect_db, connect_page_views
 
 KNOWN_AGENTS = ['main', 'reporter', 'scout', 'clerk', 'bailbot']
 _AGENT_RE = re.compile(r'lane=session:agent:(\w+):')
@@ -126,7 +126,7 @@ def _client_snapshot(*, window_minutes: int = 15, recent_limit: int = 140, activ
         'alerts': [],
     }
     try:
-        conn = _db()
+        conn = connect_page_views()
         rows = conn.execute(
             '''
             SELECT id, path, ip_hash, referrer, created_at

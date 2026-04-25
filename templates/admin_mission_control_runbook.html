@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Mission Control Runbook | Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+    <section class="rounded-[28px] border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-6 py-6 border-b border-slate-200 bg-slate-950 text-white">
+            <p class="text-[11px] uppercase tracking-[0.22em] font-black text-cyan-300">Mission Control</p>
+            <h1 class="mt-2 text-3xl font-black">Agent Events Service Deployment</h1>
+            <p class="mt-2 max-w-3xl text-sm text-slate-300">
+                Run the Flask app and the FastAPI agent-events service as separate processes, backed by the same Redis instance.
+            </p>
+        </div>
+
+        <div class="grid gap-4 p-6 lg:grid-cols-2">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Local Development</p>
+                <pre class="mt-3 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100"><code># Flask app
+./venv/bin/python app.py
+
+# FastAPI sidecar
+MB_REDIS_HOST=127.0.0.1 MB_REDIS_PORT=6379 \
+  ./venv/bin/python -m uvicorn agent_events_service:app --host 0.0.0.0 --port 8010</code></pre>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">systemd Install</p>
+                <pre class="mt-3 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100"><code>sudo cp /root/montanablotter/ops/systemd/flask-app.service /etc/systemd/system/montanablotter.service
+sudo cp /root/montanablotter/ops/systemd/agent-events.service /etc/systemd/system/montanablotter-agent-events.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now montanablotter.service
+sudo systemctl enable --now montanablotter-agent-events.service</code></pre>
+            </div>
+        </div>
+
+        <div class="border-t border-slate-200 px-6 py-5">
+            <div class="grid gap-4 lg:grid-cols-3">
+                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Flask</p>
+                    <p class="mt-2 text-sm text-slate-700">Keep the main app on port 5000 behind gunicorn.</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">FastAPI</p>
+                    <p class="mt-2 text-sm text-slate-700">Run the agent-events service on port 8010 behind uvicorn.</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Redis</p>
+                    <p class="mt-2 text-sm text-slate-700">Both services must point at the same Redis URL or host/port pair.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
+        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Verification</p>
+        <ul class="space-y-2 text-sm text-slate-700 list-disc pl-5">
+            <li><code class="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">GET /api/monitoring/agents/bootstrap</code> returns <code class="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">ok: true</code>.</li>
+            <li><code class="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">WS /ws/agents</code> connects and receives a snapshot event.</li>
+            <li>Dashboard review actions publish into Redis and appear in the live feed.</li>
+        </ul>
+    </section>
+</div>
+{% endblock %}

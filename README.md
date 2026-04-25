@@ -196,6 +196,33 @@ Exit codes:
 
 The watchdog is also scheduled in [crontab.txt](/root/montanablotter/crontab.txt) to run daily and append output to `cron_errors.log`.
 
+## 🤖 Hermes Workflows
+
+Hermes is configured as an AI operations layer on top of existing cron jobs.
+
+Setup:
+
+```bash
+cd /root/montanablotter
+./scripts/ops/setup_hermes_workflows.sh
+```
+
+Manual context scripts (for quick debugging):
+
+```bash
+./scripts/ops/hermes_context_health.py
+./scripts/ops/hermes_context_ingestion.py
+./scripts/ops/hermes_context_growth.py
+```
+
+Useful Hermes commands:
+
+```bash
+/root/.local/bin/hermes cron list
+/root/.local/bin/hermes cron status
+/root/.local/bin/hermes gateway status
+```
+
 ## 🎨 Dashboard Features
 
 - **Authentication**: Secure login system
