@@ -16,7 +16,7 @@ if [ ! -f "/root/montanablotter/app.py" ]; then
     git clone https://github.com/ohjoncurrie-netizen/policedashboard.git /root/montanablotter
 else
     echo "[2/7] Repo already present, pulling latest..."
-    git -C /root/montanablotter pull
+    # git -C /root/montanablotter pull
 fi
 
 cd /root/montanablotter

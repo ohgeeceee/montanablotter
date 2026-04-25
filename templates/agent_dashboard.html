@@ -1,0 +1,66 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2 text-slate-300">/</span>
+<span class="text-slate-700">Agent Monitoring Dashboard</span>
+{% endblock %}
+
+{% block hero %}
+<section class="border-b border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.98),_rgba(2,6,23,1)_65%)]">
+    <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
+        <div class="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-end">
+            <div>
+                <p class="text-[11px] font-black uppercase tracking-[0.26em] text-cyan-400">Autonomous Agent Operations</p>
+                <h1 class="mt-4 text-4xl font-black tracking-tight text-white sm:text-6xl">
+                    Hermes Agent
+                    <span class="italic text-cyan-300">Monitoring Dashboard</span>
+                </h1>
+                <p class="mt-5 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                    Live command surface for Hermes-Scan, Hermes-Intel, and Hermes-Notify. Watch the thought stream,
+                    monitor pipeline health, and approve summaries before anything reaches the public site.
+                </p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                <div class="rounded-[24px] border border-slate-800 bg-white/5 p-5 backdrop-blur">
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Live Sources</p>
+                    <p class="mt-3 text-3xl font-black text-white">{{ agent_dashboard_payload.summary.live_sources }}</p>
+                </div>
+                <div class="rounded-[24px] border border-slate-800 bg-white/5 p-5 backdrop-blur">
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Pending Reviews</p>
+                    <p class="mt-3 text-3xl font-black text-white">{{ agent_dashboard_payload.summary.pending_reviews }}</p>
+                </div>
+                <div class="rounded-[24px] border border-slate-800 bg-white/5 p-5 backdrop-blur">
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Stale Sources</p>
+                    <p class="mt-3 text-3xl font-black text-white">{{ agent_dashboard_payload.summary.stale_sources }}</p>
+                </div>
+                <div class="rounded-[24px] border border-slate-800 bg-white/5 p-5 backdrop-blur">
+                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Active Alerts</p>
+                    <p class="mt-3 text-3xl font-black text-white">{{ agent_dashboard_payload.summary.active_alerts }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+    <div class="mb-6 flex flex-wrap items-center gap-3">
+        <span class="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300">Live Thought Stream</span>
+        <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">System Health Cards</span>
+        <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Data Pipeline</span>
+        <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Manual Intervention Toggle</span>
+    </div>
+
+    <div
+        id="agent-dashboard-root"
+        class="min-h-[780px]"
+        data-bootstrap-url="/api/monitoring/agents/bootstrap"
+        data-approval-endpoint="{{ agent_dashboard_payload.approval_endpoint }}"
+        data-ws-url="{{ agent_dashboard_payload.ws_url }}"
+    ></div>
+
+    <script id="agent-dashboard-data" type="application/json">{{ agent_dashboard_payload | tojson }}</script>
+    <script type="module" src="{{ url_for('static', filename='js/agent-dashboard.js') }}"></script>
+</section>
+{% endblock %}

@@ -664,7 +664,7 @@ def advertise_bail_control_panel(token):
         signal_label=context['signal_label'],
         welcome=welcome,
         session_id=session_id,
-        contract_info=m._bail_ad_contract_context(),
+        contract_info=m._bail_ad_contract_context(order['onboarding_token']),
         page_title=f"{order['business_name']} Control Panel",
         meta_description='Private control panel for bail bonds advertisers after payment.',
         canonical_url='',
@@ -686,16 +686,33 @@ def advertise_bail_checkout_cancel():
     )
 
 
-@payments_bp.route('/advertise/bail-bonds/contract')
-def advertise_bail_contract():
+@payments_bp.route('/advertise/bail-bonds/control-panel/<token>/contract')
+def advertise_bail_private_contract(token):
     m = _app()
-    contract_info = m._bail_ad_contract_context()
+    safe_token = (token or '').strip()[:128]
+    conn = get_db()
+    try:
+        order = conn.execute(
+            '''
+            SELECT business_name, onboarding_token
+            FROM bail_ad_orders
+            WHERE onboarding_token = ?
+            LIMIT 1
+            ''',
+            (safe_token,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not order:
+        return render_template('404.html'), 404
+
+    contract_info = m._bail_ad_contract_context(order['onboarding_token'])
     return render_template(
         'advertise_bail_contract.html',
         contract_info=contract_info,
         page_title=contract_info['title'],
         meta_description="Review the Affordable Bail Bonds advertising contract for Montana Blotter placements, billing, creative review, and cancellation terms.",
-        canonical_url=f'{m.BASE_URL}/advertise/bail-bonds/contract',
+        canonical_url='',
         og_title=contract_info['title'],
         og_description=contract_info['summary'],
         active_nav='advertise',

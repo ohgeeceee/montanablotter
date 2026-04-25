@@ -65,6 +65,7 @@ def service_status_snapshot() -> list[dict[str, Any]]:
         {"label": "RQ Ingestion", "service": "montanablotter-rq-ingestion.service"},
         {"label": "RQ Parsing", "service": "montanablotter-rq-parsing.service"},
         {"label": "RQ Publishing", "service": "montanablotter-rq-publishing.service"},
+        {"label": "Agent Events", "service": "montanablotter-agent-events.service"},
     ]
 
     rows: list[dict[str, Any]] = []

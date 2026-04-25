@@ -681,14 +681,25 @@ def _parse_official_counts(html: str) -> dict[str, int]:
         'missing_more_than_year': 0,
     }
     patterns = {
-        'total_active': r'totalCount"><span class="underline">(\d+)\s+Individuals',
-        'missing_less_than_year': r'lessThanAYearCount"><span class="underline">(\d+)</span>',
-        'missing_more_than_year': r'moreThanAYearCount"><span class="underline">(\d+)</span>',
+        'total_active': (
+            r'totalCount"><span class="underline">(\d+)\s+Individuals',
+            r'>(\d+)\s+individuals\s+match\s+search\s+criteria\s*<',
+        ),
+        'missing_less_than_year': (
+            r'lessThanAYearCount"><span class="underline">(\d+)</span>',
+            r'>(\d+)\s+missing\s+less\s+than\s+a\s+year\s*<',
+        ),
+        'missing_more_than_year': (
+            r'moreThanAYearCount"><span class="underline">(\d+)</span>',
+            r'>(\d+)\s+missing\s+more\s+than\s+a\s+year\s*<',
+        ),
     }
-    for key, pattern in patterns.items():
-        match = re.search(pattern, html, re.IGNORECASE)
-        if match:
-            counts[key] = int(match.group(1))
+    for key, candidates in patterns.items():
+        for pattern in candidates:
+            match = re.search(pattern, html, re.IGNORECASE)
+            if match:
+                counts[key] = int(match.group(1))
+                break
     return counts
 
 
@@ -700,7 +711,7 @@ def _parse_official_tooltip_label(html: str, label: str) -> str:
 def _parse_official_card_records(html: str) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     card_pattern = re.compile(
-        r'<div class="personCard"(?P<attrs>.*?)>(?P<body>.*?)onclick=\'detailOnClickXML\((?P<args>.*?)\)\'',
+        r'<(?:div|li)\s+class="personCard"(?P<attrs>.*?)>(?P<body>.*?)onclick=\'(?:detailOnClickXML|OpenDetailsWindow)\((?P<args>.*?)\)\'',
         re.IGNORECASE | re.DOTALL,
     )
     attr_pattern = re.compile(r'data-(?P<name>[a-z]+)="(?P<value>[^"]*)"')

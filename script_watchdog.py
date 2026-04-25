@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import http.client
 import socket
 import sqlite3
 import subprocess
@@ -19,8 +20,11 @@ import config
 
 ROOT = Path("/root/montanablotter")
 SYSTEMD_SERVICE = "montanablotter.service"
+AGENT_EVENTS_SERVICE = "montanablotter-agent-events.service"
 WEB_SOCKET_PATH = Path("/tmp/montanablotter.sock")
 WEB_REQUEST_PATH = "/"
+WEB_HOST = "127.0.0.1"
+WEB_PORT = 5000
 
 
 @dataclass(frozen=True)
@@ -63,6 +67,9 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("bozeman_police_calls", ROOT / "bozeman_calls.log", 2, "hourly"),
     MonitoredJob("bozeman_police_crime", ROOT / "bozeman_crime.log", 8, "every 6 hours"),
     MonitoredJob("ingestion_alerts", ROOT / "ingestion_alerts.log", 2, "every 30 minutes"),
+    MonitoredJob("news_planner", ROOT / "news_planner.log", 5, "every 3 hours"),
+    MonitoredJob("news_writer_agent", ROOT / "news_writer.log", 2, "hourly"),
+    MonitoredJob("news_editor_agent", ROOT / "news_editor.log", 2, "hourly"),
 )
 
 STATE_JOBS: tuple[MonitoredStateJob, ...] = (
@@ -243,49 +250,80 @@ def _check_systemd_service() -> dict[str, object]:
     }
 
 
-def _check_web_service() -> dict[str, object]:
-    if not WEB_SOCKET_PATH.exists():
+def _check_agent_events_service() -> dict[str, object]:
+    try:
+        result = subprocess.run(
+            [
+                "systemctl",
+                "show",
+                AGENT_EVENTS_SERVICE,
+                "--property=ActiveState,SubState,ExecMainPID,ExecMainStatus",
+            ],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=10,
+        )
+    except FileNotFoundError:
         return {
-            "name": "web",
+            "name": AGENT_EVENTS_SERVICE,
             "kind": "service",
             "status": "missing",
-            "socket_path": str(WEB_SOCKET_PATH),
-            "details": "unix socket not found",
+            "details": "systemctl is not installed",
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "name": AGENT_EVENTS_SERVICE,
+            "kind": "service",
+            "status": "error",
+            "details": "systemctl timed out",
         }
 
+    properties: dict[str, str] = {}
+    for line in result.stdout.splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        properties[key] = value
+
+    active_state = properties.get("ActiveState")
+    sub_state = properties.get("SubState")
+    pid = properties.get("ExecMainPID")
+    exit_status = properties.get("ExecMainStatus")
+
+    status = "ok" if result.returncode == 0 and active_state == "active" and sub_state == "running" else "error"
+    details = f"active={active_state or 'unknown'} sub={sub_state or 'unknown'} pid={pid or 'unknown'} exit={exit_status or 'unknown'}"
+
+    return {
+        "name": AGENT_EVENTS_SERVICE,
+        "kind": "service",
+        "status": status,
+        "active_state": active_state,
+        "sub_state": sub_state,
+        "pid": pid,
+        "exit_status": exit_status,
+        "details": details,
+    }
+
+
+def _check_web_service() -> dict[str, object]:
     started = datetime.now(timezone.utc)
     try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-            client.settimeout(5)
-            client.connect(str(WEB_SOCKET_PATH))
-            request = (
-                f"HEAD {WEB_REQUEST_PATH} HTTP/1.1\r\n"
-                "Host: localhost\r\n"
-                "Connection: close\r\n"
-                "\r\n"
-            )
-            client.sendall(request.encode("ascii"))
-
-            response = b""
-            while b"\r\n" not in response and len(response) < 4096:
-                chunk = client.recv(4096)
-                if not chunk:
-                    break
-                response += chunk
-    except OSError as exc:
+        connection = http.client.HTTPConnection(WEB_HOST, WEB_PORT, timeout=5)
+        connection.request("HEAD", WEB_REQUEST_PATH, headers={"Host": "montanablotter.com"})
+        response = connection.getresponse()
+        status_code = response.status
+        status_line = f"HTTP/{response.version / 10:.1f} {status_code} {response.reason}"
+        response.read()
+        connection.close()
+    except (OSError, http.client.HTTPException) as exc:
         return {
             "name": "web",
             "kind": "service",
             "status": "error",
-            "socket_path": str(WEB_SOCKET_PATH),
+            "target": f"http://{WEB_HOST}:{WEB_PORT}{WEB_REQUEST_PATH}",
             "details": str(exc),
         }
-
-    status_line = response.split(b"\r\n", 1)[0].decode("iso-8859-1", errors="replace")
-    parts = status_line.split(" ", 2)
-    status_code = None
-    if len(parts) >= 2 and parts[1].isdigit():
-        status_code = int(parts[1])
 
     elapsed_ms = round((datetime.now(timezone.utc) - started).total_seconds() * 1000, 2)
     status = "ok" if status_code is not None and 200 <= status_code < 400 else "error"
@@ -294,7 +332,7 @@ def _check_web_service() -> dict[str, object]:
         "name": "web",
         "kind": "service",
         "status": status,
-        "socket_path": str(WEB_SOCKET_PATH),
+        "target": f"http://{WEB_HOST}:{WEB_PORT}{WEB_REQUEST_PATH}",
         "status_line": status_line,
         "status_code": status_code,
         "response_ms": elapsed_ms,
@@ -308,7 +346,7 @@ def run_watchdog() -> tuple[int, dict[str, object]]:
         *[_check_job(job, now) for job in JOBS],
         *[_check_state_job(job, now) for job in STATE_JOBS],
     ]
-    service_checks = [_check_systemd_service(), _check_web_service()]
+    service_checks = [_check_systemd_service(), _check_agent_events_service(), _check_web_service()]
     checks = [*service_checks, *job_checks]
     failing = [item for item in checks if item["status"] != "ok"]
     payload = {

@@ -90,3 +90,12 @@ BASH_ENV=/root/montanablotter/.env
 
 # Montana missing-person watch — sync hourly and notify on newly listed people
 0 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missing_person_watch --log /root/montanablotter/missing_person_watch.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/missing_person_watch.py
+
+# Autonomous newsroom planner — every 3 hours
+15 */3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_planner --log /root/montanablotter/news_planner.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/news_planner.py
+
+# Autonomous newsroom writer — hourly
+25 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_writer_agent --log /root/montanablotter/news_writer.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/news_writer_agent.py
+
+# Autonomous newsroom editor — hourly
+35 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_editor_agent --log /root/montanablotter/news_editor.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/news_editor_agent.py

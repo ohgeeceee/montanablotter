@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Mission Control | Admin{% endblock %}
+
+{% block content %}
+<style>
+  .mc-shell {
+    --mc-bg: #f5efe6;
+    --mc-card: #fffdf8;
+    --mc-line: #d8ccb8;
+    --mc-ink: #172033;
+    --mc-muted: #667085;
+    background:
+      radial-gradient(circle at top left, rgba(14, 165, 233, 0.1), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.12), transparent 26%),
+      var(--mc-bg);
+  }
+  .mc-panel {
+    background: var(--mc-card);
+    border: 1px solid var(--mc-line);
+    border-radius: 24px;
+    box-shadow: 0 18px 48px rgba(23, 32, 51, 0.08);
+  }
+  .mc-floor {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mc-zone {
+    min-height: 180px;
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px dashed var(--mc-line);
+    background: rgba(255, 255, 255, 0.58);
+  }
+  .mc-agent {
+    width: 100%;
+    text-align: left;
+    border-radius: 16px;
+    border: 1px solid #d7dee8;
+    background: #ffffff;
+    padding: 12px;
+  }
+  @media (max-width: 900px) {
+    .mc-floor { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="mc-shell min-h-screen rounded-[32px] p-4 sm:p-6">
+  <div class="mx-auto max-w-7xl space-y-6">
+    <section class="mc-panel p-5">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p class="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700">Admin Only</p>
+          <h1 class="mt-2 text-3xl font-black text-slate-950">Mission Control</h1>
+          <p class="mt-2 max-w-2xl text-sm text-slate-600">Live operational view of real agents on this VPS.</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Snapshot</p>
+          <p id="mc-captured-at" class="mt-1 font-mono text-sm text-slate-800">{{ snapshot.captured_at }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.65fr]">
+      <article class="mc-panel p-5">
+        <div class="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Office Floor</p>
+            <h2 class="mt-1 text-2xl font-black text-slate-950">Working Desks</h2>
+          </div>
+          <p class="text-xs text-slate-500">Polling every 2 seconds</p>
+        </div>
+
+        <div class="mc-floor">
+          {% set zone_titles = {
+            'ready': 'Ready Lounge',
+            'working': 'Working Desks',
+            'tool_run': 'Tool Bench',
+            'waiting': 'Review Table',
+            'blocked': 'Incident Bay',
+            'done': 'Archive Shelf',
+            'offline': 'Offline Corner',
+          } %}
+          {% for zone_key, zone_label in zone_titles.items() %}
+          <section class="mc-zone" data-zone="{{ zone_key }}">
+            <h3 class="font-black text-slate-800">{{ zone_label }}</h3>
+            <div class="mt-3 space-y-3" id="zone-{{ zone_key }}">
+              {% for agent in snapshot.agents if agent.state == zone_key %}
+              <button
+                type="button"
+                class="mc-agent"
+                data-agent='{{ agent | tojson }}'
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="font-black text-slate-950">{{ agent.display_name }}</p>
+                    <p class="mt-1 text-xs uppercase tracking-[0.12em] text-slate-500">{{ agent.runtime }}{% if agent.stale %} · stale{% endif %}</p>
+                  </div>
+                  <span class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">{{ agent.state }}</span>
+                </div>
+                <p class="mt-3 text-sm text-slate-700">{{ agent.current_task or "No active task reported." }}</p>
+              </button>
+              {% else %}
+              <p class="rounded-2xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-400">No agents in this zone.</p>
+              {% endfor %}
+            </div>
+          </section>
+          {% endfor %}
+        </div>
+      </article>
+
+      <aside class="space-y-6">
+        <section class="mc-panel p-5">
+          <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Agent Detail</p>
+          <h2 class="mt-1 text-xl font-black text-slate-950">Current Focus</h2>
+          <div id="agent-detail" class="mt-3 space-y-2 text-sm text-slate-600">
+            {% if snapshot.agents %}
+            {% set first_agent = snapshot.agents[0] %}
+            <p class="font-black text-slate-950">{{ first_agent.display_name }}</p>
+            <p>{{ first_agent.current_task or "No active task reported." }}</p>
+            {% else %}
+            <p>Select an agent card to inspect the current task.</p>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="mc-panel p-5">
+          <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Recent Events</p>
+          <h2 class="mt-1 text-xl font-black text-slate-950">Event Rail</h2>
+          <div id="event-rail" class="mt-3 space-y-2 text-sm text-slate-700">
+            <p class="text-slate-500">Loading recent events.</p>
+          </div>
+        </section>
+      </aside>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    function renderDetail(agent) {
+      var detail = document.getElementById('agent-detail');
+      if (!detail || !agent) return;
+      detail.innerHTML =
+        '<p class="font-black text-slate-950">' + (agent.display_name || agent.agent_id || 'Agent') + '</p>' +
+        '<p>' + (agent.current_task || 'No active task reported.') + '</p>' +
+        '<p class="text-xs uppercase tracking-[0.12em] text-slate-500">' + (agent.state || 'unknown') + '</p>';
+    }
+
+    function attachClickHandlers() {
+      document.querySelectorAll('.mc-agent').forEach(function (button) {
+        button.removeEventListener('click', button._clickHandler);
+        button._clickHandler = function () {
+          try {
+            renderDetail(JSON.parse(button.getAttribute('data-agent') || '{}'));
+          } catch (_) {}
+        };
+        button.addEventListener('click', button._clickHandler);
+      });
+    }
+    attachClickHandlers();
+
+    async function refreshEvents() {
+      try {
+        var response = await fetch('/admin/api/mission-control/events', { cache: 'no-store' });
+        if (!response.ok) return;
+        var payload = await response.json();
+        var rail = document.getElementById('event-rail');
+        if (!rail) return;
+        var events = payload.events || [];
+        if (!events.length) {
+          rail.innerHTML = '<p class="text-slate-500">No recent events.</p>';
+          return;
+        }
+        rail.innerHTML = events.slice(0, 8).map(function (event) {
+          return '<div class="rounded-2xl border border-slate-200 bg-white px-3 py-2">' +
+            '<p class="font-semibold text-slate-900">' + (event.agent_id || 'agent') + '</p>' +
+            '<p class="text-slate-600">' + (event.message || event.event_type || 'Event') + '</p>' +
+            '</div>';
+        }).join('');
+      } catch (_) {}
+    }
+
+    async function refreshSnapshot() {
+      try {
+        var response = await fetch('/admin/api/mission-control/snapshot', { cache: 'no-store' });
+        if (!response.ok) return;
+        var payload = await response.json();
+        var capturedAt = document.getElementById('mc-captured-at');
+        if (capturedAt && payload.captured_at) {
+          capturedAt.textContent = payload.captured_at;
+        }
+
+        var zones = ['ready', 'working', 'tool_run', 'waiting', 'blocked', 'done', 'offline'];
+        var agentsByZone = {};
+        zones.forEach(function(z) { agentsByZone[z] = []; });
+        (payload.agents || []).forEach(function(agent) {
+          if (agentsByZone[agent.state]) {
+            agentsByZone[agent.state].push(agent);
+          } else {
+            agentsByZone['ready'].push(agent);
+          }
+        });
+
+        zones.forEach(function(z) {
+          var container = document.getElementById('zone-' + z);
+          if (!container) return;
+          var html = '';
+          if (agentsByZone[z].length === 0) {
+            html = '<p class="rounded-2xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-400">No agents in this zone.</p>';
+          } else {
+            agentsByZone[z].forEach(function(agent) {
+              var staleText = agent.stale ? ' &middot; stale' : '';
+              var agentData = JSON.stringify(agent).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+              var taskText = agent.current_task || 'No active task reported.';
+              html += '<button type="button" class="mc-agent" data-agent="' + agentData + '">';
+              html += '<div class="flex items-start justify-between gap-3">';
+              html += '<div>';
+              html += '<p class="font-black text-slate-950">' + (agent.display_name || '') + '</p>';
+              html += '<p class="mt-1 text-xs uppercase tracking-[0.12em] text-slate-500">' + (agent.runtime || '') + staleText + '</p>';
+              html += '</div>';
+              html += '<span class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">' + (agent.state || '') + '</span>';
+              html += '</div>';
+              html += '<p class="mt-3 text-sm text-slate-700">' + taskText + '</p>';
+              html += '</button>';
+            });
+          }
+          container.innerHTML = html;
+        });
+
+        attachClickHandlers();
+      } catch (_) {}
+    }
+
+    function tick() {
+      refreshEvents();
+      refreshSnapshot();
+    }
+
+    tick();
+    setInterval(tick, 2000);
+  })();
+</script>
+{% endblock %}
