@@ -6212,11 +6212,11 @@ def inject_public_nav():
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
         {'id': 'jail_rosters', 'href': '/detention', 'label': 'Detention', 'menu_label': 'Jails'},
         {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds', 'menu_label': 'Bail'},
+        {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons', 'menu_label': 'Missing'},
     ]
     public_secondary_nav_items = [
         {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys', 'menu_label': 'Cases'},
         {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings', 'menu_label': 'Bookings'},
-        {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons', 'menu_label': 'Missing'},
         {'id': 'support', 'href': '/support', 'label': 'Support'},
     ]
     if public_user and getattr(public_user, 'is_subscribed', False):
@@ -7868,6 +7868,8 @@ def missing_persons_index():
         conn,
         status_filter=request.args.get('status'),
         q=request.args.get('q'),
+        county=request.args.get('county'),
+        sort=request.args.get('sort'),
     )
     conn.close()
     return render_template(
