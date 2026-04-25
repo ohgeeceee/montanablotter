@@ -144,6 +144,7 @@ class PublicApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload["total"], 1)
         self.assertEqual(payload["posts"][0]["id"], self.clean_post_id)
+        self.assertEqual(payload["posts"][0]["source_pdf_name"], "api-report.pdf")
 
     def test_post_detail_api_404s_pending_posts(self) -> None:
         client = app_module.app.test_client()
@@ -152,6 +153,7 @@ class PublicApiTests(unittest.TestCase):
         pending_response = client.get(f"/api/posts/{self.pending_post_id}")
 
         self.assertEqual(clean_response.status_code, 200)
+        self.assertEqual(clean_response.get_json()["source_pdf_name"], "api-report.pdf")
         self.assertEqual(pending_response.status_code, 404)
 
     def test_directory_and_stats_api_match_mobile_contract(self) -> None:

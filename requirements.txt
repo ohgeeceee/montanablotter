@@ -8,6 +8,8 @@ cffi==2.0.0
 charset-normalizer==3.4.6
 click==8.3.1
 croniter==6.2.2
+fastapi==0.115.8
+uvicorn==0.34.0
 cryptography==46.0.6
 distro==1.9.0
 docstring_parser==0.17.0
@@ -78,3 +80,4 @@ uritemplate==4.2.0
 urllib3==2.6.3
 websockets==16.0
 Werkzeug==3.1.7
+libsql-experimental>=0.0.55

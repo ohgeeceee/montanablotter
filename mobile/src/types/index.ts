@@ -8,6 +8,7 @@ export interface Post {
   incident_date: string;
   incident_type: string;
   created_at: string;
+  source_pdf_name?: string | null;
 }
 
 export interface PostsResponse {

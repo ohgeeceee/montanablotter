@@ -162,6 +162,8 @@ class PublicDetailRouteTests(unittest.TestCase):
         self.assertIn('Incident Log Behind This Report', html)
         self.assertIn('/record/', html)
         self.assertIn('/laws/charge/theft', html)
+        self.assertIn('Open Original PDF', html)
+        self.assertIn('/uploads/yellowstone-daily-report.pdf', html)
         self.assertNotIn('123 Main St', html)
         self.assertIn('[redacted home address]', html)
 
@@ -177,6 +179,8 @@ class PublicDetailRouteTests(unittest.TestCase):
         self.assertIn('Command Log', html)
         self.assertIn('/post/' + str(post_id), html)
         self.assertIn('Officer documented the scene', html)
+        self.assertIn('Open Source PDF', html)
+        self.assertIn('/uploads/yellowstone-daily-report.pdf', html)
         self.assertNotIn('123 Main St', html)
         self.assertIn('[redacted home address]', html)
 
