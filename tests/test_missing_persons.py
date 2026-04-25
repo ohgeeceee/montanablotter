@@ -171,6 +171,171 @@ class MissingPersonsTests(unittest.TestCase):
         conn.close()
         return slug
 
+    def test_ensure_missing_person_schema_migrates_legacy_delivery_schema(self) -> None:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+
+        conn.execute('DROP TABLE IF EXISTS missing_person_push_subscriptions')
+        conn.execute('DROP INDEX IF EXISTS idx_missing_person_alert_delivery_unique')
+        conn.execute('DROP TABLE IF EXISTS missing_person_alert_deliveries')
+        conn.execute('DROP TABLE IF EXISTS subscribers')
+        conn.execute(
+            '''
+            CREATE TABLE subscribers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                counties TEXT DEFAULT '',
+                token TEXT NOT NULL,
+                active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO subscribers (email, counties, token, active)
+            VALUES (?, ?, ?, ?), (?, ?, ?, ?)
+            ''',
+            (
+                'legacy-1@example.com', 'Gallatin', 'legacy-token-1', 1,
+                'legacy-2@example.com', 'Yellowstone', 'legacy-token-2', 1,
+            ),
+        )
+        conn.execute(
+            '''
+            CREATE TABLE missing_person_alert_deliveries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                missing_person_id INTEGER NOT NULL,
+                notification_version INTEGER NOT NULL DEFAULT 1,
+                recipient_email TEXT NOT NULL,
+                delivery_status TEXT NOT NULL DEFAULT 'queued',
+                error_message TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO missing_person_alert_deliveries (
+                missing_person_id,
+                notification_version,
+                recipient_email,
+                delivery_status,
+                error_message,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ''',
+            (1, 1, 'legacy@example.com', 'queued', '', '2026-04-25 08:00:00'),
+        )
+        conn.execute(
+            '''
+            INSERT INTO missing_person_alert_deliveries (
+                missing_person_id,
+                notification_version,
+                recipient_email,
+                delivery_status,
+                error_message,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ''',
+            (1, 1, ' legacy@example.com ', 'queued', '', '2026-04-25 08:05:00'),
+        )
+        conn.commit()
+
+        missing_persons_module.ensure_missing_person_schema(conn)
+        missing_persons_module.ensure_missing_person_schema(conn)
+
+        subscriber_columns = {
+            row['name']
+            for row in conn.execute("PRAGMA table_info('subscribers')").fetchall()
+        }
+        assert 'missing_person_email_opt_in' in subscriber_columns
+        assert 'missing_person_sms_opt_in' in subscriber_columns
+        assert 'missing_person_push_opt_in' in subscriber_columns
+        assert 'phone_verified_at' in subscriber_columns
+
+        push_columns = {
+            row['name']
+            for row in conn.execute("PRAGMA table_info('missing_person_push_subscriptions')").fetchall()
+        }
+        assert {'subscriber_id', 'endpoint', 'p256dh_key', 'auth_key', 'active'} <= push_columns
+
+        delivery_columns = {
+            row['name']
+            for row in conn.execute("PRAGMA table_info('missing_person_alert_deliveries')").fetchall()
+        }
+        assert {'subscriber_id', 'channel', 'recipient', 'provider_message_id', 'updated_at'} <= delivery_columns
+
+        migrated_row = conn.execute(
+            '''
+            SELECT recipient, channel, updated_at
+            FROM missing_person_alert_deliveries
+            WHERE recipient_email = ?
+            ''',
+            ('legacy@example.com',),
+        ).fetchone()
+        assert migrated_row is not None
+        assert migrated_row['recipient'] == 'legacy@example.com'
+        assert migrated_row['channel'] == 'email'
+        assert migrated_row['updated_at'] == '2026-04-25 08:00:00'
+        spaced_row = conn.execute(
+            '''
+            SELECT recipient, channel, updated_at
+            FROM missing_person_alert_deliveries
+            WHERE recipient_email = ?
+            ''',
+            (' legacy@example.com ',),
+        ).fetchone()
+        assert spaced_row is not None
+        assert spaced_row['recipient'] == ' legacy@example.com '
+        assert spaced_row['channel'] == 'email'
+        assert spaced_row['updated_at'] == '2026-04-25 08:05:00'
+
+        conn.execute(
+            '''
+            INSERT INTO missing_person_alert_deliveries (
+                missing_person_id,
+                notification_version,
+                subscriber_id,
+                recipient_email,
+                channel,
+                recipient,
+                delivery_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (1, 1, 1, '', 'sms', '', 'queued'),
+        )
+        conn.execute(
+            '''
+            INSERT INTO missing_person_alert_deliveries (
+                missing_person_id,
+                notification_version,
+                subscriber_id,
+                recipient_email,
+                channel,
+                recipient,
+                delivery_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (1, 1, 2, '', 'sms', '', 'queued'),
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            conn.execute(
+                '''
+                INSERT INTO missing_person_alert_deliveries (
+                    missing_person_id,
+                    notification_version,
+                    subscriber_id,
+                    recipient_email,
+                    channel,
+                    recipient,
+                    delivery_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (1, 1, 1, '', 'sms', '', 'queued'),
+            )
+
     def test_parse_official_card_records_and_counts(self) -> None:
         html = """
         <div id="resultsInfo">
