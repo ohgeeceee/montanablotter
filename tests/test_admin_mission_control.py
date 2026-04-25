@@ -80,6 +80,14 @@ class AdminMissionControlTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/admin/login", response.headers["Location"])
 
+    def test_runbook_page_requires_login(self) -> None:
+        client = app_module.app.test_client()
+
+        response = client.get("/admin/mission-control/runbook")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login", response.headers["Location"])
+
     def test_snapshot_endpoint_returns_agents_payload(self) -> None:
         client = app_module.app.test_client()
         self._login(client)
@@ -179,6 +187,17 @@ class AdminMissionControlTests(unittest.TestCase):
         self.assertIn("Mission Control", html)
         self.assertIn("Working Desks", html)
         self.assertIn("Reporter", html)
+
+    def test_mission_control_runbook_renders(self) -> None:
+        client = app_module.app.test_client()
+        self._login(client)
+
+        response = client.get("/admin/mission-control/runbook")
+
+        html = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Agent Events Service Deployment", html)
+        self.assertIn("/root/montanablotter/ops/systemd/flask-app.service", html)
 
 
 if __name__ == "__main__":

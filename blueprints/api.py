@@ -33,6 +33,22 @@ def _app():
 # Routes
 # ---------------------------------------------------------------------------
 
+def _source_pdf_name(row):
+    if not row:
+        return None
+
+    file_path = (row['file_path'] or '').strip() if 'file_path' in row.keys() else ''
+    if file_path:
+        return os.path.basename(file_path)
+
+    filename = ''
+    for key in ('blotter_filename', 'filename'):
+        if key in row.keys() and (row[key] or '').strip():
+            filename = row[key].strip()
+            break
+    return os.path.basename(filename) if filename else None
+
+
 def _post_payload(row):
     return {
         'id': int(row['id']),
@@ -44,6 +60,7 @@ def _post_payload(row):
         'incident_date': row['incident_date'] or '',
         'incident_type': row['incident_type'] or '',
         'created_at': row['created_at'] or '',
+        'source_pdf_name': _source_pdf_name(row),
     }
 
 
@@ -115,11 +132,13 @@ def api_posts():
     total = conn.execute(f'SELECT COUNT(*) FROM posts WHERE {where_sql}', params).fetchone()[0]
     rows = conn.execute(
         f'''
-        SELECT id, title, summary, county, agency_name, agency_type, incident_date,
-               incident_type, created_at
+        SELECT posts.id, posts.title, posts.summary, posts.county, posts.agency_name,
+               posts.agency_type, posts.incident_date, posts.incident_type, posts.created_at,
+               blotters.file_path AS file_path, blotters.filename AS blotter_filename
         FROM posts
+        LEFT JOIN blotters ON blotters.id = posts.blotter_id
         WHERE {where_sql}
-        ORDER BY incident_date DESC, created_at DESC, id DESC
+        ORDER BY incident_date DESC, created_at DESC, posts.id DESC
         LIMIT ? OFFSET ?
         ''',
         [*params, per_page, offset],
@@ -139,11 +158,13 @@ def api_post_detail(post_id: int):
     conn = get_db()
     row = conn.execute(
         '''
-        SELECT id, title, summary, county, agency_name, agency_type, incident_date,
-               incident_type, created_at
+        SELECT posts.id, posts.title, posts.summary, posts.county, posts.agency_name,
+               posts.agency_type, posts.incident_date, posts.incident_type, posts.created_at,
+               blotters.file_path AS file_path, blotters.filename AS blotter_filename
         FROM posts
-        WHERE id = ?
-          AND COALESCE(audit_status, 'pending') = 'clean'
+        LEFT JOIN blotters ON blotters.id = posts.blotter_id
+        WHERE posts.id = ?
+          AND COALESCE(posts.audit_status, 'pending') = 'clean'
         LIMIT 1
         ''',
         (post_id,),

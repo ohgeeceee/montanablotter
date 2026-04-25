@@ -1,1 +1,0 @@
-scripts/maintenance/DEPLOYMENT_GUIDE.py

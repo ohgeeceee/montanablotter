@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime
 
 import config
+from db import connect_page_views
 
 DB_PATH = config.DB_PATH
 REPORT_DIR = os.path.join(os.path.dirname(__file__), 'reports')
@@ -28,12 +29,18 @@ def _fetch_metrics(conn):
         conn,
         "SELECT COUNT(*) FROM pattern_clicks WHERE placement = 'post_related_patterns' AND created_at >= date('now', '-30 days')",
     )
-    metrics['homepage_views'] = _row_count(
-        conn, "SELECT COUNT(*) FROM page_views WHERE path = '/' AND created_at >= date('now', '-30 days')"
-    )
-    metrics['post_views'] = _row_count(
-        conn, "SELECT COUNT(*) FROM page_views WHERE path LIKE '/post/%' AND created_at >= date('now', '-30 days')"
-    )
+    try:
+        pv_conn = connect_page_views()
+        metrics['homepage_views'] = _row_count(
+            pv_conn, "SELECT COUNT(*) FROM page_views WHERE path = '/' AND created_at >= date('now', '-30 days')"
+        )
+        metrics['post_views'] = _row_count(
+            pv_conn, "SELECT COUNT(*) FROM page_views WHERE path LIKE '/post/%' AND created_at >= date('now', '-30 days')"
+        )
+        pv_conn.close()
+    except Exception:
+        metrics['homepage_views'] = 0
+        metrics['post_views'] = 0
     metrics['homepage_ctr'] = (
         (metrics['homepage_clicks'] / metrics['homepage_views'] * 100) if metrics['homepage_views'] else 0.0
     )

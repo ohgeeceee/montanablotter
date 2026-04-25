@@ -5,10 +5,12 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { api } from '../services/api';
 import { Post } from '../types';
-import { COLORS } from '../constants';
+import { API_BASE_URL, COLORS } from '../constants';
 
 interface RouteParams {
   postId: number;
@@ -83,6 +85,21 @@ export default function PostDetailScreen({ route }: { route: { params: RoutePara
         <Text style={styles.summaryTitle}>Summary</Text>
         <Text style={styles.summary}>{post.summary}</Text>
       </View>
+
+      {post.source_pdf_name ? (
+        <View style={styles.pdfSection}>
+          <Text style={styles.summaryTitle}>Source PDF</Text>
+          <TouchableOpacity
+            style={styles.pdfButton}
+            onPress={() => {
+              Linking.openURL(`${API_BASE_URL}/uploads/${encodeURIComponent(post.source_pdf_name!)}`)
+                .catch((error) => console.error('Failed to open source PDF:', error));
+            }}
+          >
+            <Text style={styles.pdfButtonText}>Open original PDF</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
@@ -177,6 +194,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.secondary,
     lineHeight: 24,
+  },
+  pdfSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  pdfButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  pdfButtonText: {
+    color: COLORS.card,
+    fontSize: 14,
+    fontWeight: '700',
   },
   footer: {
     padding: 16,
