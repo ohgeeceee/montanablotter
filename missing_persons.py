@@ -195,10 +195,77 @@ def _ensure_subscriber_columns(conn: sqlite3.Connection) -> None:
         ('updated_at', 'TEXT'),
         ('source', 'TEXT'),
         ('notes', 'TEXT'),
+        ('missing_person_email_opt_in', 'INTEGER NOT NULL DEFAULT 1'),
+        ('missing_person_sms_opt_in', 'INTEGER NOT NULL DEFAULT 0'),
+        ('missing_person_push_opt_in', 'INTEGER NOT NULL DEFAULT 0'),
+        ('phone_verified_at', "TEXT DEFAULT ''"),
     ]:
         if column_name not in existing_columns:
             conn.execute(f'ALTER TABLE subscribers ADD COLUMN {column_name} {definition}')
             existing_columns.add(column_name)
+
+
+def _ensure_missing_person_delivery_schema(conn: sqlite3.Connection) -> None:
+    delivery_columns = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info('missing_person_alert_deliveries')").fetchall()
+    }
+    for column_name, definition in [
+        ('subscriber_id', 'INTEGER'),
+        ('channel', "TEXT NOT NULL DEFAULT 'email'"),
+        ('recipient', "TEXT DEFAULT ''"),
+        ('provider_message_id', "TEXT DEFAULT ''"),
+        ('updated_at', 'TEXT'),
+    ]:
+        if column_name not in delivery_columns:
+            conn.execute(f'ALTER TABLE missing_person_alert_deliveries ADD COLUMN {column_name} {definition}')
+            delivery_columns.add(column_name)
+
+    if 'recipient' in delivery_columns and 'recipient_email' in delivery_columns:
+        conn.execute(
+            '''
+            UPDATE missing_person_alert_deliveries
+            SET recipient = recipient_email
+            WHERE TRIM(COALESCE(recipient, '')) = ''
+              AND TRIM(COALESCE(recipient_email, '')) != ''
+            '''
+        )
+    if 'updated_at' in delivery_columns:
+        conn.execute(
+            '''
+            UPDATE missing_person_alert_deliveries
+            SET updated_at = COALESCE(
+                NULLIF(updated_at, ''),
+                NULLIF(created_at, ''),
+                datetime('now')
+            )
+            WHERE COALESCE(updated_at, '') = ''
+            '''
+        )
+
+    conn.execute('DROP INDEX IF EXISTS idx_missing_person_alert_delivery_unique')
+    conn.execute(
+        '''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_missing_person_alert_delivery_unique
+        ON missing_person_alert_deliveries(
+            missing_person_id,
+            notification_version,
+            channel,
+            COALESCE(
+                NULLIF(COALESCE(recipient, ''), ''),
+                CASE
+                    WHEN channel = 'email' THEN NULLIF(COALESCE(recipient_email, ''), '')
+                    ELSE NULL
+                END,
+                CASE
+                    WHEN subscriber_id IS NOT NULL THEN '__subscriber__' || CAST(subscriber_id AS TEXT)
+                    ELSE NULL
+                END,
+                '__row__' || CAST(id AS TEXT)
+            )
+        )
+        '''
+    )
 
 
 def ensure_missing_person_schema(conn: sqlite3.Connection) -> None:
@@ -239,10 +306,33 @@ def ensure_missing_person_schema(conn: sqlite3.Connection) -> None:
             missing_person_id INTEGER NOT NULL,
             notification_version INTEGER NOT NULL DEFAULT 1,
             recipient_email TEXT NOT NULL,
+            subscriber_id INTEGER,
+            channel TEXT NOT NULL DEFAULT 'email',
+            recipient TEXT DEFAULT '',
+            provider_message_id TEXT DEFAULT '',
             delivery_status TEXT NOT NULL DEFAULT 'queued',
             error_message TEXT DEFAULT '',
             created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (missing_person_id) REFERENCES missing_persons(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS missing_person_push_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subscriber_id INTEGER NOT NULL,
+            endpoint TEXT NOT NULL,
+            p256dh_key TEXT NOT NULL,
+            auth_key TEXT NOT NULL,
+            user_agent TEXT DEFAULT '',
+            device_label TEXT DEFAULT '',
+            last_seen_county TEXT DEFAULT '',
+            last_seen_city TEXT DEFAULT '',
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
         )
         '''
     )
@@ -264,10 +354,7 @@ def ensure_missing_person_schema(conn: sqlite3.Connection) -> None:
         )
         '''
     )
-    conn.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_missing_person_alert_delivery_unique '
-        'ON missing_person_alert_deliveries(missing_person_id, notification_version, recipient_email)'
-    )
+    _ensure_missing_person_delivery_schema(conn)
     conn.execute(
         'CREATE INDEX IF NOT EXISTS idx_missing_persons_status_updated '
         'ON missing_persons(status, updated_at)'

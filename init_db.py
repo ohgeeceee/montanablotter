@@ -800,7 +800,11 @@ def migrate():
             counties TEXT DEFAULT '',
             token TEXT NOT NULL,
             active INTEGER DEFAULT 1,
-            created_at TEXT DEFAULT (datetime('now'))
+            created_at TEXT DEFAULT (datetime('now')),
+            missing_person_email_opt_in INTEGER NOT NULL DEFAULT 1,
+            missing_person_sms_opt_in INTEGER NOT NULL DEFAULT 0,
+            missing_person_push_opt_in INTEGER NOT NULL DEFAULT 0,
+            phone_verified_at TEXT DEFAULT ''
         )
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_subscribers_active ON subscribers(active)')
@@ -1228,12 +1232,96 @@ def migrate():
         ('updated_at', "TEXT DEFAULT (datetime('now'))"),
         ('source', 'TEXT'),
         ('notes', 'TEXT'),
+        ('missing_person_email_opt_in', 'INTEGER NOT NULL DEFAULT 1'),
+        ('missing_person_sms_opt_in', 'INTEGER NOT NULL DEFAULT 0'),
+        ('missing_person_push_opt_in', 'INTEGER NOT NULL DEFAULT 0'),
+        ('phone_verified_at', "TEXT DEFAULT ''"),
     ]:
         try:
             cursor.execute(f'ALTER TABLE subscribers ADD COLUMN {col} {definition}')
             print(f'✅ Added subscribers.{col}')
         except sqlite3.OperationalError:
             pass
+
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS missing_person_push_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subscriber_id INTEGER NOT NULL,
+            endpoint TEXT NOT NULL,
+            p256dh_key TEXT NOT NULL,
+            auth_key TEXT NOT NULL,
+            user_agent TEXT DEFAULT '',
+            device_label TEXT DEFAULT '',
+            last_seen_county TEXT DEFAULT '',
+            last_seen_city TEXT DEFAULT '',
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+        '''
+    )
+
+    delivery_columns = {
+        row[1]
+        for row in cursor.execute("PRAGMA table_info('missing_person_alert_deliveries')").fetchall()
+    }
+    for col, definition in [
+        ('subscriber_id', 'INTEGER'),
+        ('channel', "TEXT NOT NULL DEFAULT 'email'"),
+        ('recipient', "TEXT DEFAULT ''"),
+        ('provider_message_id', "TEXT DEFAULT ''"),
+        ('updated_at', 'TEXT'),
+    ]:
+        if col not in delivery_columns:
+            cursor.execute(f'ALTER TABLE missing_person_alert_deliveries ADD COLUMN {col} {definition}')
+            print(f'✅ Added missing_person_alert_deliveries.{col}')
+            delivery_columns.add(col)
+
+    if 'recipient' in delivery_columns and 'recipient_email' in delivery_columns:
+        cursor.execute(
+            '''
+            UPDATE missing_person_alert_deliveries
+            SET recipient = recipient_email
+            WHERE TRIM(COALESCE(recipient, '')) = ''
+              AND TRIM(COALESCE(recipient_email, '')) != ''
+            '''
+        )
+    if 'updated_at' in delivery_columns:
+        cursor.execute(
+            '''
+            UPDATE missing_person_alert_deliveries
+            SET updated_at = COALESCE(
+                NULLIF(updated_at, ''),
+                NULLIF(created_at, ''),
+                datetime('now')
+            )
+            WHERE COALESCE(updated_at, '') = ''
+            '''
+        )
+    cursor.execute('DROP INDEX IF EXISTS idx_missing_person_alert_delivery_unique')
+    cursor.execute(
+        '''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_missing_person_alert_delivery_unique
+        ON missing_person_alert_deliveries(
+            missing_person_id,
+            notification_version,
+            channel,
+            COALESCE(
+                NULLIF(COALESCE(recipient, ''), ''),
+                CASE
+                    WHEN channel = 'email' THEN NULLIF(COALESCE(recipient_email, ''), '')
+                    ELSE NULL
+                END,
+                CASE
+                    WHEN subscriber_id IS NOT NULL THEN '__subscriber__' || CAST(subscriber_id AS TEXT)
+                    ELSE NULL
+                END,
+                '__row__' || CAST(id AS TEXT)
+            )
+        )
+        '''
+    )
 
     # Facebook publishing queue (MVP social autopost pipeline)
     cursor.execute('''
