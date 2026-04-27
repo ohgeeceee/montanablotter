@@ -1,1 +1,0 @@
-scripts/ops/start_flask.sh
