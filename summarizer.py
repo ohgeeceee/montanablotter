@@ -147,7 +147,9 @@ def generate_posts(
             COALESCE(r.time, '') AS time,
             r.county,
             COALESCE(r.officer, '') AS officer,
-            COALESCE(r.details, r.summary, '') AS details
+            COALESCE(r.details, r.summary, '') AS details,
+            COALESCE(r.charge_category, '') AS charge_category,
+            COALESCE(r.cfs_number, '') AS cfs_number
         FROM records r
         WHERE r.blotter_id = ?
         ORDER BY r.date, r.time
@@ -230,13 +232,46 @@ def generate_posts(
         county=county,
     )
 
+    def _extract_key_details(details: str, charge_category: str, cfs: str) -> str:
+        """Extract only the most readable and relevant details from verbose blotter data."""
+        if not details:
+            return ""
+        parts = []
+        # Severity
+        severity_match = re.search(r'Severity:\s*(Felony|Misdemeanor)', details, re.IGNORECASE)
+        if severity_match:
+            parts.append(f"{severity_match.group(1)}")
+        # Concise offense description (first 'Offense:' line, skip statute-only entries)
+        offense_match = re.search(r'Offense:\s*([^;]+)', details)
+        if offense_match:
+            offense = offense_match.group(1).strip()
+            if not offense.startswith('45-'):
+                parts.append(offense)
+        # Case number
+        case_match = re.search(r'Case number:\s*(\S+)', details, re.IGNORECASE)
+        if case_match:
+            parts.append(f"Case {case_match.group(1)}")
+        # If details is short and simple (no structured fields), use it directly
+        if len(details) < 60 and not re.search(r'(Offense:|Statute|Severity:|Case number:)', details):
+            parts.insert(0, details)
+        # Charge category
+        if charge_category and charge_category.lower() not in ('unknown', '', 'n/a'):
+            if charge_category not in parts:
+                parts.append(f"Cat: {charge_category}")
+        # CFS number
+        if cfs and cfs.lower() not in ('unknown', '', 'n/a'):
+            parts.append(f"CFS: {cfs}")
+        return " — ".join(parts) if parts else ""
+
     incident_lines = []
     for r in rows:
         time_str = r["time"] or ""
         itype = r["incident_type"] or "Unknown"
         loc = r["location"] or ""
-        detail = r["details"] or ""
-        incident_lines.append(f"- {time_str}  {itype}  |  {loc}  |  {detail}".strip(" |"))
+        charge_cat = r["charge_category"] or ""
+        cfs = r["cfs_number"] or ""
+        rich_detail = _extract_key_details(r["details"] or "", charge_cat, cfs)
+        incident_lines.append(f"- {time_str}  {itype}  |  {loc}  |  {rich_detail}".strip(" |"))
 
     post_data = {}
     summary_method = {'method': 'fallback', 'provider': 'fallback', 'generated': False}
@@ -282,20 +317,24 @@ def generate_posts(
         city=city,
         agency_type=final_agency_type,
     )
+    raw_summary = post_data.get("summary") or _fallback_summary(final_agency_name, rows)
     final_summary = append_historical_perspective(
-        post_data.get("summary") or _fallback_summary(final_agency_name, rows),
+        raw_summary,
         records=rows,
         county=county,
         agency_name=final_agency_name,
         agency_type=final_agency_type,
     )
 
+    # Auto-generate a compelling meta description for SEO
+    meta_description = _generate_meta_description(final_agency_name, county, incident_date, rows, raw_summary)
+
     cursor.execute(
         """
         INSERT INTO posts
             (blotter_id, title, summary, city, county,
-             agency_type, agency_name, incident_date, incident_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             agency_type, agency_name, incident_date, incident_type, meta_description)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             blotter_id,
@@ -307,6 +346,7 @@ def generate_posts(
             final_agency_name,
             incident_date,
             "Daily Digest",
+            meta_description,
         ),
     )
     post_id = int(cursor.lastrowid or 0)
@@ -347,15 +387,16 @@ Format the summary with a short intro sentence followed by EVERY incident on its
 
 "The [Agency Name] responded to [N] incidents. Below is a full log:
 
-[HH:MM AM/PM] – [Incident type] at [location].
-[HH:MM AM/PM] – [Incident type] at [location].
+[HH:MM AM/PM] – [Incident type] at [location]. [Optional: severity, statute, case number, or offense details if available].
+[HH:MM AM/PM] – [Incident type] at [location]. [Optional: severity, statute, case number, or offense details if available].
 ..."
 
 Rules:
 - Include EVERY incident — do not skip or omit any.
 - One line per incident, no combining or grouping.
 - Use natural times like "8:20 AM" not raw timestamps.
-- Keep each line concise: time – type at location.
+- Include available details from the incident (severity, statute code, case number, CFS number, specific offense description) to make each entry informative and credible.
+- Keep the core line concise but append 1-2 key details when available: e.g., "Felony – Statute 45-6-301(1)[1] – Case BI26-01831" or "Misdemeanor – Criminal Trespass To Property".
 
 Return ONLY valid JSON with these keys:
 {{
@@ -456,11 +497,113 @@ def _call_claude(client, county, date, agency_type, agency_name, filename, incid
 
 
 def _fallback_summary(agency_name: str, rows) -> str:
-    """Plain-text digest when Claude is unavailable."""
+    """Plain-text digest when Claude/OpenAI is unavailable."""
     lines = [f"The {agency_name or 'agency'} responded to the following incidents:"]
     for r in rows:
         time_str = r["time"] or ""
         itype = r["incident_type"] or "Incident"
         loc = r["location"] or ""
-        lines.append(f"{time_str} – {itype}" + (f" at {loc}" if loc else ""))
+        detail = r["details"] or ""
+        charge_cat = r.get("charge_category") or ""
+        cfs = r.get("cfs_number") or ""
+        # Build rich detail suffix using same extraction logic
+        suffix_parts = []
+        severity_match = re.search(r'Severity:\s*(Felony|Misdemeanor)', detail, re.IGNORECASE)
+        if severity_match:
+            suffix_parts.append(f"{severity_match.group(1)}")
+        offense_match = re.search(r'Offense:\s*([^;]+)', detail)
+        if offense_match:
+            offense = offense_match.group(1).strip()
+            if not offense.startswith('45-'):
+                suffix_parts.append(offense)
+        case_match = re.search(r'Case number:\s*(\S+)', detail, re.IGNORECASE)
+        if case_match:
+            suffix_parts.append(f"Case {case_match.group(1)}")
+        if len(detail) < 60 and not re.search(r'(Offense:|Statute|Severity:|Case number:)', detail):
+            suffix_parts.insert(0, detail)
+        if charge_cat and charge_cat.lower() not in ('unknown', '', 'n/a'):
+            if charge_cat not in suffix_parts:
+                suffix_parts.append(f"Cat: {charge_cat}")
+        if cfs and cfs.lower() not in ('unknown', '', 'n/a'):
+            suffix_parts.append(f"CFS: {cfs}")
+        suffix = f" ({' — '.join(suffix_parts)})" if suffix_parts else ""
+        lines.append(f"{time_str} – {itype}" + (f" at {loc}" if loc else "") + suffix)
     return "\n".join(lines)
+
+
+def _generate_meta_description(agency_name: str, county: str, incident_date: str, rows, raw_summary: str) -> str:
+    """Generate a compelling meta description (150-160 chars) for SEO."""
+    import re
+    
+    # Count incidents
+    incident_count = len(rows)
+    
+    # Extract severity highlights
+    felonies = sum(1 for r in rows if re.search(r'Severity:\s*Felony', r["details"] or '', re.IGNORECASE))
+    misdemeanors = sum(1 for r in rows if re.search(r'Severity:\s*Misdemeanor', r["details"] or '', re.IGNORECASE))
+    
+    # Extract unique incident types (top 3)
+    type_counts = {}
+    for r in rows:
+        itype = r["incident_type"] or "Incident"
+        type_counts[itype] = type_counts.get(itype, 0) + 1
+    top_types = sorted(type_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+    type_names = [t[0] for t in top_types]
+    
+    # Build description pieces
+    pieces = []
+    
+    # Start with agency + county + date
+    if agency_name:
+        pieces.append(f"{agency_name}")
+    elif county:
+        pieces.append(f"{county} County law enforcement")
+    else:
+        pieces.append("Montana law enforcement")
+    
+    # Add incident count
+    pieces.append(f"responded to {incident_count} incident{'s' if incident_count != 1 else ''}")
+    
+    # Add date if available
+    if incident_date:
+        pieces.append(f"on {incident_date}")
+    
+    # Add severity highlights if any
+    severity_parts = []
+    if felonies > 0:
+        severity_parts.append(f"{felonies} felony{'s' if felonies != 1 else ''}")
+    if misdemeanors > 0:
+        severity_parts.append(f"{misdemeanors} misdemeanor{'s' if misdemeanors != 1 else ''}")
+    if severity_parts:
+        pieces.append(f"including {', '.join(severity_parts)}")
+    
+    # Add top incident types
+    if type_names:
+        type_str = ", ".join(type_names[:2])
+        pieces.append(f"— {type_str}")
+    
+    # Add source traceability hook
+    pieces.append("Full blotter with case numbers and source records.")
+    
+    # Join and truncate to ~155 chars
+    desc = " ".join(pieces)
+    if len(desc) > 155:
+        # Try a shorter version
+        short_pieces = []
+        if agency_name:
+            short_pieces.append(f"{agency_name}")
+        elif county:
+            short_pieces.append(f"{county} County")
+        else:
+            short_pieces.append("Montana")
+        short_pieces.append(f"{incident_count} incidents")
+        if incident_date:
+            short_pieces.append(incident_date)
+        if felonies > 0:
+            short_pieces.append(f"{felonies} felony")
+        short_pieces.append("Full blotter with case numbers.")
+        desc = " ".join(short_pieces)
+        if len(desc) > 155:
+            desc = desc[:152] + "..."
+    
+    return desc

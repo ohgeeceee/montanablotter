@@ -171,6 +171,100 @@ class MissingPersonsTests(unittest.TestCase):
         conn.close()
         return slug
 
+    def test_ensure_missing_person_schema_adds_directory_columns(self) -> None:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+
+        conn.execute('DROP TABLE IF EXISTS missing_persons')
+        conn.execute(
+            '''
+            CREATE TABLE missing_persons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug TEXT UNIQUE,
+                full_name TEXT NOT NULL,
+                county TEXT DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'missing',
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            INSERT INTO missing_persons (slug, full_name, county, status, updated_at)
+            VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)
+            ''',
+            (
+                'legacy-active',
+                'Legacy Active',
+                'Yellowstone',
+                'missing',
+                '2026-04-25 08:00:00',
+                'legacy-resolved',
+                'Legacy Resolved',
+                'Cascade',
+                'located',
+                '2026-04-25 08:05:00',
+            ),
+        )
+        conn.commit()
+
+        missing_persons_module.ensure_missing_person_schema(conn)
+
+        columns = {
+            row['name']
+            for row in conn.execute("PRAGMA table_info('missing_persons')").fetchall()
+        }
+        assert 'case_number' in columns
+        assert 'missing_from' in columns
+        assert 'height_weight' in columns
+        assert 'last_synced' in columns
+        assert 'is_active' in columns
+
+        rows = conn.execute(
+            '''
+            SELECT full_name, status, is_active
+            FROM missing_persons
+            ORDER BY full_name
+            '''
+        ).fetchall()
+        self.assertEqual(rows[0]['full_name'], 'Legacy Active')
+        self.assertEqual(rows[0]['status'], 'missing')
+        self.assertEqual(rows[0]['is_active'], 1)
+        self.assertEqual(rows[1]['full_name'], 'Legacy Resolved')
+        self.assertEqual(rows[1]['status'], 'located')
+        self.assertEqual(rows[1]['is_active'], 0)
+
+        conn.execute(
+            "UPDATE missing_persons SET is_active = 99 WHERE full_name = 'Legacy Active'"
+        )
+        conn.commit()
+        missing_persons_module.ensure_missing_person_schema(conn)
+        rerun = conn.execute(
+            "SELECT is_active FROM missing_persons WHERE full_name = 'Legacy Active'"
+        ).fetchone()
+        self.assertEqual(rerun['is_active'], 99)
+
+    def test_normalize_directory_record_handles_bad_dates(self) -> None:
+        normalized = missing_persons_module._normalize_directory_record(
+            {
+                'full_name': '  Jane Example  ',
+                'age': '19',
+                'missing_from': '  Billings / Yellowstone  ',
+                'date_last_seen': 'not-a-date',
+                'height_weight': ' 5-08 / 120 ',
+                'case_number': ' MP-42 ',
+                'status': 'missing',
+            }
+        )
+
+        self.assertEqual(normalized['full_name'], 'Jane Example')
+        self.assertEqual(normalized['age'], 19)
+        self.assertEqual(normalized['missing_from'], 'Billings / Yellowstone')
+        self.assertEqual(normalized['date_last_seen'], '')
+        self.assertEqual(normalized['height_weight'], '5-08 / 120')
+        self.assertEqual(normalized['case_number'], 'MP-42')
+        self.assertTrue(normalized['is_active'])
+
     def test_ensure_missing_person_schema_migrates_legacy_delivery_schema(self) -> None:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -413,10 +507,19 @@ class MissingPersonsTests(unittest.TestCase):
         self.assertEqual(first_result['active_total'], 1)
 
         row = conn.execute(
-            "SELECT status, source_person_id, official_last_updated FROM missing_persons WHERE source_person_id = '45849'"
+            """
+            SELECT status, is_active, source_person_id, official_last_updated,
+                   missing_from, height_weight, last_synced
+            FROM missing_persons
+            WHERE source_person_id = '45849'
+            """
         ).fetchone()
         self.assertEqual(row['status'], 'missing')
+        self.assertEqual(row['is_active'], 1)
         self.assertEqual(row['official_last_updated'], '2026-April-11 12:24:31 MDT')
+        self.assertEqual(row['missing_from'], 'Yellowstone')
+        self.assertEqual(row['height_weight'], "5'10\" / 150 lbs")
+        self.assertEqual(row['last_synced'], '2026-April-11 13:29:44 MDT')
 
         empty_snapshot = {
             **snapshot,
@@ -438,7 +541,11 @@ class MissingPersonsTests(unittest.TestCase):
         check_conn = sqlite3.connect(self.db_path)
         check_conn.row_factory = sqlite3.Row
         updated = check_conn.execute(
-            "SELECT status, resolution_summary FROM missing_persons WHERE source_person_id = '45849'"
+            """
+            SELECT status, is_active, resolution_summary, last_synced
+            FROM missing_persons
+            WHERE source_person_id = '45849'
+            """
         ).fetchone()
         stats = check_conn.execute(
             "SELECT total_active, children FROM missing_person_source_stats WHERE id = 1"
@@ -446,9 +553,113 @@ class MissingPersonsTests(unittest.TestCase):
         check_conn.close()
 
         self.assertEqual(updated['status'], 'located')
+        self.assertEqual(updated['is_active'], 0)
         self.assertIn('No longer listed', updated['resolution_summary'])
+        self.assertEqual(updated['last_synced'], '2026-April-11 13:29:44 MDT')
         self.assertEqual(stats['total_active'], 0)
         self.assertEqual(stats['children'], 0)
+
+    def test_create_and_update_missing_person_keep_is_active_in_sync(self) -> None:
+        conn = app_module.get_db()
+        created = missing_persons_module.create_missing_person(
+            conn,
+            {
+                'full_name': 'Status Sync Person',
+                'age': 33,
+                'city': 'Bozeman',
+                'county': 'Gallatin',
+                'last_seen_at': '2026-04-20 00:00',
+                'last_seen_location': 'Bozeman',
+                'summary': 'A concise public summary for the status sync test.',
+                'physical_description': 'Brown hair, blue eyes.',
+                'contact_info': 'Call Gallatin County Sheriff.',
+                'source_name': 'Montana Blotter',
+                'source_url': 'https://example.com/status-sync',
+                'photo_url': '',
+                'case_number': 'MP-200',
+                'missing_from': 'Bozeman / Gallatin',
+                'height_weight': '5-08 / 120',
+                'status': 'located',
+                'resolution_summary': 'Initially resolved for the test.',
+            },
+            actor='test_sync',
+        )
+        conn.commit()
+
+        row = conn.execute(
+            'SELECT status, is_active, case_number, missing_from, height_weight, last_seen_at FROM missing_persons WHERE id = ?',
+            (created['id'],),
+        ).fetchone()
+        self.assertEqual(row['status'], 'located')
+        self.assertEqual(row['is_active'], 0)
+        self.assertEqual(row['case_number'], 'MP-200')
+        self.assertEqual(row['missing_from'], 'Bozeman / Gallatin')
+        self.assertEqual(row['height_weight'], '5-08 / 120')
+        self.assertEqual(row['last_seen_at'], '2026-04-20 00:00:00')
+
+        missing_persons_module.update_missing_person_status(
+            conn,
+            created['id'],
+            status='missing',
+            actor='test_sync',
+        )
+        conn.commit()
+        row = conn.execute(
+            'SELECT status, is_active, case_number, missing_from, height_weight, resolution_summary FROM missing_persons WHERE id = ?',
+            (created['id'],),
+        ).fetchone()
+        self.assertEqual(row['status'], 'missing')
+        self.assertEqual(row['is_active'], 1)
+        self.assertEqual(row['case_number'], 'MP-200')
+        self.assertEqual(row['missing_from'], 'Bozeman / Gallatin')
+        self.assertEqual(row['height_weight'], '5-08 / 120')
+        self.assertEqual(row['resolution_summary'], '')
+
+        missing_persons_module.update_missing_person_status(
+            conn,
+            created['id'],
+            status='located',
+            actor='test_sync',
+        )
+        conn.commit()
+        row = conn.execute(
+            'SELECT status, is_active, case_number, missing_from, height_weight FROM missing_persons WHERE id = ?',
+            (created['id'],),
+        ).fetchone()
+        self.assertEqual(row['status'], 'located')
+        self.assertEqual(row['is_active'], 0)
+        self.assertEqual(row['case_number'], 'MP-200')
+        self.assertEqual(row['missing_from'], 'Bozeman / Gallatin')
+        self.assertEqual(row['height_weight'], '5-08 / 120')
+
+    def test_create_missing_person_clears_malformed_last_seen_at(self) -> None:
+        conn = app_module.get_db()
+        created = missing_persons_module.create_missing_person(
+            conn,
+            {
+                'full_name': 'Malformed Date Person',
+                'age': 29,
+                'city': 'Helena',
+                'county': 'Lewis and Clark',
+                'last_seen_at': 'not-a-date',
+                'last_seen_location': 'Helena',
+                'summary': 'A concise public summary for malformed date handling.',
+                'physical_description': 'Dark jacket.',
+                'contact_info': 'Call local law enforcement.',
+                'source_name': 'Montana Blotter',
+                'source_url': 'https://example.com/malformed-date',
+                'photo_url': '',
+                'status': 'missing',
+            },
+            actor='test_sync',
+        )
+        conn.commit()
+
+        row = conn.execute(
+            'SELECT last_seen_at FROM missing_persons WHERE id = ?',
+            (created['id'],),
+        ).fetchone()
+        self.assertEqual(row['last_seen_at'], '')
 
     def test_admin_missing_persons_page_renders(self) -> None:
         client = app_module.app.test_client()

@@ -2,7 +2,8 @@
 
 {% set page_title = county.warrant_title or (county.name ~ " County Warrant Search and Jail Roster Links") %}
 {% set meta_description = county.warrant_meta_description or ("How to search for active arrest and bench warrants in " ~ county.name ~ " County, Montana. " ~ ("Direct link to the online warrant list." if county.warrant_url else "Step-by-step guide and sheriff contact info.")) %}
-{% set canonical_url = "https://montanablotter.com/warrants/" ~ county.slug %}
+{% set canonical_url = canonical_url or ("https://montanablotter.com/warrants/" ~ county.slug) %}
+{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
 {% set og_title = county.warrant_og_title or page_title ~ " | Montana Blotter" %}
 {% set og_description = meta_description %}
 {% set active_nav = "warrants" %}

@@ -1358,6 +1358,23 @@ body.public-app a {
   margin-top: 0.65rem;
 }
 
+.public-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.public-card-link:hover .public-card-link__title,
+.public-card-link:focus-visible .public-card-link__title {
+  color: var(--public-green);
+}
+
+.public-card-link:focus-visible {
+  outline: 2px solid rgba(47, 127, 86, 0.28);
+  outline-offset: 4px;
+  border-radius: 18px;
+}
+
 .public-sidebar-card {
   border: 1px solid var(--public-border);
   border-radius: var(--public-radius-md);

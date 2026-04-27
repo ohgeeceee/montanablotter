@@ -215,14 +215,42 @@ def build_html(posts, date_str, unsubscribe_url=None):
         """
         for post in county_posts:
             agency = escape(post['agency_name'] or post['county'] or 'Unknown Agency')
-            summary_html = escape(post["summary"] or "").replace('\n', '<br>')
+            summary_raw = post["summary"] or ""
+            # Format the summary for better readability in email
+            summary_lines = summary_raw.split('\n')
+            formatted_lines = []
+            for line in summary_lines:
+                line = line.strip()
+                if not line:
+                    continue
+                # Highlight incident lines (those starting with time patterns like "06:00 –" or "10:30 AM –")
+                if re.match(r'^(\d{1,2}:\d{2}\s*(?:AM|PM)?\s*[–-]\s*|\d{1,2}:\d{2}\s*[–-])', line, re.IGNORECASE):
+                    # Bold the time and incident type, keep details readable
+                    parts = line.split('–', 1)
+                    if len(parts) == 2:
+                        time_part = parts[0].strip()
+                        rest = parts[1].strip()
+                        formatted_lines.append(
+                            f'<div style="margin:4px 0;padding:6px 8px;background:#f8fafc;border-left:3px solid #2563eb;border-radius:4px;">'
+                            f'<strong style="color:#1e293b;">{escape(time_part)}</strong> – {escape(rest)}'
+                            f'</div>'
+                        )
+                    else:
+                        formatted_lines.append(f'<div style="margin:4px 0;padding:6px 8px;background:#f8fafc;border-left:3px solid #2563eb;border-radius:4px;">{escape(line)}</div>')
+                elif line.startswith('The ') and 'responded to' in line:
+                    formatted_lines.append(f'<p style="color:#475569;font-weight:600;margin:12px 0 8px;">{escape(line)}</p>')
+                elif line.startswith('// Historical'):
+                    formatted_lines.append(f'<p style="color:#94a3b8;font-size:12px;font-style:italic;margin:12px 0 0;border-top:1px solid #e2e8f0;padding-top:8px;">{escape(line)}</p>')
+                else:
+                    formatted_lines.append(f'<p style="color:#374151;margin:2px 0;">{escape(line)}</p>')
+            summary_html = '\n'.join(formatted_lines) if formatted_lines else escape(summary_raw).replace('\n', '<br>')
             title = escape(post["title"] or "Daily Activity Report")
             post_url = f"{BASE_URL}/post/{post['id']}"
             html += f"""
             <div style="padding:0 0 14px;">
                 <h4 style="color:#1e293b;margin:0 0 6px;">{title}</h4>
                 <p style="color:#64748b;font-size:13px;margin:0 0 8px;">{agency} &mdash; {escape(post['incident_date'] or date_str)}</p>
-                <p style="color:#374151;line-height:1.6;margin:0;">{summary_html}</p>
+                <div style="color:#374151;line-height:1.6;margin:0;">{summary_html}</div>
                 <p style="margin:12px 0 0;">
                     <a href="{post_url}" style="display:inline-block;background:#111827;color:#ffffff;padding:8px 12px;border-radius:7px;text-decoration:none;font-weight:700;font-size:13px;">Read full report</a>
                 </p>

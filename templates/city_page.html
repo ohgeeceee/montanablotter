@@ -3,7 +3,8 @@
 
 {% set page_title = city.seo_title or (city.name ~ " Police Blotter, Arrests, and Warrant Links") %}
 {% set meta_description = city.meta_description or ("Free " ~ city.name ~ ", Montana police blotter and daily activity reports from the " ~ city.pd_name ~ ". Public safety records, no account required.") %}
-{% set canonical_url = "https://montanablotter.com/city/" ~ city.slug %}
+{% set canonical_url = canonical_url or ("https://montanablotter.com/city/" ~ city.slug) %}
+{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
 {% set og_title = city.og_title or page_title ~ " | Montana Blotter" %}
 {% set og_description = city.og_description or meta_description %}
 {% set active_nav = "cities" %}

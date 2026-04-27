@@ -2,6 +2,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import uuid
 
 import app as app_module
 import config
@@ -150,6 +151,35 @@ class PublicDetailRouteTests(unittest.TestCase):
         conn.close()
         return int(post_id), int(record_id)
 
+    def _seed_blog_post(
+        self,
+        *,
+        slug: str | None = None,
+        title: str = 'Montana Weekly County Digest',
+        excerpt: str = 'Digest excerpt',
+        published: int = 1,
+    ) -> str:
+        slug_value = slug or f'montana-weekly-county-digest-{uuid.uuid4().hex[:8]}'
+        conn = app_module.get_db()
+        conn.execute(
+            """
+            INSERT INTO blog_posts (title, slug, body, excerpt, author, published, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                title,
+                slug_value,
+                '# Weekly digest\n\nBody copy.',
+                excerpt,
+                'Montana Blotter',
+                published,
+                '2026-04-25 09:00:00',
+            ),
+        )
+        conn.commit()
+        conn.close()
+        return slug_value
+
     def test_post_detail_route_renders_existing_post(self) -> None:
         post_id, _ = self._seed_public_report()
 
@@ -203,6 +233,27 @@ class PublicDetailRouteTests(unittest.TestCase):
         self.assertIn('public-redesign.css', html)
         self.assertIn('public-error-card', html)
         self.assertIn('Record Not Found', html)
+
+    def test_blog_index_renders_block_link_for_posts(self) -> None:
+        slug = self._seed_blog_post(slug='montana-weekly-county-digest-test-link')
+
+        client = app_module.app.test_client()
+        response = client.get('/blog')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f'href="/blog/{slug}" class="public-card-link"', html)
+        self.assertIn('Read more', html)
+
+    def test_patterns_page_renders_block_link_for_latest_digest(self) -> None:
+        slug = self._seed_blog_post(slug='montana-weekly-county-digest-patterns-link')
+
+        client = app_module.app.test_client()
+        response = client.get('/patterns')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f'href="/blog/{slug}" class="public-card-link"', html)
 
 
 if __name__ == '__main__':

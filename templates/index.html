@@ -1,5 +1,10 @@
 {% extends "public_page_base.html" %}
 
+{% set page_title = "Montana Blotter" %}
+{% set meta_description = "Real-time Montana public record reporting with recent incident cards, jurisdiction directories, and statewide trend visibility." %}
+{% set canonical_url = "https://montanablotter.com/" %}
+{% set og_image = "https://montanablotter.com/static/icons/og-default.png" %}
+
 {% block body_class %}newsroom-body{% endblock %}
 
 {% block extra_head %}
@@ -30,6 +35,10 @@
                 <p class="hero-copy">
                     Track the latest incident records, move directly into jurisdiction pages, and verify source-linked reports without losing statewide context.
                 </p>
+                <div class="card-links">
+                    <a href="/missing-persons" class="card-link card-link--primary">Missing Persons</a>
+                    <a href="/missing-persons" class="card-link">Open bulletin</a>
+                </div>
             </div>
 
             <div class="hero-stats">

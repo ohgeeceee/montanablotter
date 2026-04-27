@@ -1,0 +1,117 @@
+<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+  <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+    <div class="bg-red-700 px-5 py-4 text-white sm:px-6">
+      <p class="text-[11px] font-black uppercase tracking-[0.26em] text-red-100">Active Missing Person</p>
+    </div>
+
+    <div class="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <section class="border-b border-slate-200 bg-slate-50 p-5 lg:border-b-0 lg:border-r lg:p-6">
+        {% if person.photo_url %}
+        <figure class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <img
+            src="{{ person.photo_url }}"
+            alt="{{ person.full_name }}"
+            class="h-full w-full object-cover"
+          >
+        </figure>
+        {% else %}
+        <div class="flex aspect-[4/5] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center">
+          <div>
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">No Official Photo</p>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Public record image not available.</p>
+          </div>
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="p-5 lg:p-6">
+        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Identity Card</p>
+        <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">{{ person.full_name }}</h1>
+        <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+          Last seen {{ person.last_seen_at_label }}{% if person.last_seen_location %} near {{ person.last_seen_location }}{% endif %}.
+          {% if person.source_name %}Source: {{ person.source_name }}.{% endif %}
+        </p>
+
+        <div class="mt-6 grid gap-0 border border-slate-200 sm:grid-cols-2">
+          <div class="border-b border-slate-200 px-4 py-4 sm:border-b-0 sm:border-r">
+            <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Age</p>
+            <p class="mt-2 text-sm font-bold text-slate-900">{{ person.age if person.age is not none else 'Not provided' }}</p>
+          </div>
+          <div class="border-b border-slate-200 px-4 py-4 sm:border-b-0">
+            <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Height</p>
+            <p class="mt-2 text-sm font-bold text-slate-900">{{ person.height_label or 'Not provided' }}{% if person.weight_lbs %} · {{ person.weight_lbs }} lbs{% endif %}</p>
+          </div>
+          <div class="border-b border-slate-200 px-4 py-4 sm:border-b-0 sm:border-r">
+            <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Last Seen Date</p>
+            <p class="mt-2 text-sm font-bold text-slate-900">{{ person.last_seen_at_label }}</p>
+          </div>
+          <div class="px-4 py-4">
+            <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Last Seen Location</p>
+            <p class="mt-2 text-sm font-bold text-slate-900">{{ person.last_seen_location or 'Not provided' }}</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid gap-6 border-t border-slate-200 p-5 sm:p-6">
+      <section class="rounded-2xl border border-slate-200 bg-white">
+        <h2 class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-[0.22em] text-slate-500">Physical Description</h2>
+        <div class="px-4 py-4 text-sm leading-7 text-slate-700">
+          <p class="mt-0">{{ person.physical_description or 'Not provided in the current public record.' }}</p>
+          {% if person.gender or person.race or person.hair_color or person.eye_color %}
+          <dl class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl bg-slate-50 px-4 py-3">
+              <dt class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Gender</dt>
+              <dd class="mt-1 font-semibold text-slate-900">{{ person.gender or 'Not provided' }}</dd>
+            </div>
+            <div class="rounded-2xl bg-slate-50 px-4 py-3">
+              <dt class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Race</dt>
+              <dd class="mt-1 font-semibold text-slate-900">{{ person.race or 'Not provided' }}</dd>
+            </div>
+            <div class="rounded-2xl bg-slate-50 px-4 py-3">
+              <dt class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Hair</dt>
+              <dd class="mt-1 font-semibold text-slate-900">{{ person.hair_color or 'Not provided' }}</dd>
+            </div>
+            <div class="rounded-2xl bg-slate-50 px-4 py-3">
+              <dt class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Eyes</dt>
+              <dd class="mt-1 font-semibold text-slate-900">{{ person.eye_color or 'Not provided' }}</dd>
+            </div>
+          </dl>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white">
+        <h2 class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-[0.22em] text-slate-500">Circumstances of Disappearance</h2>
+        <div class="px-4 py-4 text-sm leading-7 text-slate-700">
+          <p class="mt-0">{{ person.summary or 'No public circumstance summary is available.' }}</p>
+          {% if person.resolution_summary %}
+          <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-950">
+            <p class="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">Resolved Update</p>
+            <p class="mt-2 text-sm leading-6">{{ person.resolution_summary }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white">
+        <h2 class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-[0.22em] text-slate-500">Contact Information / Submit a Tip</h2>
+        <div class="grid gap-4 px-4 py-4 sm:grid-cols-[1fr_auto] sm:items-start">
+          <div class="space-y-3 text-sm leading-7 text-slate-700">
+            <p><span class="font-bold text-slate-900">Investigating Agency:</span> {{ person.investigating_agency | default('Contact the investigating agency', true) }}</p>
+            <p><span class="font-bold text-slate-900">Phone / Tip Line:</span> {{ person.contact_info | default('Contact the listed agency or call 911 in an emergency.', true) }}</p>
+            <p><span class="font-bold text-slate-900">Case Number:</span> {{ person.case_number or 'Not provided' }}</p>
+            <p class="text-slate-500">If you have immediate information, contact law enforcement or dial 911.</p>
+          </div>
+          <div class="flex flex-col gap-3 sm:min-w-44">
+            {% if person.source_url %}
+            <a href="{{ person.source_url }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800">
+              Open Source Record
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </div>
+  </article>
+</main>

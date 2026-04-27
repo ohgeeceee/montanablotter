@@ -12,12 +12,19 @@
     <title>{{ page_title }} | Montana Blotter</title>
     <meta name="description" content="{{ meta_description }}">
     {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+    {% for pr in pagination_rels %}
+    <link rel="{{ pr.rel }}" href="{{ pr.href }}">
+    {% endfor %}
     <meta property="og:site_name" content="Montana Blotter">
     <meta property="og:title" content="{{ og_title or (page_title ~ ' | Montana Blotter') }}">
     <meta property="og:description" content="{{ og_description or meta_description }}">
     <meta property="og:type" content="{{ og_type or 'website' }}">
     {% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
     <meta name="twitter:card" content="{{ twitter_card or 'summary_large_image' }}">
+    <meta property="og:image" content="{{ og_image or 'https://montanablotter.com/static/icons/og-default.png' }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:image" content="{{ og_image or 'https://montanablotter.com/static/icons/og-default.png' }}">
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
     {% include "includes/google_analytics.html" %}
     <link rel="manifest" href="/manifest.json">
