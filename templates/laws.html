@@ -2,7 +2,8 @@
 
 {% set page_title = "Laws" %}
 {% set meta_description = "Overview of Montana criminal, traffic, hunting, and general statutes. Reference guide for Montana Code Annotated (MCA)." %}
-{% set canonical_url = "https://montanablotter.com/laws" %}
+{% set canonical_url = canonical_url or "https://montanablotter.com/laws" %}
+{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
 {% set og_title = "Montana Laws | Montana Blotter" %}
 {% set og_description = "Plain-language overview of Montana criminal, traffic, hunting, and general statutes." %}
 {% set active_nav = "laws" %}

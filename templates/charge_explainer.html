@@ -2,7 +2,8 @@
 
 {% set page_title = explainer.title %}
 {% set meta_description = explainer.excerpt %}
-{% set canonical_url = "https://montanablotter.com/laws/charge/" ~ explainer.slug %}
+{% set canonical_url = canonical_url or ("https://montanablotter.com/laws/charge/" ~ explainer.slug) %}
+{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
 {% set og_title = explainer.title ~ " | Montana Blotter" %}
 {% set og_description = explainer.excerpt %}
 {% set og_type = "article" %}

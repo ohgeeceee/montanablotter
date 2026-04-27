@@ -3,11 +3,12 @@
 
 {% set page_title = post.title or 'Daily Activity Report' %}
 {% set meta_description = post.meta_description or ((post.summary or '')[:155] if post.summary else 'Daily police activity report with source traceability and linked incident records.') %}
-{% set canonical_url = "https://montanablotter.com/post/" ~ post.id %}
+{% set canonical_url = canonical_url or ("https://montanablotter.com/post/" ~ post.id) %}
 {% set og_title = post.title or 'Daily Activity Report' %}
 {% set og_description = meta_description %}
 {% set og_type = "article" %}
 {% set twitter_card = "summary_large_image" %}
+{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
 
 {% block body_class %}post-detail-page{% endblock %}
 
@@ -15,10 +16,11 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Article",
+  "@type": "NewsArticle",
   "headline": {{ (post.title or 'Daily Activity Report') | tojson }},
+  "description": {{ meta_description | tojson }},
   "datePublished": {{ (post.created_at or '') | tojson }},
-  "dateModified": {{ (post.created_at or '') | tojson }},
+  "dateModified": {{ (post.updated_at or post.created_at or '') | tojson }},
   "author": {
     "@type": "Organization",
     "name": "Montana Blotter"
@@ -26,9 +28,51 @@
   "publisher": {
     "@type": "Organization",
     "name": "Montana Blotter",
-    "url": "https://montanablotter.com"
+    "url": "https://montanablotter.com",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://montanablotter.com/static/logo.png"
+    }
   },
-  "mainEntityOfPage": "https://montanablotter.com/post/{{ post.id }}"
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": {{ canonical_url | tojson }}
+  },
+  "articleSection": {{ (post.county ~ " County") | tojson }},
+  "about": {
+    "@type": "Thing",
+    "name": "Law enforcement activity report",
+    "description": {{ meta_description | tojson }}
+  },
+  "mentions": [
+    {% for record in records[:5] %}
+    {
+      "@type": "Thing",
+      "name": {{ (record.incident_type or 'Incident') | tojson }},
+      "description": {{ (record.location or '') | tojson }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "GovernmentService",
+  "name": {{ (post.agency_name or post.county ~ ' County Law Enforcement') | tojson }},
+  "areaServed": {
+    "@type": "AdministrativeArea",
+    "name": {{ (post.county ~ ' County, Montana') | tojson }}
+  },
+  "serviceType": "Public safety reporting",
+  "provider": {
+    "@type": "GovernmentOrganization",
+    "name": {{ (post.agency_name or post.county ~ ' County Sheriff') | tojson }},
+    "areaServed": {
+      "@type": "AdministrativeArea",
+      "name": {{ (post.county ~ ' County, Montana') | tojson }}
+    }
+  }
 }
 </script>
 <script type="application/ld+json">

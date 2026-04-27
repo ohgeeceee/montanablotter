@@ -63,21 +63,20 @@
     {% if latest_weekly_digest %}
     <section class="public-card mb-8">
         <div class="public-card__body">
+        <a href="{{ url_for('blog_post', slug=latest_weekly_digest.slug) }}" class="public-card-link">
         <div class="flex items-start justify-between gap-4 flex-wrap">
-            <div>
+            <div class="min-w-0">
                 <p class="public-card__eyebrow" style="color: var(--public-green);">Latest Weekly Digest</p>
-                <h2 class="mt-2 text-2xl font-black leading-tight text-slate-900">
-                    <a href="/blog/{{ latest_weekly_digest.slug }}" class="hover:text-emerald-700 transition">{{ latest_weekly_digest.title }}</a>
-                </h2>
+                <h2 class="public-card-link__title mt-2 text-2xl font-black leading-tight text-slate-900">{{ latest_weekly_digest.title }}</h2>
                 {% if latest_weekly_digest.excerpt %}
                 <p class="mt-3 text-sm leading-relaxed text-slate-600">{{ latest_weekly_digest.excerpt }}</p>
                 {% endif %}
             </div>
-            <a href="/blog/{{ latest_weekly_digest.slug }}"
-               class="public-btn public-btn--primary">
+            <span class="public-btn public-btn--primary">
                 Read digest <i class="fas fa-arrow-right text-[10px]"></i>
-            </a>
+            </span>
         </div>
+        </a>
         </div>
     </section>
     {% endif %}
@@ -93,7 +92,7 @@
         <div>
         {% for post in posts %}
             <article class="public-card public-card--lift public-list-card overflow-hidden">
-                <div class="public-card__body">
+                <a href="{{ url_for('blog_post', slug=post.slug) }}" class="public-card-link public-card__body">
                     <div class="public-list-meta mb-3">
                         <span class="text-xs text-slate-400 font-medium">
                             <i class="fas fa-calendar-alt mr-1"></i>
@@ -104,17 +103,14 @@
                         <span class="text-xs text-slate-400 font-medium">{{ post.author }}</span>
                         {% endif %}
                     </div>
-                    <h2 class="text-xl font-bold text-slate-900 mb-2 leading-snug">
-                        <a href="/blog/{{ post.slug }}" class="hover:text-emerald-600 transition">{{ post.title }}</a>
-                    </h2>
+                    <h2 class="public-card-link__title text-xl font-bold text-slate-900 mb-2 leading-snug">{{ post.title }}</h2>
                     {% if post.excerpt %}
                     <p class="text-slate-600 text-sm leading-relaxed mb-4">{{ post.excerpt }}</p>
                     {% endif %}
-                    <a href="/blog/{{ post.slug }}"
-                       class="public-inline-link inline-flex items-center gap-1.5">
+                    <span class="public-inline-link inline-flex items-center gap-1.5">
                         Read more <i class="fas fa-arrow-right text-[10px]"></i>
-                    </a>
-                </div>
+                    </span>
+                </a>
             </article>
         {% endfor %}
         </div>

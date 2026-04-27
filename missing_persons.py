@@ -68,6 +68,7 @@ def _normalize_datetime(value: Any) -> str:
     if not raw:
         return ''
     for fmt in (
+        '%Y-%m-%d %H:%M:%S',
         '%Y-%m-%dT%H:%M',
         '%Y-%m-%d %H:%M',
         '%Y-%m-%d',
@@ -84,6 +85,32 @@ def _normalize_datetime(value: Any) -> str:
         except ValueError:
             continue
     raise ValueError('Last seen time must be a valid date or datetime.')
+
+
+def _normalize_directory_record(raw: dict[str, Any]) -> dict[str, Any]:
+    status = _normalize_status(raw.get('status'))
+    date_last_seen = ''
+    raw_date_last_seen = _single_line(raw.get('date_last_seen'), max_len=40)
+    if raw_date_last_seen:
+        try:
+            date_last_seen = _normalize_datetime(raw_date_last_seen)
+        except ValueError:
+            date_last_seen = ''
+
+    return {
+        'full_name': _single_line(raw.get('full_name'), max_len=160),
+        'age': _normalize_optional_int(raw.get('age'), label='Age', maximum=150),
+        'missing_from': _single_line(raw.get('missing_from'), max_len=240),
+        'date_last_seen': date_last_seen,
+        'height_weight': _single_line(raw.get('height_weight'), max_len=240),
+        'case_number': _single_line(raw.get('case_number'), max_len=80),
+        'status': status,
+        'is_active': status == STATUS_MISSING,
+    }
+
+
+def _status_to_is_active(status: str) -> int:
+    return 1 if status == STATUS_MISSING else 0
 
 
 def _display_datetime(value: Any) -> str:
@@ -110,6 +137,18 @@ def _parse_height_label(raw_height: Any) -> str:
     return token
 
 
+def _build_height_weight_value(*, height_raw: Any = '', weight_lbs: Any = None, fallback: Any = '') -> str:
+    if fallback:
+        return _single_line(fallback, max_len=240)
+    parts: list[str] = []
+    height_label = _parse_height_label(height_raw)
+    if height_label:
+        parts.append(height_label)
+    if weight_lbs not in (None, ''):
+        parts.append(f'{weight_lbs} lbs')
+    return ' / '.join(parts)[:240]
+
+
 def _parse_aliases(raw_aliases: Any) -> list[str]:
     value = _clean_text(raw_aliases, max_len=800)
     if not value:
@@ -133,7 +172,13 @@ def _ensure_missing_person_columns(conn: sqlite3.Connection) -> None:
         row[1]
         for row in conn.execute("PRAGMA table_info('missing_persons')").fetchall()
     }
+    added_is_active_column = False
     for column_name, definition in [
+        ('case_number', "TEXT DEFAULT ''"),
+        ('missing_from', "TEXT DEFAULT ''"),
+        ('height_weight', "TEXT DEFAULT ''"),
+        ('last_synced', "TEXT DEFAULT ''"),
+        ('is_active', 'INTEGER NOT NULL DEFAULT 1'),
         ('source_person_id', "TEXT DEFAULT ''"),
         ('gender', "TEXT DEFAULT ''"),
         ('race', "TEXT DEFAULT ''"),
@@ -153,6 +198,13 @@ def _ensure_missing_person_columns(conn: sqlite3.Connection) -> None:
         if column_name not in existing_columns:
             conn.execute(f'ALTER TABLE missing_persons ADD COLUMN {column_name} {definition}')
             existing_columns.add(column_name)
+            if column_name == 'is_active':
+                added_is_active_column = True
+    if added_is_active_column:
+        conn.execute(
+            'UPDATE missing_persons SET is_active = CASE WHEN status = ? THEN 1 ELSE 0 END',
+            (STATUS_MISSING,),
+        )
 
 
 def _get_missing_person_source_stats(conn: sqlite3.Connection) -> dict[str, Any]:
@@ -653,7 +705,18 @@ def missing_person_admin_context(
 
 def create_missing_person(conn: sqlite3.Connection, payload: dict[str, Any], *, actor: str = '') -> dict[str, Any]:
     ensure_missing_person_schema(conn)
-    full_name = _single_line(payload.get('full_name'), max_len=160)
+    directory_record = _normalize_directory_record(
+        {
+            'full_name': payload.get('full_name'),
+            'age': payload.get('age'),
+            'missing_from': payload.get('missing_from') or payload.get('last_seen_location'),
+            'date_last_seen': payload.get('last_seen_at'),
+            'height_weight': payload.get('height_weight'),
+            'case_number': payload.get('case_number'),
+            'status': payload.get('status'),
+        }
+    )
+    full_name = directory_record['full_name']
     if len(full_name) < 3:
         raise ValueError('Enter the missing person name.')
     summary = _clean_text(payload.get('summary'), max_len=1600)
@@ -662,6 +725,8 @@ def create_missing_person(conn: sqlite3.Connection, payload: dict[str, Any], *, 
     last_seen_location = _single_line(payload.get('last_seen_location'), max_len=220)
     if len(last_seen_location) < 3:
         raise ValueError('Enter the last seen location.')
+    status = directory_record['status']
+    last_seen_at = directory_record['date_last_seen']
 
     cursor = conn.execute(
         '''
@@ -678,20 +743,25 @@ def create_missing_person(conn: sqlite3.Connection, payload: dict[str, Any], *, 
             source_name,
             source_url,
             photo_url,
+            case_number,
+            missing_from,
+            height_weight,
+            last_synced,
             status,
+            is_active,
             resolution_summary,
             created_by,
             updated_by,
             created_at,
             updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         ''',
         (
             full_name,
-            _normalize_optional_int(payload.get('age'), label='Age'),
+            directory_record['age'],
             _single_line(payload.get('city'), max_len=120),
             _single_line(payload.get('county'), max_len=120),
-            _normalize_datetime(payload.get('last_seen_at')) if _single_line(payload.get('last_seen_at'), max_len=40) else '',
+            last_seen_at,
             last_seen_location,
             summary,
             _clean_text(payload.get('physical_description'), max_len=1200),
@@ -699,7 +769,12 @@ def create_missing_person(conn: sqlite3.Connection, payload: dict[str, Any], *, 
             _single_line(payload.get('source_name'), max_len=120) or 'Montana Blotter',
             _single_line(payload.get('source_url'), max_len=500),
             _single_line(payload.get('photo_url'), max_len=500),
-            _normalize_status(payload.get('status')),
+            directory_record['case_number'],
+            directory_record['missing_from'] or last_seen_location,
+            _build_height_weight_value(fallback=directory_record['height_weight']),
+            '',
+            status,
+            _status_to_is_active(status),
             _clean_text(payload.get('resolution_summary'), max_len=1200),
             _single_line(actor, max_len=120),
             _single_line(actor, max_len=120),
@@ -722,7 +797,18 @@ def update_missing_person(conn: sqlite3.Connection, person_id: int, payload: dic
     if not existing:
         raise ValueError('Missing-person record not found.')
 
-    full_name = _single_line(payload.get('full_name'), max_len=160)
+    directory_record = _normalize_directory_record(
+        {
+            'full_name': payload.get('full_name'),
+            'age': payload.get('age'),
+            'missing_from': payload.get('missing_from') or payload.get('last_seen_location'),
+            'date_last_seen': payload.get('last_seen_at'),
+            'height_weight': payload.get('height_weight'),
+            'case_number': payload.get('case_number'),
+            'status': payload.get('status'),
+        }
+    )
+    full_name = directory_record['full_name']
     if len(full_name) < 3:
         raise ValueError('Enter the missing person name.')
     summary = _clean_text(payload.get('summary'), max_len=1600)
@@ -731,8 +817,9 @@ def update_missing_person(conn: sqlite3.Connection, person_id: int, payload: dic
     last_seen_location = _single_line(payload.get('last_seen_location'), max_len=220)
     if len(last_seen_location) < 3:
         raise ValueError('Enter the last seen location.')
+    last_seen_at = directory_record['date_last_seen']
 
-    new_status = _normalize_status(payload.get('status'))
+    new_status = directory_record['status']
     should_notify = existing['status'] != STATUS_MISSING and new_status == STATUS_MISSING
     notification_version = int(existing['notification_version'] or 1)
     if should_notify:
@@ -743,6 +830,7 @@ def update_missing_person(conn: sqlite3.Connection, person_id: int, payload: dic
         resolved_at = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     if new_status == STATUS_MISSING:
         resolved_at = ''
+        resolution_summary = ''
         if not should_notify:
             notification_version = int(existing['notification_version'] or 1)
 
@@ -761,7 +849,11 @@ def update_missing_person(conn: sqlite3.Connection, person_id: int, payload: dic
             source_name = ?,
             source_url = ?,
             photo_url = ?,
+            case_number = ?,
+            missing_from = ?,
+            height_weight = ?,
             status = ?,
+            is_active = ?,
             resolution_summary = ?,
             resolved_at = ?,
             notification_version = ?,
@@ -771,10 +863,10 @@ def update_missing_person(conn: sqlite3.Connection, person_id: int, payload: dic
         ''',
         (
             full_name,
-            _normalize_optional_int(payload.get('age'), label='Age'),
+            directory_record['age'],
             _single_line(payload.get('city'), max_len=120),
             _single_line(payload.get('county'), max_len=120),
-            _normalize_datetime(payload.get('last_seen_at')) if _single_line(payload.get('last_seen_at'), max_len=40) else '',
+            last_seen_at,
             last_seen_location,
             summary,
             _clean_text(payload.get('physical_description'), max_len=1200),
@@ -782,7 +874,11 @@ def update_missing_person(conn: sqlite3.Connection, person_id: int, payload: dic
             _single_line(payload.get('source_name'), max_len=120) or 'Montana Blotter',
             _single_line(payload.get('source_url'), max_len=500),
             _single_line(payload.get('photo_url'), max_len=500),
+            directory_record['case_number'],
+            directory_record['missing_from'] or last_seen_location,
+            _build_height_weight_value(fallback=directory_record['height_weight']),
             new_status,
+            _status_to_is_active(new_status),
             resolution_summary,
             resolved_at,
             notification_version,
@@ -816,6 +912,9 @@ def update_missing_person_status(
         'county': current.get('county'),
         'last_seen_at': current.get('last_seen_at'),
         'last_seen_location': current.get('last_seen_location'),
+        'case_number': current.get('case_number'),
+        'missing_from': current.get('missing_from'),
+        'height_weight': current.get('height_weight'),
         'summary': current.get('summary'),
         'physical_description': current.get('physical_description'),
         'contact_info': current.get('contact_info'),
@@ -1125,6 +1224,14 @@ def sync_official_missing_persons(
         contact_info = _build_official_contact_info(record)
         gallery_json = json.dumps(record.get('photo_gallery') or [])
         source_url = _absolute_official_url(f'MissingPersonDetails.php?id={source_person_id}')
+        case_number = _single_line(record.get('case_number'), max_len=80)
+        missing_from = _single_line(record.get('missing_from'), max_len=240) or last_seen_location
+        height_weight = _build_height_weight_value(
+            height_raw=record.get('height_raw'),
+            weight_lbs=record.get('weight_lbs'),
+            fallback=record.get('height_weight'),
+        )
+        last_synced = _single_line(snapshot.get('official_last_checked'), max_len=120) or datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         existing = existing_by_source.get(source_person_id)
 
         if existing is None:
@@ -1144,7 +1251,12 @@ def sync_official_missing_persons(
                     source_name,
                     source_url,
                     photo_url,
+                    case_number,
+                    missing_from,
+                    height_weight,
+                    last_synced,
                     status,
+                    is_active,
                     resolution_summary,
                     created_by,
                     updated_by,
@@ -1166,7 +1278,7 @@ def sync_official_missing_persons(
                     created_at,
                     updated_at
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '',
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '',
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                     datetime('now'), datetime('now')
                 )
@@ -1185,7 +1297,12 @@ def sync_official_missing_persons(
                     OFFICIAL_SOURCE_NAME,
                     source_url,
                     record.get('photo_url') or '',
+                    case_number,
+                    missing_from,
+                    height_weight,
+                    last_synced,
                     STATUS_MISSING,
+                    _status_to_is_active(STATUS_MISSING),
                     actor,
                     actor,
                     source_person_id,
@@ -1235,7 +1352,12 @@ def sync_official_missing_persons(
                 source_name = ?,
                 source_url = ?,
                 photo_url = ?,
+                case_number = ?,
+                missing_from = ?,
+                height_weight = ?,
+                last_synced = ?,
                 status = ?,
+                is_active = ?,
                 resolution_summary = '',
                 resolved_at = '',
                 updated_by = ?,
@@ -1269,7 +1391,12 @@ def sync_official_missing_persons(
                 OFFICIAL_SOURCE_NAME,
                 source_url,
                 record.get('photo_url') or '',
+                case_number,
+                missing_from,
+                height_weight,
+                last_synced,
                 STATUS_MISSING,
+                _status_to_is_active(STATUS_MISSING),
                 actor,
                 record.get('gender') or '',
                 record.get('race') or '',
@@ -1312,6 +1439,8 @@ def sync_official_missing_persons(
             '''
             UPDATE missing_persons
             SET status = ?,
+                is_active = ?,
+                last_synced = ?,
                 resolution_summary = ?,
                 resolved_at = CASE WHEN COALESCE(resolved_at, '') = '' THEN datetime('now') ELSE resolved_at END,
                 updated_by = ?,
@@ -1320,6 +1449,8 @@ def sync_official_missing_persons(
             ''',
             (
                 STATUS_LOCATED,
+                _status_to_is_active(STATUS_LOCATED),
+                _single_line(snapshot.get('official_last_checked'), max_len=120) or datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
                 f'No longer listed in the official Montana DOJ Missing Persons Database as of {snapshot.get("official_last_checked") or "the latest sync"}.',
                 actor,
                 int(row['id']),

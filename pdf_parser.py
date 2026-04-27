@@ -80,6 +80,13 @@ def _match_helena(text: str) -> bool:
 
 
 def _match_whitefish(text: str) -> bool:
+    # Header-only format: "Daily Incidents 4.11.26" (no "Whitefish" or "WF" in header)
+    # Body contains unit IDs like W07, W12 and addresses like COLUMBIA AVE, E 1ST ST
+    if re.search(r'Daily Incidents\s+\d{1,2}\.\d{1,2}\.\d{2,4}', text, re.IGNORECASE):
+        # Confirm with Whitefish-specific unit ID pattern (W##) or location cues
+        if re.search(r'\bW\d{2}\b', text) or re.search(r'\b(WFHS|Whitefish|Columbia Ave|E 1st St|E 2nd St|E 3rd St|Wisconsin Ave|Miles Ave|The Quarry)\b', text, re.IGNORECASE):
+            return True
+    # Legacy format with explicit Whitefish/WF branding
     return bool(
         re.search(r'Daily Incidents', text, re.IGNORECASE)
         and (re.search(r'\bWF\b', text) or re.search(r'Whitefish', text, re.IGNORECASE))
@@ -162,14 +169,21 @@ class BlotterParser:
             return "Lewis and Clark"
 
         # Whitefish Police Department is in Flathead County
-        if re.search(r'Daily Incidents', text, re.IGNORECASE) and (
-            re.search(r'\bWF\b', text) or re.search(r'Whitefish', text, re.IGNORECASE)
-        ):
-            return "Flathead"
+        # Header-only format: "Daily Incidents 4.11.26" with unit IDs like W##
+        if re.search(r'Daily Incidents', text, re.IGNORECASE):
+            if re.search(r'\b(WF|Whitefish)\b', text, re.IGNORECASE):
+                return "Flathead"
+            # Newer format: "Daily Incidents MM.DD.YY" + W## unit IDs
+            if re.search(r'Daily Incidents\s+\d{1,2}\.\d{1,2}\.\d{2,4}', text, re.IGNORECASE) and re.search(r'\bW\d{2}\b', text):
+                return "Flathead"
 
         # Havre Police Department is in Hill County
         if re.search(r'HAVRE POLICE|For Jurisdiction:\s*HAVRE', text, re.IGNORECASE):
             return "Hill"
+
+        # Jefferson County Sheriff's Office (JeffCo) — Zuercher portal PDFs
+        if re.search(r'Jefferson County|JeffCo|zuercherrelay@jeffersoncounty-mt\.gov', text, re.IGNORECASE):
+            return "Jefferson"
 
         county_patterns = [
             r"(\w+)\s+County\s+Sheriff",
@@ -182,7 +196,10 @@ class BlotterParser:
             if match:
                 if pattern == r"GCSO":
                     return "Gallatin"
-                return match.group(1)
+                candidate = match.group(1)
+                # Reject pure numeric matches (e.g. "37" from "CFS 37-XXXX")
+                if candidate and not candidate.isdigit():
+                    return candidate
 
         return "Unknown"
     

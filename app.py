@@ -8090,6 +8090,9 @@ def sitemap_index():
     charges_lastmod_row = conn.execute(
         'SELECT MAX(COALESCE(updated_at, created_at)) AS lastmod FROM charge_explainers WHERE published = 1'
     ).fetchone()
+    booking_lastmod_row = conn.execute(
+        'SELECT MAX(COALESCE(last_seen_at, first_seen_at, created_at)) AS lastmod FROM jail_bookings WHERE person_name IS NOT NULL AND person_name != \'\''
+    ).fetchone()
     conn.close()
 
     sections = [
@@ -8101,6 +8104,7 @@ def sitemap_index():
         ('records', _iso_lastmod(record_lastmod_row['lastmod']) if record_lastmod_row else None),
         ('blog', _iso_lastmod(blog_lastmod_row['lastmod']) if blog_lastmod_row else None),
         ('charges', _iso_lastmod(charges_lastmod_row['lastmod']) if charges_lastmod_row else None),
+        ('bookings', _iso_lastmod(booking_lastmod_row['lastmod']) if booking_lastmod_row else None),
     ]
     items = []
     for name, lastmod in sections:
@@ -8163,6 +8167,23 @@ def sitemap_records():
     ).fetchall()
     conn.close()
     urls = [(f"{BASE_URL}/record/{row['id']}", _iso_lastmod(row['created_at'])) for row in rows]
+    return _render_urlset(urls)
+
+
+@app.route('/sitemap-bookings.xml')
+def sitemap_bookings():
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT id, COALESCE(last_seen_at, first_seen_at, created_at) AS updated_at
+        FROM jail_bookings
+        WHERE person_name IS NOT NULL AND person_name != ''
+        ORDER BY COALESCE(last_seen_at, first_seen_at, created_at) DESC
+        LIMIT 5000
+        """
+    ).fetchall()
+    conn.close()
+    urls = [(f"{BASE_URL}/booking/{row['id']}", _iso_lastmod(row['updated_at'])) for row in rows]
     return _render_urlset(urls)
 
 
@@ -8556,6 +8577,11 @@ def public_post_detail(post_id):
     public_records = [_public_record_dict(record) for record in records]
     summary_lines = _summary_lines(post['summary']) or ['No published summary was included for this report.']
     county_page = COUNTY_DATA.get(county_slug) if county_slug else None
+
+    # SEO: canonical URL and OG image for post detail
+    post_canonical = f"https://montanablotter.com/post/{post_id}"
+    post_og_image = "https://montanablotter.com/static/icons/og-default.png"
+
     return render_template(
         'post_detail.html',
         post=post,
@@ -8572,10 +8598,17 @@ def public_post_detail(post_id):
         related_posts=related_posts,
         bail_ad_placements=bail_ad_placements,
         current_year=datetime.now().year,
+        canonical_url=post_canonical,
+        og_image=post_og_image,
     )
 
 
 @app.route('/record/<int:record_id>')
+
+@app.route('/incident/<int:record_id>')
+def public_incident_detail(record_id):
+    return public_record_detail(record_id)
+
 def public_record_detail(record_id):
     conn = get_db()
     record = conn.execute(
@@ -10248,6 +10281,14 @@ def county_page(slug):
         if neighbor.get('slug') in COUNTY_DATA
     ]
 
+    # Build pagination rel links for SEO
+    pagination_rels = []
+    base_canonical = f"https://montanablotter.com/county/{slug}"
+    if page > 1:
+        pagination_rels.append({"rel": "prev", "href": f"{base_canonical}?page={page - 1}"})
+    if page < total_pages:
+        pagination_rels.append({"rel": "next", "href": f"{base_canonical}?page={page + 1}"})
+
     return render_template(
         'county_page.html',
         county=county,
@@ -10268,6 +10309,8 @@ def county_page(slug):
         page=page,
         total_pages=total_pages,
         current_year=datetime.now().year,
+        canonical_url=base_canonical if page == 1 else f"{base_canonical}?page={page}",
+        pagination_rels=pagination_rels,
     )
 
 
@@ -11125,6 +11168,8 @@ def city_page(slug):
         page=page,
         total_pages=total_pages,
         current_year=datetime.now().year,
+        canonical_url=f"https://montanablotter.com/city/{slug}",
+        og_image="https://montanablotter.com/static/icons/og-default.png",
     )
 
 
@@ -11202,6 +11247,8 @@ def pattern_page(pattern_slug, county_slug=None):
         active_nav='patterns',
         **context,
         current_year=datetime.now().year,
+        canonical_url=f"https://montanablotter.com/patterns/{pattern_slug}{'/' + county_slug if county_slug else ''}",
+        og_image="https://montanablotter.com/static/icons/og-default.png",
     )
 
 
@@ -11223,6 +11270,8 @@ def warrants_hub():
         'warrants_hub.html',
         counties=counties,
         current_year=datetime.now().year,
+        canonical_url="https://montanablotter.com/warrants",
+        og_image="https://montanablotter.com/static/icons/og-default.png",
     )
 
 
@@ -11237,6 +11286,8 @@ def warrant_county(slug):
         county=county,
         all_counties=all_counties,
         current_year=datetime.now().year,
+        canonical_url=f"https://montanablotter.com/warrants/{slug}",
+        og_image="https://montanablotter.com/static/icons/og-default.png",
     )
 
 
@@ -11249,7 +11300,9 @@ def montana_laws():
            ORDER BY view_count DESC, charge_category, incident_type"""
     ).fetchall()
     conn.close()
-    return render_template('laws.html', explainers=explainers, current_year=datetime.now().year)
+    return render_template('laws.html', explainers=explainers, current_year=datetime.now().year,
+                           canonical_url="https://montanablotter.com/laws",
+                           og_image="https://montanablotter.com/static/icons/og-default.png")
 
 
 def _md_to_html_lines(body: str) -> list[str]:
@@ -11301,6 +11354,8 @@ def charge_explainer(slug):
         body_lines=body_lines,
         recent_records=recent,
         current_year=datetime.now().year,
+        canonical_url=f"https://montanablotter.com/laws/charge/{slug}",
+        og_image="https://montanablotter.com/static/icons/og-default.png",
     )
 
 
