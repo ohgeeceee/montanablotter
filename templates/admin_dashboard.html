@@ -27,9 +27,7 @@
                 <div class="flex flex-wrap gap-3">
                     <a href="/admin/upload" class="inline-flex items-center justify-center rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-black text-slate-950 hover:bg-amber-300 transition">Upload PDF</a>
                     <a href="/admin/ai" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 transition">AI Console</a>
-                    <a href="/admin/mission-control/runbook" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 transition">Mission Control</a>
-                    <a href="/admin/operations/sources" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 transition">Source Registry</a>
-                    <a href="/admin/operations/redaction" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 transition">Review Queue</a>
+                    <a href="/admin/mission-control" class="inline-flex items-center justify-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 transition">Mission Control</a>
                 </div>
             </div>
         </div>
@@ -109,54 +107,44 @@
             </div>
             <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                 <a href="/admin/ingestion?status=failed" class="rounded-2xl bg-amber-500 px-5 py-5 text-white shadow-sm transition hover:bg-amber-600">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Ops</p>
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Data</p>
                     <p class="mt-2 text-xl font-black">Ingestion Health</p>
                     <p class="mt-2 text-sm opacity-90">Investigate failed jobs and stale sources.</p>
                 </a>
                 <a href="/admin/operations/sources" class="rounded-2xl bg-blue-700 px-5 py-5 text-white shadow-sm transition hover:bg-blue-800">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Coverage</p>
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Data</p>
                     <p class="mt-2 text-xl font-black">Source Registry</p>
                     <p class="mt-2 text-sm opacity-90">Official source coverage, freshness, and health.</p>
                 </a>
                 <a href="/admin/operations/redaction" class="rounded-2xl bg-slate-900 px-5 py-5 text-white shadow-sm transition hover:bg-slate-800">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Review</p>
-                    <p class="mt-2 text-xl font-black">Redaction Queue</p>
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Data</p>
+                    <p class="mt-2 text-xl font-black">Review Queue</p>
                     <p class="mt-2 text-sm opacity-90">Pending, flagged, and clean editorial review states.</p>
                 </a>
                 <a href="/admin/analytics" class="rounded-2xl bg-emerald-600 px-5 py-5 text-white shadow-sm transition hover:bg-emerald-700">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Reporting</p>
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">System</p>
                     <p class="mt-2 text-xl font-black">Analytics Hub</p>
                     <p class="mt-2 text-sm opacity-90">Traffic, content, and conversion performance.</p>
                 </a>
-                <a href="/admin/office" class="rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-sm transition hover:bg-sky-800">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Live Ops</p>
-                    <p class="mt-2 text-xl font-black">Office Control Panel</p>
-                    <p class="mt-2 text-sm opacity-90">Watch agents and client traffic in real time.</p>
-                </a>
-                <a href="/admin/mission-control" class="rounded-2xl bg-cyan-700 px-5 py-5 text-white shadow-sm transition hover:bg-cyan-800">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Telemetry</p>
-                    <p class="mt-2 text-xl font-black">Mission Control</p>
-                    <p class="mt-2 text-sm opacity-90">Truthful live agent state, event rail, and office floor zones.</p>
+                <a href="/admin/blog" class="rounded-2xl bg-sky-700 px-5 py-5 text-white shadow-sm transition hover:bg-sky-800">
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black opacity-80">Content</p>
+                    <p class="mt-2 text-xl font-black">Blog & Editorial</p>
+                    <p class="mt-2 text-sm opacity-90">Manage posts, workflow, and publishing.</p>
                 </a>
                 <a href="/admin/audience/subscribers" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
                     <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Audience</p>
                     <p class="mt-2 text-xl font-black text-slate-950">Subscribers</p>
                     <p class="mt-2 text-sm text-slate-500">Manage status, county coverage, and exports.</p>
                 </a>
-                <a href="/admin/operations/jail-bookings" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Bookings</p>
-                    <p class="mt-2 text-xl font-black text-slate-950">Jail Bookings</p>
-                    <p class="mt-2 text-sm text-slate-500">Publish and manage daily jail booking entries.</p>
+                <a href="/admin/bail-ads" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Revenue</p>
+                    <p class="mt-2 text-xl font-black text-slate-950">Bail Ads</p>
+                    <p class="mt-2 text-sm text-slate-500">Manage inquiries, creatives, and orders.</p>
                 </a>
-                <a href="/admin/content/seo" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Growth</p>
-                    <p class="mt-2 text-xl font-black text-slate-950">SEO Console</p>
-                    <p class="mt-2 text-sm text-slate-500">Search Console imports, snippets, and CTR opportunities.</p>
-                </a>
-                <a href="/admin/audience/email-ops" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
-                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Delivery</p>
-                    <p class="mt-2 text-xl font-black text-slate-950">Email Ops</p>
-                    <p class="mt-2 text-sm text-slate-500">Test digests, inspect failures, and retry runs.</p>
+                <a href="/admin/recovery-ads" class="rounded-2xl border border-slate-200 bg-white px-5 py-5 transition hover:bg-slate-50">
+                    <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Revenue</p>
+                    <p class="mt-2 text-xl font-black text-slate-950">Recovery Ads</p>
+                    <p class="mt-2 text-sm text-slate-500">Manage recovery ad orders and CMS.</p>
                 </a>
             </div>
         </section>
