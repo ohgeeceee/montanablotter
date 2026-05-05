@@ -27,7 +27,12 @@ export async function getCustomerInfo() {
 }
 
 export async function getOfferings() {
-  return Purchases.getOfferings();
+  const offerings = await Purchases.getOfferings();
+  if (offerings.current) {
+    return offerings;
+  }
+  // Fallback: if current offering is missing, return raw offerings for debugging
+  return offerings;
 }
 
 export async function purchasePackage(packageToPurchase: any) {
