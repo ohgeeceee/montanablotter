@@ -5,6 +5,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
+import WatchlistScreen from './src/screens/WatchlistScreen';
+import AlertsScreen from './src/screens/AlertsScreen';
 import PremiumScreen from './src/screens/PremiumScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import PostDetailScreen from './src/screens/PostDetailScreen';
@@ -24,6 +26,8 @@ initMonitoring();
 type FeedStackParamList = {
   FeedHome: undefined;
   PostDetail: { postId: number };
+  Watchlist: undefined;
+  Alerts: undefined;
 };
 
 type LawsStackParamList = {
@@ -47,6 +51,8 @@ function FeedStackNavigator() {
     <FeedStack.Navigator>
       <FeedStack.Screen name="FeedHome" component={FeedScreen} options={{ title: 'Montana Blotter' }} />
       <FeedStack.Screen name="PostDetail" component={PostDetailScreen} options={{ title: 'Post' }} />
+      <FeedStack.Screen name="Watchlist" component={WatchlistScreen} options={{ title: 'Watchlist' }} />
+      <FeedStack.Screen name="Alerts" component={AlertsScreen} options={{ title: 'Alerts' }} />
     </FeedStack.Navigator>
   );
 }
