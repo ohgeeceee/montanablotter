@@ -69,6 +69,8 @@ function BlogStackNavigator() {
   );
 }
 
+import { PremiumProvider } from './src/context/PremiumContext';
+
 function App() {
   useEffect(() => {
     initPurchases().catch((err) => {
@@ -77,9 +79,10 @@ function App() {
   }, []);
 
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
-      <Tab.Navigator
+    <PremiumProvider>
+      <NavigationContainer>
+        <StatusBar style="auto" />
+        <Tab.Navigator
         sceneContainerStyle={{ backgroundColor: '#f8fafc' }}
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
@@ -118,7 +121,8 @@ function App() {
         <Tab.Screen name="Laws" component={LawsStackNavigator} />
         <Tab.Screen name="Blog" component={BlogStackNavigator} />
       </Tab.Navigator>
-    </NavigationContainer>
+      </NavigationContainer>
+    </PremiumProvider>
   );
 }
 
