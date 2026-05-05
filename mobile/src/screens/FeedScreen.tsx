@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { api } from '../services/api';
 import { County, Post, StatsResponse } from '../types';
 import { COLORS } from '../constants';
+import { usePremium } from '../context/PremiumContext';
 
 type FeedStackParamList = {
   FeedHome: undefined;
@@ -36,7 +37,14 @@ export default function FeedScreen() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [error, setError] = useState('');
 
-  const fetchPosts = useCallback(async (pageNum: number = 1, searchQuery: string = '', county: string = '') => {
+  const [agencyType, setAgencyType] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const { isPremium } = usePremium();
+
+  const fetchPosts = useCallback(async (pageNum: number = 1, searchQuery: string = '', county: string = '', filters: { agency_type?: string; date_from?: string; date_to?: string } = {}) => {
     try {
       setError('');
       const data = await api.getPosts({
@@ -44,6 +52,9 @@ export default function FeedScreen() {
         per_page: 20,
         search: searchQuery,
         county,
+        agency_type: filters.agency_type,
+        date_from: filters.date_from,
+        date_to: filters.date_to,
       });
       if (pageNum === 1) {
         setPosts(data.posts);
@@ -104,20 +115,20 @@ export default function FeedScreen() {
   useEffect(() => {
     setLoading(true);
     setPage(1);
-    fetchPosts(1, search, selectedCounty);
-  }, [search, selectedCounty, fetchPosts]);
+    fetchPosts(1, search, selectedCounty, { agency_type: agencyType, date_from: dateFrom, date_to: dateTo });
+  }, [search, selectedCounty, agencyType, dateFrom, dateTo, fetchPosts]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchPosts(1, search, selectedCounty);
-  }, [search, selectedCounty, fetchPosts]);
+    fetchPosts(1, search, selectedCounty, { agency_type: agencyType, date_from: dateFrom, date_to: dateTo });
+  }, [search, selectedCounty, agencyType, dateFrom, dateTo, fetchPosts]);
 
   const onEndReached = useCallback(() => {
     if (page < totalPages && !loading) {
       const nextPage = page + 1;
-      fetchPosts(nextPage, search, selectedCounty);
+      fetchPosts(nextPage, search, selectedCounty, { agency_type: agencyType, date_from: dateFrom, date_to: dateTo });
     }
-  }, [page, totalPages, loading, search, selectedCounty, fetchPosts]);
+  }, [page, totalPages, loading, search, selectedCounty, agencyType, dateFrom, dateTo, fetchPosts]);
 
   const formatCompactDate = (value?: string) => {
     if (!value) {
@@ -140,6 +151,10 @@ export default function FeedScreen() {
     setQuery('');
     setSearch('');
     setSelectedCounty('');
+    setAgencyType('');
+    setDateFrom('');
+    setDateTo('');
+    setShowFilters(false);
   };
 
   const renderPost = ({ item }: { item: Post }) => (
@@ -248,13 +263,72 @@ export default function FeedScreen() {
           <Text style={styles.resultsText}>
             {selectedCounty ? `${selectedCounty} County` : 'All Montana counties'}
             {search ? ` · "${search}"` : ''}
+            {agencyType ? ` · ${agencyType}` : ''}
+            {dateFrom || dateTo ? ` · ${dateFrom || '...'} to ${dateTo || '...'}` : ''}
           </Text>
-          {(selectedCounty || search) ? (
+          {(selectedCounty || search || agencyType || dateFrom || dateTo) ? (
             <TouchableOpacity onPress={clearFilters}>
               <Text style={styles.clearFilters}>Clear</Text>
             </TouchableOpacity>
           ) : null}
         </View>
+        <TouchableOpacity style={styles.advancedToggle} onPress={() => setShowFilters(!showFilters)}>
+          <Text style={styles.advancedToggleText}>
+            {showFilters ? '▲ Hide advanced filters' : '▼ Advanced filters'}
+          </Text>
+        </TouchableOpacity>
+        {showFilters && (
+          <View style={styles.advancedPanel}>
+            {!isPremium && (
+              <View style={styles.premiumOverlay}>
+                <Text style={styles.premiumOverlayText}>🔒 Advanced filters are a Premium feature</Text>
+                <TouchableOpacity
+                  style={styles.premiumOverlayButton}
+                  onPress={() => (navigation as any).navigate('Premium')}
+                >
+                  <Text style={styles.premiumOverlayButtonText}>Upgrade to Premium</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <Text style={styles.advancedLabel}>Agency Type</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              {['', 'Sheriff', 'Police', 'Highway Patrol'].map((type) => {
+                const active = agencyType === type;
+                return (
+                  <TouchableOpacity
+                    key={type || 'all'}
+                    style={[styles.filterChip, active && styles.filterChipActive]}
+                    onPress={() => setAgencyType(active ? '' : type)}
+                    disabled={!isPremium}
+                  >
+                    <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                      {type || 'All types'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <Text style={styles.advancedLabel}>Date Range</Text>
+            <View style={styles.dateRow}>
+              <TextInput
+                style={[styles.searchInput, styles.dateInput]}
+                placeholder="From (YYYY-MM-DD)"
+                value={dateFrom}
+                onChangeText={setDateFrom}
+                placeholderTextColor={COLORS.secondary}
+                editable={isPremium}
+              />
+              <TextInput
+                style={[styles.searchInput, styles.dateInput]}
+                placeholder="To (YYYY-MM-DD)"
+                value={dateTo}
+                onChangeText={setDateTo}
+                placeholderTextColor={COLORS.secondary}
+                editable={isPremium}
+              />
+            </View>
+          </View>
+        )}
       </View>
       {error ? (
         <View style={styles.errorBanner}>
@@ -447,6 +521,73 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontSize: 13,
     fontWeight: '600',
+  },
+  advancedToggle: {
+    marginTop: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  advancedToggleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  advancedPanel: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    position: 'relative',
+  },
+  advancedLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.secondary,
+    textTransform: 'uppercase',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dateInput: {
+    flex: 1,
+  },
+  premiumOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(248,250,252,0.92)',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    padding: 16,
+  },
+  premiumOverlayText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.primary,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  premiumOverlayButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  premiumOverlayButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   list: {
     padding: 16,
