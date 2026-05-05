@@ -1,14 +1,136 @@
 from __future__ import annotations
 
+import json
+import secrets
+import urllib.parse
 from datetime import datetime
 
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
 from db import get_db
+import config
 
+
+import requests
 
 auth_bp = Blueprint('auth', __name__)
+
+FACEBOOK_LOGIN_DISABLED_MESSAGE = 'Facebook login is temporarily unavailable.'
+
+
+def _facebook_app_id() -> str:
+    return (config.FACEBOOK_APP_ID or '').strip()
+
+
+def _facebook_app_secret() -> str:
+    return (config.FACEBOOK_APP_SECRET or '').strip()
+
+
+def _facebook_login_enabled() -> bool:
+    # Temporarily disable Facebook auth even if credentials are configured.
+    return False
+
+
+def _facebook_oauth_url(state: str, redirect_uri: str) -> str:
+    app_id = _facebook_app_id()
+    scope = 'email,public_profile'
+    return (
+        f"https://www.facebook.com/{config.FACEBOOK_GRAPH_API_VERSION}/dialog/oauth"
+        f"?client_id={app_id}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}"  # noqa: F821
+        f"&state={urllib.parse.quote(state, safe='')}"  # noqa: F821
+        f"&scope={scope}"
+    )
+
+
+def _facebook_token_url(code: str, redirect_uri: str) -> str:
+    app_id = _facebook_app_id()
+    app_secret = _facebook_app_secret()
+    return (
+        f"https://graph.facebook.com/{config.FACEBOOK_GRAPH_API_VERSION}/oauth/access_token"
+        f"?client_id={app_id}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri, safe='')}"  # noqa: F821
+        f"&client_secret={app_secret}"
+        f"&code={urllib.parse.quote(code, safe='')}"  # noqa: F821
+    )
+
+
+def _facebook_me_url(access_token: str) -> str:
+    fields = 'id,name,email'
+    return (
+        f"https://graph.facebook.com/{config.FACEBOOK_GRAPH_API_VERSION}/me"
+        f"?fields={fields}"
+        f"&access_token={urllib.parse.quote(access_token, safe='')}"  # noqa: F821
+    )
+
+
+def _get_or_create_public_user_from_facebook(facebook_id: str, email: str, name: str) -> dict:
+    conn = get_db()
+    try:
+        # Try find by facebook_id first
+        row = conn.execute(
+            'SELECT * FROM public_users WHERE facebook_id = ?',
+            (facebook_id,),
+        ).fetchone()
+        if row:
+            # Update last_login_at
+            conn.execute(
+                "UPDATE public_users SET last_login_at = datetime('now') WHERE id = ?",
+                (row['id'],),
+            )
+            conn.commit()
+            return dict(row)
+
+        # Try find by email and link
+        if email:
+            row = conn.execute(
+                'SELECT * FROM public_users WHERE email = ?',
+                (email.lower().strip(),),
+            ).fetchone()
+            if row:
+                conn.execute(
+                    'UPDATE public_users SET facebook_id = ?, last_login_at = datetime("now") WHERE id = ?',
+                    (facebook_id, row['id']),
+                )
+                conn.commit()
+                return dict(row)
+
+        # Create new user
+        display_name = (name or 'Facebook User').strip()[:120]
+        cursor = conn.execute(
+            '''
+            INSERT INTO public_users (
+                email, password_hash, display_name, subscription_counties,
+                subscribe_digest, is_active, created_at, last_login_at, facebook_id
+            ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)
+            ''',
+            (
+                (email or f'fb_{facebook_id}@placeholder.local').lower().strip(),
+                '',  # no local password
+                display_name,
+                '',
+                0,
+                1,
+                facebook_id,
+            ),
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+        row = conn.execute('SELECT * FROM public_users WHERE id = ?', (new_id,)).fetchone()
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def _set_public_user_session(user_id: int) -> None:
+    m = _app()
+    m._set_public_user_session(user_id)
+
+
+def _safe_next_url(raw_next: str | None, fallback: str = '/') -> str:
+    m = _app()
+    return m._safe_next_url(raw_next, fallback=fallback)
 
 
 def register_auth_blueprint(app):
@@ -292,6 +414,93 @@ def public_dashboard():
         public_user=public_user,
         current_year=datetime.now().year,
     )
+
+
+@auth_bp.route('/login/facebook')
+def facebook_login():
+    """Initiate Facebook OAuth login."""
+    if not _facebook_login_enabled():
+        flash(FACEBOOK_LOGIN_DISABLED_MESSAGE, 'error')
+        return redirect(url_for('.public_login'))
+
+    next_url = _safe_next_url(request.args.get('next'), fallback='/')
+    state_data = json.dumps({'next': next_url, 'nonce': secrets.token_urlsafe(16)})
+    session['fb_oauth_state'] = state_data
+    redirect_uri = f"{config.BASE_URL.rstrip('/')}/login/facebook/callback"
+    return redirect(_facebook_oauth_url(state_data, redirect_uri))
+
+
+@auth_bp.route('/login/facebook/callback')
+def facebook_callback():
+    """Handle Facebook OAuth callback."""
+    if not _facebook_login_enabled():
+        flash(FACEBOOK_LOGIN_DISABLED_MESSAGE, 'error')
+        return redirect(url_for('.public_login'))
+
+    error = request.args.get('error')
+    if error:
+        flash(f'Facebook login failed: {error}', 'error')
+        return redirect(url_for('.public_login'))
+
+    code = request.args.get('code', '')
+    state = request.args.get('state', '')
+    stored_state = session.pop('fb_oauth_state', None)
+
+    if not code:
+        flash('Facebook login was cancelled.', 'error')
+        return redirect(url_for('.public_login'))
+
+    if not stored_state or state != stored_state:
+        flash('Invalid login state. Please try again.', 'error')
+        return redirect(url_for('.public_login'))
+
+    try:
+        state_payload = json.loads(stored_state)
+        next_url = state_payload.get('next', '/')
+    except Exception:
+        next_url = '/'
+
+    redirect_uri = f"{config.BASE_URL.rstrip('/')}/login/facebook/callback"
+    token_url = _facebook_token_url(code, redirect_uri)
+
+    try:
+        token_resp = requests.get(token_url, timeout=30)
+        token_data = token_resp.json() if token_resp.content else {}
+    except Exception as exc:
+        flash(f'Failed to exchange Facebook token: {exc}', 'error')
+        return redirect(url_for('.public_login'))
+
+    access_token = token_data.get('access_token')
+    if not access_token:
+        err_msg = token_data.get('error', {}).get('message', 'Unknown error')
+        flash(f'Facebook token exchange failed: {err_msg}', 'error')
+        return redirect(url_for('.public_login'))
+
+    # Fetch user profile
+    me_url = _facebook_me_url(access_token)
+    try:
+        me_resp = requests.get(me_url, timeout=30)
+        me_data = me_resp.json() if me_resp.content else {}
+    except Exception as exc:
+        flash(f'Failed to fetch Facebook profile: {exc}', 'error')
+        return redirect(url_for('.public_login'))
+
+    facebook_id = str(me_data.get('id', ''))
+    email = (me_data.get('email') or '').strip().lower()
+    name = (me_data.get('name') or '').strip()
+
+    if not facebook_id:
+        flash('Could not retrieve Facebook profile.', 'error')
+        return redirect(url_for('.public_login'))
+
+    user = _get_or_create_public_user_from_facebook(facebook_id, email, name)
+    if not user.get('is_active'):
+        flash('This account has been disabled.', 'error')
+        return redirect(url_for('.public_login'))
+
+    _set_public_user_session(user['id'])
+    flash('Signed in with Facebook successfully.', 'success')
+    return redirect(_safe_next_url(next_url, fallback='/'))
 
 
 @auth_bp.route('/account')

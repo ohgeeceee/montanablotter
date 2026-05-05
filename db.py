@@ -17,9 +17,17 @@ import config
 # against the Turso storage quota.
 # ---------------------------------------------------------------------------
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name, '').strip().lower()
+    if not raw:
+        return default
+    return raw in {'1', 'true', 'yes', 'on'}
+
+
+_TURSO_ENABLED = _env_bool('MB_TURSO_ENABLED', default=True)
 _TURSO_URL = os.getenv('TURSO_DATABASE_URL', '').strip()
 _TURSO_TOKEN = os.getenv('TURSO_AUTH_TOKEN', '').strip()
-_USE_TURSO = bool(_TURSO_URL and _TURSO_TOKEN)
+_USE_TURSO = _TURSO_ENABLED and bool(_TURSO_URL and _TURSO_TOKEN)
 
 if _USE_TURSO:
     try:
@@ -38,6 +46,15 @@ _PAGE_VIEWS_DB_PATH = os.getenv(
     'MB_PAGE_VIEWS_DB_PATH',
     os.path.join(os.path.dirname(config.DB_PATH), 'page_views.db'),
 )
+
+
+def _is_turso_forbidden_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return (
+        '403' in message
+        or 'forbidden' in message
+        or 'reads are blocked' in message
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +261,8 @@ def connect_db(
     by the Turso cloud database).  Otherwise it falls back to a plain local
     SQLite connection — identical to the original behaviour.
     """
+    global _USE_TURSO
+
     if _USE_TURSO:
         try:
             # Use a per-PID replica path to avoid WAL contention between
@@ -259,7 +278,12 @@ def connect_db(
             raw_conn.sync()
             # Return a wrapper that provides sqlite3.Row-compatible dict access.
             return _LibsqlConnectionWrapper(raw_conn)
-        except Exception:
+        except Exception as exc:
+            if _is_turso_forbidden_error(exc):
+                # The configured Turso database/token does not allow replica
+                # export reads. Disable Turso for the rest of the process so
+                # every request does not retry the same forbidden sync.
+                _USE_TURSO = False
             # If Turso fails (network, WAL contention, etc.) fall back to the
             # local SQLite file so the site stays up.
             pass
@@ -307,4 +331,3 @@ def connect_page_views(
     ''')
     conn.commit()
     return conn
-

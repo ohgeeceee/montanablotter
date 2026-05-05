@@ -29,6 +29,7 @@ from datetime import datetime, timedelta, timezone
 from agency_normalization import normalize_agency_identity
 from blotter_auditor import get_pii_spans
 import config
+from api_auth import after_api_request
 from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
@@ -1103,6 +1104,8 @@ def inject_csrf_token():
     return {
         'csrf_token': _csrf_token,
         'recaptcha_site_key': config.RECAPTCHA_SITE_KEY if config.RECAPTCHA_ENABLED else '',
+        # Keep Facebook auth hidden in the UI while the integration is disabled.
+        'facebook_login_enabled': False,
     }
 
 def allowed_file(filename):
@@ -6213,6 +6216,7 @@ def inject_public_nav():
         {'id': 'jail_rosters', 'href': '/detention', 'label': 'Detention', 'menu_label': 'Jails'},
         {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds', 'menu_label': 'Bail'},
         {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons', 'menu_label': 'Missing'},
+        {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
     ]
     public_secondary_nav_items = [
         {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys', 'menu_label': 'Cases'},
@@ -11247,7 +11251,6 @@ def pattern_page(pattern_slug, county_slug=None):
         active_nav='patterns',
         **context,
         current_year=datetime.now().year,
-        canonical_url=f"https://montanablotter.com/patterns/{pattern_slug}{'/' + county_slug if county_slug else ''}",
         og_image="https://montanablotter.com/static/icons/og-default.png",
     )
 
@@ -11680,6 +11683,7 @@ register_api_blueprint(app)
 register_auth_blueprint(app)
 register_payments_blueprint(app)
 app.register_blueprint(recovery_ads_bp)
+app.after_request(after_api_request)
 
 
 @app.route('/admin/analytics')
@@ -11719,6 +11723,25 @@ def not_found(e):
 def serve_upload(filename):
     """Serve files from the uploads directory"""
     return send_from_directory(config.UPLOAD_DIR, filename)
+
+
+# ==========================================
+# PREMIUM PUBLIC PAGES
+# ==========================================
+
+@app.route('/crime-map')
+def crime_map():
+    return render_template('crime_map.html')
+
+
+@app.route('/safety-scorecards')
+def safety_scorecards():
+    return render_template('safety_scorecards.html')
+
+
+@app.route('/my-alerts')
+def my_alerts():
+    return render_template('alert_profiles.html')
 
 
 @app.errorhandler(500)

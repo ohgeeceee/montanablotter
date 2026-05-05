@@ -208,7 +208,6 @@ def _ensure_missing_person_columns(conn: sqlite3.Connection) -> None:
 
 
 def _get_missing_person_source_stats(conn: sqlite3.Connection) -> dict[str, Any]:
-    ensure_missing_person_schema(conn)
     row = conn.execute(
         '''
         SELECT *
@@ -449,6 +448,16 @@ def _decorate_person_row(row: sqlite3.Row | dict[str, Any] | None) -> dict[str, 
         item['photo_gallery'] = []
     if item.get('photo_url') and not item['photo_gallery']:
         item['photo_gallery'] = [{'url': item['photo_url'], 'label': ''}]
+    item['photos'] = item['photo_gallery']
+    item['dossier'] = []
+    if item.get('source_person_id'):
+        item['dossier'].append({'label': 'Official Source ID', 'value': item['source_person_id']})
+    if item.get('investigating_agency'):
+        item['dossier'].append({'label': 'Investigating Agency', 'value': item['investigating_agency']})
+    if item.get('aliases_list'):
+        item['dossier'].append({'label': 'Aliases', 'value': ', '.join(item['aliases_list'])})
+    if item.get('case_number'):
+        item['dossier'].append({'label': 'Case Number', 'value': item['case_number']})
     return item
 
 
@@ -519,7 +528,6 @@ def _list_missing_person_counties(conn: sqlite3.Connection) -> list[str]:
 
 
 def get_missing_person_by_id(conn: sqlite3.Connection, person_id: int) -> dict[str, Any] | None:
-    ensure_missing_person_schema(conn)
     row = conn.execute(
         'SELECT * FROM missing_persons WHERE id = ? LIMIT 1',
         (int(person_id),),
@@ -528,7 +536,6 @@ def get_missing_person_by_id(conn: sqlite3.Connection, person_id: int) -> dict[s
 
 
 def get_missing_person_by_slug(conn: sqlite3.Connection, slug: str) -> dict[str, Any] | None:
-    ensure_missing_person_schema(conn)
     row = conn.execute(
         'SELECT * FROM missing_persons WHERE slug = ? LIMIT 1',
         ((slug or '').strip(),),
@@ -537,7 +544,6 @@ def get_missing_person_by_slug(conn: sqlite3.Connection, slug: str) -> dict[str,
 
 
 def missing_person_homepage_context(conn: sqlite3.Connection, *, limit: int = 3) -> dict[str, Any]:
-    ensure_missing_person_schema(conn)
     rows = _fetch_missing_person_rows(conn, status=STATUS_MISSING, sort='newest_alerts', limit=limit)
     resolved_rows = _fetch_missing_person_rows(conn, status=STATUS_LOCATED, sort='recently_resolved', limit=limit)
     total_active = conn.execute(
@@ -571,7 +577,6 @@ def missing_person_public_context(
     county: str = '',
     sort: str = 'updated_desc',
 ) -> dict[str, Any]:
-    ensure_missing_person_schema(conn)
     normalized_status = (status_filter or 'active').strip().lower()
     if normalized_status not in {'active', 'located', 'all'}:
         normalized_status = 'active'
@@ -661,7 +666,6 @@ def missing_person_public_context(
 
 
 def missing_person_detail_context(conn: sqlite3.Connection, slug: str) -> dict[str, Any] | None:
-    ensure_missing_person_schema(conn)
     person = get_missing_person_by_slug(conn, slug)
     if not person:
         return None

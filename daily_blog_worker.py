@@ -387,6 +387,11 @@ Rules:
 
 
 def _fallback_article(context_payload: dict[str, object]) -> dict[str, str]:
+    """Generate a well-structured fallback article when Claude API is unavailable.
+    
+    This template produces professional, engaging content that rivals AI-generated
+    output by using dynamic data insertion and varied sentence structures.
+    """
     story_mode = context_payload.get("story_mode", "statewide")
     date_long = context_payload.get("analysis_date_long", "")
     total_incidents = int(context_payload.get("total_incidents") or 0)
@@ -400,186 +405,286 @@ def _fallback_article(context_payload: dict[str, object]) -> dict[str, str]:
     window_top_incident_types = context_payload.get("window_top_incident_types", [])
     window_highlights = context_payload.get("window_highlights", [])
 
+    # Build rich data strings
     county_line = ", ".join(
         f"{entry['county']} ({entry['count']})" for entry in top_counties[:3]
     ) or "no county breakout available"
     incident_line = ", ".join(
         f"{entry['incident_type']} ({entry['count']})" for entry in top_incident_types[:4]
     ) or "no incident-type breakout available"
-
-    if story_mode == "county_focus" and window_top_counties:
+    
+    # Generate a dynamic opening based on day of week for variety
+    weekday = datetime.now().strftime("%A")
+    
+    def _build_county_focus():
         lead_county = window_top_counties[0]["county"]
         lead_count = window_top_counties[0]["count"]
         county_links = [post for post in related_posts if lead_county.lower() in (post["context"] or "").lower()]
+        
+        # Dynamic opening paragraphs
+        openings = [
+            f"Law enforcement activity in **{lead_county} County** dominated Montana's blotter coverage through {date_long}, with **{lead_count} incident entries** making it the busiest jurisdiction in the current reporting window.",
+            f"**{lead_county} County** emerged as Montana's most active jurisdiction for law enforcement calls through {date_long}, logging **{lead_count} incidents** across the recent reporting period.",
+            f"The latest Montana blotter data through {date_long} shows **{lead_county} County** handling the heaviest law enforcement workload, with **{lead_count} incident entries** in the current window.",
+        ]
+        opening = openings[datetime.now().day % len(openings)]
+        
         body_lines = [
-            f"## {lead_county} County Police Blotter Focus for {date_long}",
+            f"## {lead_county} County: Montana's Busiest Jurisdiction for {date_long}",
             "",
-            (
-                f"Across the recent Montana blotter window ending **{date_long}**, "
-                f"**{lead_county} County** showed the heaviest visible activity with **{lead_count} incident entries**."
-            ),
-            (
-                f"The same window contains **{window_total_incidents} incident entries statewide**, "
-                f"which gives a little more context than a single-day snapshot."
-            ),
+            opening,
             "",
-            "## Why This County Stood Out",
+            f"Statewide, the same window contains **{window_total_incidents} incident entries** across all reporting agencies, putting {lead_county} County's activity in broader context.",
             "",
-            f"- {lead_county} County led the current window by visible incident volume.",
-            f"- Same-day incident mix on {date_long}: {incident_line}.",
-            "",
-            f"## What Appeared In {lead_county} County Logs",
+            "## What Drove the Volume",
             "",
         ]
+        
+        # Add contextual insights based on data
+        if window_top_incident_types:
+            top_type = window_top_incident_types[0]["incident_type"]
+            type_count = window_top_incident_types[0]["count"]
+            body_lines.append(f"- The most frequent call type across the window was **{top_type}** ({type_count} occurrences).")
+        
+        body_lines.extend([
+            f"- {lead_county} County's **{lead_count} entries** represent a significant concentration of the window's total activity.",
+            f"- Same-day incident mix: {incident_line}.",
+            "",
+            f"## Notable Activity in {lead_county} County",
+            "",
+        ])
+        
         county_highlights = [line for line in window_highlights if line.startswith(f"{lead_county}:")]
         for line in county_highlights[:MAX_HIGHLIGHTS]:
             body_lines.append(f"- {line}")
         if not county_highlights:
-            body_lines.append(f"- Detailed {lead_county} County highlights were limited in the current parsed records.")
-        body_lines.extend(["", "## Read The Local Reports", ""])
+            body_lines.append(f"- Detailed {lead_county} County highlights were limited in the current parsed records, but the volume suggests sustained patrol and response activity.")
+        
+        body_lines.extend([
+            "",
+            "## Local Reports and Context",
+            "",
+        ])
+        
         for post in county_links[:MAX_RELATED_POSTS]:
             context_text = f" ({post['context']})" if post["context"] else ""
             body_lines.append(f"- [{post['title']}]({post['url']}){context_text}")
         if not county_links:
             body_lines.append(f"- Browse [/posts?county={lead_county.replace(' ', '%20')}](/posts?county={lead_county.replace(' ', '%20')}) for the latest {lead_county} County reports.")
-        body_lines.extend(
-            [
-                "",
-                "## What To Watch Next",
-                "",
-                (
-                    "One busy county does not define a statewide trend, but these bursts often show where calls for service, "
-                    "quality-of-life complaints, or weapons-related dispatches are concentrating."
-                ),
-            ]
-        )
+        
+        body_lines.extend([
+            "",
+            "## Understanding the Numbers",
+            "",
+            "A single county's busy blotter does not necessarily indicate rising crime rates. Heavy volume often reflects:",
+            "",
+            "- **Active patrol coverage** — More officers on shift generate more documented contacts.",
+            "- **Quality-of-life enforcement** — Noise, trespassing, and welfare checks add volume without indicating violent crime.",
+            "- **Geographic concentration** — Population centers naturally generate more calls than rural areas.",
+            "",
+            f"Readers should treat these figures as an operational snapshot rather than a crime trend. For direct source material, follow the linked agency reports above.",
+        ])
+        
         return {
-            "title": f"{lead_county} County Led Montana's Blotter Activity on {date_long}",
+            "title": f"{lead_county} County Led Montana Law Enforcement Activity on {date_long}",
             "excerpt": (
-                f"A daily Montana Blotter focus on {lead_county} County, which posted the heaviest visible activity "
-                f"in the recent reporting window ending {date_long}."
+                f"{lead_county} County posted the heaviest law enforcement activity in Montana's recent blotter window "
+                f"ending {date_long}, with {lead_count} incident entries across the reporting period."
             ),
             "body": "\n".join(body_lines),
         }
 
-    if story_mode == "incident_focus" and window_top_incident_types:
+    def _build_incident_focus():
         lead_incident = window_top_incident_types[0]["incident_type"]
         lead_count = window_top_incident_types[0]["count"]
+        
+        # Dynamic openings
+        openings = [
+            f"**{lead_incident}** calls dominated Montana's law enforcement blotters through {date_long}, appearing **{lead_count} times** in the recent reporting window — more than any other incident type.",
+            f"Montana agencies logged **{lead_count} {lead_incident}** incidents through {date_long}, making it the most frequently reported call type in the current blotter window.",
+            f"The latest statewide blotter data shows **{lead_incident}** as the leading call type through {date_long}, with **{lead_count} entries** across reporting agencies.",
+        ]
+        opening = openings[datetime.now().day % len(openings)]
+        
         body_lines = [
-            f"## Montana Incident Trend Watch for {date_long}",
+            f"## Montana Blotter Focus: {lead_incident} Activity for {date_long}",
             "",
-            (
-                f"In the recent Montana blotter window ending **{date_long}**, "
-                f"**{lead_incident}** appeared **{lead_count} times**, making it the clearest repeated incident label in the parsed records."
-            ),
-            (
-                f"The current day itself contains **{total_incidents} incident entries**, with activity concentrated in {county_line}."
-            ),
+            opening,
             "",
-            "## What The Logs Showed",
+            f"On the specific date of **{date_long}**, blotter records show **{total_incidents} incident entries** statewide, with activity concentrated in {county_line}.",
+            "",
+            "## Where the Calls Clustered",
             "",
         ]
+        
+        # Add county breakdown for this incident type
+        incident_county_counts = Counter()
+        for line in window_highlights:
+            if lead_incident.lower() in line.lower():
+                county_match = re.match(r'^([^:]+):', line)
+                if county_match:
+                    incident_county_counts[county_match.group(1)] += 1
+        
+        if incident_county_counts:
+            top_incident_counties = incident_county_counts.most_common(3)
+            body_lines.append(f"**{lead_incident}** calls were most frequently documented in:")
+            body_lines.append("")
+            for county, count in top_incident_counties:
+                body_lines.append(f"- **{county}** ({count} entries)")
+        
+        body_lines.extend([
+            "",
+            "## Specific Log Entries",
+            "",
+        ])
+        
         incident_highlights = [line for line in window_highlights if lead_incident.lower() in line.lower()]
         for line in incident_highlights[:MAX_HIGHLIGHTS]:
             body_lines.append(f"- {line}")
         if not incident_highlights:
-            body_lines.append(f"- Specific {lead_incident} highlights were limited in the currently parsed records.")
-        body_lines.extend(
-            [
-                "",
-                "## Same-Day Context",
-                "",
-                f"- Leading incident labels on {date_long}: {incident_line}.",
-                f"- Counties most visible in the current day: {county_line}.",
-                "",
-                "## Reports To Read Next",
-                "",
-            ]
-        )
+            body_lines.append(f"- Specific {lead_incident} highlights were limited in the currently parsed records, though the volume indicates sustained activity.")
+        
+        body_lines.extend([
+            "",
+            "## Same-Day Broader Context",
+            "",
+            f"- Leading incident labels on {date_long}: {incident_line}.",
+            f"- Counties with the most visible activity: {county_line}.",
+            "",
+            "## Related Agency Reports",
+            "",
+        ])
+        
         for post in related_posts:
             context_text = f" ({post['context']})" if post["context"] else ""
             body_lines.append(f"- [{post['title']}]({post['url']}){context_text}")
         if not related_posts:
             body_lines.append("- New public report links were not available for this roundup window yet.")
-        body_lines.extend(
-            [
-                "",
-                "## Why This Matters",
-                "",
-                (
-                    "Repeated incident labels in blotter data do not prove a long-term statewide pattern, "
-                    "but they do show which call types are dominating the current operational window."
-                ),
-            ]
-        )
+        
+        body_lines.extend([
+            "",
+            "## Reading the Data",
+            "",
+            f"Repeated **{lead_incident}** entries in blotter logs do not prove a long-term statewide pattern, but they do show which call types are dominating the current operational window. Factors that can drive volume include:",
+            "",
+            "- **Seasonal patterns** — Weather, holidays, and school schedules affect call types.",
+            "- **Enforcement priorities** — Agency focus areas can temporarily elevate certain incident labels.",
+            "- **Reporting consistency** — Some agencies log more detail than others, affecting classification.",
+            "",
+            "For the most accurate picture, review the linked agency reports directly and track trends across multiple windows rather than relying on a single day's data.",
+        ])
+        
         return {
-            "title": f"{lead_incident} Calls Stood Out In Montana Blotters on {date_long}",
+            "title": f"{lead_incident} Calls Dominated Montana Blotters on {date_long}",
             "excerpt": (
-                f"A Montana Blotter trend watch on {lead_incident} activity, which appeared most often in the recent "
-                f"police and sheriff logs ending {date_long}."
+                f"{lead_incident} was the most frequently reported incident type in Montana's recent blotter window "
+                f"ending {date_long}, appearing {lead_count} times across reporting agencies."
             ),
             "body": "\n".join(body_lines),
         }
 
-    body_lines = [
-        f"## Montana Crime and Police Roundup for {date_long}",
-        "",
-        (
-            f"Montana Blotter reviewed **{total_incidents} incident entries** tied to "
-            f"Montana law-enforcement activity dated **{date_long}**."
-        ),
-        (
-            f"Public digest posts from **{agency_count} agencies** were available in the current "
-            f"roundup window."
-            if agency_count
-            else "Agency digest coverage was limited in the current roundup window, so this post leans on raw incident records."
-        ),
-        "",
-        "## What Stood Out",
-        "",
-        f"- Counties with the most reported activity: {county_line}.",
-        f"- Most common incident labels in the available records: {incident_line}.",
-        "",
-        "## Field Notes From The Daily Log",
-        "",
-    ]
-    for line in highlights or ["No clean record highlights were available from the current date window."]:
-        body_lines.append(f"- {line}")
-    body_lines.extend(["", "## Reports To Read Next", ""])
-    for post in related_posts:
-        context_text = f" ({post['context']})" if post["context"] else ""
-        body_lines.append(f"- [{post['title']}]({post['url']}){context_text}")
-    if not related_posts:
-        body_lines.append("- New public report links were not available for this roundup window yet.")
-    body_lines.extend(
-        [
+    def _build_statewide():
+        # Dynamic openings based on data richness
+        if agency_count >= 5:
+            opening = (
+                f"Montana Blotter reviewed **{total_incidents} incident entries** from **{agency_count} agencies** "
+                f"dated **{date_long}**, capturing a broad slice of statewide law enforcement activity."
+            )
+        elif agency_count > 0:
+            opening = (
+                f"Montana Blotter reviewed **{total_incidents} incident entries** tied to **{agency_count} agencies** "
+                f"dated **{date_long}**. Coverage was moderate, with some jurisdictions yet to file public digests."
+            )
+        else:
+            opening = (
+                f"Montana Blotter reviewed **{total_incidents} incident entries** dated **{date_long}**. "
+                f"Agency digest coverage was limited in the current window, so this roundup relies primarily on raw incident records."
+            )
+        
+        # Build highlights section with better formatting
+        highlight_section = []
+        if highlights:
+            for line in highlights[:MAX_HIGHLIGHTS]:
+                # Clean up and format the highlight
+                clean_line = re.sub(r"\s+", " ", line.strip())
+                if clean_line:
+                    highlight_section.append(f"- {clean_line}")
+        
+        if not highlight_section:
+            highlight_section = ["- No detailed highlights were available from the current date window."]
+        
+        body_lines = [
+            f"## Montana Law Enforcement Roundup: {date_long}",
             "",
-            "## Why This Matters",
+            opening,
             "",
-            (
-                "Daily blotter coverage is not a full crime rate measure, but it does show where calls, "
-                "enforcement activity, and public-safety workload are concentrating across Montana."
-            ),
-            (
-                "Readers should treat this roundup as a same-day operational snapshot and use the linked "
-                "agency reports for more direct source context."
-            ),
+            "## Statewide Snapshot",
+            "",
+            f"- **Total incidents reviewed:** {total_incidents}",
         ]
-    )
-    return {
-        "title": f"Montana Crime and Police Roundup for {date_long}",
-        "excerpt": (
-            f"A Montana-focused roundup of {total_incidents} incident entries dated {date_long}, "
-            f"with the busiest counties, common call types, and links back to local agency reports."
-        ),
-        "body": "\n".join(body_lines),
-    }
+        
+        if agency_count:
+            body_lines.append(f"- **Agencies reporting:** {agency_count}")
+        
+        body_lines.extend([
+            f"- **Busiest counties:** {county_line}",
+            f"- **Most common call types:** {incident_line}",
+            "",
+            "## Field Notes",
+            "",
+        ])
+        
+        body_lines.extend(highlight_section)
+        
+        body_lines.extend([
+            "",
+            "## Agency Reports",
+            "",
+        ])
+        
+        for post in related_posts:
+            context_text = f" ({post['context']})" if post["context"] else ""
+            body_lines.append(f"- [{post['title']}]({post['url']}){context_text}")
+        if not related_posts:
+            body_lines.append("- New public report links were not available for this roundup window yet.")
+        
+        body_lines.extend([
+            "",
+            "## Understanding Blotter Data",
+            "",
+            "Daily blotter coverage provides an operational snapshot, not a complete crime picture. Here's what the numbers represent:",
+            "",
+            "- **Calls for service** — Most entries reflect dispatched calls, not necessarily crimes committed.",
+            "- **Jurisdiction variation** — Agencies classify and report incidents differently.",
+            "- **Temporal context** — Single-day spikes often reflect specific events rather than trends.",
+            "",
+            "For deeper context, follow the linked agency reports and compare data across multiple dates.",
+        ])
+        
+        return {
+            "title": f"Montana Law Enforcement Roundup: {date_long}",
+            "excerpt": (
+                f"A Montana-focused roundup of {total_incidents} law enforcement incident entries dated {date_long}, "
+                f"covering the busiest counties, common call types, and links to local agency reports."
+            ),
+            "body": "\n".join(body_lines),
+        }
+
+    # Route to appropriate builder
+    if story_mode == "county_focus" and window_top_counties:
+        return _build_county_focus()
+    elif story_mode == "incident_focus" and window_top_incident_types:
+        return _build_incident_focus()
+    else:
+        return _build_statewide()
 
 
 def _article_from_context(context_payload: dict[str, object]) -> dict[str, str]:
     article = _call_claude(context_payload)
     if article.get("title") and article.get("body"):
+        logger.info("Daily blog generated via Claude API for %s", context_payload.get("analysis_date", "unknown"))
         return article
+    logger.warning("Claude API unavailable - using fallback template for %s", context_payload.get("analysis_date", "unknown"))
     return _fallback_article(context_payload)
 
 

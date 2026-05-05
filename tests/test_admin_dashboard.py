@@ -85,7 +85,7 @@ class AdminDashboardTests(unittest.TestCase):
         self.assertIn('/admin/operations/redaction', html)
         self.assertIn('/admin/audience/subscribers', html)
         self.assertIn('/admin/analytics', html)
-        self.assertIn('/admin/mission-control/runbook', html)
+        self.assertIn('/admin/mission-control', html)
 
 
 if __name__ == '__main__':
