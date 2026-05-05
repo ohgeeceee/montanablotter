@@ -10,6 +10,7 @@ from flask import Blueprint, abort, current_app, jsonify, render_template, reque
 from werkzeug.utils import secure_filename
 
 from db import get_db
+from api_auth import require_api_key
 
 
 api_bp = Blueprint('api', __name__)
@@ -78,7 +79,328 @@ def _blog_payload(row, *, include_body: bool = True):
     return payload
 
 
+# ---------------------------------------------------------------------------
+# Premium alert profiles
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/me/alert-profiles', methods=['GET'])
+@require_api_key(allow_anonymous=True)
+def api_my_alert_profiles():
+    user = _current_public_user()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT * FROM user_alert_profiles WHERE user_id=? AND is_active=1 ORDER BY created_at DESC',
+        (user['id'],),
+    ).fetchall()
+    conn.close()
+    return jsonify({'profiles': [_alert_profile_payload(r) for r in rows]})
+
+
+@api_bp.route('/api/me/alert-profiles', methods=['POST'])
+@require_api_key(allow_anonymous=True)
+def api_create_alert_profile():
+    user = _current_public_user()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    data = request.get_json(force=True, silent=True) or {}
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        '''
+        INSERT INTO user_alert_profiles (
+            user_id, name, alert_types, counties, cities, neighborhoods,
+            radius_miles, center_lat, center_lng, severity_threshold,
+            frequency, delivery_channel, webhook_url, slack_channel, teams_webhook
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            user['id'],
+            (data.get('name') or 'New Alert').strip()[:120],
+            json.dumps(data.get('alert_types') or ['all']),
+            json.dumps(data.get('counties')) if data.get('counties') else None,
+            json.dumps(data.get('cities')) if data.get('cities') else None,
+            json.dumps(data.get('neighborhoods')) if data.get('neighborhoods') else None,
+            data.get('radius_miles'),
+            data.get('center_lat'),
+            data.get('center_lng'),
+            (data.get('severity_threshold') or 'all').strip()[:20],
+            (data.get('frequency') or 'immediate').strip()[:20],
+            (data.get('delivery_channel') or 'email').strip()[:20],
+            (data.get('webhook_url') or '').strip()[:500] or None,
+            (data.get('slack_channel') or '').strip()[:120] or None,
+            (data.get('teams_webhook') or '').strip()[:500] or None,
+        ),
+    )
+    conn.commit()
+    profile_id = cursor.lastrowid
+    conn.close()
+    return jsonify({'id': profile_id, 'message': 'Profile created'}), 201
+
+
+@api_bp.route('/api/me/alert-profiles/<int:profile_id>', methods=['PUT'])
+@require_api_key(allow_anonymous=True)
+def api_update_alert_profile(profile_id):
+    user = _current_public_user()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    data = request.get_json(force=True, silent=True) or {}
+    conn = get_db()
+    existing = conn.execute(
+        'SELECT id FROM user_alert_profiles WHERE id=? AND user_id=?',
+        (profile_id, user['id']),
+    ).fetchone()
+    if not existing:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+    fields = []
+    params = []
+    if 'name' in data:
+        fields.append('name=?')
+        params.append((data['name'] or 'New Alert').strip()[:120])
+    if 'alert_types' in data:
+        fields.append('alert_types=?')
+        params.append(json.dumps(data['alert_types']))
+    if 'counties' in data:
+        fields.append('counties=?')
+        params.append(json.dumps(data['counties']) if data['counties'] else None)
+    if 'cities' in data:
+        fields.append('cities=?')
+        params.append(json.dumps(data['cities']) if data['cities'] else None)
+    if 'neighborhoods' in data:
+        fields.append('neighborhoods=?')
+        params.append(json.dumps(data['neighborhoods']) if data['neighborhoods'] else None)
+    if 'radius_miles' in data:
+        fields.append('radius_miles=?')
+        params.append(data['radius_miles'])
+    if 'center_lat' in data:
+        fields.append('center_lat=?')
+        params.append(data['center_lat'])
+    if 'center_lng' in data:
+        fields.append('center_lng=?')
+        params.append(data['center_lng'])
+    if 'severity_threshold' in data:
+        fields.append('severity_threshold=?')
+        params.append(data['severity_threshold'].strip()[:20])
+    if 'frequency' in data:
+        fields.append('frequency=?')
+        params.append(data['frequency'].strip()[:20])
+    if 'delivery_channel' in data:
+        fields.append('delivery_channel=?')
+        params.append(data['delivery_channel'].strip()[:20])
+    if 'webhook_url' in data:
+        fields.append('webhook_url=?')
+        params.append(data['webhook_url'].strip()[:500] or None)
+    if 'slack_channel' in data:
+        fields.append('slack_channel=?')
+        params.append(data['slack_channel'].strip()[:120] or None)
+    if 'teams_webhook' in data:
+        fields.append('teams_webhook=?')
+        params.append(data['teams_webhook'].strip()[:500] or None)
+    if 'is_active' in data:
+        fields.append('is_active=?')
+        params.append(1 if data['is_active'] else 0)
+    if not fields:
+        conn.close()
+        return jsonify({'message': 'No changes'}), 200
+    params.append(profile_id)
+    conn.execute(
+        f"UPDATE user_alert_profiles SET {', '.join(fields)}, updated_at=datetime('now') WHERE id=?",
+        tuple(params),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Profile updated'})
+
+
+@api_bp.route('/api/me/alert-profiles/<int:profile_id>', methods=['DELETE'])
+@require_api_key(allow_anonymous=True)
+def api_delete_alert_profile(profile_id):
+    user = _current_public_user()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    conn = get_db()
+    conn.execute(
+        'DELETE FROM user_alert_profiles WHERE id=? AND user_id=?',
+        (profile_id, user['id']),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Profile deleted'})
+
+
+def _alert_profile_payload(row):
+    return {
+        'id': row['id'],
+        'name': row['name'],
+        'alert_types': json.loads(row['alert_types']) if row['alert_types'] else ['all'],
+        'counties': json.loads(row['counties']) if row['counties'] else None,
+        'cities': json.loads(row['cities']) if row['cities'] else None,
+        'neighborhoods': json.loads(row['neighborhoods']) if row['neighborhoods'] else None,
+        'radius_miles': row['radius_miles'],
+        'center_lat': row['center_lat'],
+        'center_lng': row['center_lng'],
+        'severity_threshold': row['severity_threshold'],
+        'frequency': row['frequency'],
+        'delivery_channel': row['delivery_channel'],
+        'webhook_url': row['webhook_url'],
+        'slack_channel': row['slack_channel'],
+        'teams_webhook': row['teams_webhook'],
+        'is_active': bool(row['is_active']),
+        'created_at': row['created_at'],
+        'updated_at': row['updated_at'],
+    }
+
+
+def _current_public_user():
+    from flask import session
+    user_id = session.get('public_user_id')
+    if not user_id:
+        return None
+    conn = get_db()
+    row = conn.execute('SELECT * FROM public_users WHERE id=? AND is_active=1', (user_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# Crime mapping geo-API
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/geo/incidents')
+@require_api_key(allow_anonymous=True)
+def api_geo_incidents():
+    bounds = request.args.get('bounds', '').strip()
+    county = (request.args.get('county') or '').strip()[:60]
+    city = (request.args.get('city') or '').strip()[:60]
+    incident_type = (request.args.get('incident_type') or '').strip()[:60]
+    date_from = (request.args.get('date_from') or '').strip()[:10]
+    date_to = (request.args.get('date_to') or '').strip()[:10]
+    limit = max(1, min(5000, request.args.get('limit', 500, type=int)))
+    where = ['g.lat IS NOT NULL', 'g.lng IS NOT NULL']
+    params = []
+    if bounds:
+        try:
+            sw_lat, sw_lng, ne_lat, ne_lng = [float(x) for x in bounds.split(',')]
+            where.append('g.lat BETWEEN ? AND ? AND g.lng BETWEEN ? AND ?')
+            params.extend([sw_lat, ne_lat, sw_lng, ne_lng])
+        except Exception:
+            pass
+    if county:
+        where.append('g.county=?')
+        params.append(county)
+    if city:
+        where.append('g.city=?')
+        params.append(city)
+    if incident_type:
+        where.append('r.incident_type=?')
+        params.append(incident_type)
+    if date_from:
+        where.append('r.date>=?')
+        params.append(date_from)
+    if date_to:
+        where.append('r.date<=?')
+        params.append(date_to)
+    conn = get_db()
+    sql = (
+        'SELECT r.id, r.date, r.time, r.incident, r.incident_type, r.location, r.county, r.officer, '
+        'g.lat, g.lng, g.neighborhood '
+        'FROM incident_geocodes g JOIN records r ON r.id=g.record_id '
+        f"WHERE {' AND '.join(where)} ORDER BY r.date DESC, r.time DESC LIMIT ?"
+    )
+    rows = conn.execute(sql, tuple(params + [limit])).fetchall()
+    conn.close()
+    return jsonify({'incidents': [dict(r) for r in rows]})
+
+
+@api_bp.route('/api/geo/heatmap')
+@require_api_key(allow_anonymous=True)
+def api_geo_heatmap():
+    county = (request.args.get('county') or '').strip()[:60]
+    date_from = (request.args.get('date_from') or '').strip()[:10]
+    date_to = (request.args.get('date_to') or '').strip()[:10]
+    where = ['g.lat IS NOT NULL', 'g.lng IS NOT NULL']
+    params = []
+    if county:
+        where.append('g.county=?')
+        params.append(county)
+    if date_from:
+        where.append('r.date>=?')
+        params.append(date_from)
+    if date_to:
+        where.append('r.date<=?')
+        params.append(date_to)
+    conn = get_db()
+    sql = (
+        'SELECT g.lat, g.lng, COUNT(*) as weight FROM incident_geocodes g '
+        'JOIN records r ON r.id=g.record_id '
+        f"WHERE {' AND '.join(where)} GROUP BY ROUND(g.lat,3), ROUND(g.lng,3)"
+    )
+    rows = conn.execute(sql, tuple(params)).fetchall()
+    conn.close()
+    return jsonify({'points': [{'lat': r['lat'], 'lng': r['lng'], 'weight': r['weight']} for r in rows]})
+
+
+# ---------------------------------------------------------------------------
+# Safety scorecards
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/scorecards/<area_type>/<area_slug>')
+@require_api_key(allow_anonymous=True)
+def api_scorecard(area_type, area_slug):
+    period = (request.args.get('period') or '30d').strip()[:10]
+    conn = get_db()
+    row = conn.execute(
+        'SELECT * FROM safety_scorecards WHERE area_type=? AND area_slug=? ORDER BY computed_at DESC LIMIT 1',
+        (area_type, area_slug),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'No scorecard available'}), 404
+    return jsonify({
+        'area_type': row['area_type'],
+        'area_slug': row['area_slug'],
+        'area_name': row['area_name'],
+        'county': row['county'],
+        'population': row['population'],
+        'score': row['score'],
+        'percentile_state': row['percentile_state'],
+        'percentile_national': row['percentile_national'],
+        'methodology_version': row['methodology_version'],
+        'metrics': json.loads(row['metrics_json']) if row['metrics_json'] else {},
+        'trends': json.loads(row['trends_json']) if row['trends_json'] else {},
+        'factors': json.loads(row['factors_json']) if row['factors_json'] else {},
+        'period_start': row['period_start'],
+        'period_end': row['period_end'],
+        'computed_at': row['computed_at'],
+    })
+
+
+@api_bp.route('/api/scorecards')
+@require_api_key(allow_anonymous=True)
+def api_scorecards_list():
+    area_type = (request.args.get('area_type') or '').strip()[:20]
+    county = (request.args.get('county') or '').strip()[:60]
+    conn = get_db()
+    where = ['1=1']
+    params = []
+    if area_type:
+        where.append('area_type=?')
+        params.append(area_type)
+    if county:
+        where.append('county=?')
+        params.append(county)
+    rows = conn.execute(
+        f"SELECT area_slug, area_name, county, score, percentile_state, computed_at FROM safety_scorecards WHERE {' AND '.join(where)} ORDER BY score DESC",
+        tuple(params),
+    ).fetchall()
+    conn.close()
+    return jsonify({'scorecards': [dict(r) for r in rows]})
+
+
 @api_bp.route('/api/posts')
+@require_api_key(allow_anonymous=True)
 def api_posts():
     page = max(1, request.args.get('page', 1, type=int))
     per_page = max(1, min(100, request.args.get('per_page', 20, type=int)))
@@ -154,6 +476,7 @@ def api_posts():
 
 
 @api_bp.route('/api/posts/<int:post_id>')
+@require_api_key(allow_anonymous=True)
 def api_post_detail(post_id: int):
     conn = get_db()
     row = conn.execute(
@@ -176,6 +499,7 @@ def api_post_detail(post_id: int):
 
 
 @api_bp.route('/api/counties')
+@require_api_key(allow_anonymous=True)
 def api_counties():
     conn = get_db()
     rows = conn.execute(
@@ -206,6 +530,7 @@ def api_counties():
 
 
 @api_bp.route('/api/agencies')
+@require_api_key(allow_anonymous=True)
 def api_agencies():
     conn = get_db()
     rows = conn.execute(
@@ -234,6 +559,7 @@ def api_agencies():
 
 
 @api_bp.route('/api/stats')
+@require_api_key(allow_anonymous=True)
 def api_stats():
     conn = get_db()
     totals = conn.execute(
@@ -310,6 +636,7 @@ def api_stats():
 
 
 @api_bp.route('/api/blog')
+@require_api_key(allow_anonymous=True)
 def api_blog_posts():
     page = max(1, request.args.get('page', 1, type=int))
     per_page = max(1, min(100, request.args.get('per_page', 20, type=int)))
@@ -336,6 +663,7 @@ def api_blog_posts():
 
 
 @api_bp.route('/api/blog/<slug>')
+@require_api_key(allow_anonymous=True)
 def api_blog_post_detail(slug: str):
     conn = get_db()
     row = conn.execute(
@@ -750,6 +1078,7 @@ def developers_api():
 # ---------------------------------------------------------------------------
 
 @api_bp.route('/api/records')
+@require_api_key(allow_anonymous=True)
 def api_records():
     page = max(1, request.args.get('page', 1, type=int))
     per_page = max(1, min(100, request.args.get('per_page', 50, type=int)))
@@ -805,6 +1134,7 @@ def api_records():
 
 
 @api_bp.route('/api/records/recent')
+@require_api_key(allow_anonymous=True)
 def api_records_recent():
     conn = get_db()
     cur = conn.cursor()
@@ -820,6 +1150,7 @@ def api_records_recent():
 
 
 @api_bp.route('/api/records/timeline')
+@require_api_key(allow_anonymous=True)
 def api_records_timeline():
     conn = get_db()
     cur = conn.cursor()
@@ -832,3 +1163,100 @@ def api_records_timeline():
     conn.close()
 
     return jsonify({'timeline': timeline})
+
+
+# ---------------------------------------------------------------------------
+# API Key Management (admin only)
+# ---------------------------------------------------------------------------
+
+from api_auth import (
+    create_client,
+    revoke_client,
+    list_clients,
+    MB_API_ADMIN_SECRET,
+)
+
+
+def _require_admin_secret():
+    """Abort 403 if the X-Admin-Secret header doesn't match."""
+    import api_auth as _api_auth_mod
+    provided = (request.headers.get("X-Admin-Secret") or "").strip()
+    secret = _api_auth_mod.MB_API_ADMIN_SECRET
+    if not secret:
+        abort(503, description="API admin secret not configured.")
+    if not secrets.compare_digest(provided, secret):
+        abort(403, description="Invalid admin secret.")
+
+
+@api_bp.route("/api/auth/keys", methods=["POST"])
+def api_create_key():
+    """Admin endpoint to create a new API key."""
+    _require_admin_secret()
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    tier = (payload.get("tier") or "free").strip().lower()
+    if not name:
+        abort(400, description="Field 'name' is required.")
+    if tier not in {"free", "pro", "enterprise"}:
+        abort(400, description="Field 'tier' must be one of: free, pro, enterprise.")
+    conn = get_db()
+    plaintext, client_id = create_client(conn, name, tier)
+    conn.close()
+    return jsonify({
+        "id": client_id,
+        "name": name,
+        "tier": tier,
+        "api_key": plaintext,
+        "message": "Store this key now — it will not be shown again.",
+    }), 201
+
+
+@api_bp.route("/api/auth/keys", methods=["GET"])
+def api_list_keys():
+    """Admin endpoint to list all API clients (hashes only, no plaintext)."""
+    _require_admin_secret()
+    conn = get_db()
+    clients = list_clients(conn)
+    conn.close()
+    return jsonify({
+        "clients": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "tier": c.tier,
+                "is_active": bool(c.is_active),
+                "created_at": c.created_at,
+                "revoked_at": c.revoked_at,
+            }
+            for c in clients
+        ]
+    })
+
+
+@api_bp.route("/api/auth/keys/<int:client_id>", methods=["DELETE"])
+def api_revoke_key(client_id: int):
+    """Admin endpoint to revoke an API key."""
+    _require_admin_secret()
+    conn = get_db()
+    ok = revoke_client(conn, client_id)
+    conn.close()
+    if not ok:
+        abort(404, description="Client not found.")
+    return jsonify({"revoked": True, "client_id": client_id})
+
+
+@api_bp.route("/api/auth/whoami")
+def api_whoami():
+    """Return the authenticated client's metadata (useful for debugging tiers)."""
+    from api_auth import validate_request
+    conn = get_db()
+    client = validate_request(conn)
+    conn.close()
+    if client is None:
+        abort(401, description="No valid API key provided.")
+    return jsonify({
+        "id": client.id,
+        "name": client.name,
+        "tier": client.tier,
+        "is_active": bool(client.is_active),
+    })

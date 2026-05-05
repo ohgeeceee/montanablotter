@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crime Map — MontanaBlotter.com</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<style>
+  :root { --bg:#0b0f19; --panel:#121827; --text:#e2e8f0; --accent:#38bdf8; --muted:#94a3b8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; }
+  #app { display:flex; height:100vh; }
+  #sidebar { width:320px; background:var(--panel); border-right:1px solid #1e293b; padding:16px; overflow:auto; }
+  #sidebar h1 { margin:0 0 12px; font-size:18px; letter-spacing:0.5px; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.6px; }
+  .field input, .field select { width:100%; background:#0b1220; border:1px solid #1e293b; color:var(--text); padding:8px 10px; border-radius:6px; font-size:13px; }
+  .row { display:flex; gap:8px; }
+  .row .field { flex:1; }
+  .btn { width:100%; padding:10px; border:none; border-radius:6px; background:var(--accent); color:#0b0f19; font-weight:700; cursor:pointer; margin-top:6px; }
+  .btn.secondary { background:#1e293b; color:var(--text); }
+  .legend { margin-top:12px; padding-top:12px; border-top:1px solid #1e293b; }
+  .legend h3 { margin:0 0 8px; font-size:13px; color:var(--muted); }
+  .legend-item { display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; }
+  #map { flex:1; }
+  .leaflet-popup-content-wrapper { background:var(--panel); color:var(--text); border:1px solid #1e293b; }
+  .leaflet-popup-tip { background:var(--panel); }
+  .controls { position:absolute; top:12px; right:12px; z-index:1000; display:flex; gap:8px; }
+  .control-btn { background:var(--panel); border:1px solid #1e293b; color:var(--text); padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; }
+  .control-btn.active { background:var(--accent); color:#0b0f19; }
+  #timeline { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); z-index:1000; width:min(640px,90vw); background:var(--panel); border:1px solid #1e293b; border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:10px; }
+  #timeline input[type=range] { flex:1; }
+  #timeline .date-label { font-size:12px; color:var(--muted); white-space:nowrap; }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <h1>🗺️ Crime Map</h1>
+    <div class="field">
+      <label>County</label>
+      <select id="county"><option value="">All counties</option></select>
+    </div>
+    <div class="field">
+      <label>Incident Type</label>
+      <select id="type"><option value="">All types</option></select>
+    </div>
+    <div class="row">
+      <div class="field"><label>From</label><input type="date" id="dateFrom" /></div>
+      <div class="field"><label>To</label><input type="date" id="dateTo" /></div>
+    </div>
+    <button class="btn" id="applyBtn">Apply Filters</button>
+    <button class="btn secondary" id="resetBtn">Reset</button>
+
+    <div class="legend">
+      <h3>Layer</h3>
+      <div class="legend-item"><div class="dot" style="background:#ef4444"></div> Markers</div>
+      <div class="legend-item"><div class="dot" style="background:#f59e0b"></div> Heatmap</div>
+    </div>
+    <div id="stats" style="margin-top:12px;font-size:12px;color:var(--muted);"></div>
+  </aside>
+
+  <main style="position:relative;flex:1;">
+    <div id="map"></div>
+    <div class="controls">
+      <button class="control-btn active" id="layerMarkers">Markers</button>
+      <button class="control-btn" id="layerHeat">Heatmap</button>
+      <button class="control-btn" id="playBtn">▶ Play</button>
+    </div>
+    <div id="timeline" style="display:none;">
+      <span class="date-label" id="tlStart"></span>
+      <input type="range" id="tlRange" min="0" max="100" value="0" />
+      <span class="date-label" id="tlEnd"></span>
+    </div>
+  </main>
+</div>
+
+<script>
+  const API_BASE = '/api';
+  const map = L.map('map').setView([46.8797, -110.3626], 7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy;OpenStreetMap &copy;CartoDB',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  let markersLayer = L.layerGroup().addTo(map);
+  let heatLayer = null;
+  let allIncidents = [];
+  let timelineDates = [];
+  let playTimer = null;
+
+  async function loadFilters() {
+    const res = await fetch(`${API_BASE}/posts?per_page=1`);
+    // counties/types can be seeded from a lightweight endpoint if available;
+    // fallback: derive from incident data after first load.
+  }
+
+  async function loadIncidents() {
+    const county = document.getElementById('county').value;
+    const type = document.getElementById('type').value;
+    const fromVal = document.getElementById('dateFrom').value;
+    const toVal = document.getElementById('dateTo').value;
+    const params = new URLSearchParams();
+    if (county) params.set('county', county);
+    if (type) params.set('incident_type', type);
+    if (fromVal) params.set('date_from', fromVal);
+    if (toVal) params.set('date_to', toVal);
+    params.set('limit', '5000');
+    const res = await fetch(`${API_BASE}/geo/incidents?${params}`);
+    const data = await res.json();
+    allIncidents = data.incidents || [];
+    renderMarkers(allIncidents);
+    updateStats(allIncidents);
+    buildTimeline(allIncidents);
+    return allIncidents;
+  }
+
+  async function loadHeatmap() {
+    const county = document.getElementById('county').value;
+    const fromVal = document.getElementById('dateFrom').value;
+    const toVal = document.getElementById('dateTo').value;
+    const params = new URLSearchParams();
+    if (county) params.set('county', county);
+    if (fromVal) params.set('date_from', fromVal);
+    if (toVal) params.set('date_to', toVal);
+    const res = await fetch(`${API_BASE}/geo/heatmap?${params}`);
+    const data = await res.json();
+    return (data.points || []).map(p => [p.lat, p.lng, p.weight]);
+  }
+
+  function renderMarkers(incidents) {
+    markersLayer.clearLayers();
+    incidents.forEach(inc => {
+      if (inc.lat == null || inc.lng == null) return;
+      const m = L.circleMarker([inc.lat, inc.lng], {
+        radius: 5,
+        fillColor: '#ef4444',
+        color: '#fff',
+        weight: 1,
+        opacity: 0.9,
+        fillOpacity: 0.7
+      });
+      m.bindPopup(`
+        <strong>${inc.incident_type || 'Incident'}</strong><br/>
+        ${inc.date} ${inc.time || ''}<br/>
+        ${inc.location || ''}<br/>
+        <em>${inc.county}</em>
+      `);
+      markersLayer.addLayer(m);
+    });
+  }
+
+  function renderHeat(points) {
+    if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    if (!points.length) return;
+    heatLayer = L.heatLayer(points, { radius: 18, blur: 25, maxZoom: 14 });
+    map.addLayer(heatLayer);
+  }
+
+  function updateStats(incidents) {
+    const el = document.getElementById('stats');
+    el.textContent = `${incidents.length.toLocaleString()} incidents shown`;
+  }
+
+  function buildTimeline(incidents) {
+    const dates = [...new Set(incidents.map(i => i.date).filter(Boolean))].sort();
+    timelineDates = dates;
+    const tl = document.getElementById('timeline');
+    const range = document.getElementById('tlRange');
+    if (dates.length < 2) { tl.style.display = 'none'; return; }
+    tl.style.display = 'flex';
+    range.min = 0; range.max = dates.length - 1; range.value = dates.length - 1;
+    document.getElementById('tlStart').textContent = dates[0];
+    document.getElementById('tlEnd').textContent = dates[dates.length - 1];
+    range.oninput = () => {
+      const end = dates[parseInt(range.value, 10)];
+      const filtered = allIncidents.filter(i => i.date <= end);
+      renderMarkers(filtered);
+      updateStats(filtered);
+    };
+  }
+
+  document.getElementById('applyBtn').onclick = async () => {
+    await loadIncidents();
+    if (document.getElementById('layerHeat').classList.contains('active')) {
+      const pts = await loadHeatmap();
+      renderHeat(pts);
+    }
+  };
+
+  document.getElementById('resetBtn').onclick = () => {
+    document.getElementById('county').value = '';
+    document.getElementById('type').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    loadIncidents();
+  };
+
+  document.getElementById('layerMarkers').onclick = () => {
+    document.getElementById('layerMarkers').classList.add('active');
+    document.getElementById('layerHeat').classList.remove('active');
+    if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    markersLayer.addTo(map);
+  };
+
+  document.getElementById('layerHeat').onclick = async () => {
+    document.getElementById('layerHeat').classList.add('active');
+    document.getElementById('layerMarkers').classList.remove('active');
+    map.removeLayer(markersLayer);
+    const pts = await loadHeatmap();
+    renderHeat(pts);
+  };
+
+  document.getElementById('playBtn').onclick = () => {
+    const range = document.getElementById('tlRange');
+    if (playTimer) { clearInterval(playTimer); playTimer = null; document.getElementById('playBtn').textContent = '▶ Play'; return; }
+    if (timelineDates.length < 2) return;
+    document.getElementById('playBtn').textContent = '⏸ Pause';
+    let idx = parseInt(range.value, 10);
+    playTimer = setInterval(() => {
+      idx = Math.min(idx + 1, timelineDates.length - 1);
+      range.value = idx;
+      range.dispatchEvent(new Event('input'));
+      if (idx >= timelineDates.length - 1) {
+        clearInterval(playTimer); playTimer = null; document.getElementById('playBtn').textContent = '▶ Play';
+      }
+    }, 600);
+  };
+
+  // Seed date defaults to last 30 days
+  const today = new Date();
+  const thirtyAgo = new Date(); thirtyAgo.setDate(today.getDate() - 30);
+  document.getElementById('dateTo').value = today.toISOString().slice(0,10);
+  document.getElementById('dateFrom').value = thirtyAgo.toISOString().slice(0,10);
+
+  loadIncidents();
+</script>
+</body>
+</html>

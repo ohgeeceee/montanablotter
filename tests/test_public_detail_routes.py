@@ -255,6 +255,20 @@ class PublicDetailRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(f'href="/blog/{slug}" class="public-card-link"', html)
 
+    def test_pattern_county_page_renders_without_duplicate_canonical_url_error(self) -> None:
+        self._seed_public_report()
+
+        client = app_module.app.test_client()
+        response = client.get('/patterns/theft-and-burglary/yellowstone')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Browse theft and burglary records in Yellowstone County', html)
+        self.assertIn(
+            '<link rel="canonical" href="https://montanablotter.com/patterns/theft-and-burglary/yellowstone">',
+            html,
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

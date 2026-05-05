@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neighborhood Safety Scorecards — MontanaBlotter.com</title>
+<style>
+  :root { --bg:#0b0f19; --panel:#121827; --text:#e2e8f0; --accent:#38bdf8; --muted:#94a3b8; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; }
+  .container { max-width:1100px; margin:0 auto; padding:24px; }
+  h1 { margin:0 0 8px; font-size:22px; }
+  p.lead { color:var(--muted); margin:0 0 20px; font-size:14px; }
+  .filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+  .filters select, .filters input { background:#0b1220; border:1px solid #1e293b; color:var(--text); padding:8px 10px; border-radius:6px; font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+  .card { background:var(--panel); border:1px solid #1e293b; border-radius:10px; padding:16px; }
+  .card h2 { margin:0 0 6px; font-size:16px; }
+  .card .meta { color:var(--muted); font-size:12px; margin-bottom:10px; }
+  .score { font-size:34px; font-weight:800; }
+  .score.good { color:var(--good); }
+  .score.warn { color:var(--warn); }
+  .score.bad { color:var(--bad); }
+  .bar { height:6px; background:#1e293b; border-radius:3px; margin:8px 0 12px; overflow:hidden; }
+  .bar > div { height:100%; border-radius:3px; }
+  .metrics { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; font-size:12px; color:var(--muted); }
+  .metrics div strong { display:block; color:var(--text); font-size:14px; }
+  .trend { margin-top:10px; font-size:12px; }
+  .trend.up { color:var(--bad); }
+  .trend.down { color:var(--good); }
+  .methodology { margin-top:24px; padding:16px; background:var(--panel); border:1px solid #1e293b; border-radius:10px; font-size:13px; color:var(--muted); }
+  .methodology h3 { margin:0 0 8px; color:var(--text); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Neighborhood Safety Scorecards</h1>
+  <p class="lead">Synthesized incident metrics by area. Lower incident volume and severity yield higher safety scores.</p>
+
+  <div class="filters">
+    <select id="areaType"><option value="">All area types</option><option value="county">County</option><option value="city">City</option><option value="neighborhood">Neighborhood</option></select>
+    <select id="countyFilter"><option value="">All counties</option></select>
+    <input type="text" id="search" placeholder="Search area name..." />
+    <select id="sort"><option value="score_desc">Score: high to low</option><option value="score_asc">Score: low to high</option></select>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="methodology">
+    <h3>Methodology</h3>
+    <p>Scores are computed from total incidents, incident diversity, and average severity over a 30-day window. Percentiles compare against other Montana areas. Scores range 0–100 where 100 indicates the safest relative conditions.</p>
+  </div>
+</div>
+
+<script>
+  const API_BASE = '/api';
+  let scorecards = [];
+
+  async function loadScorecards() {
+    const params = new URLSearchParams();
+    const type = document.getElementById('areaType').value;
+    const county = document.getElementById('countyFilter').value;
+    if (type) params.set('area_type', type);
+    if (county) params.set('county', county);
+    const res = await fetch(`${API_BASE}/scorecards?${params}`);
+    const data = await res.json();
+    scorecards = data.scorecards || [];
+    render();
+  }
+
+  function render() {
+    const grid = document.getElementById('grid');
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    const sort = document.getElementById('sort').value;
+    let rows = scorecards.filter(s => !q || (s.area_name || '').toLowerCase().includes(q));
+    rows.sort((a,b) => sort === 'score_asc' ? (a.score||0) - (b.score||0) : (b.score||0) - (a.score||0));
+    grid.innerHTML = rows.map(s => {
+      const cls = (s.score||0) >= 70 ? 'good' : (s.score||0) >= 40 ? 'warn' : 'bad';
+      const barColor = cls === 'good' ? '#22c55e' : cls === 'warn' ? '#f59e0b' : '#ef4444';
+      return `
+        <div class="card">
+          <h2>${s.area_name}</h2>
+          <div class="meta">${s.county || ''} • Updated ${s.computed_at ? s.computed_at.slice(0,10) : ''}</div>
+          <div class="score ${cls}">${s.score != null ? s.score.toFixed(1) : '—'}</div>
+          <div class="bar"><div style="width:${Math.max(0,Math.min(100,s.score||0))}%;background:${barColor}"></div></div>
+          <div class="metrics">
+            <div><strong>${s.metrics?.total_incidents ?? '—'}</strong>Incidents</div>
+            <div><strong>${s.metrics?.incident_diversity ?? '—'}</strong>Types</div>
+            <div><strong>${s.metrics?.avg_severity ?? '—'}</strong>Avg Severity</div>
+          </div>
+          <div class="trend ${(s.trends?.change_percent||0) > 0 ? 'up' : 'down'}">
+            ${(s.trends?.change_percent||0) > 0 ? '▲' : '▼'} ${Math.abs(s.trends?.change_percent||0).toFixed(1)}% vs prior period
+          </div>
+        </div>`;
+    }).join('') || '<p style="color:var(--muted)">No scorecards available.</p>';
+  }
+
+  document.getElementById('areaType').onchange = loadScorecards;
+  document.getElementById('countyFilter').onchange = loadScorecards;
+  document.getElementById('search').oninput = render;
+  document.getElementById('sort').onchange = render;
+
+  // Seed counties from scorecard data after first load
+  loadScorecards().then(() => {
+    const counties = [...new Set(scorecards.map(s => s.county).filter(Boolean))].sort();
+    const sel = document.getElementById('countyFilter');
+    counties.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+  });
+</script>
+</body>
+</html>

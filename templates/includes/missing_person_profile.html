@@ -6,7 +6,24 @@
 
     <div class="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
       <section class="border-b border-slate-200 bg-slate-50 p-5 lg:border-b-0 lg:border-r lg:p-6">
-        {% if person.photo_url %}
+        {% if person.photos and person.photos|length > 1 %}
+        <div class="mb-3">
+          <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Photo Gallery</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          {% for photo in person.photos %}
+          <figure class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <img
+              src="{{ photo.url }}"
+              alt="{{ person.full_name }} — photo {{ loop.index }}"
+              class="h-full w-full object-cover"
+              loading="lazy"
+            >
+          </figure>
+          <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 text-center mt-1">{{ photo.label }}</p>
+          {% endfor %}
+        </div>
+        {% elif person.photo_url %}
         <figure class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <img
             src="{{ person.photo_url }}"
@@ -54,6 +71,22 @@
     </div>
 
     <div class="grid gap-6 border-t border-slate-200 p-5 sm:p-6">
+      {% if person.dossier and person.dossier|length > 0 %}
+      <section class="rounded-2xl border border-slate-200 bg-white">
+        <h2 class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-[0.22em] text-slate-500">Record Dossier</h2>
+        <div class="px-4 py-4 text-sm leading-7 text-slate-700">
+          <dl class="grid gap-3 sm:grid-cols-2">
+            {% for entry in person.dossier %}
+            <div class="rounded-2xl bg-slate-50 px-4 py-3">
+              <dt class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{{ entry.label }}</dt>
+              <dd class="mt-1 font-semibold text-slate-900">{{ entry.value }}</dd>
+            </div>
+            {% endfor %}
+          </dl>
+        </div>
+      </section>
+      {% endif %}
+
       <section class="rounded-2xl border border-slate-200 bg-white">
         <h2 class="border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-[0.22em] text-slate-500">Physical Description</h2>
         <div class="px-4 py-4 text-sm leading-7 text-slate-700">

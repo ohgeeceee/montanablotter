@@ -1,7 +1,7 @@
 {% extends "public_page_base.html" %}
 
-{% set page_title = "Montana Blotter" %}
-{% set meta_description = "Real-time Montana public record reporting with recent incident cards, jurisdiction directories, and statewide trend visibility." %}
+{% set page_title = "Montana Blotter — Real-Time Public Record Reporting" %}
+{% set meta_description = "Track recent Montana incident records, browse county and city blotters, view jail rosters, and follow statewide public record trends. Updated daily from official sources." %}
 {% set canonical_url = "https://montanablotter.com/" %}
 {% set og_image = "https://montanablotter.com/static/icons/og-default.png" %}
 
@@ -16,6 +16,18 @@
   "name": "Montana Blotter",
   "url": "https://montanablotter.com/",
   "description": "Real-time Montana public record reporting with recent incident cards, jurisdiction directories, and statewide trend visibility."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Montana Blotter",
+  "url": "https://montanablotter.com/",
+  "logo": "https://montanablotter.com/static/icons/og-default.png",
+  "sameAs": [
+    "https://www.facebook.com/montanablotter"
+  ]
 }
 </script>
 {% endblock %}
@@ -39,6 +51,20 @@
                     <a href="/missing-persons" class="card-link card-link--primary">Missing Persons</a>
                     <a href="/missing-persons" class="card-link">Open bulletin</a>
                 </div>
+
+                {% if missing_persons_alert and missing_persons_alert.persons %}
+                <div class="hero-missing-alert">
+                    <p class="hero-missing-alert__label">Active Alert</p>
+                    <div class="hero-missing-alert__list">
+                        {% for person in missing_persons_alert.persons %}
+                        <a href="/missing-persons/{{ person.slug }}" class="hero-missing-alert__item">
+                            <span class="hero-missing-alert__name">{{ person.name }}</span>
+                            <span class="hero-missing-alert__meta">{{ person.last_seen_location or 'Montana' }} · {{ person.last_seen_date or 'Date unknown' }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <div class="hero-stats">
@@ -195,7 +221,7 @@
                         </div>
                     </form>
 
-                    {% if weekly_snapshot and weekly_snapshot.top_incidents %}
+                        {% if weekly_snapshot and weekly_snapshot.top_incidents %}
                     <div class="trend-strip">
                         <div class="trend-strip__header">
                             <span class="trend-strip__title">Trending Incidents</span>
@@ -334,6 +360,31 @@
                     </nav>
                     {% endif %}
                 </section>
+
+                {% if leaderboard %}
+                <section class="panel">
+                    <div class="panel__header">
+                        <div>
+                            <p class="section-kicker">Leaderboard</p>
+                            <h2 class="panel__title">Most active counties this week.</h2>
+                        </div>
+                    </div>
+                    <div class="leaderboard-list">
+                        {% for item in leaderboard %}
+                        <a href="/county/{{ item.slug }}" class="leaderboard-item">
+                            <span class="leaderboard-item__rank">{{ loop.index }}</span>
+                            <span class="leaderboard-item__body">
+                                <strong>{{ item.county }}</strong>
+                                <span>{{ item.count }} records · {{ item.trend_label }}</span>
+                            </span>
+                            <span class="leaderboard-item__trend leaderboard-item__trend--{{ item.trend }}">
+                                {% if item.trend == 'up' %}▲{% elif item.trend == 'down' %}▼{% else %}—{% endif %}
+                            </span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
 
                 <section class="panel">
                     <div class="panel__header">

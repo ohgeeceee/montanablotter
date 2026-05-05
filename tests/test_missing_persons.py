@@ -2,6 +2,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from unittest import mock
 
 import app as app_module
 import config
@@ -264,6 +265,23 @@ class MissingPersonsTests(unittest.TestCase):
         self.assertEqual(normalized['height_weight'], '5-08 / 120')
         self.assertEqual(normalized['case_number'], 'MP-42')
         self.assertTrue(normalized['is_active'])
+
+    def test_missing_person_homepage_context_does_not_run_schema_migration_on_reads(self) -> None:
+        self._seed_missing_persons()
+        conn = app_module.get_db()
+        self.addCleanup(conn.close)
+
+        with mock.patch.object(
+            missing_persons_module,
+            'ensure_missing_person_schema',
+            side_effect=AssertionError('request-time schema migration should not run'),
+        ):
+            context = missing_persons_module.missing_person_homepage_context(conn, limit=2)
+
+        self.assertEqual(len(context['rows']), 1)
+        self.assertEqual(context['rows'][0]['full_name'], 'Active Person')
+        self.assertEqual(len(context['resolved_rows']), 1)
+        self.assertEqual(context['resolved_rows'][0]['full_name'], 'Located Person')
 
     def test_ensure_missing_person_schema_migrates_legacy_delivery_schema(self) -> None:
         conn = sqlite3.connect(self.db_path)

@@ -16,9 +16,26 @@
     .anav-link.is-active { color: #D4892A; background: rgba(212, 137, 42, 0.12); border-color: rgba(212, 137, 42, 0.2); }
     .anav-logout { color: #C94A3A !important; }
     .anav-logout:hover { color: #E07060 !important; }
-    .anav-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid #282420; border-radius: 6px; background: rgba(255,255,255,0.02); }
+    .anav-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid #282420; border-radius: 6px; background: rgba(255,255,255,0.02); transition: background 0.2s; position: relative; }
+    .anav-group:hover { background: rgba(255,255,255,0.04); }
     .anav-group-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.5rem; color: #D4892A; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 700; padding-right: 6px; }
     .anav-meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.5rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.18em; }
+    .anav-group .anav-link { display: inline-flex; }
+    @media (max-width: 1280px) {
+      .anav-group .anav-link { display: none; }
+      .anav-group:hover .anav-link, .anav-group:focus-within .anav-link { display: inline-flex; }
+      .anav-group { flex-direction: column; align-items: flex-start; }
+      .anav-group:hover, .anav-group:focus-within { position: absolute; z-index: 60; background: #1a1816; border-color: #D4892A; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+      .anav-group-label { padding-bottom: 4px; }
+    }
+    .anav-toggle { display: none; font-family: 'IBM Plex Mono', monospace; font-size: 0.55rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.12em; background: transparent; border: 1px solid #282420; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+    .anav-toggle:hover { color: #E8DFD0; border-color: #D4892A; }
+    @media (max-width: 1280px) {
+      .anav-toggle { display: inline-flex; }
+      #admin-nav-bar:not(.nav-expanded) .anav-group { display: none; }
+      #admin-nav-bar.nav-expanded .anav-group { display: flex; flex-direction: column; align-items: flex-start; position: static; background: rgba(255,255,255,0.02); border-color: #282420; box-shadow: none; }
+      #admin-nav-bar.nav-expanded .anav-group .anav-link { display: inline-flex; }
+    }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -37,8 +54,8 @@
                 </div>
             </div>
             <div class="flex flex-col gap-2 xl:items-end">
-                <p class="anav-meta">Control lanes</p>
-                <div class="flex flex-wrap gap-2 xl:justify-end">
+                <div class="flex flex-wrap gap-2 xl:justify-end" id="admin-nav-bar">
+                    <button type="button" class="anav-toggle" onclick="var b=document.getElementById('admin-nav-bar');b.classList.toggle('nav-expanded');this.textContent=b.classList.contains('nav-expanded')?'Close':'Menu'">Menu</button>
                     <div class="anav-group">
                         <span class="anav-group-label">Data</span>
                         <a href="/admin" class="anav-link {% if admin_path == '/admin' %}is-active{% endif %}">Dashboard</a>
@@ -86,6 +103,25 @@
             </div>
         </div>
     </nav>
+
+    {% if admin_path.startswith('/admin') and admin_path != '/admin' %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-2">
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs text-slate-500">
+            <a href="/admin" class="hover:text-slate-800 transition font-semibold">Dashboard</a>
+            {% set _parts = admin_path.strip('/').split('/') %}
+            {% set _accum = [] %}
+            {% for part in _parts[1:] %}
+                {% set _ = _accum.append(part) %}
+                <span class="text-slate-300">/</span>
+                {% if loop.last %}
+                    <span class="font-black text-slate-800">{{ part.replace('-',' ').replace('_',' ').title() }}</span>
+                {% else %}
+                    <a href="/admin/{{ '/'.join(_accum) }}" class="hover:text-slate-800 transition font-semibold">{{ part.replace('-',' ').replace('_',' ').title() }}</a>
+                {% endif %}
+            {% endfor %}
+        </nav>
+    </div>
+    {% endif %}
 
     <div class="{% block content_wrapper_class %}p-8{% endblock %}">
         {% block content %}{% endblock %}

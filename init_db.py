@@ -7,6 +7,7 @@ import sqlite3
 import os
 from datetime import datetime
 
+from api_auth import ensure_api_auth_schema
 from case_journeys import ensure_case_journey_schema, seed_case_journeys
 from court_tracker import ensure_court_tracker_schema
 from bail_bonds_alerts import ensure_bail_bonds_alert_schema
@@ -147,7 +148,8 @@ def ensure_public_engagement_schema(conn: sqlite3.Connection) -> None:
             subscribe_digest INTEGER NOT NULL DEFAULT 0,
             is_active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT DEFAULT (datetime('now')),
-            last_login_at TEXT
+            last_login_at TEXT,
+            facebook_id TEXT UNIQUE
         )
         '''
     )
@@ -382,6 +384,7 @@ def init_database():
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
     ensure_agent_mission_control_schema(conn)
+    ensure_api_auth_schema(conn)
     
     conn.commit()
     conn.close()
@@ -545,6 +548,7 @@ def migrate():
     ensure_court_tracker_schema(conn)
     ensure_recovery_ad_schema(conn)
     ensure_agent_mission_control_schema(conn)
+    ensure_api_auth_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -1449,6 +1453,106 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_explainers_slug ON charge_explainers(slug)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_explainers_category ON charge_explainers(charge_category)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_explainers_published ON charge_explainers(published)')
+
+    # Premium user alert profiles (location + incident type + severity + frequency)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_alert_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL DEFAULT 'Default Alert',
+            alert_types TEXT NOT NULL DEFAULT '["all"]',
+            counties TEXT DEFAULT NULL,
+            cities TEXT DEFAULT NULL,
+            neighborhoods TEXT DEFAULT NULL,
+            radius_miles INTEGER DEFAULT NULL,
+            center_lat REAL DEFAULT NULL,
+            center_lng REAL DEFAULT NULL,
+            severity_threshold TEXT DEFAULT 'all',
+            frequency TEXT NOT NULL DEFAULT 'immediate',
+            delivery_channel TEXT NOT NULL DEFAULT 'email',
+            webhook_url TEXT DEFAULT NULL,
+            slack_channel TEXT DEFAULT NULL,
+            teams_webhook TEXT DEFAULT NULL,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES public_users(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alert_profiles_user ON user_alert_profiles(user_id, is_active)')
+
+    # Notification queue for deliverability tracking / bounce management
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS notification_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            profile_id INTEGER,
+            user_id INTEGER NOT NULL,
+            record_id INTEGER,
+            channel TEXT NOT NULL DEFAULT 'email',
+            recipient TEXT NOT NULL,
+            subject TEXT,
+            body_html TEXT,
+            body_text TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            error_message TEXT,
+            sent_at TEXT,
+            delivered_at TEXT,
+            opened_at TEXT,
+            bounce_reason TEXT,
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (profile_id) REFERENCES user_alert_profiles(id) ON DELETE SET NULL,
+            FOREIGN KEY (user_id) REFERENCES public_users(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_notif_queue_status ON notification_queue(status, retry_count)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_notif_queue_user ON notification_queue(user_id, created_at)')
+
+    # Geocoded incident locations for mapping
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS incident_geocodes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_id INTEGER UNIQUE NOT NULL,
+            raw_location TEXT NOT NULL,
+            lat REAL,
+            lng REAL,
+            geocode_confidence TEXT,
+            county TEXT,
+            city TEXT,
+            neighborhood TEXT,
+            geocoded_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_geocodes_loc ON incident_geocodes(lat, lng)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_geocodes_county ON incident_geocodes(county, city)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_geocodes_record ON incident_geocodes(record_id)')
+
+    # Neighborhood safety scorecards cache
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS safety_scorecards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            area_type TEXT NOT NULL,
+            area_slug TEXT NOT NULL,
+            area_name TEXT NOT NULL,
+            county TEXT,
+            population INTEGER,
+            score REAL,
+            percentile_state REAL,
+            percentile_national REAL,
+            methodology_version TEXT NOT NULL DEFAULT 'v1',
+            metrics_json TEXT NOT NULL DEFAULT '{}',
+            trends_json TEXT DEFAULT '{}',
+            factors_json TEXT DEFAULT '{}',
+            period_start TEXT NOT NULL,
+            period_end TEXT NOT NULL,
+            computed_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(area_type, area_slug, period_start, period_end, methodology_version)
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_scorecards_area ON safety_scorecards(area_type, area_slug)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_scorecards_period ON safety_scorecards(period_end, computed_at)')
 
     conn.commit()
     conn.close()

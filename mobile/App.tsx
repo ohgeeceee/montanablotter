@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -15,6 +16,7 @@ import BlogPostScreen from './src/screens/BlogPostScreen';
 import { LawCategory } from './src/types';
 import * as Sentry from '@sentry/react-native';
 import { initMonitoring } from './src/services/monitoring';
+import { initPurchases } from './src/services/purchases';
 
 initMonitoring();
 
@@ -68,6 +70,12 @@ function BlogStackNavigator() {
 }
 
 function App() {
+  useEffect(() => {
+    initPurchases().catch((err) => {
+      console.error('[Purchases] Init failed:', err);
+    });
+  }, []);
+
   return (
     <NavigationContainer>
       <StatusBar style="auto" />

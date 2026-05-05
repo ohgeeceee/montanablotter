@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Alerts — MontanaBlotter.com</title>
+<style>
+  :root { --bg:#0b0f19; --panel:#121827; --text:#e2e8f0; --accent:#38bdf8; --muted:#94a3b8; --good:#22c55e; --bad:#ef4444; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; }
+  .container { max-width:900px; margin:0 auto; padding:24px; }
+  h1 { margin:0 0 8px; font-size:22px; }
+  p.lead { color:var(--muted); margin:0 0 20px; font-size:14px; }
+  .card { background:var(--panel); border:1px solid #1e293b; border-radius:10px; padding:16px; margin-bottom:14px; }
+  .card h3 { margin:0 0 8px; font-size:15px; }
+  .card .meta { color:var(--muted); font-size:12px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; background:#1e293b; color:var(--text); margin-right:4px; }
+  .badge.email { background:#2563eb; }
+  .badge.slack { background:#4f46e5; }
+  .badge.teams { background:#7c3aed; }
+  .badge.webhook { background:#059669; }
+  .btn { padding:8px 14px; border:none; border-radius:6px; background:var(--accent); color:#0b0f19; font-weight:700; cursor:pointer; font-size:13px; }
+  .btn.ghost { background:transparent; color:var(--text); border:1px solid #1e293b; }
+  .btn.danger { background:var(--bad); color:#fff; }
+  .form { display:none; }
+  .form.active { display:block; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.6px; }
+  .field input, .field select, .field textarea { width:100%; background:#0b1220; border:1px solid #1e293b; color:var(--text); padding:8px 10px; border-radius:6px; font-size:13px; }
+  .row { display:flex; gap:8px; }
+  .row .field { flex:1; }
+  .actions { display:flex; gap:8px; margin-top:10px; }
+  .empty { color:var(--muted); font-size:14px; padding:24px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>My Alert Profiles</h1>
+  <p class="lead">Create location and incident-type alerts. Premium subscribers get more profiles, faster frequency, and richer delivery channels.</p>
+
+  <div id="list"></div>
+
+  <button class="btn" id="showForm">+ New Alert Profile</button>
+
+  <div class="form card" id="profileForm">
+    <h3 id="formTitle">New Alert Profile</h3>
+    <div class="field"><label>Profile Name</label><input type="text" id="pName" placeholder="e.g., Bozeman Property Watch" /></div>
+    <div class="row">
+      <div class="field"><label>Incident Types</label><input type="text" id="pTypes" placeholder="Assault, Burglary, DUI (or all)" /></div>
+      <div class="field"><label>Severity Threshold</label>
+        <select id="pSeverity"><option value="all">All</option><option value="low">Low+</option><option value="medium">Medium+</option><option value="high">High+</option><option value="critical">Critical only</option></select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Counties</label><input type="text" id="pCounties" placeholder="Gallatin, Flathead" /></div>
+      <div class="field"><label>Cities</label><input type="text" id="pCities" placeholder="Bozeman, Whitefish" /></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Radius (miles)</label><input type="number" id="pRadius" placeholder="10" /></div>
+      <div class="field"><label>Center Lat</label><input type="number" step="any" id="pLat" placeholder="45.68" /></div>
+      <div class="field"><label>Center Lng</label><input type="number" step="any" id="pLng" placeholder="-111.04" /></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Frequency</label>
+        <select id="pFreq"><option value="immediate">Immediate</option><option value="hourly">Hourly digest</option><option value="daily">Daily digest</option></select>
+      </div>
+      <div class="field"><label>Delivery</label>
+        <select id="pChannel"><option value="email">Email</option><option value="slack">Slack</option><option value="teams">Microsoft Teams</option><option value="webhook">Webhook</option></select>
+      </div>
+    </div>
+    <div class="field" id="webhookField" style="display:none;"><label>Webhook URL</label><input type="url" id="pWebhook" placeholder="https://hooks.slack.com/..." /></div>
+    <div class="field" id="slackField" style="display:none;"><label>Slack Webhook URL</label><input type="url" id="pSlack" placeholder="https://hooks.slack.com/..." /></div>
+    <div class="field" id="teamsField" style="display:none;"><label>Teams Webhook URL</label><input type="url" id="pTeams" placeholder="https://outlook.office.com/webhook/..." /></div>
+    <div class="actions">
+      <button class="btn" id="saveBtn">Save Profile</button>
+      <button class="btn ghost" id="cancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = '/api';
+  let profiles = [];
+  let editingId = null;
+
+  async function loadProfiles() {
+    const res = await fetch(`${API_BASE}/me/alert-profiles`, { credentials: 'same-origin' });
+    if (res.status === 401) { document.getElementById('list').innerHTML = '<div class="empty">Please <a href="/login">log in</a> to manage alerts.</div>'; return; }
+    const data = await res.json();
+    profiles = data.profiles || [];
+    render();
+  }
+
+  function render() {
+    const list = document.getElementById('list');
+    if (!profiles.length) { list.innerHTML = '<div class="empty">No alert profiles yet.</div>'; return; }
+    list.innerHTML = profiles.map(p => `
+      <div class="card">
+        <h3>${p.name}</h3>
+        <div class="meta">
+          <span class="badge ${p.delivery_channel}">${p.delivery_channel}</span>
+          <span class="badge">${p.frequency}</span>
+          <span class="badge">${(p.alert_types||[]).join(', ')||'all'}</span>
+        </div>
+        <div class="meta">${p.counties||''} ${p.cities||''} ${p.radius_miles ? '• '+p.radius_miles+' mi radius' : ''}</div>
+        <div class="actions">
+          <button class="btn ghost" onclick="editProfile(${p.id})">Edit</button>
+          <button class="btn danger" onclick="deleteProfile(${p.id})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function parseList(id) {
+    const v = document.getElementById(id).value.trim();
+    return v ? v.split(',').map(s=>s.trim()).filter(Boolean) : null;
+  }
+
+  async function saveProfile() {
+    const payload = {
+      name: document.getElementById('pName').value.trim(),
+      alert_types: parseList('pTypes') || ['all'],
+      severity_threshold: document.getElementById('pSeverity').value,
+      counties: parseList('pCounties'),
+      cities: parseList('pCities'),
+      radius_miles: document.getElementById('pRadius').value ? parseInt(document.getElementById('pRadius').value,10) : null,
+      center_lat: document.getElementById('pLat').value ? parseFloat(document.getElementById('pLat').value) : null,
+      center_lng: document.getElementById('pLng').value ? parseFloat(document.getElementById('pLng').value) : null,
+      frequency: document.getElementById('pFreq').value,
+      delivery_channel: document.getElementById('pChannel').value,
+      webhook_url: document.getElementById('pWebhook').value.trim() || null,
+      slack_channel: document.getElementById('pSlack').value.trim() || null,
+      teams_webhook: document.getElementById('pTeams').value.trim() || null,
+    };
+    const url = editingId ? `${API_BASE}/me/alert-profiles/${editingId}` : `${API_BASE}/me/alert-profiles`;
+    const method = editingId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload), credentials:'same-origin' });
+    if (res.ok) { editingId = null; document.getElementById('profileForm').classList.remove('active'); loadProfiles(); }
+    else { alert('Save failed'); }
+  }
+
+  window.editProfile = function(id) {
+    const p = profiles.find(x=>x.id===id); if(!p) return;
+    editingId = id;
+    document.getElementById('pName').value = p.name||'';
+    document.getElementById('pTypes').value = (p.alert_types||[]).join(', ');
+    document.getElementById('pSeverity').value = p.severity_threshold||'all';
+    document.getElementById('pCounties').value = (p.counties||[]).join(', ');
+    document.getElementById('pCities').value = (p.cities||[]).join(', ');
+    document.getElementById('pRadius').value = p.radius_miles||'';
+    document.getElementById('pLat').value = p.center_lat||'';
+    document.getElementById('pLng').value = p.center_lng||'';
+    document.getElementById('pFreq').value = p.frequency||'immediate';
+    document.getElementById('pChannel').value = p.delivery_channel||'email';
+    document.getElementById('pWebhook').value = p.webhook_url||'';
+    document.getElementById('pSlack').value = p.slack_channel||'';
+    document.getElementById('pTeams').value = p.teams_webhook||'';
+    document.getElementById('formTitle').textContent = 'Edit Alert Profile';
+    document.getElementById('profileForm').classList.add('active');
+    toggleFields();
+  };
+
+  window.deleteProfile = async function(id) {
+    if(!confirm('Delete this alert profile?')) return;
+    await fetch(`${API_BASE}/me/alert-profiles/${id}`, { method:'DELETE', credentials:'same-origin' });
+    loadProfiles();
+  };
+
+  function toggleFields() {
+    const ch = document.getElementById('pChannel').value;
+    document.getElementById('webhookField').style.display = ch==='webhook'?'block':'none';
+    document.getElementById('slackField').style.display = ch==='slack'?'block':'none';
+    document.getElementById('teamsField').style.display = ch==='teams'?'block':'none';
+  }
+
+  document.getElementById('showForm').onclick = () => {
+    editingId = null;
+    document.getElementById('profileForm').querySelectorAll('input,select').forEach(el=>el.value='');
+    document.getElementById('pSeverity').value='all'; document.getElementById('pFreq').value='immediate'; document.getElementById('pChannel').value='email';
+    document.getElementById('formTitle').textContent='New Alert Profile';
+    document.getElementById('profileForm').classList.add('active');
+    toggleFields();
+  };
+  document.getElementById('cancelBtn').onclick = () => document.getElementById('profileForm').classList.remove('active');
+  document.getElementById('saveBtn').onclick = saveProfile;
+  document.getElementById('pChannel').onchange = toggleFields;
+
+  loadProfiles();
+</script>
+</body>
+</html>

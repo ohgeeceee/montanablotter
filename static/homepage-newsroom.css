@@ -744,6 +744,57 @@ select {
   justify-content: flex-start;
 }
 
+.hero-missing-alert {
+  margin-top: 0.8rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(195, 66, 63, 0.08);
+  border: 1px solid rgba(195, 66, 63, 0.16);
+}
+
+.hero-missing-alert__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--signal);
+  margin: 0 0 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.hero-missing-alert__list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.hero-missing-alert__item {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(195, 66, 63, 0.12);
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.hero-missing-alert__item:hover {
+  transform: translateY(-1px);
+  background: #fff;
+}
+
+.hero-missing-alert__name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.hero-missing-alert__meta {
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
 .status-pill,
 .confidence-pill {
   display: inline-flex;
@@ -806,6 +857,74 @@ select {
 .jurisdiction-groups__label {
   display: block;
   margin-bottom: 0.75rem;
+}
+
+.leaderboard-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(20, 33, 43, 0.08);
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.leaderboard-item:hover {
+  transform: translateY(-1px);
+  background: #fff;
+}
+
+.leaderboard-item__rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--navy);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.leaderboard-item__body {
+  display: grid;
+  gap: 0.15rem;
+  flex: 1;
+}
+
+.leaderboard-item__body strong {
+  font-size: 0.96rem;
+  line-height: 1.3;
+}
+
+.leaderboard-item__body span {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+.leaderboard-item__trend {
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.leaderboard-item__trend--up {
+  color: var(--green);
+}
+
+.leaderboard-item__trend--down {
+  color: var(--signal);
+}
+
+.leaderboard-item__trend--same {
+  color: var(--ink-muted);
 }
 
 .chip-grid {
