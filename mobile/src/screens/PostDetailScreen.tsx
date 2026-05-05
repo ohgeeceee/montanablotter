@@ -7,10 +7,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   Linking,
+  Alert,
 } from 'react-native';
 import { api } from '../services/api';
 import { Post } from '../types';
 import { API_BASE_URL, COLORS } from '../constants';
+import { usePremium } from '../context/PremiumContext';
+import { addToWatchlist, removeFromWatchlist, isInWatchlist } from '../services/watchlist';
+import { Share } from 'react-native';
 
 interface RouteParams {
   postId: number;
@@ -20,12 +24,16 @@ export default function PostDetailScreen({ route }: { route: { params: RoutePara
   const { postId } = route.params;
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
+  const { isPremium } = usePremium();
 
   useEffect(() => {
     const fetchPost = async () => {
       try {
         const data = await api.getPost(postId);
         setPost(data);
+        const inList = await isInWatchlist(postId);
+        setSaved(inList);
       } catch (error) {
         console.error('Failed to fetch post:', error);
       } finally {
@@ -60,6 +68,25 @@ export default function PostDetailScreen({ route }: { route: { params: RoutePara
           </Text>
         </View>
         <Text style={styles.date}>{post.incident_date}</Text>
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={async () => {
+            if (!isPremium) {
+              Alert.alert('Premium Feature', 'Save to Watchlist is available with Premium.');
+              return;
+            }
+            if (saved) {
+              await removeFromWatchlist(post.id);
+              setSaved(false);
+            } else {
+              await addToWatchlist(post);
+              setSaved(true);
+            }
+          }}
+        >
+          <Text style={styles.saveButtonText}>{saved ? '★ Saved' : '☆ Save'}</Text>
+          {!isPremium && <Text style={styles.premiumLabel}>Premium</Text>}
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.title}>{post.title}</Text>
@@ -106,6 +133,29 @@ export default function PostDetailScreen({ route }: { route: { params: RoutePara
           Reported: {new Date(post.created_at).toLocaleDateString()}
         </Text>
       </View>
+
+      {isPremium && post && (
+        <View style={styles.exportSection}>
+          <Text style={styles.summaryTitle}>Export</Text>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={async () => {
+              await Share.share({
+                message: JSON.stringify(post, null, 2),
+                title: post.title,
+              });
+            }}
+          >
+            <Text style={styles.exportButtonText}>Share as JSON</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!isPremium && (
+        <View style={styles.exportTeaser}>
+          <Text style={styles.exportTeaserText}>📤 Export available with Premium</Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -222,5 +272,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.secondary,
     textAlign: 'center',
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  saveButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.accent,
+  },
+  premiumLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.secondary,
+    textTransform: 'uppercase',
+    marginLeft: 4,
+  },
+  exportSection: {
+    padding: 16,
+  },
+  exportButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  exportButtonText: {
+    color: COLORS.card,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  exportTeaser: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  exportTeaserText: {
+    fontSize: 13,
+    color: COLORS.secondary,
+    fontWeight: '600',
   },
 });
