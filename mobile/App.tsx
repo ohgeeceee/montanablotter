@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
+import PremiumScreen from './src/screens/PremiumScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import PostDetailScreen from './src/screens/PostDetailScreen';
 import JailRostersScreen from './src/screens/JailRostersScreen';
@@ -86,7 +87,7 @@ function App() {
         sceneContainerStyle={{ backgroundColor: '#f8fafc' }}
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
-            let iconName: keyof typeof Ionicons.glyphMap = 'home';
+            let iconName: any = 'diamond';
 
             if (route.name === 'Feed') {
               iconName = focused ? 'newspaper' : 'newspaper-outline';
@@ -96,6 +97,8 @@ function App() {
               iconName = focused ? 'book' : 'book-outline';
             } else if (route.name === 'Blog') {
               iconName = focused ? 'create' : 'create-outline';
+            } else if (route.name === 'Premium') {
+              iconName = focused ? 'diamond' : 'diamond-outline';
             }
 
             return <Ionicons name={iconName} size={size} color={color} />;
@@ -120,6 +123,7 @@ function App() {
         <Tab.Screen name="Jail Rosters" component={JailRostersScreen} />
         <Tab.Screen name="Laws" component={LawsStackNavigator} />
         <Tab.Screen name="Blog" component={BlogStackNavigator} />
+        <Tab.Screen name="Premium" component={PremiumScreen} />
       </Tab.Navigator>
       </NavigationContainer>
     </PremiumProvider>
