@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
+import MapScreen from './src/screens/MapScreen';
 import WatchlistScreen from './src/screens/WatchlistScreen';
 import AlertsScreen from './src/screens/AlertsScreen';
 import PremiumScreen from './src/screens/PremiumScreen';
@@ -105,6 +106,8 @@ function App() {
               iconName = focused ? 'create' : 'create-outline';
             } else if (route.name === 'Premium') {
               iconName = focused ? 'diamond' : 'diamond-outline';
+            } else if (route.name === 'Map') {
+              iconName = focused ? 'map' : 'map-outline';
             }
 
             return <Ionicons name={iconName} size={size} color={color} />;
@@ -129,6 +132,7 @@ function App() {
         <Tab.Screen name="Jail Rosters" component={JailRostersScreen} />
         <Tab.Screen name="Laws" component={LawsStackNavigator} />
         <Tab.Screen name="Blog" component={BlogStackNavigator} />
+        <Tab.Screen name="Map" component={MapScreen} />
         <Tab.Screen name="Premium" component={PremiumScreen} />
       </Tab.Navigator>
       </NavigationContainer>
