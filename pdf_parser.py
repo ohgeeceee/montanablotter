@@ -124,13 +124,32 @@ class BlotterParser:
                     full_text += text + "\n"
 
         if not full_text.strip():
-            # No embedded text — try OCR
+            # No embedded text — try OCR with EasyOCR (much faster than tesseract on this host).
             try:
                 from pdf2image import convert_from_path
-                import pytesseract
-                pages = convert_from_path(self.pdf_path, dpi=200)
+                import easyocr
+                import numpy as np
+
+                # Lazy-load the model once per process
+                if not hasattr(BlotterParser, '_easyocr_reader'):
+                    BlotterParser._easyocr_reader = easyocr.Reader(['en'], gpu=False)
+                reader = BlotterParser._easyocr_reader
+
+                pages = convert_from_path(self.pdf_path, dpi=150)
                 for page in pages:
-                    full_text += pytesseract.image_to_string(page, config='--psm 6') + "\n"
+                    img_np = np.array(page)
+                    result = reader.readtext(img_np)
+                    # Reconstruct lines by Y position
+                    lines: dict[int, list[tuple[float, str]]] = {}
+                    for bbox, text, _conf in result:
+                        y_center = sum(p[1] for p in bbox) / 4
+                        line_key = int(y_center / 20)
+                        lines.setdefault(line_key, []).append((bbox[0][0], text))
+                    page_text = '\n'.join(
+                        ' '.join(t for _, t in sorted(lines[k], key=lambda x: x[0]))
+                        for k in sorted(lines.keys())
+                    )
+                    full_text += page_text + '\n'
             except Exception as e:
                 import logging
                 logging.warning(f"OCR failed for {self.pdf_path}: {e}")
@@ -444,9 +463,11 @@ class BlotterParser:
         date_str = None
 
         # Try multiple date patterns that Havre might use
+        # EasyOCR often drops colons and introduces spacing artifacts
         havre_date_patterns = [
-            r'For Date:\s*(\d{2}/\d{2}/\d{2,4})',
-            r'For Date:\s*(\d{2}-\d{2}-\d{2,4})',
+            r'For Date[:\s]+(\d{2}/\d{2}/\d{2,4})',
+            r'For Date[:\s]+(\d{2}-\d{2}-\d{2,4})',
+            r'For Date[:\s]+(\d{4}/\d{2}/\d{2})',
             r'(\d{2}/\d{2}/\d{2,4})\s+\d{2}:\d{2}',
         ]
 
@@ -508,25 +529,28 @@ class BlotterParser:
                         incident_type = line
                         break
 
-            # Extract location
+            # Extract location (tolerant of OCR artifacts like missing colons,
+            # underscore instead of slash, 'Localion' typo, etc.)
             location = 'Havre, MT'
             for line in lines:
-                loc_m = re.match(r'Location(?:/Address)?:\s*(.+)', line, re.IGNORECASE)
+                loc_m = re.match(r'Locat[io][a-z]*[/ _]*(?:Address)?[:\s]*(.+)', line, re.IGNORECASE)
                 if loc_m:
                     loc = loc_m.group(1).strip()
-                    loc = re.sub(r'[\[{]HAV[^\]}\s]*[\]}]?\s*', '', loc)  # remove [HAV xxx] codes
-                    loc = self._clean_ocr_artifacts(loc).strip(' -|~')
+                    # remove [HAV xxx] codes and similar OCR noise
+                    loc = re.sub(r'[\[{]HAV\s*\d*\s*[\]}]?\s*', '', loc, flags=re.IGNORECASE)
+                    loc = self._clean_ocr_artifacts(loc).strip(" -|~'\"")
                     if loc:
                         location = loc
                     break
 
-            # Extract narrative (lines after "Narrative:" up to next meta field)
+            # Extract narrative (lines after "Narrative" up to next meta field)
+            # EasyOCR often drops the colon after "Narrative"
             narr_lines = []
             in_narr = False
             for line in lines:
-                if re.match(r'^Narrative:', line, re.IGNORECASE):
+                if re.match(r'^Narrative[:\s]*', line, re.IGNORECASE):
                     in_narr = True
-                    after = re.sub(r'^Narrative:\s*', '', line, flags=re.IGNORECASE).strip()
+                    after = re.sub(r'^Narrative[:\s]*', '', line, flags=re.IGNORECASE).strip()
                     if after:
                         narr_lines.append(after)
                     continue
@@ -544,7 +568,7 @@ class BlotterParser:
                 details = f"{details} ({action})" if details else action
             # Strip page headers that bleed into narrative via OCR
             details = re.sub(
-                r'HAVRE POLICE DEPT\w*\s+Page:.*?Printed:\s*\d{2}/\d{2}/\d{4}',
+                r'HAVRE POLICE DEPT\w*\s+Page[:\s]*.*?Printed[:\s]*\d{2}/\d{2}/\d{4}',
                 '', details, flags=re.IGNORECASE | re.DOTALL)
             details = self._clean_ocr_artifacts(details)
 
