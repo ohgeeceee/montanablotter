@@ -876,6 +876,9 @@ def migrate():
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_created ON page_views(created_at)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_path ON page_views(path)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_created_path ON page_views(created_at, path)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_created_referrer ON page_views(created_at, referrer)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_page_views_created_ip ON page_views(created_at, ip_hash)')
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pattern_clicks (
