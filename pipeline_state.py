@@ -128,34 +128,81 @@ def ensure_source_document(
     return source_document_id
 
 
-def ensure_ingestion_job(source_document_id: int, status: str = "received") -> int:
+def ensure_ingestion_job(source_key: str) -> int:
+    """Create or return ingestion job ID for a source key."""
     conn = _connect()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id FROM ingestion_jobs WHERE source_document_id = ?",
-        (source_document_id,),
-    )
-    row = cursor.fetchone()
-    if row:
-        job_id = int(row["id"])
-    else:
-        cursor.execute(
-            """
-            INSERT INTO ingestion_jobs (source_document_id, status)
-            VALUES (?, ?)
-            """,
-            (source_document_id, status),
+    try:
+        row = conn.execute(
+            'SELECT id FROM ingestion_jobs WHERE source_key = ?',
+            (source_key,),
+        ).fetchone()
+        if row:
+            return int(row['id'])
+        # Temporarily disable FK to insert with dummy source_document_id=0
+        conn.execute("PRAGMA foreign_keys = OFF")
+        cursor = conn.execute(
+            '''
+            INSERT INTO ingestion_jobs (source_key, source_document_id, status, started_at)
+            VALUES (?, 0, 'idle', datetime('now'))
+            ''',
+            (source_key,),
         )
-        if cursor.lastrowid is None:
-            conn.close()
-            raise RuntimeError("Failed to create ingestion_jobs row")
-        job_id = int(cursor.lastrowid)
         conn.commit()
-    conn.close()
-    return job_id
+        conn.execute("PRAGMA foreign_keys = ON")
+        return int(cursor.lastrowid)
+    finally:
+        conn.close()
 
 
-def get_ingestion_job_status(source_document_id: int) -> Optional[str]:
+def get_ingestion_job_status(source_key: str) -> Optional[str]:
+    conn = _connect()
+    try:
+        row = conn.execute(
+            'SELECT status FROM ingestion_jobs WHERE source_key = ?',
+            (source_key,),
+        ).fetchone()
+        return row['status'] if row else None
+    finally:
+        conn.close()
+
+
+def set_ingestion_job_status(source_key: str, status: str) -> None:
+    _execute_write(
+        '''
+        UPDATE ingestion_jobs SET status = ?, updated_at = datetime('now')
+        WHERE source_key = ?
+        ''',
+        (status, source_key),
+    )
+
+
+def increment_ingestion_retry(source_key: str) -> None:
+    _execute_write(
+        '''
+        UPDATE ingestion_jobs SET retry_count = retry_count + 1, updated_at = datetime('now')
+        WHERE source_key = ?
+        ''',
+        (source_key,),
+    )
+
+
+def log_scraper_event(source_key: str, event: str, data: dict) -> None:
+    _execute_write(
+        '''
+        INSERT INTO scraper_events (source_key, event_type, event_data, created_at)
+        VALUES (?, ?, ?, datetime('now'))
+        ''',
+        (source_key, event, json.dumps(data)),
+    )
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
+# Legacy functions for backward compatibility with existing code
+
+def get_ingestion_job_status_legacy(source_document_id: int) -> Optional[str]:
     conn = _connect()
     row = conn.execute(
         "SELECT status FROM ingestion_jobs WHERE source_document_id = ?",
@@ -167,7 +214,7 @@ def get_ingestion_job_status(source_document_id: int) -> Optional[str]:
     return str(row["status"])
 
 
-def set_ingestion_job_status(job_id: int, status: str, last_error: Optional[str] = None, finished: bool = False) -> None:
+def set_ingestion_job_status_legacy(job_id: int, status: str, last_error: Optional[str] = None, finished: bool = False) -> None:
     if finished:
         _execute_write(
             """
@@ -186,6 +233,27 @@ def set_ingestion_job_status(job_id: int, status: str, last_error: Optional[str]
             """,
             (status, last_error, job_id),
         )
+
+
+def increment_ingestion_retry_legacy(job_id: int) -> None:
+    _execute_write(
+        """
+        UPDATE ingestion_jobs
+        SET retry_count = retry_count + 1, updated_at = datetime('now')
+        WHERE id = ?
+        """,
+        (job_id,),
+    )
+
+
+def log_pipeline_event_legacy(job_id: int, event_type: str, payload: dict) -> None:
+    _execute_write(
+        """
+        INSERT INTO pipeline_events (job_id, event_type, payload, created_at)
+        VALUES (?, ?, ?, datetime('now'))
+        """,
+        (job_id, event_type, json.dumps(payload)),
+    )
 
 
 def increment_ingestion_retry(job_id: int, last_error: str) -> None:

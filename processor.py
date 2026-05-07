@@ -20,6 +20,7 @@ from pipeline_state import (
     log_pipeline_event,
     sha256_bytes,
     set_ingestion_job_status,
+    set_ingestion_job_status_legacy,
 )
 
 DB_PATH = config.DB_PATH
@@ -493,7 +494,9 @@ def process_new_blotter(
         logging.error(f"Pipeline error: {e}")
         if ingestion_job_id is not None:
             increment_ingestion_retry(ingestion_job_id, str(e))
-            set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
+            set_ingestion_job_status_legacy(
+                ingestion_job_id, 'failed', last_error=str(e), finished=True
+            )
         raise
 
 

@@ -27,6 +27,7 @@ from pipeline_state import (
     increment_ingestion_retry,
     log_pipeline_event,
     set_ingestion_job_status,
+    set_ingestion_job_status_legacy,
     sha256_bytes,
     sha256_text,
 )
@@ -319,7 +320,7 @@ class EmailWorker:
                                         logging.info('Skipped already-published text source document')
                                         continue
 
-                                    set_ingestion_job_status(ingestion_job_id, 'extracted')
+                                    set_ingestion_job_status_legacy(ingestion_job_id, 'extracted')
                                     log_pipeline_event(
                                         ingestion_job_id,
                                         'extract',
@@ -339,7 +340,9 @@ class EmailWorker:
                                     except Exception as e:
                                         logging.error(f"Failed to process text blotter: {e}")
                                         increment_ingestion_retry(ingestion_job_id, str(e))
-                                        set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
+                                        set_ingestion_job_status_legacy(
+                                            ingestion_job_id, 'failed', last_error=str(e), finished=True
+                                        )
                                         log_pipeline_event(
                                             ingestion_job_id,
                                             'publish',
@@ -539,7 +542,7 @@ class EmailWorker:
                     f.write(payload)
 
                 logging.info(f"Saved PDF: {filename}")
-                set_ingestion_job_status(ingestion_job_id, 'extracted')
+                set_ingestion_job_status_legacy(ingestion_job_id, 'extracted')
                 log_pipeline_event(
                     ingestion_job_id,
                     'extract',
@@ -580,7 +583,9 @@ class EmailWorker:
                 except Exception as e:
                     logging.error(f"Failed to process PDF {filename}: {str(e)}")
                     increment_ingestion_retry(ingestion_job_id, str(e))
-                    set_ingestion_job_status(ingestion_job_id, 'failed', last_error=str(e), finished=True)
+                    set_ingestion_job_status_legacy(
+                        ingestion_job_id, 'failed', last_error=str(e), finished=True
+                    )
                     log_pipeline_event(
                         ingestion_job_id,
                         'publish',
