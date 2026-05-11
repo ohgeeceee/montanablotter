@@ -463,11 +463,25 @@ class BlotterParser:
         date_str = None
 
         # Try multiple date patterns that Havre might use
-        # EasyOCR often drops colons and introduces spacing artifacts
+        # EasyOCR often drops colons and introduces spacing artifacts.
+        # Havre formats seen:
+        #   For Date: 05/01/2026 Friday        (date before day name)
+        #   For Date: Tuesday 05/05/2026       (day name before date)
+        #   For Date 05/06/2026 Wednesday       (missing colon)
         havre_date_patterns = [
+            # Date before day name: "For Date: 05/01/2026 Friday"
+            r'For Date[:\s]+(\d{2}/\d{2}/\d{2,4})\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)',
+            r'For Date[:\s]+(\d{2}-\d{2}-\d{2,4})\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)',
+            # Day name before date: "For Date: Tuesday 05/05/2026"
+            r'For Date[:\s]+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[:\s]+(\d{2}/\d{2}/\d{2,4})',
+            r'For Date[:\s]+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[:\s]+(\d{2}-\d{2}-\d{2,4})',
+            # Standalone date near "For Date" (no day name)
             r'For Date[:\s]+(\d{2}/\d{2}/\d{2,4})',
             r'For Date[:\s]+(\d{2}-\d{2}-\d{2,4})',
             r'For Date[:\s]+(\d{4}/\d{2}/\d{2})',
+            # Date in Dispatch Log header line: "05/05/2026" on its own near top
+            r'\b(\d{2}/\d{2}/\d{4})\b(?=\s*\n\s*For Date)',
+            # Legacy fallback
             r'(\d{2}/\d{2}/\d{2,4})\s+\d{2}:\d{2}',
         ]
 

@@ -1,0 +1,103 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="public-breadcrumb__sep">/</span>
+<a href="/code-violations">Code Violations</a>
+{% endblock %}
+
+{% block body_class %}code-violations-page{% endblock %}
+
+{% block content %}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Code Enforcement Violations</h1>
+        <p class="text-sm text-slate-600 mt-1">City and county code violations across Montana — abandoned properties, health hazards, permit violations, and more.</p>
+    </div>
+
+    <form method="get" action="/code-violations" class="flex flex-wrap gap-3 mb-6">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search address, type, or owner…" class="flex-1 min-w-[200px] rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+        <select name="city" class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="">All Cities</option>
+            {% for c in cities %}
+            <option value="{{ c }}" {% if city_filter == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+        </select>
+        <select name="type" class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="">All Types</option>
+            {% for t in violation_types %}
+            <option value="{{ t }}" {% if type_filter == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+        </select>
+        <select name="status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="">All Statuses</option>
+            <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+            <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+        </select>
+        <button type="submit" class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800">Search</button>
+        {% if q or city_filter or type_filter or status_filter %}
+        <a href="/code-violations" class="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Clear</a>
+        {% endif %}
+    </form>
+
+    {% if rows %}
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-700 font-semibold">
+                <tr>
+                    <th class="px-4 py-3 text-left">Address</th>
+                    <th class="px-4 py-3 text-left">City</th>
+                    <th class="px-4 py-3 text-left">Type</th>
+                    <th class="px-4 py-3 text-left">Status</th>
+                    <th class="px-4 py-3 text-left">Issued</th>
+                    <th class="px-4 py-3 text-left">Owner</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for row in rows %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3">
+                        {% if row.address_slug %}
+                        <a href="/property/{{ row.address_slug }}" class="text-slate-900 font-medium hover:underline">{{ row.raw_address or row.street }}</a>
+                        {% else %}
+                        {{ row.raw_address or row.street or '—' }}
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-slate-600">{{ row.city or '—' }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ row.violation_type }}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {% if row.status == 'open' %}bg-amber-50 text-amber-700{% else %}bg-emerald-50 text-emerald-700{% endif %}">
+                            {{ row.status }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600">{{ row.date_issued or '—' }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ row.owner_name or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if pages > 1 %}
+    <div class="flex items-center justify-between mt-4">
+        <p class="text-sm text-slate-600">Page {{ page }} of {{ pages }} · {{ total }} total</p>
+        <div class="flex gap-2">
+            {% if page > 1 %}
+            <a href="?page={{ page - 1 }}{% if q %}&q={{ q | urlencode }}{% endif %}{% if city_filter %}&city={{ city_filter | urlencode }}{% endif %}{% if type_filter %}&type={{ type_filter | urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter | urlencode }}{% endif %}" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">Previous</a>
+            {% endif %}
+            {% if page < pages %}
+            <a href="?page={{ page + 1 }}{% if q %}&q={{ q | urlencode }}{% endif %}{% if city_filter %}&city={{ city_filter | urlencode }}{% endif %}{% if type_filter %}&type={{ type_filter | urlencode }}{% endif %}{% if status_filter %}&status={{ status_filter | urlencode }}{% endif %}" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-600 mt-4">{{ total }} violation(s) found.</p>
+    {% endif %}
+
+    {% else %}
+    <div class="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center">
+        <p class="text-slate-700 font-medium">No violations found.</p>
+        <p class="text-sm text-slate-500 mt-1">Try adjusting your search or filters.</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

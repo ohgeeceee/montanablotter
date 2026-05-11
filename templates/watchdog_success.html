@@ -1,0 +1,32 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Watchdog Subscription Activated — Montana Blotter" %}
+{% set meta_description = "Your Watchdog Alert Subscription is now active." %}
+{% set active_nav = "watchdog" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-16 px-4 text-center">
+    <div class="public-card p-12">
+        <div class="text-green-500 text-6xl mb-6">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h1 class="text-3xl font-black text-slate-800 mb-4">Welcome to the Watchdog Tier</h1>
+        <p class="text-slate-500 mb-8 leading-relaxed">
+            Your subscription is active. You now have full access to keyword alerts, the public salary database, 
+            CSV exports, and weekly AI-generated transparency digests.
+        </p>
+
+        {% if token %}
+        <a href="/watchdog/dashboard/{{ token }}" class="public-btn public-btn--primary inline-flex items-center gap-2 text-lg px-8 py-3">
+            <i class="fas fa-tachometer-alt"></i> Open Your Dashboard
+        </a>
+        <p class="text-xs text-slate-400 mt-4">
+            Bookmark this link — it's your private dashboard access.
+            <br>We also sent it to your email.
+        </p>
+        {% else %}
+        <p class="text-slate-500">Check your email for your dashboard access link.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

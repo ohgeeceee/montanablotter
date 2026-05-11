@@ -205,20 +205,36 @@ def _publish_blotter_outputs(
             )
             set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
         else:
-            error_message = f'No public post was created for this {label}'
-            log_pipeline_event(
-                ingestion_job_id,
-                'publish',
-                'error',
-                {'blotter_id': blotter_id, 'error': 'no-posts-created'},
-            )
-            increment_ingestion_retry(ingestion_job_id, error_message)
-            set_ingestion_job_status(
-                ingestion_job_id,
-                'failed',
-                last_error=error_message,
-                finished=True,
-            )
+            # Check if this is a duplicate blotter with an existing post —
+            # if so, mark published instead of failed.
+            _dup_conn = _connect_db()
+            _dup_row = _dup_conn.execute(
+                'SELECT 1 FROM posts WHERE blotter_id = ? LIMIT 1', (blotter_id,)
+            ).fetchone()
+            _dup_conn.close()
+            if _dup_row:
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'publish',
+                    'ok',
+                    {'blotter_id': blotter_id, 'post_count': 0, 'note': 'duplicate-blotter-existing-post'},
+                )
+                set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+            else:
+                error_message = f'No public post was created for this {label}'
+                log_pipeline_event(
+                    ingestion_job_id,
+                    'publish',
+                    'error',
+                    {'blotter_id': blotter_id, 'error': 'no-posts-created'},
+                )
+                increment_ingestion_retry(ingestion_job_id, error_message)
+                set_ingestion_job_status(
+                    ingestion_job_id,
+                    'failed',
+                    last_error=error_message,
+                    finished=True,
+                )
 
     return visible_post_count
 
@@ -251,6 +267,44 @@ def parse_pdf(
     return parsed
 
 
+def _extract_date_from_subject(subject: str) -> Optional[str]:
+    """Extract a date from email subject or filename like 'LOG 5-4', '5/6/ log', '0507 log'."""
+    import re
+    from datetime import datetime
+
+    # Pattern: "5/6/ log" or "5/6 log" → 2026-05-06
+    m = re.search(r'(\d{1,2})/(\d{1,2})/?\s+', subject)
+    if m:
+        try:
+            dt = datetime(2026, int(m.group(1)), int(m.group(2)))
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+
+    # Pattern: "LOG 5-4" or "5-5 LOG" or "5-4 media log" → 2026-05-04
+    m = re.search(r'(?:^|\s)(\d{1,2})-(\d{1,2})(?:\s|$|\D)', subject)
+    if m:
+        try:
+            dt = datetime(2026, int(m.group(1)), int(m.group(2)))
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+
+    # Pattern: "0507 log" → 2026-05-07
+    m = re.search(r'(?:^|\s)(\d{2})(\d{2})\s+', subject)
+    if m:
+        try:
+            month = int(m.group(1))
+            day = int(m.group(2))
+            if 1 <= month <= 12 and 1 <= day <= 31:
+                dt = datetime(2026, month, day)
+                return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+
+    return None
+
+
 def store_parsed_pdf(
     pdf_path: str,
     parsed: dict,
@@ -268,6 +322,38 @@ def store_parsed_pdf(
     filename = os.path.basename(pdf_path)
     incidents = list(parsed.get('incidents') or [])
     parsed_county = county or parsed.get('county')
+
+    # --- Date fallback: if parser couldn't extract dates, try source_document subject/filename ---
+    fallback_date = None
+    has_missing_dates = any(not inc.get('date') for inc in incidents)
+    if has_missing_dates and source_document_id is not None:
+        conn = _connect_db()
+        try:
+            row = conn.execute(
+                'SELECT source_subject, filename FROM source_documents WHERE id = ?',
+                (source_document_id,),
+            ).fetchone()
+            if row:
+                subject, sd_filename = row[0], row[1]
+                fallback_date = _extract_date_from_subject(subject or '')
+                if not fallback_date:
+                    fallback_date = _extract_date_from_subject(sd_filename or '')
+                if not fallback_date:
+                    fallback_date = _extract_date_from_subject(filename or '')
+        except Exception:
+            pass
+        finally:
+            conn.close()
+
+    # Ultimate fallback: today's date
+    if not fallback_date:
+        from datetime import datetime
+        fallback_date = datetime.now().strftime('%Y-%m-%d')
+
+    # Apply fallback to any incident missing a date
+    for inc in incidents:
+        if not inc.get('date'):
+            inc['date'] = fallback_date
 
     conn = _connect_db()
     source_column_exists = _table_has_column(conn, 'blotters', 'source_document_id')

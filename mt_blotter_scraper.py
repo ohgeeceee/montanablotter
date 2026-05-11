@@ -716,13 +716,6 @@ def run_source(cfg: SourceConfig, session: requests.Session, dry_run: bool = Fal
     """Scrape a single source and store results."""
     logger.info(f"[{cfg.key}] Starting scrape: {cfg.display_name}")
 
-    job_id = ensure_ingestion_job(cfg.key)
-    status = get_ingestion_job_status(cfg.key)
-    if status == "running":
-        logger.warning(f"[{cfg.key}] Job already running, skipping")
-        return {"source": cfg.key, "status": "skipped", "reason": "already_running"}
-
-    set_ingestion_job_status(cfg.key, "running")
     log_scraper_event(cfg.key, "scrape_start", {"url": cfg.url, "days_back": days_back})
 
     try:

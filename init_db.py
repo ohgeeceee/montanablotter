@@ -385,10 +385,14 @@ def init_database():
     ensure_court_tracker_schema(conn)
     ensure_agent_mission_control_schema(conn)
     ensure_api_auth_schema(conn)
-    
+    ensure_code_violation_schema(conn)
+    seed_code_violation_sources(conn)
+    ensure_crash_incident_schema(conn)
+    ensure_sex_offender_schema(conn)
+
     conn.commit()
     conn.close()
-    
+
     print("✅ Database initialized successfully!")
     print(f"📁 Location: {DB_PATH}")
     print("\nTables created:")
@@ -396,6 +400,13 @@ def init_database():
     print("  - blotters (PDF batch tracking)")
     print("  - records (individual incidents)")
     print("  - command_logs (detailed event logs)")
+    print("  - code_violation_sources")
+    print("  - property_addresses")
+    print("  - code_violations")
+    print("  - sex_offenders")
+    print("  - sex_offender_snapshots")
+    print("  - sex_offender_changes")
+    print("  - sex_offender_alert_subscriptions")
 
 
 def ensure_source_material_schema(conn: sqlite3.Connection) -> None:
@@ -549,6 +560,8 @@ def migrate():
     ensure_recovery_ad_schema(conn)
     ensure_agent_mission_control_schema(conn)
     ensure_api_auth_schema(conn)
+    ensure_code_violation_schema(conn)
+    ensure_crash_incident_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -1557,9 +1570,458 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_scorecards_area ON safety_scorecards(area_type, area_slug)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_scorecards_period ON safety_scorecards(period_end, computed_at)')
 
+    # 2026-05-11: code enforcement violations
+    ensure_code_violation_schema(conn)
+    ensure_sex_offender_schema(conn)
+
     conn.commit()
     conn.close()
     print("✅ Migration complete")
+
+
+
+
+def ensure_sex_offender_schema(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sex_offenders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            registry_id TEXT UNIQUE NOT NULL,
+            full_name TEXT NOT NULL,
+            first_name TEXT,
+            last_name TEXT,
+            date_of_birth TEXT,
+            tier TEXT,
+            risk_level TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            address_street TEXT,
+            address_city TEXT,
+            address_county TEXT,
+            address_state TEXT DEFAULT 'MT',
+            address_zip TEXT,
+            lat REAL,
+            lon REAL,
+            employer_name TEXT,
+            employer_address TEXT,
+            school_name TEXT,
+            school_address TEXT,
+            offense_description TEXT,
+            conviction_date TEXT,
+            conviction_state TEXT,
+            conviction_county TEXT,
+            photo_url TEXT,
+            source_url TEXT,
+            raw_json TEXT,
+            first_seen_at TEXT DEFAULT (datetime('now')),
+            last_seen_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sex_offender_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            snapshot_date TEXT NOT NULL,
+            total_count INTEGER NOT NULL DEFAULT 0,
+            new_count INTEGER NOT NULL DEFAULT 0,
+            removed_count INTEGER NOT NULL DEFAULT 0,
+            changed_count INTEGER NOT NULL DEFAULT 0,
+            scrape_duration_seconds INTEGER,
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sex_offender_changes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            offender_id INTEGER NOT NULL,
+            snapshot_id INTEGER NOT NULL,
+            change_type TEXT NOT NULL,
+            change_note TEXT,
+            old_value_json TEXT,
+            new_value_json TEXT,
+            classified_by TEXT DEFAULT 'hermes',
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (offender_id) REFERENCES sex_offenders(id) ON DELETE CASCADE,
+            FOREIGN KEY (snapshot_id) REFERENCES sex_offender_snapshots(id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sex_offender_alert_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            lat REAL NOT NULL,
+            lon REAL NOT NULL,
+            radius_miles REAL NOT NULL DEFAULT 5.0,
+            counties TEXT DEFAULT '',
+            is_active INTEGER NOT NULL DEFAULT 1,
+            last_sent_at TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offenders_registry_id ON sex_offenders(registry_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offenders_county ON sex_offenders(address_county)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offenders_city ON sex_offenders(address_city)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offenders_geo ON sex_offenders(lat, lon)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offenders_status ON sex_offenders(status)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offender_changes_offender ON sex_offender_changes(offender_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offender_changes_snapshot ON sex_offender_changes(snapshot_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offender_changes_type ON sex_offender_changes(change_type)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sex_offender_snapshots_date ON sex_offender_snapshots(snapshot_date)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_so_alert_subs_active ON sex_offender_alert_subscriptions(is_active)'
+    )
+
+    for col, definition in [
+        ('registry_id', 'TEXT UNIQUE NOT NULL'),
+        ('tier', 'TEXT'),
+        ('risk_level', 'TEXT'),
+        ('status', "TEXT NOT NULL DEFAULT 'active'"),
+        ('address_street', 'TEXT'),
+        ('address_city', 'TEXT'),
+        ('address_county', 'TEXT'),
+        ('address_state', "TEXT DEFAULT 'MT'"),
+        ('address_zip', 'TEXT'),
+        ('lat', 'REAL'),
+        ('lon', 'REAL'),
+        ('employer_name', 'TEXT'),
+        ('employer_address', 'TEXT'),
+        ('school_name', 'TEXT'),
+        ('school_address', 'TEXT'),
+        ('offense_description', 'TEXT'),
+        ('conviction_date', 'TEXT'),
+        ('conviction_state', 'TEXT'),
+        ('conviction_county', 'TEXT'),
+        ('photo_url', 'TEXT'),
+        ('source_url', 'TEXT'),
+        ('raw_json', 'TEXT'),
+        ('first_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('last_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE sex_offenders ADD COLUMN {col} {definition}')
+            print(f'✅ Added sex_offenders.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('snapshot_date', 'TEXT NOT NULL'),
+        ('total_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('new_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('removed_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('changed_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('scrape_duration_seconds', 'INTEGER'),
+        ('notes', "TEXT DEFAULT ''"),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE sex_offender_snapshots ADD COLUMN {col} {definition}')
+            print(f'✅ Added sex_offender_snapshots.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('offender_id', 'INTEGER NOT NULL'),
+        ('snapshot_id', 'INTEGER NOT NULL'),
+        ('change_type', 'TEXT NOT NULL'),
+        ('change_note', 'TEXT'),
+        ('old_value_json', 'TEXT'),
+        ('new_value_json', 'TEXT'),
+        ('classified_by', "TEXT DEFAULT 'hermes'"),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE sex_offender_changes ADD COLUMN {col} {definition}')
+            print(f'✅ Added sex_offender_changes.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('email', 'TEXT NOT NULL'),
+        ('lat', 'REAL NOT NULL'),
+        ('lon', 'REAL NOT NULL'),
+        ('radius_miles', 'REAL NOT NULL DEFAULT 5.0'),
+        ('counties', "TEXT DEFAULT ''"),
+        ('is_active', 'INTEGER NOT NULL DEFAULT 1'),
+        ('last_sent_at', 'TEXT'),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE sex_offender_alert_subscriptions ADD COLUMN {col} {definition}')
+            print(f'✅ Added sex_offender_alert_subscriptions.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+
+def ensure_crash_incident_schema(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS crash_incidents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            external_id TEXT UNIQUE NOT NULL,
+            source TEXT NOT NULL DEFAULT 'mhp_news',
+            title TEXT NOT NULL,
+            description TEXT,
+            incident_type TEXT NOT NULL DEFAULT 'crash',
+            severity TEXT NOT NULL DEFAULT 'unknown',
+            status TEXT NOT NULL DEFAULT 'active',
+            highway TEXT,
+            mile_marker TEXT,
+            nearest_city TEXT,
+            county TEXT,
+            lat REAL,
+            lon REAL,
+            injuries INTEGER,
+            fatalities INTEGER,
+            road_status TEXT,
+            occurred_at TEXT,
+            cleared_at TEXT,
+            source_url TEXT,
+            raw_html TEXT,
+            first_seen_at TEXT DEFAULT (datetime('now')),
+            last_updated_at TEXT DEFAULT (datetime('now')),
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_crash_incidents_external_id '
+        'ON crash_incidents(external_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_crash_incidents_county '
+        'ON crash_incidents(county, status, occurred_at)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_crash_incidents_highway '
+        'ON crash_incidents(highway, status, occurred_at)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_crash_incidents_active '
+        'ON crash_incidents(status, occurred_at)'
+    )
+    for col, definition in [
+        ('external_id', 'TEXT UNIQUE NOT NULL'),
+        ('source', "TEXT NOT NULL DEFAULT 'mhp_news'"),
+        ('title', 'TEXT NOT NULL'),
+        ('description', 'TEXT'),
+        ('incident_type', "TEXT NOT NULL DEFAULT 'crash'"),
+        ('severity', "TEXT NOT NULL DEFAULT 'unknown'"),
+        ('status', "TEXT NOT NULL DEFAULT 'active'"),
+        ('highway', 'TEXT'),
+        ('mile_marker', 'TEXT'),
+        ('nearest_city', 'TEXT'),
+        ('county', 'TEXT'),
+        ('lat', 'REAL'),
+        ('lon', 'REAL'),
+        ('injuries', 'INTEGER'),
+        ('fatalities', 'INTEGER'),
+        ('road_status', 'TEXT'),
+        ('occurred_at', 'TEXT'),
+        ('cleared_at', 'TEXT'),
+        ('source_url', 'TEXT'),
+        ('raw_html', 'TEXT'),
+        ('first_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('last_updated_at', "TEXT DEFAULT (datetime('now'))"),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE crash_incidents ADD COLUMN {col} {definition}')
+            print(f'✅ Added crash_incidents.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+
+def ensure_code_violation_schema(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS code_violation_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT UNIQUE NOT NULL,
+            display_name TEXT NOT NULL,
+            city TEXT NOT NULL,
+            county TEXT,
+            source_type TEXT NOT NULL DEFAULT 'portal',
+            portal_url TEXT,
+            request_email TEXT,
+            is_enabled INTEGER NOT NULL DEFAULT 1,
+            last_checked_at TEXT,
+            last_success_at TEXT,
+            latest_error TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS property_addresses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            address_slug TEXT UNIQUE NOT NULL,
+            street TEXT NOT NULL,
+            city TEXT NOT NULL,
+            state TEXT NOT NULL DEFAULT 'MT',
+            zip TEXT,
+            county TEXT,
+            lat REAL,
+            lon REAL,
+            first_seen_at TEXT DEFAULT (datetime('now')),
+            last_seen_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS code_violations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER NOT NULL,
+            property_address_id INTEGER,
+            raw_address TEXT NOT NULL DEFAULT '',
+            violation_type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'open',
+            date_issued TEXT,
+            date_resolved TEXT,
+            owner_name TEXT,
+            description TEXT,
+            fine_amount REAL,
+            source_record_id TEXT,
+            source_url TEXT,
+            raw_json TEXT,
+            hash_id TEXT,
+            first_seen_at TEXT DEFAULT (datetime('now')),
+            last_seen_at TEXT DEFAULT (datetime('now')),
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (source_id) REFERENCES code_violation_sources(id) ON DELETE CASCADE,
+            FOREIGN KEY (property_address_id) REFERENCES property_addresses(id) ON DELETE SET NULL
+        )
+    ''')
+
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_cv_sources_enabled '
+        'ON code_violation_sources(is_enabled, city)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_property_addresses_slug '
+        'ON property_addresses(address_slug)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_property_addresses_geo '
+        'ON property_addresses(city, county)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_code_violations_lookup '
+        'ON code_violations(property_address_id, status, date_issued)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_code_violations_source '
+        'ON code_violations(source_id, last_seen_at)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_code_violations_hash '
+        'ON code_violations(hash_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_code_violations_type '
+        'ON code_violations(violation_type)'
+    )
+
+    for col, definition in [
+        ('county', 'TEXT'),
+        ('source_type', "TEXT NOT NULL DEFAULT 'portal'"),
+        ('portal_url', 'TEXT'),
+        ('request_email', 'TEXT'),
+        ('is_enabled', 'INTEGER NOT NULL DEFAULT 1'),
+        ('last_checked_at', 'TEXT'),
+        ('last_success_at', 'TEXT'),
+        ('latest_error', "TEXT DEFAULT ''"),
+        ('notes', "TEXT DEFAULT ''"),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE code_violation_sources ADD COLUMN {col} {definition}')
+            print(f'✅ Added code_violation_sources.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('county', 'TEXT'),
+        ('lat', 'REAL'),
+        ('lon', 'REAL'),
+        ('first_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('last_seen_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE property_addresses ADD COLUMN {col} {definition}')
+            print(f'✅ Added property_addresses.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('property_address_id', 'INTEGER'),
+        ('raw_address', "TEXT NOT NULL DEFAULT ''"),
+        ('status', "TEXT NOT NULL DEFAULT 'open'"),
+        ('date_issued', 'TEXT'),
+        ('date_resolved', 'TEXT'),
+        ('owner_name', 'TEXT'),
+        ('description', 'TEXT'),
+        ('fine_amount', 'REAL'),
+        ('source_record_id', 'TEXT'),
+        ('source_url', 'TEXT'),
+        ('raw_json', 'TEXT'),
+        ('hash_id', 'TEXT'),
+        ('first_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('last_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE code_violations ADD COLUMN {col} {definition}')
+            print(f'✅ Added code_violations.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+
+def seed_code_violation_sources(conn: sqlite3.Connection) -> None:
+    sources = [
+        ('billings', 'Billings Code Enforcement', 'Billings', 'Yellowstone'),
+        ('missoula', 'Missoula Code Enforcement', 'Missoula', 'Missoula'),
+        ('great_falls', 'Great Falls Code Enforcement', 'Great Falls', 'Cascade'),
+        ('bozeman', 'Bozeman Code Enforcement', 'Bozeman', 'Gallatin'),
+        ('helena', 'Helena Code Enforcement', 'Helena', 'Lewis and Clark'),
+    ]
+    for key, name, city, county in sources:
+        conn.execute(
+            '''
+            INSERT OR IGNORE INTO code_violation_sources (source_key, display_name, city, county)
+            VALUES (?, ?, ?, ?)
+            ''',
+            (key, name, city, county),
+        )
+    conn.commit()
 
 
 if __name__ == "__main__":

@@ -123,7 +123,7 @@ def process_incoming_email_item(item: dict[str, Any]) -> dict[str, Any]:
             _mark_success(job_id, queue_name, task_name, {**item, "status": "duplicate-published-skip"})
             return {"ok": True, "skipped": True, "reason": "already_published"}
 
-        set_ingestion_job_status(int(ingestion_job_id), "extracted")
+        set_ingestion_job_status(int(source_document_id), "extracted")
         log_pipeline_event(
             int(ingestion_job_id),
             "extract",
@@ -211,16 +211,18 @@ def parse_pdf(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
     except Exception as exc:
+        source_document_id = payload.get("source_document_id")
         ingestion_job_id = payload.get("ingestion_job_id")
         if ingestion_job_id is not None:
             increment_ingestion_retry(int(ingestion_job_id), str(exc))
-            set_ingestion_job_status(int(ingestion_job_id), "failed", last_error=str(exc), finished=True)
             log_pipeline_event(
                 int(ingestion_job_id),
                 "parse",
                 "error",
                 {"error": str(exc)},
             )
+        if source_document_id is not None:
+            set_ingestion_job_status(int(source_document_id), "failed", last_error=str(exc), finished=True)
         _mark_failure(job_id, queue_name, task_name, payload, exc)
         raise
 
@@ -262,16 +264,18 @@ def publish_incidents(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
     except Exception as exc:
+        source_document_id = payload.get("source_document_id")
         ingestion_job_id = payload.get("ingestion_job_id")
         if ingestion_job_id is not None:
             increment_ingestion_retry(int(ingestion_job_id), str(exc))
-            set_ingestion_job_status(int(ingestion_job_id), "failed", last_error=str(exc), finished=True)
             log_pipeline_event(
                 int(ingestion_job_id),
                 "publish",
                 "error",
                 {"error": str(exc)},
             )
+        if source_document_id is not None:
+            set_ingestion_job_status(int(source_document_id), "failed", last_error=str(exc), finished=True)
         _mark_failure(job_id, queue_name, task_name, payload, exc)
         raise
 

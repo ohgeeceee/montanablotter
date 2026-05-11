@@ -1,0 +1,37 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="public-breadcrumb__sep">/</span>
+<a href="/sex-offender-updates">Sex Offender Updates</a>
+<span class="public-breadcrumb__sep">/</span>
+<a href="/sex-offender-alerts">Alerts</a>
+{% endblock %}
+
+{% block body_class %}sex-offender-alerts-page{% endblock %}
+
+{% block content %}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-900">Sex Offender Proximity Alerts</h1>
+        <p class="text-sm text-slate-600 mt-1">Get notified when a new registrant moves within a chosen distance of your address.</p>
+    </div>
+
+    <form method="post" action="/sex-offender-alerts" class="max-w-md space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <input type="email" name="email" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="you@example.com">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Address</label>
+            <input type="text" name="address" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="123 Main St, Billings, MT">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Radius (miles)</label>
+            <input type="range" name="radius" min="1" max="25" value="5" class="w-full" oninput="document.getElementById('radius-val').textContent = this.value + ' miles'">
+            <p class="text-sm text-slate-600 mt-1"><span id="radius-val">5 miles</span></p>
+        </div>
+        <button type="submit" class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800">Subscribe</button>
+    </form>
+</section>
+{% endblock %}
