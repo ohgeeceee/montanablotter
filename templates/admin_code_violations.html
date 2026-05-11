@@ -1,0 +1,41 @@
+{% extends "admin.html" %}
+
+{% block admin_content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <h1 class="text-2xl font-bold text-slate-900 mb-1">Code Violations</h1>
+    <p class="text-sm text-slate-600 mb-6">Manage city sources and monitor ingestion health.</p>
+
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-700 font-semibold">
+                <tr>
+                    <th class="px-4 py-3 text-left">Source</th>
+                    <th class="px-4 py-3 text-left">City</th>
+                    <th class="px-4 py-3 text-left">County</th>
+                    <th class="px-4 py-3 text-left">Enabled</th>
+                    <th class="px-4 py-3 text-left">Last Success</th>
+                    <th class="px-4 py-3 text-left">Total</th>
+                    <th class="px-4 py-3 text-left">Open</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for s in sources %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-medium text-slate-900">{{ s.display_name }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ s.city }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ s.county or '—' }}</td>
+                    <td class="px-4 py-3">
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {% if s.is_enabled %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+                            {{ 'Yes' if s.is_enabled else 'No' }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600">{{ s.last_success_at or '—' }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ count_map.get(s.id, {}).get('total', 0) }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ count_map.get(s.id, {}).get('open', 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

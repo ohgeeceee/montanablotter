@@ -128,62 +128,62 @@ def ensure_source_document(
     return source_document_id
 
 
-def ensure_ingestion_job(source_key: str) -> int:
-    """Create or return ingestion job ID for a source key."""
+def ensure_ingestion_job(source_document_id: int) -> int:
+    """Create or return ingestion job ID for a source document."""
     conn = _connect()
     try:
         row = conn.execute(
-            'SELECT id FROM ingestion_jobs WHERE source_key = ?',
-            (source_key,),
+            'SELECT id FROM ingestion_jobs WHERE source_document_id = ?',
+            (source_document_id,),
         ).fetchone()
         if row:
             return int(row['id'])
-        # Temporarily disable FK to insert with dummy source_document_id=0
-        conn.execute("PRAGMA foreign_keys = OFF")
-        cursor = conn.execute(
+        # Use INSERT OR IGNORE to handle races gracefully, then re-query.
+        conn.execute(
             '''
-            INSERT INTO ingestion_jobs (source_key, source_document_id, status, started_at)
-            VALUES (?, 0, 'idle', datetime('now'))
+            INSERT OR IGNORE INTO ingestion_jobs (source_document_id, status, started_at)
+            VALUES (?, 'idle', datetime('now'))
             ''',
-            (source_key,),
+            (source_document_id,),
         )
         conn.commit()
-        conn.execute("PRAGMA foreign_keys = ON")
-        return int(cursor.lastrowid)
+        row = conn.execute(
+            'SELECT id FROM ingestion_jobs WHERE source_document_id = ?',
+            (source_document_id,),
+        ).fetchone()
+        if row:
+            return int(row['id'])
+        return 0
     finally:
         conn.close()
 
 
-def get_ingestion_job_status(source_key: str) -> Optional[str]:
+def get_ingestion_job_status(source_document_id: int) -> Optional[str]:
     conn = _connect()
     try:
         row = conn.execute(
-            'SELECT status FROM ingestion_jobs WHERE source_key = ?',
-            (source_key,),
+            'SELECT status FROM ingestion_jobs WHERE source_document_id = ?',
+            (source_document_id,),
         ).fetchone()
         return row['status'] if row else None
     finally:
         conn.close()
 
 
-def set_ingestion_job_status(source_key: str, status: str) -> None:
-    _execute_write(
-        '''
-        UPDATE ingestion_jobs SET status = ?, updated_at = datetime('now')
-        WHERE source_key = ?
-        ''',
-        (status, source_key),
-    )
+def set_ingestion_job_status(source_document_id: int, status: str, *, last_error: Optional[str] = None, finished: bool = False) -> None:
+    fields = ['status = ?', 'updated_at = datetime(\'now\')']
+    params: List = [status]
+    if last_error is not None:
+        fields.append('last_error = ?')
+        params.append(last_error)
+    if finished:
+        fields.append('finished_at = datetime(\'now\')')
+    query = f"UPDATE ingestion_jobs SET {', '.join(fields)} WHERE source_document_id = ?"
+    params.append(source_document_id)
+    _execute_write(query, tuple(params))
 
 
-def increment_ingestion_retry(source_key: str) -> None:
-    _execute_write(
-        '''
-        UPDATE ingestion_jobs SET retry_count = retry_count + 1, updated_at = datetime('now')
-        WHERE source_key = ?
-        ''',
-        (source_key,),
-    )
+
 
 
 def log_scraper_event(source_key: str, event: str, data: dict) -> None:
@@ -256,17 +256,28 @@ def log_pipeline_event_legacy(job_id: int, event_type: str, payload: dict) -> No
     )
 
 
-def increment_ingestion_retry(job_id: int, last_error: str) -> None:
-    _execute_write(
-        """
-        UPDATE ingestion_jobs
-        SET retry_count = retry_count + 1,
-            status = 'failed',
-            last_error = ?
-        WHERE id = ?
-        """,
-        (last_error, job_id),
-    )
+def increment_ingestion_retry(job_id: int, last_error: Optional[str] = None) -> None:
+    if last_error is not None:
+        _execute_write(
+            """
+            UPDATE ingestion_jobs
+            SET retry_count = retry_count + 1,
+                status = 'failed',
+                last_error = ?
+            WHERE id = ?
+            """,
+            (last_error, job_id),
+        )
+    else:
+        _execute_write(
+            """
+            UPDATE ingestion_jobs
+            SET retry_count = retry_count + 1,
+                updated_at = datetime('now')
+            WHERE id = ?
+            """,
+            (job_id,),
+        )
 
 
 def log_pipeline_event(job_id: int, stage: str, status: str, details: Optional[dict] = None) -> None:

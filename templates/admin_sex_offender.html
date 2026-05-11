@@ -1,0 +1,54 @@
+{% extends "admin.html" %}
+
+{% block title %}Sex Offender Registry | Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6">
+    <h2 class="text-xl font-bold text-slate-900 mb-4">Sex Offender Registry</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-xs text-slate-500 uppercase font-bold">Active Registrants</p>
+            <p class="text-2xl font-black text-slate-900">{{ total_active }}</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-xs text-slate-500 uppercase font-bold">Alert Subscribers</p>
+            <p class="text-2xl font-black text-slate-900">{{ total_subscribers }}</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-xs text-slate-500 uppercase font-bold">Latest Snapshot</p>
+            <p class="text-lg font-bold text-slate-900">{{ snapshots[0].snapshot_date if snapshots else '—' }}</p>
+        </div>
+    </div>
+
+    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3">Recent Snapshots</h3>
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-700 font-semibold">
+                <tr>
+                    <th class="px-4 py-3 text-left">Date</th>
+                    <th class="px-4 py-3 text-left">Total</th>
+                    <th class="px-4 py-3 text-left">New</th>
+                    <th class="px-4 py-3 text-left">Removed</th>
+                    <th class="px-4 py-3 text-left">Changed</th>
+                    <th class="px-4 py-3 text-left">Duration</th>
+                    <th class="px-4 py-3 text-left">Notes</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for s in snapshots %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 text-slate-600">{{ s.snapshot_date or '—' }}</td>
+                    <td class="px-4 py-3 text-slate-900 font-medium">{{ s.total_count }}</td>
+                    <td class="px-4 py-3 text-green-700">{{ s.new_count }}</td>
+                    <td class="px-4 py-3 text-red-700">{{ s.removed_count }}</td>
+                    <td class="px-4 py-3 text-amber-700">{{ s.changed_count }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ s.scrape_duration_seconds or '—' }}s</td>
+                    <td class="px-4 py-3 text-slate-600">{{ s.notes or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

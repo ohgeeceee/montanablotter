@@ -59,6 +59,7 @@ COUNTY_MAP: dict[str, str] = {
     "hill sheriff": "Hill",
     "hill county sheriff": "Hill",
     "havre": "Hill",
+    "ci.havre.mt.us": "Hill",
     "cascade county": "Cascade",
     "great falls": "Cascade",
     "missoula county": "Missoula",
@@ -75,6 +76,8 @@ AGENCY_MAP: dict[str, str] = {
     "hill county": "Hill County Sheriff's Office",
     "hill sheriff": "Hill County Sheriff's Office",
     "havre police": "Havre Police Department",
+    "ci.havre.mt.us": "Havre Police Department",
+    "kmckay": "Havre Police Department",
     "cascade county": "Cascade County Sheriff's Office",
     "great falls police": "Great Falls Police Department",
     "missoula county": "Missoula County Sheriff's Office",
@@ -123,6 +126,46 @@ class ImageBlotterWorker(EmailWorker):
             return output_path
 
         raise RuntimeError("No image-to-PDF library available. Install img2pdf or Pillow.")
+
+    def _ocr_pdf(self, pdf_path: Path) -> str:
+        """Extract text from scanned image PDF using OCR.
+        
+        Uses pdf2image + pytesseract with aggressive downsampling
+        to keep runtime reasonable for cron jobs.
+        """
+        try:
+            from pdf2image import convert_from_path
+            import pytesseract
+        except ImportError:
+            return ""
+
+        text_parts = []
+        try:
+            # Low DPI + grayscale for speed
+            images = convert_from_path(str(pdf_path), dpi=150, grayscale=True)
+        except Exception as e:
+            print(f"[email_image_blotter] pdf2image failed: {e}")
+            return ""
+
+        for i, img in enumerate(images):
+            try:
+                # Resize very large images to keep OCR fast
+                max_dim = 1200
+                w, h = img.size
+                if max(w, h) > max_dim:
+                    ratio = max_dim / max(w, h)
+                    new_size = (int(w * ratio), int(h * ratio))
+                    img = img.resize(new_size, Image.LANCZOS)
+
+                page_text = pytesseract.image_to_string(img)
+                if page_text.strip():
+                    text_parts.append(page_text)
+                    print(f"[email_image_blotter] OCR page {i+1}: {len(page_text)} chars")
+            except Exception as e:
+                print(f"[email_image_blotter] OCR page {i+1} failed: {e}")
+                continue
+
+        return "\n\n".join(text_parts)
 
     def _process_image_attachments(
         self,
@@ -249,8 +292,30 @@ class ImageBlotterWorker(EmailWorker):
 
         return had_images, any_succeeded
 
-    def fetch_and_process_emails(self):
-        """Override to handle both PDF and image attachments."""
+    def _already_processed(self, message_id: str) -> bool:
+        """Check if a message_id has already been ingested as a source_document."""
+        if not message_id:
+            return False
+        try:
+            conn = get_db()
+            row = conn.execute(
+                "SELECT 1 FROM source_documents WHERE source_message_id = ? LIMIT 1",
+                (message_id,),
+            ).fetchone()
+            conn.close()
+            return row is not None
+        except Exception as e:
+            print(f"[email_image_blotter] DB check failed for message_id: {e}")
+            return False
+
+    def fetch_and_process_emails(self, since_days: int = 7):
+        """Override to handle both PDF and image attachments.
+        
+        Args:
+            since_days: Search for emails from the last N days (default 7)
+                       instead of only UNSEEN, to catch emails that were
+                       marked as read by another client before processing.
+        """
         config_error = self._validate_imap_config()
         if config_error:
             print(f"[email_image_blotter] Config error: {config_error}")
@@ -262,16 +327,23 @@ class ImageBlotterWorker(EmailWorker):
             mail.select("INBOX")
             print("[email_image_blotter] Connected to IMAP successfully")
 
-            status, messages = mail.search(None, "UNSEEN")
+            # Search by date range instead of UNSEEN to catch emails
+            # that were marked as read by phone/webmail before processing
+            from datetime import datetime, timedelta
+            since_date = (datetime.now() - timedelta(days=since_days)).strftime("%d-%b-%Y")
+            search_criteria = f'(SINCE "{since_date}")'
+            
+            status, messages = mail.search(None, search_criteria)
             if status != "OK" or not messages[0]:
-                print("[email_image_blotter] No new emails found")
+                print(f"[email_image_blotter] No emails found since {since_date}")
                 mail.logout()
                 return 0
 
             email_ids = messages[0].split()
-            print(f"[email_image_blotter] Found {len(email_ids)} unread emails")
+            print(f"[email_image_blotter] Found {len(email_ids)} emails since {since_date}")
 
             processed_count = 0
+            skipped_count = 0
 
             for num in email_ids:
                 try:
@@ -283,6 +355,11 @@ class ImageBlotterWorker(EmailWorker):
                             sender = msg.get("from", "Unknown")
                             message_id = msg.get("Message-ID", "")
                             msg_date = msg.get("Date", "")
+
+                            # Skip already-processed emails by Message-ID
+                            if self._already_processed(message_id):
+                                skipped_count += 1
+                                continue
 
                             print(f"[email_image_blotter] Processing: {subject} from {sender}")
 
@@ -393,7 +470,7 @@ class ImageBlotterWorker(EmailWorker):
 
             mail.expunge()
             mail.logout()
-            print(f"[email_image_blotter] Complete: {processed_count} emails processed")
+            print(f"[email_image_blotter] Complete: {processed_count} processed, {skipped_count} already-ingested skipped")
             return processed_count
 
         except Exception as e:
@@ -401,12 +478,22 @@ class ImageBlotterWorker(EmailWorker):
             return 0
 
 
-def run_image_blotter():
+def run_image_blotter(since_days: int = 14):
+    """Run the image blotter worker.
+    
+    Args:
+        since_days: How many days back to search for emails.
+                   Default 14 to catch backlog of read emails.
+    """
     worker = ImageBlotterWorker()
-    count = worker.fetch_and_process_emails()
+    count = worker.fetch_and_process_emails(since_days=since_days)
     print(f"Processed {count} emails")
     return count
 
 
 if __name__ == "__main__":
-    run_image_blotter()
+    import argparse
+    parser = argparse.ArgumentParser(description="Process blotter emails with image/PDF attachments")
+    parser.add_argument("--since-days", type=int, default=14, help="Days back to search (default: 14)")
+    args = parser.parse_args()
+    run_image_blotter(since_days=args.since_days)

@@ -318,9 +318,11 @@ def generate_posts(
         agency_type=final_agency_type,
     )
     raw_summary = post_data.get("summary") or _fallback_summary(final_agency_name, rows)
+    # Convert sqlite3.Row list to plain dicts for append_historical_perspective
+    _rows_as_dicts = [dict(r) for r in rows]
     final_summary = append_historical_perspective(
         raw_summary,
-        records=rows,
+        records=_rows_as_dicts,
         county=county,
         agency_name=final_agency_name,
         agency_type=final_agency_type,
@@ -500,12 +502,13 @@ def _fallback_summary(agency_name: str, rows) -> str:
     """Plain-text digest when Claude/OpenAI is unavailable."""
     lines = [f"The {agency_name or 'agency'} responded to the following incidents:"]
     for r in rows:
+        # sqlite3.Row supports dict-style access via __getitem__ but not .get()
         time_str = r["time"] or ""
         itype = r["incident_type"] or "Incident"
         loc = r["location"] or ""
         detail = r["details"] or ""
-        charge_cat = r.get("charge_category") or ""
-        cfs = r.get("cfs_number") or ""
+        charge_cat = r["charge_category"] or ""
+        cfs = r["cfs_number"] or ""
         # Build rich detail suffix using same extraction logic
         suffix_parts = []
         severity_match = re.search(r'Severity:\s*(Felony|Misdemeanor)', detail, re.IGNORECASE)

@@ -69,6 +69,59 @@ def _clean_summary(text: str) -> str:
     return "\n".join(cleaned_lines).strip()
 
 
+def _build_excerpt(title: str, facts: dict, summary: str) -> str:
+    """Generate a short excerpt (under 200 chars) from facts.
+
+    The summary field often contains a full incident list. We try to extract
+    a genuine narrative sentence rather than a template header or list item.
+    """
+    agency_name = (facts.get("agency_name") or "Authorities").strip()
+    county_label = _county_label(str(facts.get("county") or ""))
+    incident_date = (facts.get("incident_date") or facts.get("occurred_at") or "").strip()
+    city = (facts.get("city") or "").strip()
+
+    # Skip patterns that indicate a list/header/template, not a narrative sentence
+    SKIP_PATTERNS = [
+        r"(?i)^\s*the\s+\w+\s+responded\s+to\s+the\s+following\s+incidents",
+        r"(?i)^\s*incident\s+(list|summary|report)",
+        r"(?i)^\s*daily\s+activity\s+report",
+        r"(?i)^\s*---+",
+        r"(?i)^\s*\d{1,2}:\d{2}\s*[-–]",
+        r"(?i)^\s*\d{1,2}:\d{2}:\d{2}\s*[-–]",
+        r"(?i)^\s*authorities\s+(in\s+\w+\s+county\s+)?on\s+\d{2}/\d{2}/\d{2}\s+is\s+referenced",
+        r"(?i)^\s*this\s+report\s+is\s+based\s+on\s+source\s+material\s+reviewed",
+        r"(?i)^\s*the\s+item\s+is\s+being\s+tracked\s+as\s+a\s+factual\s+local-news\s+brief",
+        r"(?i)^\s*montana\s+blotter'?s\s+(autonomous\s+newsroom\s+prepared|newsroom\s+pipeline\s+prepared)",
+    ]
+
+    def _is_skip(text: str) -> bool:
+        return any(re.search(pat, text) for pat in SKIP_PATTERNS)
+
+    # Try to find first real sentence from summary
+    if summary:
+        sentences = re.split(r"(?<=[.!?])\s+", summary)
+        for sent in sentences:
+            sent = sent.strip()
+            if len(sent) >= 30 and not _is_skip(sent):
+                if len(sent) <= 160:
+                    return sent
+                return sent[:157].rsplit(" ", 1)[0] + "..."
+
+    # Synthetic excerpt as fallback
+    parts = [agency_name]
+    if city:
+        parts.append(f"in {city}")
+    elif county_label != "Montana":
+        parts.append(f"in {county_label}")
+    if incident_date:
+        parts.append(f"on {incident_date[:10]}")
+    parts.append("— public safety activity from source records.")
+    excerpt = " ".join(parts)
+    if len(excerpt) > 200:
+        excerpt = excerpt[:197].rsplit(" ", 1)[0] + "..."
+    return excerpt
+
+
 def _build_body(title: str, facts: dict) -> str:
     agency_name = (facts.get("agency_name") or "Authorities").strip()
     city = (facts.get("city") or "").strip()
@@ -121,7 +174,9 @@ def create_draft_from_candidate(conn: sqlite3.Connection, candidate_id: int) -> 
 
     facts = json.loads(candidate["facts_json"] or "{}")
     title = str(candidate["headline_hint"] or "").strip()
-    excerpt = _clean_summary(str(facts.get("summary") or "")) or title
+    summary = _clean_summary(str(facts.get("summary") or ""))
+    # Build a short excerpt — first 1-2 sentences or a synthetic lede, capped at 200 chars
+    excerpt = _build_excerpt(title, facts, summary)
     body = _build_body(title, facts)
     slug = _slugify(f"{title}-{candidate_id}")
 

@@ -9,8 +9,19 @@ BASH_ENV=/root/montanablotter/.env
 # Fetch and process blotter emails every 15 minutes
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_worker --log /root/montanablotter/mail.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py --mode queue
 
+# Fetch and process image-based blotter emails (Havre PD, etc.) every 15 minutes
+# Searches last 14 days to catch emails marked as read by other clients
+7,22,37,52 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_image_blotter --log /root/montanablotter/email_image_blotter.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_image_blotter.py --since-days 14
+
 # Facebook autopost worker every 15 minutes (only publishes when auto-publish is enabled in admin settings)
 5,20,35,50 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name facebook_worker --log /root/montanablotter/facebook_worker.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/facebook_worker.py
+
+# NOTE: facebook_page_manager and duplicate_blog_checker now run as persistent
+# systemd services (fb-page-manager.service, blog-dup-checker.service).
+# The old cron entries below are commented out and can be removed after verification.
+# 0 * * * * ... fb_page_manager --mode post
+# 0 9,15,21 * * * ... fb_page_manager --mode comment
+# 0 6 * * * ... duplicate_blog_checker --auto-resolve
 
 # Morning briefing daily at 7am
 0 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name morning_briefing --log /root/montanablotter/briefing.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/morning_briefing.py

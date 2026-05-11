@@ -1,29 +1,29 @@
 {% extends "public_page_base.html" %}
 
-{% set page_title = "Arrest Log" %}
-{% set meta_description = "Live Montana arrest records filtered from police blotter and incident data across Montana counties." %}
-{% set canonical_url = "https://montanablotter.com/arrests" %}
-{% set og_title = "Arrest Log | Montana Blotter" %}
+{% set page_title = "FWP Violations" %}
+{% set meta_description = "Live Montana fwp-violation records filtered from police blotter and incident data across Montana counties." %}
+{% set canonical_url = "https://montanablotter.com/fwp-violations" %}
+{% set og_title = "FWP Violations | Montana Blotter" %}
 {% set og_description = meta_description %}
-{% set active_nav = "arrests" %}
+{% set active_nav = "fwp-violations" %}
 
 {% block extra_head %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
-  "name": "Montana Arrest Log",
-  "description": "Live Montana arrest records filtered from police blotter and incident data across Montana counties.",
-  "url": "https://montanablotter.com/arrests"
+  "name": "Montana FWP Violations",
+  "description": "Live Montana fwp-violation records filtered from police blotter and incident data across Montana counties.",
+  "url": "https://montanablotter.com/fwp-violations"
 }
 </script>
 {% endblock %}
 
-{% block body_class %}arrests-page{% endblock %}
+{% block body_class %}fwp-violations-page{% endblock %}
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
-<span>Arrest Log</span>
+<span>FWP Violations</span>
 {% endblock %}
 
 {% block hero %}
@@ -32,9 +32,9 @@
         <div class="public-hero__grid">
             <div>
                 <span class="public-eyebrow" style="color: var(--public-red);">Live Filtered Feed</span>
-                <h1 class="public-title public-title--medium">Arrest Log</h1>
+                <h1 class="public-title public-title--medium">FWP Violations</h1>
                 <p class="public-copy">
-                    Records where an arrest was made across Montana Blotter's current archive window. Filter by county or keyword, then open the underlying incident record for source context.
+                    Records where an FWP violation was made across Montana Blotter's current archive window. Filter by county or keyword, then open the underlying incident record for source context.
                 </p>
             </div>
             <aside class="public-card">
@@ -42,7 +42,7 @@
                     <p class="public-card__eyebrow">Current Count</p>
                     <div class="public-stat-grid">
                         <div class="public-stat-box">
-                            <p class="public-stat-label">Arrests</p>
+                            <p class="public-stat-label">FWP Violations</p>
                             <p class="public-stat-value">{{ total }}</p>
                         </div>
                         <div class="public-stat-box">
@@ -67,16 +67,16 @@
         <div class="public-form-card">
             <div class="public-form-card__body">
                 <h3 class="public-card__eyebrow mb-3">Filter</h3>
-                <form method="GET" action="/arrests" class="space-y-3" id="arrest-filter-form">
+                <form method="GET" action="/fwp-violations" class="space-y-3" id="fwp-violation-filter-form">
                     <div>
                         <label class="public-form-label">Search</label>
                         <input type="text" name="q" value="{{ q }}"
                                placeholder="name, location..."
-                               class="public-form-input" id="arrest-search-input">
+                               class="public-form-input" id="fwp-violation-search-input">
                     </div>
                     <div>
                         <label class="public-form-label">County</label>
-                        <select name="county" class="public-form-select" id="arrest-county-select">
+                        <select name="county" class="public-form-select" id="fwp-violation-county-select">
                             <option value="">All Counties</option>
                             {% for c in counties %}
                             <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
@@ -89,7 +89,7 @@
                             Filter
                         </button>
                         {% if county or q %}
-                        <a href="/arrests" class="public-btn public-btn--secondary inline-flex items-center justify-center" title="Clear filters">
+                        <a href="/fwp-violations" class="public-btn public-btn--secondary inline-flex items-center justify-center" title="Clear filters">
                             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="10" y2="10"/><line x1="10" y1="4" x2="4" y2="10"/></svg>
                         </a>
                         {% endif %}
@@ -121,7 +121,7 @@
             {% if q %}
             <span class="public-filter-pill active">&ldquo;{{ q }}&rdquo;</span>
             {% endif %}
-            <a href="/arrests" class="ml-auto text-slate-400 hover:text-slate-600 transition">Clear all</a>
+            <a href="/fwp-violations" class="ml-auto text-slate-400 hover:text-slate-600 transition">Clear all</a>
         </div>
         {% endif %}
 
@@ -134,7 +134,7 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex flex-wrap items-center gap-2 mb-1.5">
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-black uppercase tracking-wide">
-                                <i class="fas fa-handcuffs text-[9px]"></i> Arrest
+                                <i class="fas fa-leaf text-[9px]"></i> FWP Violation
                             </span>
                             <span class="text-[10px] font-mono text-slate-400">
                                 {{ record.date }}{% if record.time %} &bull; {{ record.time }}{% endif %}
@@ -149,7 +149,7 @@
                             {% endif %}
                         </div>
                         <h3 class="font-bold text-slate-800 mb-1">
-                            {{ record.incident_type or record.incident or 'Arrest' }}
+                            {{ record.incident_type or record.incident or 'FWP Violation' }}
                         </h3>
                         {% if record.location %}
                         <p class="text-xs text-slate-500 mb-1.5">
@@ -170,7 +170,7 @@
 
         {% if total_pages > 1 %}
         <nav class="flex items-center justify-between pt-6 pb-8">
-            <p class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }} &mdash; {{ total }} arrests</p>
+            <p class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }} &mdash; {{ total }} FWP violations</p>
             <div class="flex gap-2">
                 {% if page > 1 %}
                 <a href="?county={{ county }}&q={{ q }}&page={{ page - 1 }}"
@@ -185,13 +185,13 @@
         {% endif %}
         {% else %}
         <div class="public-card public-empty-state">
-            <i class="fas fa-handcuffs text-slate-200 text-5xl mb-4 block"></i>
-            <h3 class="text-xl font-black text-slate-700 mb-2">No arrests found</h3>
+            <i class="fas fa-leaf text-slate-200 text-5xl mb-4 block"></i>
+            <h3 class="text-xl font-black text-slate-700 mb-2">No FWP violations found</h3>
             <p class="text-slate-400 text-sm">
-                {% if county or q %}Try adjusting your filters.{% else %}No arrest records have been indexed yet.{% endif %}
+                {% if county or q %}Try adjusting your filters.{% else %}No FWP violation records have been indexed yet.{% endif %}
             </p>
             {% if county or q %}
-            <a href="/arrests" class="public-btn public-btn--primary mt-4 inline-flex">Clear filters</a>
+            <a href="/fwp-violations" class="public-btn public-btn--primary mt-4 inline-flex">Clear filters</a>
             {% endif %}
         </div>
         {% endif %}
@@ -202,9 +202,9 @@
 {% block extra_scripts %}
 <script>
 (function() {
-    var form = document.getElementById('arrest-filter-form');
-    var countySelect = document.getElementById('arrest-county-select');
-    var searchInput = document.getElementById('arrest-search-input');
+    var form = document.getElementById('fwp-violation-filter-form');
+    var countySelect = document.getElementById('fwp-violation-county-select');
+    var searchInput = document.getElementById('fwp-violation-search-input');
 
     // Auto-submit when county changes (desktop UX)
     if (countySelect && form) {

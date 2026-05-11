@@ -1,0 +1,213 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Watchdog Dashboard — Montana Blotter" %}
+{% set meta_description = "Manage your Watchdog keyword alerts, view weekly digests, and export data." %}
+{% set active_nav = "watchdog" %}
+
+{% block extra_head %}
+<style>
+    .wd-dash-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    .wd-stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 999px;
+        color: #94a3b8;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .wd-alert-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: #f8fafc;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 8px;
+        transition: all .15s;
+    }
+    .wd-alert-row:hover { background: #f1f5f9; }
+    .wd-digest-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        background: #fff;
+        transition: all .15s;
+    }
+    .wd-digest-card:hover { border-color: #3b82f6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-8 px-4 sm:px-6">
+    <!-- Header -->
+    <div class="wd-dash-header">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-white mb-1">
+                    <i class="fas fa-shield-alt text-blue-400 mr-2"></i>Watchdog Dashboard
+                </h1>
+                <p class="text-slate-400 text-sm">
+                    {{ sub.email }}
+                    {% if sub.organization %} · {{ sub.organization }}{% endif %}
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <span class="wd-stat-pill"><i class="fas fa-bell text-blue-400"></i> {{ alerts|length }} alerts</span>
+                <span class="wd-stat-pill"><i class="fas fa-newspaper text-green-400"></i> {{ digests|length }} digests</span>
+                <span class="wd-stat-pill">
+                    {% if sub.is_nonprofit %}
+                        <i class="fas fa-heart text-green-400"></i> Nonprofit
+                    {% else %}
+                        <i class="fas fa-star text-amber-400"></i> Watchdog
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-8">
+        <!-- Left column: Alerts + Export -->
+        <div class="lg:col-span-2 space-y-8">
+            <!-- Keyword Alerts -->
+            <div class="public-card">
+                <div class="p-6 border-b border-slate-100">
+                    <h2 class="font-black text-slate-800 text-lg flex items-center gap-2">
+                        <i class="fas fa-bell text-blue-500"></i> Keyword Alerts
+                    </h2>
+                    <p class="text-slate-500 text-sm mt-1">You'll be notified when any new record matches these keywords.</p>
+                </div>
+                <div class="p-6">
+                    {% if alerts %}
+                    {% for alert in alerts %}
+                    <div class="wd-alert-row">
+                        <div>
+                            <span class="font-bold text-slate-800">{{ alert.keyword }}</span>
+                            <span class="text-xs text-slate-400 ml-2">{{ alert.data_sources }}</span>
+                        </div>
+                        <form method="POST" action="/watchdog/dashboard/{{ sub.token }}/alerts/{{ alert.id }}/delete" style="display:inline">
+                            <button type="submit" class="text-red-400 hover:text-red-600 text-xs font-bold transition" title="Remove">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-slate-400 text-sm py-4 text-center">No keyword alerts configured yet.</p>
+                    {% endif %}
+
+                    <!-- Add alert form -->
+                    <form method="POST" action="/watchdog/dashboard/{{ sub.token }}/alerts" class="mt-4 flex gap-2">
+                        <input type="text" name="keyword" placeholder="Add keyword (e.g. DUI, Gallatin, poaching...)" required
+                               class="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:border-blue-500" id="wd-add-keyword">
+                        <select name="data_sources" class="rounded-lg border border-slate-200 px-3 py-2 text-sm" id="wd-alert-source">
+                            <option value="all">All Sources</option>
+                            <option value="records">Arrest Records</option>
+                            <option value="fwp">FWP Violations</option>
+                            <option value="salaries">Public Salaries</option>
+                        </select>
+                        <button type="submit" class="public-btn public-btn--primary text-sm px-4">
+                            <i class="fas fa-plus mr-1"></i> Add
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- CSV Export -->
+            <div class="public-card p-6">
+                <h2 class="font-black text-slate-800 text-lg flex items-center gap-2 mb-4">
+                    <i class="fas fa-file-csv text-purple-500"></i> Data Export
+                </h2>
+                <p class="text-slate-500 text-sm mb-4">
+                    Export public records matching your counties as CSV. Each row includes an AI-suggested story angle.
+                </p>
+                <div class="flex flex-wrap gap-3">
+                    <a href="/watchdog/dashboard/{{ sub.token }}/export?source=all"
+                       class="public-btn public-btn--secondary text-sm inline-flex items-center gap-2">
+                        <i class="fas fa-download"></i> All Records CSV
+                    </a>
+                    <a href="/watchdog/dashboard/{{ sub.token }}/export?source=fwp"
+                       class="public-btn public-btn--secondary text-sm inline-flex items-center gap-2">
+                        <i class="fas fa-leaf"></i> FWP Violations CSV
+                    </a>
+                    <a href="/watchdog/dashboard/{{ sub.token }}/export?source=salaries"
+                       class="public-btn public-btn--secondary text-sm inline-flex items-center gap-2">
+                        <i class="fas fa-dollar-sign"></i> Public Salaries CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column: Digests + Account -->
+        <div class="space-y-8">
+            <!-- Weekly Digests -->
+            <div class="public-card">
+                <div class="p-6 border-b border-slate-100">
+                    <h2 class="font-black text-slate-800 text-lg flex items-center gap-2">
+                        <i class="fas fa-robot text-green-500"></i> Weekly Digests
+                    </h2>
+                </div>
+                <div class="p-6">
+                    {% if digests %}
+                    {% for digest in digests %}
+                    <div class="wd-digest-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-bold text-slate-700 text-sm">{{ digest.digest_date }}</span>
+                            {% if digest.sent_at %}
+                            <span class="text-xs text-green-500"><i class="fas fa-check"></i> Sent</span>
+                            {% else %}
+                            <span class="text-xs text-slate-400">Generated</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-xs text-slate-500 line-clamp-4">{{ digest.content[:300] }}...</p>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-slate-400 text-sm py-4 text-center">
+                        Your first digest will be generated on Sunday.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Account info -->
+            <div class="public-card p-6">
+                <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wider">Account</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Email</span>
+                        <span class="text-slate-800 font-medium">{{ sub.email }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Counties</span>
+                        <span class="text-slate-800 font-medium">{{ sub.counties or 'All' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Beat</span>
+                        <span class="text-slate-800 font-medium">{{ sub.beats or 'General' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Status</span>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold">
+                            <i class="fas fa-circle text-[6px]"></i> {{ sub.status|capitalize }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Member since</span>
+                        <span class="text-slate-800 font-medium">{{ sub.created_at[:10] if sub.created_at else '—' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -621,21 +621,22 @@ class EmailWorker:
             return html, 'email_html'
         return "", 'none'
     
-    def _move_to_processed(self, mail, email_num):
-        """Move processed email to Processed folder"""
+    def _move_to_processed(self, mail: imaplib.IMAP4_SSL, num: bytes) -> None:
+        """Move email to Processed folder if it exists; otherwise just mark as read."""
         try:
-            # Try to create folder if it doesn't exist
-            mail.create(self.processed_folder)
+            # Try to copy to Processed folder
+            copy_status = mail.copy(num, self.processed_folder)
+            if copy_status[0] == 'OK':
+                mail.store(num, '+FLAGS', '\\Deleted')
+            else:
+                # Folder may not exist — just mark as read (SEEN)
+                mail.store(num, '+FLAGS', '\\Seen')
         except Exception as e:
-            logging.warning(f"Could not create Processed folder: {e}")
-        
-        try:
-            # Copy to Processed folder
-            mail.copy(email_num, self.processed_folder)
-            # Mark for deletion from inbox
-            mail.store(email_num, '+FLAGS', '\\Deleted')
-        except Exception as e:
-            logging.warning(f"Could not move email to Processed folder: {e}")
+            # If copy fails (folder missing), just mark as read
+            try:
+                mail.store(num, '+FLAGS', '\\Seen')
+            except Exception:
+                pass
     
     @staticmethod
     def _sanitize_header(value: str) -> str:

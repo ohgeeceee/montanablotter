@@ -136,6 +136,41 @@ def register_api_routes(app):
 
         return {'records': records}
 
+    @app.route('/api/fwp-violations')
+    def api_fwp_violations():
+        from flask import request, jsonify
+        conn = get_db()
+        cur = conn.cursor()
+        
+        county = request.args.get('county', '')
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+        
+        query = "SELECT * FROM records WHERE officer = 'MT FWP'"
+        params = []
+        
+        if county:
+            query += " AND county = ?"
+            params.append(county)
+            
+        query += " ORDER BY date DESC, time DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        cur.execute(query, params)
+        records = [dict(row) for row in cur.fetchall()]
+        
+        cur.execute("SELECT COUNT(*) FROM records WHERE officer = 'MT FWP'" + (" AND county = ?" if county else ""), [county] if county else [])
+        total = cur.fetchone()[0]
+        
+        conn.close()
+        
+        return jsonify({
+            'total': total,
+            'limit': limit,
+            'offset': offset,
+            'records': records
+        })
+
     @app.route('/api/filters')
     def api_filters():
         conn = get_db()

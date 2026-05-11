@@ -34,6 +34,10 @@ from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
 from blueprints.detention import register_detention_blueprint
+from blueprints.code_violations import register_code_violations_blueprint
+from blueprints.sex_offender import register_sex_offender_blueprint
+from blueprints.public_salaries import register_public_salaries_blueprint
+from blueprints.watchdog import register_watchdog_blueprint
 from blueprints.recovery_ads import recovery_ads_bp
 from court_tracker import (
     court_admin_context,
@@ -6217,6 +6221,8 @@ def inject_public_nav():
         {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds', 'menu_label': 'Bail'},
         {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons', 'menu_label': 'Missing'},
         {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
+        {'id': 'code_violations', 'href': '/code-violations', 'label': 'Code Violations', 'menu_label': 'Violations'},
+        {'id': 'sex_offender_updates', 'href': '/sex-offender-updates', 'label': 'Sex Offender Updates', 'menu_label': 'Registry'},
     ]
     public_secondary_nav_items = [
         {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys', 'menu_label': 'Cases'},
@@ -6270,6 +6276,8 @@ def inject_public_nav():
         {'href': '/support', 'label': 'Support'},
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
         {'href': '/recovery-centers', 'label': 'Recovery Centers'},
+        {'href': '/code-violations', 'label': 'Code Violations'},
+        {'href': '/sex-offender-updates', 'label': 'Sex Offender Updates'},
         {'href': '/subscribe', 'label': 'Subscribe'},
         {'href': '#modal-standards', 'label': 'Standards'},
         {'href': '#modal-corrections', 'label': 'Corrections'},
@@ -6390,6 +6398,7 @@ def track_page_view():
         '/sitemap-posts.xml',
         '/sitemap-blog.xml',
         '/sitemap-charges.xml',
+        '/sitemap-sex-offenders.xml',
     ):
         return
     ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
@@ -8097,6 +8106,9 @@ def sitemap_index():
     booking_lastmod_row = conn.execute(
         'SELECT MAX(COALESCE(last_seen_at, first_seen_at, created_at)) AS lastmod FROM jail_bookings WHERE person_name IS NOT NULL AND person_name != \'\''
     ).fetchone()
+    so_lastmod_row = conn.execute(
+        'SELECT MAX(COALESCE(updated_at, last_seen_at, first_seen_at)) AS lastmod FROM sex_offenders WHERE status = \'active\''
+    ).fetchone()
     conn.close()
 
     sections = [
@@ -8109,6 +8121,7 @@ def sitemap_index():
         ('blog', _iso_lastmod(blog_lastmod_row['lastmod']) if blog_lastmod_row else None),
         ('charges', _iso_lastmod(charges_lastmod_row['lastmod']) if charges_lastmod_row else None),
         ('bookings', _iso_lastmod(booking_lastmod_row['lastmod']) if booking_lastmod_row else None),
+        ('sex-offenders', _iso_lastmod(so_lastmod_row['lastmod']) if so_lastmod_row else None),
     ]
     items = []
     for name, lastmod in sections:
@@ -8251,6 +8264,23 @@ def sitemap_charges():
     return _render_urlset(urls)
 
 
+@app.route('/sitemap-sex-offenders.xml')
+def sitemap_sex_offenders():
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT address_county, MAX(COALESCE(updated_at, last_seen_at, first_seen_at)) AS updated_at FROM sex_offenders WHERE status = 'active' GROUP BY address_county"
+    ).fetchall()
+    conn.close()
+    urls = []
+    for row in rows:
+        county_slug = row['address_county'].lower().replace(' ', '-') if row['address_county'] else ''
+        if county_slug:
+            urls.append((f"{BASE_URL}/sex-offender-updates/{county_slug}", _iso_lastmod(row['updated_at'])))
+    urls.append((f"{BASE_URL}/sex-offender-updates", None))
+    urls.append((f"{BASE_URL}/sex-offender-alerts", None))
+    return _render_urlset(urls)
+
+
 @app.route('/arrests')
 def arrests():
     """Dedicated arrest log — records where an arrest was made."""
@@ -8304,6 +8334,55 @@ def arrests():
                            q=search_query,
                            current_year=datetime.now().year)
 
+
+@app.route('/fwp-violations')
+def fwp_violations():
+    """Dedicated FWP violations log."""
+    county = request.args.get('county', '')
+    search_query = request.args.get('q', '')
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 25
+
+    conn = get_db()
+
+    fwp_filter = "records.officer = 'MT FWP'"
+
+    sql = f"""
+        SELECT records.*,
+               COALESCE(blotters.filename, '') AS filename
+        FROM records
+        LEFT JOIN blotters ON records.blotter_id = blotters.id
+        WHERE {fwp_filter}
+    """
+    params = []
+
+    if county:
+        sql += " AND records.county = ?"
+        params.append(county)
+    if search_query:
+        st = f'%{search_query}%'
+        sql += " AND (records.incident_type LIKE ? OR records.details LIKE ? OR records.location LIKE ?)"
+        params.extend([st, st, st])
+
+    total = conn.execute(
+        sql.replace("SELECT records.*,\n               COALESCE(blotters.filename, '') AS filename", "SELECT COUNT(*)"),
+        params).fetchone()[0]
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    sql += " ORDER BY records.created_at DESC LIMIT ? OFFSET ?"
+    params.extend([per_page, (page - 1) * per_page])
+    records = conn.execute(sql, params).fetchall()
+
+    counties = [r['county'] for r in conn.execute(
+        "SELECT DISTINCT county FROM records WHERE officer = 'MT FWP' ORDER BY county").fetchall()]
+
+    conn.close()
+    return render_template('fwp_violations.html',
+                           records=records, total=total,
+                           total_pages=total_pages, page=page,
+                           counties=counties, county=county,
+                           q=search_query,
+                           current_year=datetime.now().year)
 
 @app.route('/comments', methods=['POST'])
 def create_public_comment():
@@ -11682,6 +11761,10 @@ register_admin_blueprint(app)
 register_api_blueprint(app)
 register_auth_blueprint(app)
 register_payments_blueprint(app)
+register_code_violations_blueprint(app, get_db=get_db)
+register_sex_offender_blueprint(app, get_db=get_db)
+register_public_salaries_blueprint(app, get_db=get_db)
+register_watchdog_blueprint(app)
 app.register_blueprint(recovery_ads_bp)
 app.after_request(after_api_request)
 
