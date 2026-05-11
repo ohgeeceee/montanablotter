@@ -43,7 +43,7 @@ class NewsEditorAgentTests(unittest.TestCase):
             os.unlink(self.db_path)
 
     def test_review_draft_rejects_missing_sources(self) -> None:
-        from news_editor_agent import review_and_maybe_publish
+        from services.publishing.news_editor import review_and_maybe_publish
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -63,7 +63,7 @@ class NewsEditorAgentTests(unittest.TestCase):
         self.assertEqual(decision["decision"], "rejected")
 
     def test_review_draft_publishes_when_sources_exist_and_cap_not_hit(self) -> None:
-        from news_editor_agent import review_and_maybe_publish
+        from services.publishing.news_editor import review_and_maybe_publish
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -89,7 +89,7 @@ class NewsEditorAgentTests(unittest.TestCase):
         self.assertEqual(post["published"], 1)
 
     def test_review_draft_rejects_when_daily_publish_cap_reached(self) -> None:
-        from news_editor_agent import review_and_maybe_publish
+        from services.publishing.news_editor import review_and_maybe_publish
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -119,7 +119,7 @@ class NewsEditorAgentTests(unittest.TestCase):
         self.assertIn("daily cap", decision["reason"])
 
     def test_review_draft_rejects_duplicate_recent_title(self) -> None:
-        from news_editor_agent import review_and_maybe_publish
+        from services.publishing.news_editor import review_and_maybe_publish
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -148,7 +148,7 @@ class NewsEditorAgentTests(unittest.TestCase):
         self.assertIn("duplicate", decision["reason"])
 
     def test_review_draft_rejects_sensitive_minor_or_victim_language(self) -> None:
-        from news_editor_agent import review_and_maybe_publish
+        from services.publishing.news_editor import review_and_maybe_publish
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -188,7 +188,7 @@ class NewsEditorAgentTests(unittest.TestCase):
         self.assertIn("sensitive", decision["reason"])
 
     def test_review_draft_rejects_historical_perspective_language(self) -> None:
-        from news_editor_agent import review_and_maybe_publish
+        from services.publishing.news_editor import review_and_maybe_publish
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row

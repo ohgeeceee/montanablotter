@@ -44,7 +44,7 @@ class NewsWriterAgentTests(unittest.TestCase):
             os.unlink(self.db_path)
 
     def test_create_draft_from_candidate_inserts_unpublished_blog_post(self) -> None:
-        from news_writer_agent import create_draft_from_candidate
+        from services.publishing.news_writer import create_draft_from_candidate
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -78,7 +78,7 @@ class NewsWriterAgentTests(unittest.TestCase):
         self.assertIn("Billings police investigate robbery", post["title"])
 
     def test_create_draft_from_candidate_records_blog_post_sources(self) -> None:
-        from news_writer_agent import create_draft_from_candidate
+        from services.publishing.news_writer import create_draft_from_candidate
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -111,7 +111,7 @@ class NewsWriterAgentTests(unittest.TestCase):
         self.assertEqual(source["source_type"], "montana_public_records")
 
     def test_create_draft_from_candidate_builds_multi_paragraph_local_news_body(self) -> None:
-        from news_writer_agent import create_draft_from_candidate
+        from services.publishing.news_writer import create_draft_from_candidate
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -146,7 +146,7 @@ class NewsWriterAgentTests(unittest.TestCase):
         self.assertGreaterEqual(post["body"].count("\n\n"), 2)
 
     def test_create_draft_from_candidate_strips_non_factual_perspective_lines(self) -> None:
-        from news_writer_agent import create_draft_from_candidate
+        from services.publishing.news_writer import create_draft_from_candidate
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row

@@ -5,6 +5,7 @@ venv/
 *.db-journal
 *.db.backup.*
 *.db.pre_reset_*
+blotter_replica.db.*
 __pycache__/
 *.pyc
 uploads/
