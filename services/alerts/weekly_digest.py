@@ -20,7 +20,7 @@ import config
 
 AUTHOR = "Montana Blotter Data Desk"
 DB_PATH = config.DB_PATH
-LOG_PATH = "/root/montanablotter/weekly_county_digest.log"
+LOG_PATH = "/root/montanablotter/logs/weekly_county_digest.log"
 WINDOW_DAYS = 7
 MAX_TOP_COUNTIES = 5
 MAX_TOP_INCIDENTS = 6

@@ -32,7 +32,7 @@ import config
 from services.blotter.analytics import CATEGORY_LABELS
 
 DB_PATH = config.DB_PATH
-LOG_PATH = "/root/montanablotter/charge_explainer.log"
+LOG_PATH = "/root/montanablotter/logs/charge_explainer.log"
 
 logging.basicConfig(
     filename=LOG_PATH,

@@ -18,7 +18,7 @@ from redis.exceptions import RedisError
 from core.news_source_registry import is_allowed_source_url
 
 DB_PATH = config.DB_PATH
-LOG_PATH = "/root/montanablotter/news_planner.log"
+LOG_PATH = "/root/montanablotter/logs/news_planner.log"
 EXTERNAL_SOURCE_PATH = "/root/montanablotter/configs/newsroom_sources.json"
 
 logging.basicConfig(
