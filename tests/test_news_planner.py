@@ -58,7 +58,7 @@ class NewsPlannerTests(unittest.TestCase):
         self.assertIn("blog_post_sources", table_names)
 
     def test_build_dedupe_key_is_deterministic(self) -> None:
-        from news_planner import build_dedupe_key
+        from services.publishing.news_planner import build_dedupe_key
 
         packet = {
             "headline_hint": "Missoula County deputies investigate overnight burglary",
@@ -70,7 +70,7 @@ class NewsPlannerTests(unittest.TestCase):
         self.assertEqual(build_dedupe_key(packet), build_dedupe_key(packet))
 
     def test_normalize_candidate_packet_returns_required_fields(self) -> None:
-        from news_planner import normalize_candidate_packet
+        from services.publishing.news_planner import normalize_candidate_packet
 
         packet = normalize_candidate_packet(
             source_type="montanablotter",
@@ -84,7 +84,7 @@ class NewsPlannerTests(unittest.TestCase):
         self.assertTrue(packet["dedupe_key"])
 
     def test_plan_candidates_inserts_only_new_rows(self) -> None:
-        from news_planner import persist_candidate
+        from services.publishing.news_planner import persist_candidate
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -110,7 +110,7 @@ class NewsPlannerTests(unittest.TestCase):
         self.assertEqual(count, 1)
 
     def test_fetch_internal_story_packets_returns_clean_posts(self) -> None:
-        from news_planner import fetch_internal_story_packets
+        from services.publishing.news_planner import fetch_internal_story_packets
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -152,7 +152,7 @@ class NewsPlannerTests(unittest.TestCase):
         self.assertIn("Bozeman police investigate theft report", packets[0]["headline_hint"])
 
     def test_fetch_external_story_packets_parses_rss_entries(self) -> None:
-        from news_planner import fetch_external_story_packets
+        from services.publishing.news_planner import fetch_external_story_packets
 
         rss_body = """<?xml version="1.0" encoding="UTF-8"?>
         <rss version="2.0">
@@ -192,7 +192,7 @@ class NewsPlannerTests(unittest.TestCase):
         self.assertIn("Montana Supreme Court releases daily orders", packets[0]["headline_hint"])
 
     def test_fetch_external_story_packets_skips_malformed_rss(self) -> None:
-        from news_planner import fetch_external_story_packets
+        from services.publishing.news_planner import fetch_external_story_packets
 
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
             handle.write(

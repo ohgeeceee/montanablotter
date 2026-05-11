@@ -106,10 +106,10 @@ openclaw-run reporter "Fetch latest Bozeman blotter"
 python openclaw_launcher.py --agent reporter --prompt "Continuous fetch loop"
 
 # Emit a manual heartbeat
-python openclaw_heartbeat.py --agent reporter --state working --task "Scanning feeds"
+python services/agents/heartbeat.py --agent reporter --state working --task "Scanning feeds"
 
 # Background heartbeat loop
-python openclaw_heartbeat.py --agent reporter --loop --interval 5
+python services/agents/heartbeat.py --agent reporter --loop --interval 5
 ```
 
 ## Systemd Services
@@ -155,7 +155,6 @@ Edit the `AGENT_PROMPT` and `HEARTBEAT_INTERVAL` values there, then restart the 
 - `~/.openclaw/openclaw.json` — Global agent roster and gateway config.
 - `~/.openclaw/agents/<id>/agent/models.json` — Per-agent model catalog.
 - `~/.openclaw/agents/<id>/workspace/{AGENTS,SOUL,IDENTITY,TOOLS}.md` — Agent context.
-- `/root/montanablotter/openclaw_heartbeat.py` — Heartbeat emitter.
-- `/root/montanablotter/agent_mission_control.py` — Registry and snapshot service.
-- `/root/montanablotter/services/agents/mission_control.py` — Registry and snapshot service (current location).
+- `/root/montanablotter/services/agents/heartbeat.py` — Heartbeat emitter.
+- `/root/montanablotter/services/agents/mission_control.py` — Registry and snapshot service.
 - `/root/montanablotter/blueprints/admin/mission_control.py` — Admin routes.

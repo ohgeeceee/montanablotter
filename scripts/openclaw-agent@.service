@@ -21,7 +21,7 @@ EnvironmentFile=-/root/montanablotter/scripts/openclaw-agent-%i.env
 ExecStart=/root/montanablotter/venv/bin/python /root/montanablotter/openclaw_launcher.py \
   --agent %i \
   --prompt "${AGENT_PROMPT}" \
-  --interval ${HEARTBEAT_INTERVAL:-5} \
+  --interval 5 \
   --runtime openclaw
 
 Restart=on-failure
