@@ -1,0 +1,19 @@
+#!/bin/bash
+# Quick runner for OpenClaw agents with auto-heartbeat.
+# Usage: openclaw-run <agent> "<prompt>"
+# Example: openclaw-run reporter "Fetch Bozeman blotter"
+
+set -e
+
+AGENT="${1:-}"
+PROMPT="${2:-}"
+
+if [ -z "$AGENT" ] || [ -z "$PROMPT" ]; then
+    echo "Usage: openclaw-run <agent> \"<prompt>\""
+    echo "Agents: main, reporter, scout, clerk, bailbot"
+    exit 1
+fi
+
+cd /root/montanablotter
+source venv/bin/activate
+exec python openclaw_launcher.py --agent "$AGENT" --prompt "$PROMPT" --once --interval 5

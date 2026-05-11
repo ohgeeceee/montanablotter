@@ -6,7 +6,7 @@ import unittest
 import app as app_module
 import config
 import init_db
-from api_auth import (
+from services.api.auth import (
     _hash_key,
     check_rate_limit,
     create_client,

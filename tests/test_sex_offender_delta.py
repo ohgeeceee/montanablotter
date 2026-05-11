@@ -4,7 +4,7 @@ import os
 import unittest
 
 from init_db import ensure_sex_offender_schema
-from sex_offender_delta import _classify_change, compute_delta
+from services.persons.sex_offender_delta import _classify_change, compute_delta
 
 
 class TestSexOffenderDelta(unittest.TestCase):

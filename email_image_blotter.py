@@ -28,8 +28,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import config
 from db import get_db
 from email_worker import EmailWorker
-from processor import process_new_blotter
-from pipeline_state import (
+from services.blotter.processor import process_new_blotter
+from core.pipeline_state import (
     ensure_ingestion_job,
     ensure_source_document,
     get_ingestion_job_status,

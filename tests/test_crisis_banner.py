@@ -28,7 +28,7 @@ alerting_stub.collect_alert_recipients = lambda conn: []
 alerting_stub.send_plaintext_email = lambda *a, **kw: None
 sys.modules.setdefault("alerting", alerting_stub)
 
-from morning_briefing import _update_crisis_banner  # noqa: E402
+from services.publishing.morning_briefing import _update_crisis_banner  # noqa: E402
 
 
 def _make_db():

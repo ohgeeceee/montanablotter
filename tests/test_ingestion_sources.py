@@ -4,11 +4,11 @@ from unittest import mock
 
 import requests
 
-import bozeman_police_fetcher
-import jail_booking_ingest
-import missoula_public_report_fetcher
+import services.ingestion.fetchers.bozeman as bozeman_police_fetcher
+import services.ingestion.jail_bookings as jail_booking_ingest
+import services.ingestion.fetchers.missoula as missoula_public_report_fetcher
 from email_worker import EmailWorker
-from missoula_public_report_fetcher import _fetch_report_html
+from services.ingestion.fetchers.missoula import _fetch_report_html
 
 
 class _FakeResponse:
@@ -547,7 +547,7 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertIn("3-1-501(E)-WARRANT -CIVIL CONTEMPT", detail["charges_summary"])
         self.assertIn("Bond 0", detail["charges_summary"])
 
-    @mock.patch('missoula_public_report_fetcher.time.sleep', return_value=None)
+    @mock.patch('services.ingestion.fetchers.missoula.time.sleep', return_value=None)
     def test_missoula_fetch_retries_transient_server_error(self, _sleep) -> None:
         session = _FakeSession([
             _FakeResponse(500),
@@ -615,8 +615,8 @@ class IngestionSourceTests(unittest.TestCase):
 
         self.assertFalse(result)
 
-    @mock.patch('missoula_public_report_fetcher.ensure_source_document')
-    @mock.patch('missoula_public_report_fetcher._fetch_report_html')
+    @mock.patch('services.ingestion.fetchers.missoula.ensure_source_document')
+    @mock.patch('services.ingestion.fetchers.missoula._fetch_report_html')
     def test_missoula_dry_run_does_not_create_ingestion_state(self, fetch_html, ensure_source_document) -> None:
         fetch_html.return_value = """
             <option selected="selected" value="3/14/2026">3/14/2026</option>
@@ -637,8 +637,8 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertEqual(stats.fetched_incidents, 1)
         ensure_source_document.assert_not_called()
 
-    @mock.patch('bozeman_police_fetcher.ensure_source_document')
-    @mock.patch('bozeman_police_fetcher._fetch_features')
+    @mock.patch('services.ingestion.fetchers.bozeman.ensure_source_document')
+    @mock.patch('services.ingestion.fetchers.bozeman._fetch_features')
     def test_bozeman_dry_run_does_not_create_ingestion_state(self, fetch_features, ensure_source_document) -> None:
         dataset = bozeman_police_fetcher.DATASETS['crime']
         fetch_features.return_value = (

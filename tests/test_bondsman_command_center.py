@@ -4,7 +4,7 @@ import tempfile
 import unittest
 
 from app import _donation_email_hash, _sync_public_user_subscription_from_donations
-from bondsman_command_center import (
+from services.monetization.bondsman import (
     _booking_probably_bondable,
     _normalize_date_of_birth,
     _normalize_person_name,

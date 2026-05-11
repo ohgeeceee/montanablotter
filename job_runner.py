@@ -9,7 +9,7 @@ import traceback
 from datetime import datetime, timezone
 
 import config
-from alerting import collect_alert_recipients, send_plaintext_email
+from services.alerts.legacy import collect_alert_recipients, send_plaintext_email
 from db import connect_db
 
 

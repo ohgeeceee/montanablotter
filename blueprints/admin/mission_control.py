@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from flask import abort, jsonify, render_template, request
 from flask_login import login_required
 
-from agent_mission_control import build_snapshot, recent_events, upsert_agent_heartbeat
+from services.agents.mission_control import build_snapshot, recent_events, upsert_agent_heartbeat
 from blueprints.admin import admin_bp, require_role
 from db import connect_db
 from utils.auth_constants import ADMIN_ACCESS_ROLES

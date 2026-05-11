@@ -16,11 +16,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from rq import Retry
 import config
-from processor import process_new_blotter, process_text_blotter
-from pdf_parser import parse_text_blotter
-from queue_config import ingestion_q
-from queue_helpers import redis_lock
-from pipeline_state import (
+from services.blotter.processor import process_new_blotter, process_text_blotter
+from services.blotter.parser import parse_text_blotter
+from core.queue_config import ingestion_q
+from core.queue_helpers import redis_lock
+from core.pipeline_state import (
     ensure_ingestion_job,
     ensure_source_document,
     get_ingestion_job_status,

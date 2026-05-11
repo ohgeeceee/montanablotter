@@ -1,6 +1,6 @@
 import unittest
 
-from historical_context import append_historical_perspective
+from services.summarizer.historical_context import append_historical_perspective
 
 
 class HistoricalContextTests(unittest.TestCase):

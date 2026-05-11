@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-import missing_persons as missing_persons_module
+import services.persons.missing as missing_persons as missing_persons_module
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "missing_persons_results_2026_04_23.html"

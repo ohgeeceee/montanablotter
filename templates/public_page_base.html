@@ -147,6 +147,8 @@
         or request.path.startswith('/post/')
         or request.path.startswith('/county/')
         or request.path.startswith('/city/')
+        or request.path == '/arrests'
+        or request.path.startswith('/arrests')
     ) %}
     {% set show_donation_popup = (
         donations_enabled|default(true)

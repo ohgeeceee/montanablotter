@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import db
 
-from alert_engine import process_new_record, run_alert_delivery
+from services.alerts.engine import process_new_record, run_alert_delivery
 from transparency_portal import run_contract_ingest, run_expenditure_ingest, run_salary_ingest
 
 # Scrapers

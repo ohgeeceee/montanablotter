@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-import ingestion_smoke_check
+import services.ops.smoke_check as ingestion_smoke_check
 
 
 class IngestionSmokeCheckTests(unittest.TestCase):

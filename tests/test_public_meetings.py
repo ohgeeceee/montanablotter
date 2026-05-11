@@ -7,7 +7,7 @@ import config
 import init_db
 from agendas_scraper.config import CityScrapeConfig
 from agendas_scraper.models import AgendaDocument, MeetingRecord
-from public_meetings import _parse_meeting_start, meeting_admin_context, sync_scraped_meetings
+from services.meetings.public import _parse_meeting_start, meeting_admin_context, sync_scraped_meetings
 
 
 class PublicMeetingsTests(unittest.TestCase):

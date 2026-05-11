@@ -6,7 +6,7 @@ from flask import current_app, flash, jsonify, redirect, render_template, reques
 from flask_login import current_user, login_required
 
 import config
-from court_tracker import court_admin_context, ensure_court_tracker_schema
+from services.court.tracker import court_admin_context, ensure_court_tracker_schema
 from db import get_db
 from facebook_publisher import (
     load_facebook_settings,
@@ -17,7 +17,7 @@ from facebook_publisher import (
     run_facebook_queue,
     save_facebook_settings,
 )
-from missing_persons import (
+from services.persons.missing import (
     create_missing_person,
     dispatch_missing_person_alerts,
     get_missing_person_by_id,
@@ -26,7 +26,7 @@ from missing_persons import (
     update_missing_person,
     update_missing_person_status,
 )
-from public_meetings import ensure_public_meeting_schema, meeting_admin_context
+from services.meetings.public import ensure_public_meeting_schema, meeting_admin_context
 from utils.auth_constants import ADMIN_ACCESS_ROLES, ADMIN_MANAGEMENT_ROLES, OPERATIONS_ROLES
 from utils.app_settings import _save_app_setting
 from blueprints.admin import admin_bp, require_role, _log_admin_action

@@ -5,7 +5,7 @@ import unittest
 
 import requests
 
-from bail_bonds_alerts import (
+from services.alerts.bail_bonds import (
     check_for_felony_bookings,
     dispatch_felony_booking_alerts,
     ensure_bail_bonds_alert_schema,
@@ -281,7 +281,7 @@ class BailBondsAlertTests(unittest.TestCase):
         with mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_CASCADE', '-1001111111111'), \
              mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_YELLOWSTONE', '-1002222222222'), \
              mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_DEFAULT', '-1003333333333'):
-            from bail_bonds_alerts import get_telegram_chat_id
+            from services.alerts.bail_bonds import get_telegram_chat_id
             self.assertEqual(get_telegram_chat_id('cascade'), '-1001111111111')
             self.assertEqual(get_telegram_chat_id('yellowstone'), '-1002222222222')
             self.assertEqual(get_telegram_chat_id('missoula'), '-1003333333333')
@@ -292,12 +292,12 @@ class BailBondsAlertTests(unittest.TestCase):
         with mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_DEFAULT', ''), \
              mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_CASCADE', ''), \
              mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_YELLOWSTONE', ''):
-            from bail_bonds_alerts import get_telegram_chat_id
+            from services.alerts.bail_bonds import get_telegram_chat_id
             self.assertIsNone(get_telegram_chat_id('cascade'))
             self.assertIsNone(get_telegram_chat_id('missoula'))
 
     def test_build_telegram_alert_contains_key_fields(self) -> None:
-        from bail_bonds_alerts import build_telegram_alert
+        from services.alerts.bail_bonds import build_telegram_alert
         booking = {
             'county_name': 'Cascade',
             'county_slug': 'cascade',
@@ -317,7 +317,7 @@ class BailBondsAlertTests(unittest.TestCase):
     def test_send_telegram_message_returns_false_when_token_unset(self) -> None:
         import unittest.mock as mock
         with mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', ''):
-            from bail_bonds_alerts import send_telegram_message
+            from services.alerts.bail_bonds import send_telegram_message
             success, message_id, error = send_telegram_message('-1001111111111', 'hello')
             self.assertFalse(success)
             self.assertIsNone(message_id)
@@ -330,8 +330,8 @@ class BailBondsAlertTests(unittest.TestCase):
         fake_response.json.return_value = {'ok': True, 'result': {'message_id': 42}}
 
         with mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'bot123:ABC'), \
-             mock.patch('bail_bonds_alerts.requests.post', return_value=fake_response) as mock_post:
-            from bail_bonds_alerts import send_telegram_message
+             mock.patch('services.alerts.bail_bonds.requests.post', return_value=fake_response) as mock_post:
+            from services.alerts.bail_bonds import send_telegram_message
             success, message_id, error = send_telegram_message('-1001111111111', '<b>Alert</b>')
             self.assertTrue(success)
             self.assertEqual(message_id, 42)
@@ -348,8 +348,8 @@ class BailBondsAlertTests(unittest.TestCase):
         fake_response.json.return_value = {'ok': False, 'description': 'Bad Request: chat not found'}
 
         with mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'bot123:ABC'), \
-             mock.patch('bail_bonds_alerts.requests.post', return_value=fake_response):
-            from bail_bonds_alerts import send_telegram_message
+             mock.patch('services.alerts.bail_bonds.requests.post', return_value=fake_response):
+            from services.alerts.bail_bonds import send_telegram_message
             success, message_id, error = send_telegram_message('-9999', 'test')
             self.assertFalse(success)
             self.assertIsNone(message_id)
@@ -358,8 +358,8 @@ class BailBondsAlertTests(unittest.TestCase):
     def test_send_telegram_message_returns_false_on_network_error(self) -> None:
         import unittest.mock as mock
         with mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'bot123:ABC'), \
-             mock.patch('bail_bonds_alerts.requests.post', side_effect=requests.ConnectionError('timeout')):
-            from bail_bonds_alerts import send_telegram_message
+             mock.patch('services.alerts.bail_bonds.requests.post', side_effect=requests.ConnectionError('timeout')):
+            from services.alerts.bail_bonds import send_telegram_message
             success, message_id, error = send_telegram_message('-1001111111111', 'test')
             self.assertFalse(success)
             self.assertIsNone(message_id)
@@ -404,7 +404,7 @@ class BailBondsAlertTests(unittest.TestCase):
                  mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_YELLOWSTONE', ''), \
                  mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_DEFAULT', '-1009999'), \
                  mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'tok:ABC'):
-                from bail_bonds_alerts import dispatch_telegram_booking_alerts
+                from services.alerts.bail_bonds import dispatch_telegram_booking_alerts
                 first = dispatch_telegram_booking_alerts(conn, payload, send_telegram=fake_send)
                 second = dispatch_telegram_booking_alerts(conn, payload, send_telegram=fake_send)
 
@@ -446,7 +446,7 @@ class BailBondsAlertTests(unittest.TestCase):
                  mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_YELLOWSTONE', ''), \
                  mock.patch.object(__import__('config'), 'TELEGRAM_TARGET_DEFAULT', '-1009999'), \
                  mock.patch.object(__import__('config'), 'TELEGRAM_BOT_TOKEN', 'tok:ABC'):
-                from bail_bonds_alerts import dispatch_telegram_booking_alerts
+                from services.alerts.bail_bonds import dispatch_telegram_booking_alerts
                 result = dispatch_telegram_booking_alerts(conn, payload)
 
             conn.close()

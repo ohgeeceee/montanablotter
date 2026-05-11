@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 
-from agency_normalization import (
+from core.agency_normalization import (
     normalize_agency_identity,
     normalize_existing_post_agencies,
     normalize_post_title,

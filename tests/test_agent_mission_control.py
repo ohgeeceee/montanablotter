@@ -5,7 +5,7 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from unittest import mock
 
-import agent_mission_control as mission
+import services.agents.mission_control as mission
 
 
 class MissionControlServiceTests(unittest.TestCase):

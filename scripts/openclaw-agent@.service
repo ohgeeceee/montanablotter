@@ -1,0 +1,31 @@
+[Unit]
+Description=OpenClaw Agent (%i) with Mission Control heartbeat
+After=network-online.target openclaw-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/montanablotter
+Environment=HOME=/root
+Environment=PATH=/root/.nvm/versions/node/v24.14.1/bin:/usr/local/bin:/usr/bin:/bin
+Environment=MISSION_CONTROL_URL=http://127.0.0.1:5000/admin/api/mission-control/heartbeat
+Environment=OPENCLAW_STATE_DIR=/root/.openclaw
+
+# The agent ID is passed via the instance name, e.g.:
+#   systemctl start openclaw-agent@reporter
+# The prompt is read from a per-agent env file:
+#   /root/montanablotter/scripts/openclaw-agent-reporter.env
+EnvironmentFile=-/root/montanablotter/scripts/openclaw-agent-%i.env
+
+ExecStart=/root/montanablotter/venv/bin/python /root/montanablotter/openclaw_launcher.py \
+  --agent %i \
+  --prompt "${AGENT_PROMPT}" \
+  --interval ${HEARTBEAT_INTERVAL:-5} \
+  --runtime openclaw
+
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
