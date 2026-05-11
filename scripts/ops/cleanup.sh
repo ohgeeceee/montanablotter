@@ -8,4 +8,4 @@ TARGET_DIR="/root/montanablotter/records"
 find "$TARGET_DIR" -type f -name "*.pdf" -mtime +30 -delete
 
 # Optional: Log the cleanup action
-echo "$(date): Cleaned up records older than 30 days" >> /root/montanablotter/cleanup.log
+echo "$(date): Cleaned up records older than 30 days" >> /root/montanablotter/logs/cleanup.log

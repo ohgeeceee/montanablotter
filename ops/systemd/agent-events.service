@@ -12,8 +12,8 @@ Environment=MB_AGENT_EVENTS_APPROVAL_ENDPOINT=/api/monitoring/agents/reviews
 ExecStart=/root/montanablotter/venv/bin/python -m uvicorn agent_events_service:app --host 0.0.0.0 --port 8010
 Restart=always
 RestartSec=5
-StandardOutput=append:/root/montanablotter/agent-events.log
-StandardError=append:/root/montanablotter/agent-events.log
+StandardOutput=append:/root/montanablotter/logs/agent-events.log
+StandardError=append:/root/montanablotter/logs/agent-events.log
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full

@@ -31,7 +31,7 @@ from services.blotter.analytics import aggregate_by_county, CATEGORY_LABELS
 
 DB_PATH = config.DB_PATH
 AUTHOR = "Montana Blotter Data Desk"
-LOG_PATH = "/root/montanablotter/weekly_safety_report.log"
+LOG_PATH = "/root/montanablotter/logs/weekly_safety_report.log"
 WINDOW_DAYS = 7
 MIN_RECORDS = 5  # skip counties with fewer records than this
 

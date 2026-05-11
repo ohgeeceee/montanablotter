@@ -12,7 +12,7 @@ from services.agents.events_bus import publish_agent_event
 from redis.exceptions import RedisError
 
 DB_PATH = config.DB_PATH
-LOG_PATH = "/root/montanablotter/news_editor.log"
+LOG_PATH = "/root/montanablotter/logs/news_editor.log"
 DAILY_PUBLISH_CAP = 5
 
 logging.basicConfig(

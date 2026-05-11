@@ -6,7 +6,7 @@ BACKUP_DIR="/root/montanablotter/db_backups"
 BUCKET="s3://montanablotter-backups"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_FILE="$BACKUP_DIR/blotter_$TIMESTAMP.db.gz"
-LOG="/root/montanablotter/backup.log"
+LOG="/root/montanablotter/logs/backup.log"
 LOCK_FILE="$BACKUP_DIR/.backup_db.lock"
 TEMP_DB="$BACKUP_DIR/blotter_$TIMESTAMP.db"
 

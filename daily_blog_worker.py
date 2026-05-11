@@ -25,7 +25,7 @@ LOOKBACK_DAYS = 7
 MAX_HIGHLIGHTS = 6
 MAX_RELATED_POSTS = 6
 WINDOW_DAYS = 3
-LOG_PATH = "/root/montanablotter/daily_blog.log"
+LOG_PATH = "/root/montanablotter/logs/daily_blog.log"
 
 import os as _os
 _os.makedirs(_os.path.dirname(LOG_PATH), exist_ok=True)
