@@ -10,7 +10,7 @@ from flask import Blueprint, abort, current_app, jsonify, render_template, reque
 from werkzeug.utils import secure_filename
 
 from db import get_db
-from api_auth import require_api_key
+from services.api.auth import require_api_key
 
 
 api_bp = Blueprint('api', __name__)
@@ -1169,7 +1169,7 @@ def api_records_timeline():
 # API Key Management (admin only)
 # ---------------------------------------------------------------------------
 
-from api_auth import (
+from services.api.auth import (
     create_client,
     revoke_client,
     list_clients,

@@ -4,7 +4,7 @@ import os
 import unittest
 
 from init_db import ensure_sex_offender_schema
-from sex_offender_scraper import _normalize_name, _normalize_date, _upsert_offender
+from services.persons.sex_offender_scraper import _normalize_name, _normalize_date, _upsert_offender
 
 
 class TestSexOffenderScraper(unittest.TestCase):

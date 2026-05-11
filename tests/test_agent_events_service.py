@@ -2,8 +2,8 @@ from dataclasses import asdict
 
 from fastapi.testclient import TestClient
 
-from agent_events_bus import AgentEvent
-from agent_events_service import create_app
+from services.agents.events_bus import AgentEvent
+from services.agents.events_service import create_app
 
 
 class FakeRedis:

@@ -5,7 +5,7 @@ import unittest
 
 import config
 import init_db
-import source_registry
+import core.source_registry as source_registry
 
 
 class SourceRegistryTests(unittest.TestCase):

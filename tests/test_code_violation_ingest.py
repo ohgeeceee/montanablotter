@@ -5,7 +5,7 @@ import json
 import unittest
 
 from init_db import ensure_code_violation_schema
-from code_violation_ingest import ingest_records, _slugify_address, _hash_record, _normalize_date
+from services.ingestion.code_violations import ingest_records, _slugify_address, _hash_record, _normalize_date
 
 
 class TestCodeViolationIngest(unittest.TestCase):

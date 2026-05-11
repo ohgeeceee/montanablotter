@@ -1,6 +1,6 @@
 import json
 
-from agent_events_bus import AgentEvent, RedisAgentEventHub
+from services.agents.events_bus import AgentEvent, RedisAgentEventHub
 
 
 class FakeRedis:

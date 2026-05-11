@@ -11,7 +11,7 @@ from flask import Response, jsonify, render_template
 from flask import stream_with_context
 from flask_login import login_required
 
-from agent_status import system_snapshot
+from services.agents.status import system_snapshot
 from blueprints.admin import admin_bp
 from db import connect_db, connect_page_views
 

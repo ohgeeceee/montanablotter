@@ -4,7 +4,7 @@ from flask import render_template, request, session
 from flask_login import login_required
 from flask_login import current_user
 
-from admin_ai import (
+from services.admin.ai import (
     DEFAULT_MODEL,
     clear_pending_action,
     execute_pending_admin_ai_action,

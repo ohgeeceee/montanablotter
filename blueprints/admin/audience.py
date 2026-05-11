@@ -14,7 +14,7 @@ from flask_login import current_user, login_required
 
 from blueprints.admin import admin_bp, require_role, _log_admin_action
 from db import get_db
-from morning_briefing import (
+from services.publishing.morning_briefing import (
     build_html as build_morning_briefing_html,
     get_posts_for_date as get_morning_briefing_posts,
     send_email as send_morning_briefing_email,

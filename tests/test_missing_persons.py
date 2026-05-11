@@ -7,7 +7,7 @@ from unittest import mock
 import app as app_module
 import config
 import init_db
-import missing_persons as missing_persons_module
+import services.persons.missing as missing_persons as missing_persons_module
 
 
 class MissingPersonsTests(unittest.TestCase):

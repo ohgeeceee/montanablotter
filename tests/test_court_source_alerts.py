@@ -6,8 +6,8 @@ from unittest import mock
 import app as app_module
 import config
 import init_db
-from court_source_alerts import run
-from court_tracker import ensure_court_tracker_schema, upsert_court_source
+from services.alerts.court import run
+from services.court.tracker import ensure_court_tracker_schema, upsert_court_source
 
 
 class CourtSourceAlertsTests(unittest.TestCase):
@@ -33,8 +33,8 @@ class CourtSourceAlertsTests(unittest.TestCase):
         ensure_court_tracker_schema(conn)
         return conn
 
-    @mock.patch('court_source_alerts.collect_alert_recipients', return_value=['alerts@example.com'])
-    @mock.patch('court_source_alerts._send_plaintext_email', return_value=True)
+    @mock.patch('services.alerts.court.collect_alert_recipients', return_value=['alerts@example.com'])
+    @mock.patch('services.alerts.court._send_plaintext_email', return_value=True)
     def test_run_creates_open_alert_for_failing_source(self, send_email, _collect_recipients) -> None:
         conn = self._connection()
         source_id = upsert_court_source(
@@ -67,8 +67,8 @@ class CourtSourceAlertsTests(unittest.TestCase):
         self.assertIsNotNone(row['last_sent_at'])
         send_email.assert_called_once()
 
-    @mock.patch('court_source_alerts.collect_alert_recipients', return_value=['alerts@example.com'])
-    @mock.patch('court_source_alerts._send_plaintext_email', return_value=True)
+    @mock.patch('services.alerts.court.collect_alert_recipients', return_value=['alerts@example.com'])
+    @mock.patch('services.alerts.court._send_plaintext_email', return_value=True)
     def test_run_resolves_alert_when_source_recovers(self, send_email, _collect_recipients) -> None:
         conn = self._connection()
         source_id = upsert_court_source(

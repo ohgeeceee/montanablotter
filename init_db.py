@@ -7,15 +7,15 @@ import sqlite3
 import os
 from datetime import datetime
 
-from api_auth import ensure_api_auth_schema
-from case_journeys import ensure_case_journey_schema, seed_case_journeys
-from court_tracker import ensure_court_tracker_schema
-from bail_bonds_alerts import ensure_bail_bonds_alert_schema
-from bondsman_command_center import ensure_bondsman_command_center_schema
-from agent_mission_control import ensure_agent_mission_control_schema
-from incident_notifications import ensure_incident_notification_schema
-from missing_persons import ensure_missing_person_schema
-from public_meetings import ensure_public_meeting_schema
+from services.api.auth import ensure_api_auth_schema
+from services.admin.case_journeys import ensure_case_journey_schema, seed_case_journeys
+from services.court.tracker import ensure_court_tracker_schema
+from services.alerts.bail_bonds import ensure_bail_bonds_alert_schema
+from services.monetization.bondsman import ensure_bondsman_command_center_schema
+from services.agents.mission_control import ensure_agent_mission_control_schema
+from services.alerts.incidents import ensure_incident_notification_schema
+from services.persons.missing import ensure_missing_person_schema
+from services.meetings.public import ensure_public_meeting_schema
 
 def _env_int(name: str, default: int) -> int:
     raw = os.getenv(name, '').strip()

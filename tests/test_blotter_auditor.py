@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-import blotter_auditor
+import services.blotter.auditor as blotter_auditor
 
 
 class BlotterAuditorTests(unittest.TestCase):

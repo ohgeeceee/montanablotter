@@ -26,8 +26,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import config
 from db import get_db
-from processor import process_new_blotter
-from pipeline_state import (
+from services.blotter.processor import process_new_blotter
+from core.pipeline_state import (
     ensure_source_document,
     log_pipeline_event,
     set_ingestion_job_status,

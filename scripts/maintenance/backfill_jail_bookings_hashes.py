@@ -5,7 +5,7 @@ import json
 import sqlite3
 
 import config
-from jail_booking_ingest import _compute_booking_hash
+from services.ingestion.jail_bookings import _compute_booking_hash
 
 
 

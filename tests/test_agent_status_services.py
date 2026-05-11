@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import agent_status
-import script_watchdog
+import services.agents.status as agent_status
+import services.ops.watchdog as script_watchdog
 
 
 def test_service_status_snapshot_includes_agent_events(monkeypatch) -> None:

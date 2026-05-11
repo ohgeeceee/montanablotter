@@ -5,7 +5,7 @@ Covers date normalization, parser robustness, and edge cases.
 
 import textwrap
 import unittest
-from pdf_parser import (
+from services.blotter.parser import (
     normalize_date,
     parse_text_blotter,
     BlotterParser,

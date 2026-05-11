@@ -26,10 +26,10 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask_bcrypt import Bcrypt
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
-from agency_normalization import normalize_agency_identity
-from blotter_auditor import get_pii_spans
+from core.agency_normalization import normalize_agency_identity
+from services.blotter.auditor import get_pii_spans
 import config
-from api_auth import after_api_request
+from services.api.auth import after_api_request
 from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
@@ -39,7 +39,7 @@ from blueprints.sex_offender import register_sex_offender_blueprint
 from blueprints.public_salaries import register_public_salaries_blueprint
 from blueprints.watchdog import register_watchdog_blueprint
 from blueprints.recovery_ads import recovery_ads_bp
-from court_tracker import (
+from services.court.tracker import (
     court_admin_context,
     court_case_detail,
     court_directory_context,
@@ -47,19 +47,19 @@ from court_tracker import (
     ensure_court_tracker_schema,
 )
 from db import connect_db, connect_page_views, get_db
-from dedupe import incident_key_set
-from morning_briefing import (
+from core.dedupe import incident_key_set
+from services.publishing.morning_briefing import (
     build_html as build_morning_briefing_html,
     get_posts_for_date as get_morning_briefing_posts,
     send_email as send_morning_briefing_email,
 )
-from missing_persons import (
+from services.persons.missing import (
     get_missing_person_by_slug,
     missing_person_detail_context,
     missing_person_homepage_context,
     missing_person_public_context,
 )
-from public_meetings import ensure_public_meeting_schema, meeting_admin_context
+from services.meetings.public import ensure_public_meeting_schema, meeting_admin_context
 from facebook_publisher import (
     load_facebook_settings,
     mask_token,
@@ -69,8 +69,8 @@ from facebook_publisher import (
     run_facebook_queue,
     save_facebook_settings,
 )
-from bondsman_command_center import register_bondsman_command_center
-from agent_dashboard import register_agent_dashboard
+from services.monetization.bondsman import register_bondsman_command_center
+from services.agents.dashboard import register_agent_dashboard
 
 try:
     import stripe

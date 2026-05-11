@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 
-from case_journeys import ensure_case_journey_schema, seed_case_journeys
+from services.admin.case_journeys import ensure_case_journey_schema, seed_case_journeys
 
 
 class CaseJourneyTests(unittest.TestCase):
