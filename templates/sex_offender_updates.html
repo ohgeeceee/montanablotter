@@ -59,7 +59,19 @@
                             {{ row.change_type.replace('_', ' ').title() }}
                         </span>
                     </td>
-                    <td class="px-4 py-3 font-medium text-slate-900">{{ row.full_name or '—' }}</td>
+                    <td class="px-4 py-3 font-medium text-slate-900">
+                        {{ row.full_name or '—' }}
+                        {% set ot = (row.offender_type or '').strip().lower() %}
+                        {% if 'violent' in ot and 'sexual' in ot %}
+                        <span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700">Violent &amp; Sexual</span>
+                        {% elif 'violent' in ot %}
+                        <span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-50 text-orange-700">Violent</span>
+                        {% elif 'sexual' in ot %}
+                        <span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-red-50 text-red-700">Sexual</span>
+                        {% else %}
+                        <span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-600">{{ row.offender_type or '—' }}</span>
+                        {% endif %}
+                    </td>
                     <td class="px-4 py-3">
                         {% set ot = (row.offender_type or '').strip().lower() %}
                         {% if 'violent' in ot and 'sexual' in ot %}
