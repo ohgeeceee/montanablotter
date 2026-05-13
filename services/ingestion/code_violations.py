@@ -21,17 +21,17 @@ from datetime import datetime
 from typing import Any
 
 from db import connect_db
+from services.ingestion.property_addresses import (
+    ensure_property_address,
+    parse_address_parts,
+    slugify_address,
+)
 
 DB_PATH = os.getenv('MB_DB_PATH', '/root/montanablotter/blotter.db')
 
 
 def _slugify_address(street: str, city: str, state: str = 'MT', zip_code: str = '') -> str:
-    parts = [street, city, state, zip_code]
-    raw = ' '.join(p for p in parts if p)
-    slug = raw.lower()
-    slug = re.sub(r"[^\w\s-]", "", slug)
-    slug = re.sub(r"[\s_-]+", "-", slug)
-    return slug.strip("-") or 'unknown'
+    return slugify_address(street, city, state, zip_code)
 
 
 def _hash_record(source_id: int, raw_address: str, violation_type: str, date_issued: str) -> str:
@@ -51,6 +51,11 @@ def _normalize_date(value: str | None) -> str | None:
     return value[:10] if len(value) >= 10 else value
 
 
+def normalize_address_record(raw_address: str, *, fallback_city: str) -> dict[str, str]:
+    """Normalize an address into a consistent structured object for storage/linking."""
+    return parse_address_parts(raw_address, fallback_city=fallback_city)
+
+
 def _ensure_source(conn: sqlite3.Connection, source_key: str, display_name: str, city: str) -> int:
     row = conn.execute(
         'SELECT id FROM code_violation_sources WHERE source_key = ?',
@@ -66,28 +71,29 @@ def _ensure_source(conn: sqlite3.Connection, source_key: str, display_name: str,
     return cur.lastrowid
 
 
-def _ensure_property_address(conn: sqlite3.Connection, street: str, city: str, state: str = 'MT', zip_code: str = '', county: str = '') -> int:
-    slug = _slugify_address(street, city, state, zip_code)
-    row = conn.execute(
-        'SELECT id FROM property_addresses WHERE address_slug = ?',
-        (slug,),
-    ).fetchone()
-    if row:
-        conn.execute(
-            'UPDATE property_addresses SET last_seen_at = datetime("now") WHERE id = ?',
-            (row['id'],),
-        )
-        conn.commit()
-        return row['id']
-    cur = conn.execute(
+def mark_source_failure(conn: sqlite3.Connection, source_id: int, error_message: str) -> None:
+    conn.execute(
         '''
-        INSERT INTO property_addresses (address_slug, street, city, state, zip, county)
-        VALUES (?, ?, ?, ?, ?, ?)
+        UPDATE code_violation_sources
+        SET latest_error = ?, updated_at = datetime("now")
+        WHERE id = ?
         ''',
-        (slug, street, city, state, zip_code, county),
+        (error_message[:500], source_id),
     )
     conn.commit()
-    return cur.lastrowid
+
+
+def _ensure_property_address(conn: sqlite3.Connection, street: str, city: str, state: str = 'MT', zip_code: str = '', county: str = '') -> int:
+    property_address_id = ensure_property_address(
+        conn,
+        street=street,
+        city=city,
+        state=state,
+        zip_code=zip_code,
+        county=county,
+    )
+    conn.commit()
+    return property_address_id
 
 
 def ingest_records(
@@ -117,15 +123,13 @@ def ingest_records(
         # Normalize address into property_addresses
         property_address_id = None
         if raw_address:
-            # Naive split: assume "123 Main St, Missoula, MT 59801"
-            street = raw_address
-            zip_code = ''
-            m = re.search(r'\b(\d{5}(?:-\d{4})?)\s*$', raw_address)
-            if m:
-                zip_code = m.group(1)
-                street = raw_address[:m.start()].strip().rstrip(',').strip()
+            parts = normalize_address_record(raw_address, fallback_city=city)
             property_address_id = _ensure_property_address(
-                conn, street, city, 'MT', zip_code
+                conn,
+                parts['street'],
+                parts['city'],
+                parts['state'],
+                parts['zip_code'],
             )
 
         hash_id = _hash_record(source_id, raw_address, violation_type, date_issued or '')
@@ -166,7 +170,13 @@ def ingest_records(
 
     conn.commit()
     conn.execute(
-        'UPDATE code_violation_sources SET last_success_at = datetime("now"), updated_at = datetime("now") WHERE id = ?',
+        '''
+        UPDATE code_violation_sources
+        SET last_success_at = datetime("now"),
+            latest_error = '',
+            updated_at = datetime("now")
+        WHERE id = ?
+        ''',
         (source_id,),
     )
     conn.commit()
@@ -174,8 +184,52 @@ def ingest_records(
 
 
 def _parse_pdf(file_path: str) -> list[dict[str, Any]]:
-    """Placeholder: integrate pdf_parser.py or Kimi extraction here."""
-    raise NotImplementedError('PDF parsing not yet implemented — use --json or manual preprocessing.')
+    """
+    Best-effort parser for exported PDF violation lists.
+    Expected line format examples:
+      123 Main St, Billings, MT 59101 | Abandoned Property | Open | 2026-05-01
+      123 Main St, Billings, MT 59101, Abandoned Property, Open, 2026-05-01
+    """
+    try:
+        from pypdf import PdfReader
+    except Exception as exc:  # pragma: no cover - env dependent
+        raise RuntimeError('pypdf required for PDF parsing: pip install pypdf') from exc
+
+    reader = PdfReader(file_path)
+    rows: list[dict[str, Any]] = []
+    split_pattern = re.compile(r'\s*[|]\s*|\s{2,}')
+    for page in reader.pages:
+        text = page.extract_text() or ''
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line or len(line) < 12:
+                continue
+            lower = line.lower()
+            if any(token in lower for token in ('address', 'violation', 'issued', 'resolved', 'status')):
+                continue
+            parts = [part.strip() for part in split_pattern.split(line) if part.strip()]
+            if len(parts) < 3:
+                comma_parts = [part.strip() for part in line.split(',') if part.strip()]
+                if len(comma_parts) >= 4:
+                    parts = [', '.join(comma_parts[:-3]), comma_parts[-3], comma_parts[-2], comma_parts[-1]]
+            if len(parts) < 3:
+                continue
+            address = parts[0]
+            violation_type = parts[1]
+            status = parts[2] if len(parts) >= 3 else 'open'
+            issued = parts[3] if len(parts) >= 4 else ''
+            resolved = parts[4] if len(parts) >= 5 else ''
+            rows.append(
+                {
+                    'address': address,
+                    'violation_type': violation_type,
+                    'status': status,
+                    'date_issued': issued,
+                    'date_resolved': resolved,
+                    'description': line,
+                }
+            )
+    return rows
 
 
 def _parse_excel(file_path: str) -> list[dict[str, Any]]:

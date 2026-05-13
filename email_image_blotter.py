@@ -403,7 +403,7 @@ class ImageBlotterWorker(EmailWorker):
                                     self._move_to_processed(mail, num)
                                     continue
 
-                                from pdf_parser import parse_text_blotter
+                                from services.blotter.parser import parse_text_blotter
                                 try:
                                     preview = parse_text_blotter(body)
                                 except Exception as e:
@@ -422,7 +422,7 @@ class ImageBlotterWorker(EmailWorker):
                                     self._move_to_processed(mail, num)
                                     continue
 
-                                from pipeline_state import sha256_text, ensure_ingestion_job, get_ingestion_job_status
+                                from core.pipeline_state import sha256_text, ensure_ingestion_job, get_ingestion_job_status
                                 body_hash = sha256_text(body)
                                 source_document_id = ensure_source_document(
                                     source_type="imap_text",
@@ -446,7 +446,7 @@ class ImageBlotterWorker(EmailWorker):
 
                                 set_ingestion_job_status_legacy(ingestion_job_id, "extracted")
                                 try:
-                                    from processor import process_text_blotter
+                                    from services.blotter.processor import process_text_blotter
                                     process_text_blotter(
                                         body,
                                         sender_email=sender,

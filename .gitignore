@@ -23,3 +23,7 @@ backup.log
 crime-extractor/
 =1.54.0
 reports/pattern_conversion_*.csv
+# Civil filings: exports and local capture artifacts (generated).
+reports/civil_filings/*.csv
+reports/civil_filings/*.json
+reports/civil_filings/*.env

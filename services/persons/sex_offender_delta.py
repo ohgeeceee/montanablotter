@@ -1,5 +1,5 @@
 """
-Sex Offender Registry Delta Engine
+Violent / Sexual Offender Registry Delta Engine
 
 Compares current state against previous snapshot, classifies changes,
 and writes sex_offender_changes records.

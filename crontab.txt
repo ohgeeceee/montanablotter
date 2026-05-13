@@ -24,89 +24,104 @@ BASH_ENV=/root/montanablotter/.env
 # 0 6 * * * ... duplicate_blog_checker --auto-resolve
 
 # Morning briefing daily at 7am
-0 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name morning_briefing --log /root/montanablotter/logs/briefing.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/morning_briefing.py
+0 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name morning_briefing --log /root/montanablotter/logs/briefing.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.morning_briefing
 
 # Daily Montana crime/police roundup blog at 7:15am
 15 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name daily_blog_worker --log /root/montanablotter/logs/daily_blog.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/daily_blog_worker.py
 
 # Weekly county digest every Monday at 7:25am
-25 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_county_digest --log /root/montanablotter/logs/weekly_county_digest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/weekly_county_digest.py
+25 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_county_digest --log /root/montanablotter/logs/weekly_county_digest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.alerts.weekly_digest
 
 # Weekly per-county safety trend reports every Monday at 7:30am (charge_category analytics + Claude)
-30 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_safety_report --log /root/montanablotter/logs/weekly_safety_report.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/weekly_safety_report.py
+30 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_safety_report --log /root/montanablotter/logs/weekly_safety_report.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.alerts.weekly_safety
 
 # Charge explainer pages — generate for any new charge types seen in blotters (Monday 7:35am)
-35 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name charge_explainer_worker --log /root/montanablotter/logs/charge_explainer.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/charge_explainer_worker.py --new-only
+35 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name charge_explainer_worker --log /root/montanablotter/logs/charge_explainer.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.admin.charge_explainer --new-only
 
 # Weekly Cascade County safety snapshot blog draft — every Monday at 7:40am
-40 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_snapshot --log /root/montanablotter/logs/weekly_snapshot.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/weekly_snapshot.py --county Cascade
+40 7 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name weekly_snapshot --log /root/montanablotter/logs/weekly_snapshot.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.alerts.weekly_snapshot --county Cascade
 
 # Daily pattern conversion report at 7:35am
 35 7 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name pattern_conversion_report --log /root/montanablotter/logs/cron.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/pattern_conversion_report.py
 
 # Daily watchdog — verify scheduled jobs have written recent logs
-45 8 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name script_watchdog --log /root/montanablotter/logs/cron_errors.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/script_watchdog.py
+45 8 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name script_watchdog --log /root/montanablotter/logs/cron_errors.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ops.watchdog
 
 # Daily DB backup at 2am
 0 2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name backup_db --log /root/montanablotter/logs/backup.log --workdir /root/montanablotter --timeout 43200 -- /root/montanablotter/backup_db.sh
 
 # Court tracker sources — refresh every 3 hours
-18 */3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name court_refresh --log /root/montanablotter/logs/court_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/court_refresh.py
+18 */3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name court_refresh --log /root/montanablotter/logs/court_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.court.refresh
 
 # Court tracker stale/failing source alerts — check every 30 minutes
-17,47 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name court_source_alerts --log /root/montanablotter/logs/court_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/court_source_alerts.py
+17,47 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name court_source_alerts --log /root/montanablotter/logs/court_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.alerts.court
+
+# Civil filings (iCourtCase) — refresh daily at 5:20am UTC
+20 5 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name icourtcase_civil_ingest --log /root/montanablotter/logs/icourtcase_civil_ingest.log --workdir /root/montanablotter -- /root/montanablotter/scripts/ops/icourtcase_civil_ingest.sh
+
+# Civil filings stale/failing source alerts — check every 30 minutes
+11,41 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name civil_filing_source_alerts --log /root/montanablotter/logs/civil_filing_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/civil_filing_source_alerts.py --max-stale-hours 36 --lookback-days 3 --min-recent-records 1
+
+# Professional license sanctions — weekly ingestion (Mondays 3:00 AM UTC)
+0 3 * * 1 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name license_sanction_ingest --log /root/montanablotter/logs/license_sanction_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/license_sanction_ingest.py
+
+# Montana sex/violent offender registry — run twice daily with full-sync + delta
+35 4,16 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name sex_offender_daily --log /root/montanablotter/logs/sex_offender_daily.log --workdir /root/montanablotter -- /root/montanablotter/scripts/ops/sex_offender_daily.sh
+
+# Sex/violent offender source health alerts — check every 6 hours
+5 */6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name sex_offender_source_alerts --log /root/montanablotter/logs/sex_offender_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/sex_offender_source_alerts.py --max-stale-hours 30 --min-active 500 --min-counties 40
 
 # Public meetings / agendas sources — refresh every 6 hours
-45 */6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name agendas_ingest --log /root/montanablotter/logs/agendas_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/agendas_ingest.py /root/montanablotter/configs/agendas/montana_live.json
+45 */6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name agendas_ingest --log /root/montanablotter/logs/agendas_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.meetings.agendas_ingest /root/montanablotter/configs/agendas/montana_live.json
 
 # Public meetings stale/failing source alerts — check every 30 minutes
-14,44 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name meeting_source_alerts --log /root/montanablotter/logs/meeting_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/meeting_source_alerts.py
+14,44 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name meeting_source_alerts --log /root/montanablotter/logs/meeting_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.alerts.meetings
 
 # CrimeMapping.com — pull all 8 Montana agencies at 6am and 6pm daily
 # Agencies: Billings PD, Great Falls PD, Flathead Co Sheriff, MSU PD,
 #           Carbon Co Sheriff, Red Lodge PD, Bridger PD, Chouteau Co Sheriff
-0 6,18 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name crimemapping_fetcher --log /root/montanablotter/logs/crimemapping.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/crimemapping_fetcher.py --all-montana
+0 6,18 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name crimemapping_fetcher --log /root/montanablotter/logs/crimemapping.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.crime_mapping --all-montana
 
 # Missoula City-County Daily Public Report — poll hourly; dedupe prevents repeats
-10 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missoula_public_report_fetcher --log /root/montanablotter/logs/missoula_fetcher.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/missoula_public_report_fetcher.py
+10 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missoula_public_report_fetcher --log /root/montanablotter/logs/missoula_fetcher.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.missoula
 
 # Whitefish Police Blotter PDFs — poll every 6 hours; dedupe prevents repeats
-25 */6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name whitefish_blotter_fetcher --log /root/montanablotter/logs/whitefish_fetcher.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/whitefish_blotter_fetcher.py
+25 */6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name whitefish_blotter_fetcher --log /root/montanablotter/logs/whitefish_fetcher.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.whitefish
 
 # Yellowstone County jail roster — poll every 2 hours; marks missing bookings as no longer current
-20 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_yellowstone --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county yellowstone
+20 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_yellowstone --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county yellowstone
 
 # Missoula County jail roster — poll every 2 hours; requests the full ALL roster view
-50 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_missoula --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county missoula
+50 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_missoula --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county missoula
 
 # Flathead County jail roster — poll every 2 hours
-05 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_flathead --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county flathead
+05 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_flathead --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county flathead
 
 # Jefferson County jail roster — poll every 2 hours
-15 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_jefferson --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county jefferson
+15 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_jefferson --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county jefferson
 
 # Sanders County jail roster — poll every 2 hours
-35 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_sanders --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/jail_booking_ingest.py --county sanders
+35 */2 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_sanders --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county sanders
 # Gallatin County jail roster is tracked in-app but not scheduled until an automated adapter is implemented.
 
 
 # Bozeman Police Department calls-for-service dashboard — poll hourly with 2-day overlap
-40 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bozeman_police_calls --log /root/montanablotter/logs/bozeman_calls.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/bozeman_police_fetcher.py --dataset calls
+40 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bozeman_police_calls --log /root/montanablotter/logs/bozeman_calls.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.bozeman --dataset calls
 
 # Bozeman Police Department crime dashboard — poll every 6 hours with 7-day overlap
-55 */6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bozeman_police_crime --log /root/montanablotter/logs/bozeman_crime.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/bozeman_police_fetcher.py --dataset crime
+55 */6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bozeman_police_crime --log /root/montanablotter/logs/bozeman_crime.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.bozeman --dataset crime
 
 # Admin alerts for stale or failing ingest sources — check every 30 minutes
-12,42 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name ingestion_alerts --log /root/montanablotter/logs/ingestion_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/ingestion_alerts.py
+12,42 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name ingestion_alerts --log /root/montanablotter/logs/ingestion_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.alerts.ingestion
 
 # Montana missing-person watch — sync hourly and notify on newly listed people
-0 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missing_person_watch --log /root/montanablotter/logs/missing_person_watch.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/missing_person_watch.py
+0 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missing_person_watch --log /root/montanablotter/logs/missing_person_watch.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.persons.watch
 
 # Autonomous newsroom planner — every 3 hours
-15 */3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_planner --log /root/montanablotter/logs/news_planner.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/news_planner.py
+15 */3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_planner --log /root/montanablotter/logs/news_planner.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.news_planner
 
 # Autonomous newsroom writer — hourly
-25 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_writer_agent --log /root/montanablotter/logs/news_writer.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/news_writer_agent.py
+25 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_writer_agent --log /root/montanablotter/logs/news_writer.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.news_writer
 
 # Autonomous newsroom editor — hourly
-35 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_editor_agent --log /root/montanablotter/logs/news_editor.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/news_editor_agent.py
+35 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_editor_agent --log /root/montanablotter/logs/news_editor.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.news_editor

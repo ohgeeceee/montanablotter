@@ -35,8 +35,10 @@ from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
 from blueprints.detention import register_detention_blueprint
 from blueprints.code_violations import register_code_violations_blueprint
+from blueprints.license_sanctions import register_license_sanctions_blueprint
 from blueprints.sex_offender import register_sex_offender_blueprint
 from blueprints.public_salaries import register_public_salaries_blueprint
+from blueprints.government_spending import register_government_spending_blueprint
 from blueprints.watchdog import register_watchdog_blueprint
 from blueprints.recovery_ads import recovery_ads_bp
 from services.court.tracker import (
@@ -6222,7 +6224,8 @@ def inject_public_nav():
         {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons', 'menu_label': 'Missing'},
         {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
         {'id': 'code_violations', 'href': '/code-violations', 'label': 'Code Violations', 'menu_label': 'Violations'},
-        {'id': 'sex_offender_updates', 'href': '/sex-offender-updates', 'label': 'Sex Offender Updates', 'menu_label': 'Registry'},
+        {'id': 'license_sanctions', 'href': '/license-sanctions', 'label': 'License Sanctions', 'menu_label': 'Sanctions'},
+        {'id': 'sex_offender_updates', 'href': '/sex-offender-updates', 'label': 'Violent / Sexual Offender Updates', 'menu_label': 'Registry'},
     ]
     public_secondary_nav_items = [
         {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys', 'menu_label': 'Cases'},
@@ -6277,7 +6280,8 @@ def inject_public_nav():
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
         {'href': '/recovery-centers', 'label': 'Recovery Centers'},
         {'href': '/code-violations', 'label': 'Code Violations'},
-        {'href': '/sex-offender-updates', 'label': 'Sex Offender Updates'},
+        {'href': '/license-sanctions', 'label': 'License Sanctions'},
+        {'href': '/sex-offender-updates', 'label': 'Violent / Sexual Offender Updates'},
         {'href': '/subscribe', 'label': 'Subscribe'},
         {'href': '#modal-standards', 'label': 'Standards'},
         {'href': '#modal-corrections', 'label': 'Corrections'},
@@ -7704,6 +7708,50 @@ def index():
             'last_report': county_stats['last_report'] if county_stats else None,
         })
 
+    # Recent data previews for homepage sidebar
+    recent_court_events = conn.execute("""
+        SELECT ce.event_date, ce.event_time, ce.event_title, ce.event_type,
+               cc.caption AS case_caption, cc.case_number, cc.slug AS name_slug
+        FROM court_events ce
+        JOIN court_cases cc ON ce.case_id = cc.id
+        ORDER BY ce.event_date DESC, ce.event_time DESC
+        LIMIT 5
+    """).fetchall()
+
+    recent_license_sanctions = conn.execute("""
+        SELECT name, name_slug, board, action_taken, effective_date
+        FROM license_sanctions
+        WHERE is_active = 1
+        ORDER BY effective_date DESC, id DESC
+        LIMIT 5
+    """).fetchall()
+
+    recent_jail_bookings = conn.execute("""
+        SELECT person_name, county_name, booking_at, charges_summary
+        FROM jail_bookings
+        WHERE is_current = 1
+        ORDER BY booking_at DESC
+        LIMIT 5
+    """).fetchall()
+
+    recent_blog_posts = conn.execute("""
+        SELECT title, slug, excerpt, created_at
+        FROM blog_posts
+        WHERE published = 1
+        ORDER BY created_at DESC
+        LIMIT 3
+    """).fetchall()
+
+    # Data hub counts
+    hub_counts = {
+        'courts': conn.execute("SELECT COUNT(*) FROM court_events").fetchone()[0],
+        'jails': conn.execute("SELECT COUNT(*) FROM jail_bookings WHERE is_current = 1").fetchone()[0],
+        'sanctions': conn.execute("SELECT COUNT(*) FROM license_sanctions WHERE is_active = 1").fetchone()[0],
+        'sex_offenders': conn.execute("SELECT COUNT(*) FROM sex_offenders WHERE status = 'active'").fetchone()[0],
+        'missing_persons': conn.execute("SELECT COUNT(*) FROM missing_persons WHERE status = 'missing'").fetchone()[0],
+        'blog': conn.execute("SELECT COUNT(*) FROM blog_posts WHERE published = 1").fetchone()[0],
+    }
+
     conn.close()
 
     return render_template('index.html',
@@ -7727,6 +7775,11 @@ def index():
                            weekly_snapshot=weekly_snapshot,
                            missing_persons_alert=missing_persons_alert,
                            leaderboard=leaderboard,
+                           recent_court_events=recent_court_events,
+                           recent_license_sanctions=recent_license_sanctions,
+                           recent_jail_bookings=recent_jail_bookings,
+                           recent_blog_posts=recent_blog_posts,
+                           hub_counts=hub_counts,
                            page_title='Real-Time Public Record Reporting',
                            meta_description='Real-time Montana public record reporting with recent incident cards, jurisdiction directories, and statewide trend visibility.',
                            canonical_url=f'{BASE_URL}/',
@@ -7744,6 +7797,11 @@ def legacy_posts_redirect():
     if query_string:
         target = f'{target}?{query_string}'
     return redirect(target, code=302)
+
+
+@app.route('/landing')
+def legacy_landing_redirect():
+    return redirect(url_for('index'), code=301)
 
 
 @app.route('/meetings')
@@ -8031,6 +8089,7 @@ def _sitemap_static_urls():
         (f'{BASE_URL}/alerts', None),
         (f'{BASE_URL}/blog', None),
         (f'{BASE_URL}/warrants', None),
+        (f'{BASE_URL}/license-sanctions', None),
         (f'{BASE_URL}/feed.xml', None),
     ]
 
@@ -8120,6 +8179,7 @@ def sitemap_index():
         ('records', _iso_lastmod(record_lastmod_row['lastmod']) if record_lastmod_row else None),
         ('blog', _iso_lastmod(blog_lastmod_row['lastmod']) if blog_lastmod_row else None),
         ('charges', _iso_lastmod(charges_lastmod_row['lastmod']) if charges_lastmod_row else None),
+        ('license-sanctions', None),
         ('bookings', _iso_lastmod(booking_lastmod_row['lastmod']) if booking_lastmod_row else None),
         ('sex-offenders', _iso_lastmod(so_lastmod_row['lastmod']) if so_lastmod_row else None),
     ]
@@ -8261,6 +8321,25 @@ def sitemap_charges():
     ).fetchall()
     conn.close()
     urls = [(f"{BASE_URL}/laws/charge/{row['slug']}", _iso_lastmod(row['updated_at'])) for row in rows]
+    return _render_urlset(urls)
+
+
+@app.route('/sitemap-license-sanctions.xml')
+def sitemap_license_sanctions():
+    conn = get_db()
+    rows = conn.execute(
+        """
+        SELECT name_slug, MAX(COALESCE(updated_at, created_at)) AS updated_at
+        FROM license_sanctions
+        WHERE is_active = 1
+        GROUP BY name_slug
+        """
+    ).fetchall()
+    conn.close()
+    urls = []
+    for row in rows:
+        if row['name_slug']:
+            urls.append((f"{BASE_URL}/license-sanctions/{row['name_slug']}", _iso_lastmod(row['updated_at'])))
     return _render_urlset(urls)
 
 
@@ -11762,8 +11841,10 @@ register_api_blueprint(app)
 register_auth_blueprint(app)
 register_payments_blueprint(app)
 register_code_violations_blueprint(app, get_db=get_db)
+register_license_sanctions_blueprint(app, get_db=get_db)
 register_sex_offender_blueprint(app, get_db=get_db)
 register_public_salaries_blueprint(app, get_db=get_db)
+register_government_spending_blueprint(app, get_db=get_db)
 register_watchdog_blueprint(app)
 app.register_blueprint(recovery_ads_bp)
 app.after_request(after_api_request)

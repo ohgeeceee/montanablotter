@@ -295,24 +295,33 @@ def parse_board_page(board: dict[str, str]) -> list[LicenseSanction]:
 # ---------------------------------------------------------------------------
 # Database insert
 # ---------------------------------------------------------------------------
+def _name_slug(name: str) -> str:
+    import re as _re
+    text = name.lower().strip()
+    text = _re.sub(r'[^\w\s-]', '', text)
+    text = _re.sub(r'[\s_-]+', '-', text)
+    return text[:80]
+
+
 def import_sanctions(conn: sqlite3.Connection, sanctions: list[LicenseSanction]) -> dict[str, int]:
     cursor = conn.cursor()
     inserted = 0
     updated = 0
     for s in sanctions:
         fp = s.fingerprint()
+        name_slug = _name_slug(s.name)
         cursor.execute("SELECT id FROM license_sanctions WHERE fingerprint = ?", (fp,))
         existing = cursor.fetchone()
         if existing:
             cursor.execute(
                 """
                 UPDATE license_sanctions
-                SET person_name = ?, license_number = ?, board = ?, board_type = ?,
+                SET person_name = ?, name = ?, name_slug = ?, license_number = ?, board = ?, board_type = ?,
                     violation_type = ?, action_taken = ?, effective_date = ?, county = ?,
                     source_url = ?, raw_text = ?, updated_at = datetime('now')
                 WHERE fingerprint = ?
                 """,
-                (s.name, s.license_number, s.board, s.board_type, s.violation_type,
+                (s.name, s.name, name_slug, s.license_number, s.board, s.board_type, s.violation_type,
                  s.action_taken, s.effective_date, s.county, s.source_url, s.raw_text, fp),
             )
             updated += 1
@@ -320,11 +329,11 @@ def import_sanctions(conn: sqlite3.Connection, sanctions: list[LicenseSanction])
             cursor.execute(
                 """
                 INSERT INTO license_sanctions
-                (person_name, license_number, board, board_type, violation_type,
+                (person_name, name, name_slug, license_number, board, board_type, violation_type,
                  action_taken, effective_date, county, source_url, fingerprint, raw_text)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (s.name, s.license_number, s.board, s.board_type, s.violation_type,
+                (s.name, s.name, name_slug, s.license_number, s.board, s.board_type, s.violation_type,
                  s.action_taken, s.effective_date, s.county, s.source_url, fp, s.raw_text),
             )
             inserted += 1

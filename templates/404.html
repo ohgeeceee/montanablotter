@@ -1,60 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 Not Found | Montana Blotter</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='public-redesign.css') }}">
-</head>
-<body class="public-app public-error-page">
+{% extends "public_page_base.html" %}
 
-    <header class="public-shell-header">
-        <div class="public-topband">
-            <div class="public-topband__inner max-w-7xl mx-auto px-4 sm:px-6">
-                <p class="public-shell-note">Statewide Public Records Access</p>
-                <p class="public-shell-note public-shell-note--accent">Record lookup, county guides, and source-linked public safety reporting</p>
-            </div>
+{% set page_title = "404 Not Found" %}
+{% set meta_description = "That page or record could not be located. It may have been archived, moved into a county guide, or the URL is incorrect." %}
+
+{% block body_class %}public-error-page{% endblock %}
+
+{% block content %}
+<main class="public-error-shell">
+    <section class="public-error-card">
+        <p class="public-eyebrow">Error 404</p>
+        <div class="public-error-code">404</div>
+        <h1 class="public-error-title">Record Not Found</h1>
+        <p class="public-error-copy">
+            That page or record could not be located. It may have been archived, moved into a county guide, or the URL is incorrect.
+        </p>
+        <div class="public-error-actions">
+            <a href="/" class="public-btn public-btn--primary">Back to Feed</a>
+            <a href="/counties" class="public-btn public-btn--secondary">Browse Counties</a>
         </div>
-        <div class="public-shell-core max-w-7xl mx-auto px-4 sm:px-6">
-            <a href="/" class="public-brand">
-                <div class="public-brand__mark">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div>
-                    <div class="public-brand__title">The Montana Blotter</div>
-                    <div class="public-brand__tag">Montana Public Records Directory</div>
-                </div>
-            </a>
-            <nav class="public-nav hidden md:flex">
-                {% for item in public_primary_nav_items[:5] %}
-                <a href="{{ item.href }}" class="public-nav-link" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="error_header" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
-                {% if not loop.last %}
-                <span class="public-nav-divider">//</span>
-                {% endif %}
-                {% endfor %}
-                <a href="/subscribe" class="public-nav-link public-nav-link--cta" style="margin-left:8px;" title="{{ public_action_labels.subscribe_full }}" aria-label="{{ public_action_labels.subscribe_full }}" data-nav-track="1" data-nav-location="error_header" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
-            </nav>
-        </div>
-    </header>
-
-    <main class="public-error-shell">
-        <section class="public-error-card">
-            <p class="public-eyebrow">Error 404</p>
-            <div class="public-error-code">404</div>
-            <h1 class="public-error-title">Record Not Found</h1>
-            <p class="public-error-copy">
-                That page or record could not be located. It may have been archived, moved into a county guide, or the URL is incorrect.
-            </p>
-            <div class="public-error-actions">
-                <a href="/" class="public-btn public-btn--primary">Back to Feed</a>
-                <a href="/counties" class="public-btn public-btn--secondary">Browse Counties</a>
-            </div>
-        </section>
-    </main>
-
-</body>
-</html>
+    </section>
+</main>
+{% endblock %}

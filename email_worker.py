@@ -565,7 +565,7 @@ class EmailWorker:
                     else:
                         ingestion_retry = Retry(max=5, interval=[30, 120, 300, 900, 1800])
                         job = ingestion_q.enqueue(
-                            "tasks.process_incoming_email_item",
+                            "core.tasks.process_incoming_email_item",
                             {
                                 "source_type": "email",
                                 "source_key": source_message_id or filename,
@@ -715,7 +715,7 @@ def enqueue_mode() -> int:
         for item in items:
             try:
                 job = ingestion_q.enqueue(
-                    "tasks.process_incoming_email_item",
+                    "core.tasks.process_incoming_email_item",
                     item,
                     job_timeout=15 * 60,
                     retry=ingestion_retry,

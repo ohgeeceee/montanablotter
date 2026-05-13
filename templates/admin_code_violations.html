@@ -5,6 +5,26 @@
     <h1 class="text-2xl font-bold text-slate-900 mb-1">Code Violations</h1>
     <p class="text-sm text-slate-600 mb-6">Manage city sources and monitor ingestion health.</p>
 
+    <div class="rounded-xl border border-slate-200 bg-white p-5 mb-6">
+        <h2 class="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-3">Upload Export File</h2>
+        <form method="post" action="{{ url_for('admin.admin_code_violations_upload') }}" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Source</label>
+                <select name="source_key" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white min-w-[180px]">
+                    <option value="">Select city source…</option>
+                    {% for s in sources %}
+                    <option value="{{ s.source_key }}">{{ s.display_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">File (PDF, Excel, CSV, JSON)</label>
+                <input type="file" name="file" accept=".pdf,.xlsx,.xls,.csv,.json" required class="block text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-slate-800">
+            </div>
+            <button type="submit" class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800">Ingest</button>
+        </form>
+    </div>
+
     <div class="overflow-x-auto rounded-xl border border-slate-200">
         <table class="min-w-full text-sm">
             <thead class="bg-slate-50 text-slate-700 font-semibold">

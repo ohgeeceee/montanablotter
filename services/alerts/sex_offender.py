@@ -1,5 +1,5 @@
 """
-Sex Offender Proximity Alert Engine
+Violent / Sexual Offender Proximity Alert Engine
 
 Checks new registrations against alert subscriptions and sends emails.
 
@@ -32,7 +32,7 @@ def check_and_notify(conn: sqlite3.Connection, *, dry_run: bool = False) -> list
     """Check new changes against subscriptions and return notifications sent."""
     changes = conn.execute(
         '''
-        SELECT soc.*, so.full_name, so.address_street, so.address_city, so.address_county, so.lat, so.lon
+        SELECT soc.*, so.full_name, so.address_street, so.address_city, so.address_county, so.lat, so.lon, so.offender_type
         FROM sex_offender_changes soc
         JOIN sex_offenders so ON soc.offender_id = so.id
         WHERE soc.created_at > datetime('now', '-7 days')
@@ -80,7 +80,7 @@ def check_and_notify(conn: sqlite3.Connection, *, dry_run: bool = False) -> list
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Check and send sex offender proximity alerts')
+    parser = argparse.ArgumentParser(description='Check and send violent/sexual offender proximity alerts')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
 

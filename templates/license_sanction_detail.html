@@ -1,0 +1,80 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="public-breadcrumb__sep">/</span>
+<a href="/license-sanctions">License Sanctions</a>
+<span class="public-breadcrumb__sep">/</span>
+<span>{{ sanction.name }}</span>
+{% endblock %}
+
+{% block body_class %}license-sanction-detail-page{% endblock %}
+
+{% block content %}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-900">{{ sanction.name }}</h1>
+        <p class="text-sm text-slate-600 mt-1">Montana professional license disciplinary record</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+            {% for s in all_sanctions %}
+            <div class="rounded-xl border border-slate-200 p-5">
+                <div class="flex items-start justify-between mb-3">
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">{{ s.board }}</h2>
+                        <p class="text-sm text-slate-500">{{ s.effective_date or 'Date unknown' }}</p>
+                    </div>
+                    <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-sm font-medium text-rose-700">{{ s.action_taken or 'Action unknown' }}</span>
+                </div>
+                {% if s.violation_type %}
+                <p class="text-sm text-slate-700 mb-2"><strong>Violation:</strong> {{ s.violation_type }}</p>
+                {% endif %}
+                {% if s.description %}
+                <p class="text-sm text-slate-600 mb-3">{{ s.description }}</p>
+                {% endif %}
+                {% if s.license_number %}
+                <p class="text-sm text-slate-500">License: {{ s.license_number }}</p>
+                {% endif %}
+                {% if s.county %}
+                <p class="text-sm text-slate-500">County: {{ s.county }}</p>
+                {% endif %}
+                {% if s.source_url %}
+                <a href="{{ s.source_url }}" target="_blank" rel="noopener" class="text-sm text-blue-600 hover:underline mt-2 inline-block">View source document →</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <aside class="space-y-6">
+            {% if bookings %}
+            <div class="rounded-xl border border-slate-200 p-5">
+                <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-3">Jail Bookings</h3>
+                <ul class="space-y-3">
+                    {% for b in bookings %}
+                    <li>
+                        <a href="/booking/{{ b.id }}" class="block text-sm text-slate-900 hover:underline font-medium">{{ b.person_name }}</a>
+                        <p class="text-xs text-slate-500">{{ b.county_name }} — {{ b.booking_at[:10] if b.booking_at else 'Unknown date' }}</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if records %}
+            <div class="rounded-xl border border-slate-200 p-5">
+                <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-3">Arrest Records</h3>
+                <ul class="space-y-3">
+                    {% for r in records %}
+                    <li>
+                        <a href="/record/{{ r.id }}" class="block text-sm text-slate-900 hover:underline font-medium">{{ r.incident or 'Incident' }}</a>
+                        <p class="text-xs text-slate-500">{{ r.county or 'Unknown county' }} — {{ r.date or 'Unknown date' }}</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</section>
+{% endblock %}

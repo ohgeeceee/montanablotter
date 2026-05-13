@@ -135,8 +135,11 @@ body.public-app a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem;
   min-height: 76px;
+  flex-wrap: wrap;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 .public-brand {
@@ -185,7 +188,10 @@ body.public-app a {
 .public-nav {
   display: flex;
   align-items: center;
-  gap: 0.32rem;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  row-gap: 0.35rem;
+  justify-content: flex-end;
 }
 
 .public-nav-link,
@@ -205,13 +211,14 @@ body.public-app a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 0.72rem;
+  padding: 0.45rem 0.6rem;
   border-radius: 999px;
   border: 1px solid transparent;
   color: var(--public-ink, var(--public-muted));
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .public-nav-link:hover,

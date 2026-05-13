@@ -19,6 +19,23 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <div class="rounded-xl border border-slate-200 p-5">
+                <h2 class="text-lg font-semibold text-slate-900 mb-3">Civil Filings</h2>
+                {% if civil_filings %}
+                <div class="space-y-3">
+                    {% for row in civil_filings %}
+                    <div class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                        <p class="text-sm font-medium text-slate-900">{{ row.case_number }} · {{ row.filing_class.replace('_', ' ') }}</p>
+                        <p class="text-xs text-slate-600 mt-1">{{ row.plaintiff_name or 'Unknown plaintiff' }} v. {{ row.defendant_name or 'Unknown defendant' }}</p>
+                        <p class="text-xs text-slate-500 mt-1">{{ row.filing_date or '' }} · {{ row.case_status or '' }} · {{ row.source_name or 'Unknown source' }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-600">No civil filings on record for this address.</p>
+                {% endif %}
+            </div>
+
+            <div class="rounded-xl border border-slate-200 p-5">
                 <h2 class="text-lg font-semibold text-slate-900 mb-3">Violation History</h2>
                 {% if violations %}
                 <div class="space-y-3">
@@ -65,6 +82,17 @@
 
         <div class="space-y-6">
             <div class="rounded-xl border border-slate-200 p-5">
+                <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wide">Property Summary</h3>
+                <div class="mt-3 grid grid-cols-1 gap-2 text-sm">
+                    <div class="flex justify-between"><span class="text-slate-500">Civil filings</span><span class="text-slate-900">{{ summary.civil_filings }}</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Evictions</span><span class="text-slate-900">{{ summary.eviction_filings }}</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Code violations</span><span class="text-slate-900">{{ summary.code_violations }}</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Arrest-linked records</span><span class="text-slate-900">{{ summary.arrest_linked_records }}</span></div>
+                </div>
+                <p class="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700">{{ summary.premium_flag }}</p>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 p-5">
                 <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wide">Property</h3>
                 <dl class="mt-3 space-y-2 text-sm">
                     <div class="flex justify-between"><dt class="text-slate-500">Street</dt><dd class="text-slate-900">{{ prop.street }}</dd></div>
@@ -77,6 +105,16 @@
                     <div class="flex justify-between"><dt class="text-slate-500">County</dt><dd class="text-slate-900">{{ prop.county }}</dd></div>
                     {% endif %}
                 </dl>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 p-5">
+                <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wide">Real Estate Embed</h3>
+                <p class="text-xs text-slate-600 mt-2">Show this violation history on your listing page.</p>
+                <div class="mt-3">
+                    <label class="block text-[10px] font-medium text-slate-500 uppercase tracking-wide mb-1">Embed Code</label>
+                    <textarea readonly class="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-1.5 text-[10px] text-slate-700 font-mono resize-none" rows="3" onclick="this.select()">&lt;iframe src="https://montanablotter.com/embed/violations?address={{ prop.address_slug }}" width="100%" height="280" style="border:1px solid #e2e8f0;border-radius:8px;"&gt;&lt;/iframe&gt;</textarea>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-2">Copy and paste into your MLS or website. <a href="/code-violations" class="underline hover:text-slate-600">Learn more</a>.</p>
             </div>
 
             {% if bookings %}

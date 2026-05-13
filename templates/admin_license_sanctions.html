@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Admin | License Sanctions{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <h1 class="text-2xl font-bold mb-4">License Sanctions</h1>
+
+    <div class="mb-6">
+        <h2 class="text-lg font-semibold mb-2">Source Health</h2>
+        <div class="overflow-x-auto rounded border border-slate-200">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Board</th>
+                        <th class="px-3 py-2 text-left">Type</th>
+                        <th class="px-3 py-2 text-left">Last Fetched</th>
+                        <th class="px-3 py-2 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for s in sources %}
+                    <tr>
+                        <td class="px-3 py-2">{{ s.board_name }}</td>
+                        <td class="px-3 py-2">{{ s.source_type }}</td>
+                        <td class="px-3 py-2">{{ s.last_fetched_at or '—' }}</td>
+                        <td class="px-3 py-2">{{ s.last_status or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h2 class="text-lg font-semibold mb-2">Latest Sanctions</h2>
+    <div class="overflow-x-auto rounded border border-slate-200">
+        <table class="min-w-full text-sm">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-3 py-2 text-left">Name</th>
+                    <th class="px-3 py-2 text-left">Board</th>
+                    <th class="px-3 py-2 text-left">Action</th>
+                    <th class="px-3 py-2 text-left">Effective</th>
+                    <th class="px-3 py-2 text-left">Updated</th>
+                    <th class="px-3 py-2 text-left">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for row in rows %}
+                <tr>
+                    <td class="px-3 py-2">{{ row.name }}</td>
+                    <td class="px-3 py-2">{{ row.board }}</td>
+                    <td class="px-3 py-2">{{ row.action_taken or '—' }}</td>
+                    <td class="px-3 py-2">{{ row.effective_date or '—' }}</td>
+                    <td class="px-3 py-2">{{ row.updated_at or '—' }}</td>
+                    <td class="px-3 py-2">{{ 'active' if row.is_active else 'inactive' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
