@@ -1,562 +1,488 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:wght@700;900&family=Source+Serif+4:wght@600;700;800&display=swap" rel="stylesheet">
-    <title>Dashboard | Montana Blotter</title>
-    <style>
-        :root {
-            --sky-ice: #eff6ff;
-            --sky-haze: #dbeafe;
-            --ridge: #0f172a;
-            --pine: #1e3a3a;
-            --sand: #f8fafc;
-        }
+{% extends "public_page_base.html" %}
 
-        body {
-            font-family: "IBM Plex Sans", sans-serif;
-            background:
-                radial-gradient(circle at top, rgba(191, 219, 254, 0.65), transparent 34%),
-                linear-gradient(180deg, #f8fbff 0%, #f8fafc 26%, #f8fafc 100%);
-        }
+{% set page_title = "Dashboard" %}
+{% set meta_description = "Focus-first incident dashboard for Montana public records." %}
 
-        .serif {
-            font-family: "Source Serif 4", Georgia, serif;
-        }
+{% block body_class %}min-h-screen bg-slate-50 text-slate-900{% endblock %}
 
-        .sidebar-shell {
-            transition: width 0.25s ease, transform 0.25s ease;
-        }
+{% block extra_head %}
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:wght@700;900&family=Source+Serif+4:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --sky-ice: #eff6ff;
+        --sky-haze: #dbeafe;
+        --ridge: #0f172a;
+        --pine: #1e3a3a;
+        --sand: #f8fafc;
+    }
 
-        .sidebar-shell[data-collapsed="true"] {
-            width: 5.5rem;
-        }
+    body {
+        font-family: "IBM Plex Sans", sans-serif;
+        background:
+            radial-gradient(circle at top, rgba(191, 219, 254, 0.65), transparent 34%),
+            linear-gradient(180deg, #f8fbff 0%, #f8fafc 26%, #f8fafc 100%);
+    }
 
-        .sidebar-shell[data-collapsed="true"] .sidebar-copy,
-        .sidebar-shell[data-collapsed="true"] .sidebar-links,
-        .sidebar-shell[data-collapsed="true"] .sidebar-footer {
-            display: none;
-        }
+    .serif {
+        font-family: "Source Serif 4", Georgia, serif;
+    }
 
-        .sidebar-shell[data-collapsed="true"] .sidebar-brand {
-            justify-content: center;
-        }
+    .sidebar-shell {
+        transition: width 0.25s ease, transform 0.25s ease;
+    }
 
-        .sidebar-shell[data-collapsed="true"] .sidebar-brand-wordmark {
-            display: none;
-        }
+    .sidebar-shell[data-collapsed="true"] {
+        width: 5.5rem;
+    }
 
-        .sidebar-shell[data-collapsed="true"] .sidebar-toggle-label {
-            display: none;
-        }
+    .sidebar-shell[data-collapsed="true"] .sidebar-copy,
+    .sidebar-shell[data-collapsed="true"] .sidebar-links,
+    .sidebar-shell[data-collapsed="true"] .sidebar-footer {
+        display: none;
+    }
 
-        .incident-panel[hidden] {
-            display: none;
-        }
+    .sidebar-shell[data-collapsed="true"] .sidebar-brand {
+        justify-content: center;
+    }
 
-        .incident-row[data-open="true"] .incident-chevron {
-            transform: rotate(180deg);
-        }
+    .sidebar-shell[data-collapsed="true"] .sidebar-brand-wordmark {
+        display: none;
+    }
 
-        .incident-chevron {
-            transition: transform 0.2s ease;
-        }
+    .sidebar-shell[data-collapsed="true"] .sidebar-toggle-label {
+        display: none;
+    }
 
-        .mobile-sheet[hidden],
-        .mobile-backdrop[hidden] {
-            display: none;
-        }
-    .pnav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 6px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s, background 0.15s; }
-    .pnav-link:hover { color: #E8DFD0; background: rgba(255,255,255,0.03); }
-    .pnav-link.active { color: #D4892A !important; }
-    </style>
-</head>
-<body class="min-h-screen bg-slate-50 text-slate-900">
-    <header style="background:#161513; border-bottom:1px solid #282420; position:sticky; top:0; z-index:100;">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-6" style="height:56px;">
-            <a href="/" style="display:flex; align-items:center; gap:14px; text-decoration:none;">
-                <div style="width:36px; height:36px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    .incident-panel[hidden] {
+        display: none;
+    }
+
+    .incident-row[data-open="true"] .incident-chevron {
+        transform: rotate(180deg);
+    }
+
+    .incident-chevron {
+        transition: transform 0.2s ease;
+    }
+
+    .mobile-sheet[hidden],
+    .mobile-backdrop[hidden] {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen lg:flex">
+    <div id="mobile-backdrop" class="mobile-backdrop fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-sm lg:hidden" hidden></div>
+
+    <aside id="dashboard-sidebar"
+           data-collapsed="false"
+           class="sidebar-shell hidden lg:flex lg:w-80 lg:flex-col lg:border-r lg:border-slate-200/80 lg:bg-white/85 lg:backdrop-blur xl:sticky xl:top-0 xl:h-screen">
+        <div class="flex h-full flex-col px-5 py-6">
+            <div class="sidebar-brand flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
+                        <i class="fas fa-mountain text-sm"></i>
+                    </div>
+                    <div class="sidebar-brand-wordmark">
+                        <p class="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Big Sky Desk</p>
+                        <p class="serif text-xl font-bold text-slate-900">Montana Blotter</p>
+                    </div>
                 </div>
-                <div>
-                    <div style="font-family:'Playfair Display',Georgia,serif; font-weight:900; font-size:1rem; color:#E8DFD0; line-height:1.1;">The Montana Blotter</div>
-                    <div style="font-family:'IBM Plex Mono',monospace; font-size:0.5rem; color:#D4892A; text-transform:uppercase; letter-spacing:0.2em;">Daily Public Safety Dispatch</div>
-                </div>
-            </a>
-            <nav class="hidden md:flex items-center gap-0.5">
-                {% for item in public_primary_nav_items %}
-                {% set is_active = request.path == item.href or request.path.startswith(item.href ~ '/') %}
-                <a href="{{ item.href }}" class="pnav-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_primary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
-                {% if not loop.last %}<span class="pnav-link" style="padding-left:2px;padding-right:2px;background:none;color:#5F564C;">//</span>{% endif %}
-                {% endfor %}
-                <a href="/subscribe" class="pnav-link" style="margin-left:8px;background:rgba(212,137,42,0.12);border:1px solid rgba(212,137,42,0.3);color:#D4892A;" title="{{ public_action_labels.subscribe_full }}" aria-label="{{ public_action_labels.subscribe_full }}" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
-                {% if public_user %}
-                <a href="/account" class="pnav-link" style="margin-left:8px;color:#E8DFD0;" data-nav-track="1" data-nav-location="header_action">{{ public_user.display_name }}</a>
-                <a href="/logout?next={{ request.full_path | urlencode }}" class="pnav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_out }}</a>
-                {% else %}
-                <a href="/login?next={{ request.full_path | urlencode }}" class="pnav-link" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
-                <a href="/register?next={{ request.full_path | urlencode }}" class="pnav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
-                {% endif %}
-            </nav>
-        </div>
-        {% if public_secondary_nav_items %}
-        <div class="hidden md:block" style="border-top:1px solid #282420;">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-end gap-4">
-                {% for item in public_secondary_nav_items %}
-                {% set is_active = request.path == item.href %}
-                <a href="{{ item.href }}" class="pnav-secondary-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_secondary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
-                {% if not loop.last %}<span class="pnav-divider pnav-secondary-link" style="padding:0;">&gt;&gt;</span>{% endif %}
-                {% endfor %}
+                <button id="sidebar-collapse-toggle"
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 transition hover:bg-slate-100">
+                    <i class="fas fa-panel-left text-[10px]"></i>
+                    <span class="sidebar-toggle-label">Collapse</span>
+                </button>
             </div>
-        </div>
-        {% endif %}
-    </header>
-    <div class="min-h-screen lg:flex">
-        <div id="mobile-backdrop" class="mobile-backdrop fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-sm lg:hidden" hidden></div>
 
-        <aside id="dashboard-sidebar"
-               data-collapsed="false"
-               class="sidebar-shell hidden lg:flex lg:w-80 lg:flex-col lg:border-r lg:border-slate-200/80 lg:bg-white/85 lg:backdrop-blur xl:sticky xl:top-0 xl:h-screen">
-            <div class="flex h-full flex-col px-5 py-6">
-                <div class="sidebar-brand flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
-                            <i class="fas fa-mountain text-sm"></i>
-                        </div>
-                        <div class="sidebar-brand-wordmark">
-                            <p class="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Big Sky Desk</p>
-                            <p class="serif text-xl font-bold text-slate-900">Montana Blotter</p>
-                        </div>
-                    </div>
-                    <button id="sidebar-collapse-toggle"
-                            type="button"
-                            class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-slate-600 transition hover:bg-slate-100">
-                        <i class="fas fa-panel-left text-[10px]"></i>
-                        <span class="sidebar-toggle-label">Collapse</span>
-                    </button>
-                </div>
-
-                <div class="sidebar-copy mt-8 rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-slate-50 p-5">
-                    <p class="text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">Focus View</p>
-                    <h1 class="serif mt-3 text-2xl font-bold text-slate-900">{{ county if county else 'Statewide' }} feed</h1>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">
-                        Filter fast, scan only the essentials, and open a row when you need the AI summary or original batch context.
-                    </p>
-                </div>
-
-                <div class="sidebar-links mt-6 space-y-6">
-                    <section>
-                        <div class="mb-3 flex items-center justify-between">
-                            <h2 class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Counties</h2>
-                            {% if county %}
-                            <a href="/dashboard" class="text-[11px] font-semibold text-sky-700 hover:text-sky-900">Reset</a>
-                            {% endif %}
-                        </div>
-                        <div class="space-y-2">
-                            {% for c in county_options %}
-                            <a href="/dashboard?county={{ c }}{% if q %}&q={{ q | urlencode }}{% endif %}"
-                               class="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition {{ 'border-slate-900 bg-slate-900 text-white shadow-sm' if county == c else 'border-slate-200 bg-white text-slate-700 hover:border-sky-200 hover:bg-sky-50' }}">
-                                <span>{{ c }}</span>
-                                {% if county == c %}
-                                <span class="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em]">Live</span>
-                                {% else %}
-                                <i class="fas fa-angle-right text-xs opacity-60"></i>
-                                {% endif %}
-                            </a>
-                            {% endfor %}
-                        </div>
-                    </section>
-
-                    <section class="rounded-3xl bg-slate-900 px-5 py-5 text-white shadow-xl shadow-slate-900/10">
-                        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Archive Size</p>
-                        <p class="serif mt-2 text-4xl font-bold">{{ total }}</p>
-                        <p class="mt-2 text-sm leading-6 text-slate-300">Records currently visible in this dashboard view.</p>
-                    </section>
-                </div>
-
-                <div class="sidebar-footer mt-auto pt-6">
-                    <div class="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
-                        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Quick Action</p>
-                        {% if can_manage_uploads %}
-                        <a href="/admin/upload"
-                           class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black text-white transition hover:bg-sky-700">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            Admin Uploads
-                        </a>
-                        {% else %}
-                        <a href="/plans"
-                           class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black text-white transition hover:bg-sky-700">
-                            <i class="fas fa-arrow-up-right-dots"></i>
-                            Upgrade Access
-                        </a>
-                        {% endif %}
-                    </div>
-                    <a href="{{ logout_url }}" class="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-600">
-                        Sign Out
-                    </a>
-                </div>
+            <div class="sidebar-copy mt-8 rounded-3xl border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-slate-50 p-5">
+                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">Focus View</p>
+                <h1 class="serif mt-3 text-2xl font-bold text-slate-900">{{ county if county else 'Statewide' }} feed</h1>
+                <p class="mt-2 text-sm leading-6 text-slate-600">
+                    Filter fast, scan only the essentials, and open a row when you need the AI summary or original batch context.
+                </p>
             </div>
-        </aside>
 
-        <main class="min-w-0 flex-1">
-            <header class="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-                <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
-                    <button id="mobile-filter-toggle"
-                            type="button"
-                            class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100 lg:hidden">
-                        <i class="fas fa-sliders-h"></i>
-                    </button>
-
-                    <div class="min-w-0 flex-1">
-                        <p class="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Focus-First Dashboard</p>
-                        <div class="mt-1 flex flex-wrap items-end justify-between gap-3">
-                            <div class="min-w-0">
-                                <h2 class="serif truncate text-2xl font-bold text-slate-900 sm:text-3xl">{{ county if county else 'Statewide' }} Incident Feed</h2>
-                                <p class="mt-1 text-sm text-slate-500">Clean scan rows first. Open a record when you need more context.</p>
-                            </div>
-                            <div class="hidden text-right lg:block">
-                                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Visible Records</p>
-                                <p class="text-2xl font-black text-slate-900">{{ total }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <form action="/dashboard" method="GET" class="w-full max-w-xl">
+            <div class="sidebar-links mt-6 space-y-6">
+                <section>
+                    <div class="mb-3 flex items-center justify-between">
+                        <h2 class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Counties</h2>
                         {% if county %}
-                        <input type="hidden" name="county" value="{{ county }}">
+                        <a href="/dashboard" class="text-[11px] font-semibold text-sky-700 hover:text-sky-900">Reset</a>
                         {% endif %}
-                        <div class="relative">
-                            <i class="fas fa-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
-                            <input type="text"
-                                   name="q"
-                                   value="{{ q }}"
-                                   placeholder="Search incidents, names, or locations..."
-                                   class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-32 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100">
-                            <button type="submit"
-                                    class="absolute right-2 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:bg-slate-800">
-                                Search
-                            </button>
-                        </div>
-                    </form>
+                    </div>
+                    <div class="space-y-2">
+                        {% for c in county_options %}
+                        <a href="/dashboard?county={{ c }}{% if q %}&q={{ q | urlencode }}{% endif %}"
+                           class="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition {{ 'border-slate-900 bg-slate-900 text-white shadow-sm' if county == c else 'border-slate-200 bg-white text-slate-700 hover:border-sky-200 hover:bg-sky-50' }}">
+                            <span>{{ c }}</span>
+                            {% if county == c %}
+                            <span class="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em]">Live</span>
+                            {% else %}
+                            <i class="fas fa-angle-right text-xs opacity-60"></i>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </section>
 
+                <section class="rounded-3xl bg-slate-900 px-5 py-5 text-white shadow-xl shadow-slate-900/10">
+                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Archive Size</p>
+                    <p class="serif mt-2 text-4xl font-bold">{{ total }}</p>
+                    <p class="mt-2 text-sm leading-6 text-slate-300">Records currently visible in this dashboard view.</p>
+                </section>
+            </div>
+
+            <div class="sidebar-footer mt-auto pt-6">
+                <div class="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Quick Action</p>
                     {% if can_manage_uploads %}
                     <a href="/admin/upload"
-                       class="hidden shrink-0 items-center gap-2 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black text-white transition hover:bg-sky-700 lg:inline-flex">
-                        <i class="fas fa-bolt text-xs"></i>
-                        Quick Action
+                       class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black text-white transition hover:bg-sky-700">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        Admin Uploads
+                    </a>
+                    {% else %}
+                    <a href="/plans"
+                       class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black text-white transition hover:bg-sky-700">
+                        <i class="fas fa-arrow-up-right-dots"></i>
+                        Upgrade Access
                     </a>
                     {% endif %}
                 </div>
-            </header>
+                <a href="{{ logout_url }}" class="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-600">
+                    Sign Out
+                </a>
+            </div>
+        </div>
+    </aside>
 
-            <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Current View</p>
-                        <p class="serif mt-3 text-2xl font-bold text-slate-900">{{ county if county else 'All Montana' }}</p>
-                    </div>
-                    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Search Query</p>
-                        <p class="mt-3 text-sm font-semibold text-slate-900">{{ q if q else 'No keyword filter applied' }}</p>
-                    </div>
-                    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Feed Model</p>
-                        <p class="mt-3 text-sm font-semibold text-slate-900">Master-detail rows with expandable summaries</p>
-                    </div>
-                    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Uploads</p>
-                        <p class="mt-3 text-sm font-semibold text-slate-900">{{ 'Admin upload access ready' if can_manage_uploads else 'Upgrade for upload access' }}</p>
-                    </div>
-                    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Page</p>
-                        <p class="mt-3 text-sm font-semibold text-slate-900">{{ page }} of {{ total_pages }}</p>
+    <main class="min-w-0 flex-1">
+        <header class="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
+            <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
+                <button id="mobile-filter-toggle"
+                        type="button"
+                        class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100 lg:hidden">
+                    <i class="fas fa-sliders-h"></i>
+                </button>
+
+                <div class="min-w-0 flex-1">
+                    <p class="text-[11px] font-black uppercase tracking-[0.24em] text-sky-700">Focus-First Dashboard</p>
+                    <div class="mt-1 flex flex-wrap items-end justify-between gap-3">
+                        <div class="min-w-0">
+                            <h2 class="serif truncate text-2xl font-bold text-slate-900 sm:text-3xl">{{ county if county else 'Statewide' }} Incident Feed</h2>
+                            <p class="mt-1 text-sm text-slate-500">Clean scan rows first. Open a record when you need more context.</p>
+                        </div>
+                        <div class="hidden text-right lg:block">
+                            <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Visible Records</p>
+                            <p class="text-2xl font-black text-slate-900">{{ total }}</p>
+                        </div>
                     </div>
                 </div>
 
-                {% if records %}
-                <section class="space-y-6">
-                    {% for group in records|groupby('filename') %}
-                    <div class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-                        <div class="border-b border-slate-200 bg-slate-50/90 px-5 py-4 sm:px-6">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                                <div class="min-w-0">
-                                    <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Source Batch</p>
-                                    <h3 class="mt-1 truncate text-lg font-bold text-slate-900">
-                                        <i class="far fa-file-pdf mr-2 text-sky-600"></i>{{ group.grouper if group.grouper else 'Manual Entries / Uncategorized' }}
-                                    </h3>
-                                </div>
-                                <div class="text-sm text-slate-500">
-                                    {{ group.list|length }} incident{{ '' if group.list|length == 1 else 's' }} in this batch
-                                </div>
+                <form action="/dashboard" method="GET" class="w-full max-w-xl">
+                    {% if county %}
+                    <input type="hidden" name="county" value="{{ county }}">
+                    {% endif %}
+                    <div class="relative">
+                        <i class="fas fa-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                        <input type="text"
+                               name="q"
+                               value="{{ q }}"
+                               placeholder="Search incidents, names, or locations..."
+                               class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-32 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:bg-white focus:ring-4 focus:ring-sky-100">
+                        <button type="submit"
+                                class="absolute right-2 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:bg-slate-800">
+                            Search
+                        </button>
+                    </div>
+                </form>
+
+                {% if can_manage_uploads %}
+                <a href="/admin/upload"
+                   class="hidden shrink-0 items-center gap-2 rounded-2xl bg-sky-600 px-4 py-3 text-sm font-black text-white transition hover:bg-sky-700 lg:inline-flex">
+                    <i class="fas fa-bolt text-xs"></i>
+                    Quick Action
+                </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Current View</p>
+                    <p class="serif mt-3 text-2xl font-bold text-slate-900">{{ county if county else 'All Montana' }}</p>
+                </div>
+                <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Search Query</p>
+                    <p class="mt-3 text-sm font-semibold text-slate-900">{{ q if q else 'No keyword filter applied' }}</p>
+                </div>
+                <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Feed Model</p>
+                    <p class="mt-3 text-sm font-semibold text-slate-900">Master-detail rows with expandable summaries</p>
+                </div>
+                <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Uploads</p>
+                    <p class="mt-3 text-sm font-semibold text-slate-900">{{ 'Admin upload access ready' if can_manage_uploads else 'Upgrade for upload access' }}</p>
+                </div>
+                <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Page</p>
+                    <p class="mt-3 text-sm font-semibold text-slate-900">{{ page }} of {{ total_pages }}</p>
+                </div>
+            </div>
+
+            {% if records %}
+            <section class="space-y-6">
+                {% for group in records|groupby('filename') %}
+                <div class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+                    <div class="border-b border-slate-200 bg-slate-50/90 px-5 py-4 sm:px-6">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Source Batch</p>
+                                <h3 class="mt-1 truncate text-lg font-bold text-slate-900">
+                                    <i class="far fa-file-pdf mr-2 text-sky-600"></i>{{ group.grouper if group.grouper else 'Manual Entries / Uncategorized' }}
+                                </h3>
+                            </div>
+                            <div class="text-sm text-slate-500">
+                                {{ group.list|length }} incident{{ '' if group.list|length == 1 else 's' }} in this batch
                             </div>
                         </div>
+                    </div>
 
-                        <div class="divide-y divide-slate-100">
-                            {% for record in group.list %}
-                            <article class="incident-row" data-open="false">
-                                <button type="button"
-                                        class="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-sky-50/70 sm:px-6"
-                                        data-incident-toggle>
-                                    <div class="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-                                        <i class="fas fa-signal-stream text-xs"></i>
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                                            <div class="min-w-0">
-                                                <p class="truncate text-base font-bold text-slate-900">
-                                                    {{ record.incident_type if record.incident_type else 'Incident' }}
-                                                </p>
-                                                <p class="mt-1 truncate text-sm text-slate-500">
-                                                    {{ record.location if record.location else 'Location unavailable' }}
-                                                </p>
-                                            </div>
-                                            <div class="flex shrink-0 items-center gap-3 text-sm text-slate-500">
-                                                <span class="rounded-full bg-slate-100 px-3 py-1 font-semibold">
-                                                    {{ record.date if record.date else 'Unknown date' }}{% if record.time %} · {{ record.time }}{% endif %}
-                                                </span>
-                                                <span class="incident-chevron inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500">
-                                                    <i class="fas fa-chevron-down text-xs"></i>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </button>
-
-                                <div class="incident-panel border-t border-slate-100 bg-slate-50/70 px-5 py-5 sm:px-6" hidden>
-                                    <div class="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-                                        <div>
-                                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">AI Summary</p>
-                                            {% if can_view_full_details %}
-                                            <p class="mt-3 text-sm leading-7 text-slate-700">
-                                                {{ record.details if record.details else 'No details available for this record.' }}
+                    <div class="divide-y divide-slate-100">
+                        {% for record in group.list %}
+                        <article class="incident-row" data-open="false">
+                            <button type="button"
+                                    class="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-sky-50/70 sm:px-6"
+                                    data-incident-toggle>
+                                <div class="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                                    <i class="fas fa-signal-stream text-xs"></i>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                                        <div class="min-w-0">
+                                            <p class="truncate text-base font-bold text-slate-900">
+                                                {{ record.incident_type if record.incident_type else 'Incident' }}
                                             </p>
-                                            {% else %}
-                                            <div class="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-                                                <p class="text-sm italic text-slate-400 blur-[4px] select-none">Detailed summary restricted to Pro members.</p>
-                                                <a href="/plans" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:bg-sky-700">
-                                                    <i class="fas fa-lock-open"></i>
-                                                    Unlock Summary
-                                                </a>
-                                            </div>
-                                            {% endif %}
+                                            <p class="mt-1 truncate text-sm text-slate-500">
+                                                {{ record.location if record.location else 'Location unavailable' }}
+                                            </p>
                                         </div>
+                                        <div class="flex shrink-0 items-center gap-3 text-sm text-slate-500">
+                                            <span class="rounded-full bg-slate-100 px-3 py-1 font-semibold">
+                                                {{ record.date if record.date else 'Unknown date' }}{% if record.time %} · {{ record.time }}{% endif %}
+                                            </span>
+                                            <span class="incident-chevron inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500">
+                                                <i class="fas fa-chevron-down text-xs"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
 
-                                        <div class="space-y-4">
-                                            <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                                                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Record Details</p>
-                                                <dl class="mt-3 space-y-3 text-sm text-slate-600">
-                                                    <div class="flex items-start justify-between gap-4">
-                                                        <dt class="font-semibold text-slate-500">Incident</dt>
-                                                        <dd class="text-right text-slate-900">{{ record.incident_type if record.incident_type else 'Incident' }}</dd>
-                                                    </div>
-                                                    <div class="flex items-start justify-between gap-4">
-                                                        <dt class="font-semibold text-slate-500">Location</dt>
-                                                        <dd class="text-right text-slate-900">{{ record.location if record.location else 'Unavailable' }}</dd>
-                                                    </div>
-                                                    <div class="flex items-start justify-between gap-4">
-                                                        <dt class="font-semibold text-slate-500">Timestamp</dt>
-                                                        <dd class="text-right text-slate-900">{{ record.date if record.date else 'Unknown date' }}{% if record.time %} · {{ record.time }}{% endif %}</dd>
-                                                    </div>
-                                                    <div class="flex items-start justify-between gap-4">
-                                                        <dt class="font-semibold text-slate-500">Source PDF</dt>
-                                                        <dd class="max-w-[14rem] text-right text-slate-900">{{ group.grouper if group.grouper else 'Manual entry' }}</dd>
-                                                    </div>
-                                                </dl>
-                                            </div>
-
-                                            <a href="/record/{{ record.id }}"
-                                               class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800">
-                                                <i class="fas fa-arrow-right text-xs"></i>
-                                                Open Full Record
+                            <div class="incident-panel border-t border-slate-100 bg-slate-50/70 px-5 py-5 sm:px-6" hidden>
+                                <div class="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+                                    <div>
+                                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">AI Summary</p>
+                                        {% if can_view_full_details %}
+                                        <p class="mt-3 text-sm leading-7 text-slate-700">
+                                            {{ record.details if record.details else 'No details available for this record.' }}
+                                        </p>
+                                        {% else %}
+                                        <div class="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
+                                            <p class="text-sm italic text-slate-400 blur-[4px] select-none">Detailed summary restricted to Pro members.</p>
+                                            <a href="/plans" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:bg-sky-700">
+                                                <i class="fas fa-lock-open"></i>
+                                                Unlock Summary
                                             </a>
                                         </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="space-y-4">
+                                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Record Details</p>
+                                            <dl class="mt-3 space-y-3 text-sm text-slate-600">
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <dt class="font-semibold text-slate-500">Incident</dt>
+                                                    <dd class="text-right text-slate-900">{{ record.incident_type if record.incident_type else 'Incident' }}</dd>
+                                                </div>
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <dt class="font-semibold text-slate-500">Location</dt>
+                                                    <dd class="text-right text-slate-900">{{ record.location if record.location else 'Unavailable' }}</dd>
+                                                </div>
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <dt class="font-semibold text-slate-500">Timestamp</dt>
+                                                    <dd class="text-right text-slate-900">{{ record.date if record.date else 'Unknown date' }}{% if record.time %} · {{ record.time }}{% endif %}</dd>
+                                                </div>
+                                                <div class="flex items-start justify-between gap-4">
+                                                    <dt class="font-semibold text-slate-500">Source PDF</dt>
+                                                    <dd class="max-w-[14rem] text-right text-slate-900">{{ group.grouper if group.grouper else 'Manual entry' }}</dd>
+                                                </div>
+                                            </dl>
+                                        </div>
+
+                                        <a href="/record/{{ record.id }}"
+                                           class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800">
+                                            <i class="fas fa-arrow-right text-xs"></i>
+                                            Open Full Record
+                                        </a>
                                     </div>
                                 </div>
-                            </article>
-                            {% endfor %}
-                        </div>
+                            </div>
+                        </article>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
-                </section>
-                {% if total_pages > 1 %}
-                <nav class="mt-8 flex flex-col gap-3 rounded-[2rem] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                    <div class="text-sm text-slate-500">
-                        Showing page <span class="font-semibold text-slate-900">{{ page }}</span> of
-                        <span class="font-semibold text-slate-900">{{ total_pages }}</span>.
-                    </div>
-                    <div class="flex items-center gap-3">
-                        {% if page > 1 %}
-                        <a href="/dashboard?page={{ page - 1 }}{% if county %}&county={{ county | urlencode }}{% endif %}{% if q %}&q={{ q | urlencode }}{% endif %}"
-                           class="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
-                            <i class="fas fa-arrow-left mr-2 text-xs"></i>
-                            Previous
-                        </a>
-                        {% else %}
-                        <span class="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-300">
-                            <i class="fas fa-arrow-left mr-2 text-xs"></i>
-                            Previous
-                        </span>
-                        {% endif %}
-
-                        {% if page < total_pages %}
-                        <a href="/dashboard?page={{ page + 1 }}{% if county %}&county={{ county | urlencode }}{% endif %}{% if q %}&q={{ q | urlencode }}{% endif %}"
-                           class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800">
-                            Next
-                            <i class="fas fa-arrow-right ml-2 text-xs"></i>
-                        </a>
-                        {% else %}
-                        <span class="inline-flex items-center justify-center rounded-2xl bg-slate-200 px-4 py-2.5 text-sm font-black text-slate-500">
-                            Next
-                            <i class="fas fa-arrow-right ml-2 text-xs"></i>
-                        </span>
-                        {% endif %}
-                    </div>
-                </nav>
-                {% endif %}
-                {% else %}
-                <section class="rounded-[2rem] border border-slate-200 bg-white p-10 text-center shadow-sm sm:p-16">
-                    <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-300">
-                        <i class="fas fa-inbox text-3xl"></i>
-                    </div>
-                    <h3 class="serif mt-6 text-3xl font-bold text-slate-900">No Records Yet</h3>
-                    <p class="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                        Upload a PDF in the admin panel or run the email worker to populate the feed. This layout stays clean by showing nothing until the source data arrives.
-                    </p>
-                    {% if can_manage_uploads %}
-                    <a href="/admin/upload"
-                       class="mt-6 inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-black text-white transition hover:bg-sky-700">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        Go To Uploads
+                </div>
+                {% endfor %}
+            </section>
+            {% if total_pages > 1 %}
+            <nav class="mt-8 flex flex-col gap-3 rounded-[2rem] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div class="text-sm text-slate-500">
+                    Showing page <span class="font-semibold text-slate-900">{{ page }}</span> of
+                    <span class="font-semibold text-slate-900">{{ total_pages }}</span>.
+                </div>
+                <div class="flex items-center gap-3">
+                    {% if page > 1 %}
+                    <a href="/dashboard?page={{ page - 1 }}{% if county %}&county={{ county | urlencode }}{% endif %}{% if q %}&q={{ q | urlencode }}{% endif %}"
+                       class="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                        <i class="fas fa-arrow-left mr-2 text-xs"></i>
+                        Previous
                     </a>
+                    {% else %}
+                    <span class="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-300">
+                        <i class="fas fa-arrow-left mr-2 text-xs"></i>
+                        Previous
+                    </span>
                     {% endif %}
-                </section>
+
+                    {% if page < total_pages %}
+                    <a href="/dashboard?page={{ page + 1 }}{% if county %}&county={{ county | urlencode }}{% endif %}{% if q %}&q={{ q | urlencode }}{% endif %}"
+                       class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800">
+                        Next
+                        <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                    </a>
+                    {% else %}
+                    <span class="inline-flex items-center justify-center rounded-2xl bg-slate-200 px-4 py-2.5 text-sm font-black text-slate-500">
+                        Next
+                        <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                    </span>
+                    {% endif %}
+                </div>
+            </nav>
+            {% endif %}
+            {% else %}
+            <section class="rounded-[2rem] border border-slate-200 bg-white p-10 text-center shadow-sm sm:p-16">
+                <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-300">
+                    <i class="fas fa-inbox text-3xl"></i>
+                </div>
+                <h3 class="serif mt-6 text-3xl font-bold text-slate-900">No Records Yet</h3>
+                <p class="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+                    Upload a PDF in the admin panel or run the email worker to populate the feed. This layout stays clean by showing nothing until the source data arrives.
+                </p>
+                {% if can_manage_uploads %}
+                <a href="/admin/upload"
+                   class="mt-6 inline-flex items-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-black text-white transition hover:bg-sky-700">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    Go To Uploads
+                </a>
                 {% endif %}
-            </div>
-        </main>
-    </div>
-
-    <div id="mobile-filter-sheet"
-         class="mobile-sheet fixed inset-x-0 bottom-0 z-50 rounded-t-[2rem] border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/20 lg:hidden"
-         hidden>
-        <div class="mx-auto mb-4 h-1.5 w-14 rounded-full bg-slate-200"></div>
-        <div class="flex items-start justify-between gap-4">
-            <div>
-                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">County Filters</p>
-                <h3 class="serif mt-1 text-2xl font-bold text-slate-900">Choose a view</h3>
-            </div>
-            <button id="mobile-filter-close"
-                    type="button"
-                    class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100">
-                <i class="fas fa-times"></i>
-            </button>
+            </section>
+            {% endif %}
         </div>
-        <div class="mt-5 space-y-2">
-            {% for c in county_options %}
-            <a href="/dashboard?county={{ c }}{% if q %}&q={{ q | urlencode }}{% endif %}"
-               class="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition {{ 'border-slate-900 bg-slate-900 text-white' if county == c else 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-sky-50' }}">
-                <span>{{ c }}</span>
-                {% if county == c %}
-                <span class="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em]">Active</span>
-                {% else %}
-                <i class="fas fa-angle-right text-xs opacity-60"></i>
-                {% endif %}
-            </a>
-            {% endfor %}
-            <a href="/dashboard{% if q %}?q={{ q | urlencode }}{% endif %}"
-               class="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-100">
-                Reset Filters
-            </a>
+    </main>
+</div>
+
+<div id="mobile-filter-sheet"
+     class="mobile-sheet fixed inset-x-0 bottom-0 z-50 rounded-t-[2rem] border border-slate-200 bg-white p-5 shadow-2xl shadow-slate-900/20 lg:hidden"
+     hidden>
+    <div class="mx-auto mb-4 h-1.5 w-14 rounded-full bg-slate-200"></div>
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-sky-700">County Filters</p>
+            <h3 class="serif mt-1 text-2xl font-bold text-slate-900">Choose a view</h3>
         </div>
+        <button id="mobile-filter-close"
+                type="button"
+                class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100">
+            <i class="fas fa-times"></i>
+        </button>
     </div>
+    <div class="mt-5 space-y-2">
+        {% for c in county_options %}
+        <a href="/dashboard?county={{ c }}{% if q %}&q={{ q | urlencode }}{% endif %}"
+           class="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition {{ 'border-slate-900 bg-slate-900 text-white' if county == c else 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-sky-50' }}">
+            <span>{{ c }}</span>
+            {% if county == c %}
+            <span class="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em]">Active</span>
+            {% else %}
+            <i class="fas fa-angle-right text-xs opacity-60"></i>
+            {% endif %}
+        </a>
+        {% endfor %}
+        <a href="/dashboard{% if q %}?q={{ q | urlencode }}{% endif %}"
+           class="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-100">
+            Reset Filters
+        </a>
+    </div>
+</div>
+{% endblock %}
 
-    <script>
-        (function () {
-            var sidebar = document.getElementById('dashboard-sidebar');
-            var sidebarToggle = document.getElementById('sidebar-collapse-toggle');
-            if (sidebar && sidebarToggle) {
-                sidebarToggle.addEventListener('click', function () {
-                    var collapsed = sidebar.getAttribute('data-collapsed') === 'true';
-                    sidebar.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
-                });
-            }
-
-            document.querySelectorAll('[data-incident-toggle]').forEach(function (toggle) {
-                toggle.addEventListener('click', function () {
-                    var row = toggle.closest('.incident-row');
-                    var panel = row ? row.querySelector('.incident-panel') : null;
-                    if (!row || !panel) return;
-                    var isOpen = row.getAttribute('data-open') === 'true';
-                    row.setAttribute('data-open', isOpen ? 'false' : 'true');
-                    panel.hidden = isOpen;
-                });
+{% block extra_scripts %}
+<script>
+    (function () {
+        var sidebar = document.getElementById('dashboard-sidebar');
+        var sidebarToggle = document.getElementById('sidebar-collapse-toggle');
+        if (sidebar && sidebarToggle) {
+            sidebarToggle.addEventListener('click', function () {
+                var collapsed = sidebar.getAttribute('data-collapsed') === 'true';
+                sidebar.setAttribute('data-collapsed', collapsed ? 'false' : 'true');
             });
+        }
 
-            var mobileToggle = document.getElementById('mobile-filter-toggle');
-            var mobileClose = document.getElementById('mobile-filter-close');
-            var mobileSheet = document.getElementById('mobile-filter-sheet');
-            var mobileBackdrop = document.getElementById('mobile-backdrop');
-
-            function setMobileSheet(open) {
-                if (!mobileSheet || !mobileBackdrop) return;
-                mobileSheet.hidden = !open;
-                mobileBackdrop.hidden = !open;
-                document.body.classList.toggle('overflow-hidden', open);
-            }
-
-            if (mobileToggle) {
-                mobileToggle.addEventListener('click', function () {
-                    setMobileSheet(true);
-                });
-            }
-            if (mobileClose) {
-                mobileClose.addEventListener('click', function () {
-                    setMobileSheet(false);
-                });
-            }
-            if (mobileBackdrop) {
-                mobileBackdrop.addEventListener('click', function () {
-                    setMobileSheet(false);
-                });
-            }
-
-            function sendNavClick(source, targetPath) {
-                try {
-                    var payload = JSON.stringify({
-                        event_type: 'nav_click',
-                        source: source || 'nav',
-                        page_path: targetPath || window.location.pathname
-                    });
-                    if (navigator.sendBeacon) {
-                        navigator.sendBeacon('/api/subscribe-event', new Blob([payload], {type: 'application/json'}));
-                        return;
-                    }
-                    fetch('/api/subscribe-event', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: payload,
-                        keepalive: true
-                    });
-                } catch (e) {}
-            }
-
-            document.addEventListener('click', function (event) {
-                var link = event.target.closest('a[data-nav-track="1"]');
-                if (!link) return;
-                var location = (link.getAttribute('data-nav-location') || 'nav').slice(0, 32);
-                var label = (link.getAttribute('data-full-label') || link.getAttribute('data-short-label') || link.textContent || '').trim().slice(0, 40);
-                var href = link.getAttribute('href') || '';
-                var targetPath = href;
-                if (href && href.indexOf('http') !== 0) {
-                    try { targetPath = new URL(href, window.location.origin).pathname; } catch (e) {}
-                }
-                sendNavClick(location + ':' + label, targetPath);
+        document.querySelectorAll('[data-incident-toggle]').forEach(function (toggle) {
+            toggle.addEventListener('click', function () {
+                var row = toggle.closest('.incident-row');
+                var panel = row ? row.querySelector('.incident-panel') : null;
+                if (!row || !panel) return;
+                var isOpen = row.getAttribute('data-open') === 'true';
+                row.setAttribute('data-open', isOpen ? 'false' : 'true');
+                panel.hidden = isOpen;
             });
-        })();
-    </script>
-</body>
-</html>
+        });
+
+        var mobileToggle = document.getElementById('mobile-filter-toggle');
+        var mobileClose = document.getElementById('mobile-filter-close');
+        var mobileSheet = document.getElementById('mobile-filter-sheet');
+        var mobileBackdrop = document.getElementById('mobile-backdrop');
+
+        function setMobileSheet(open) {
+            if (!mobileSheet || !mobileBackdrop) return;
+            mobileSheet.hidden = !open;
+            mobileBackdrop.hidden = !open;
+            document.body.classList.toggle('overflow-hidden', open);
+        }
+
+        if (mobileToggle) {
+            mobileToggle.addEventListener('click', function () {
+                setMobileSheet(true);
+            });
+        }
+        if (mobileClose) {
+            mobileClose.addEventListener('click', function () {
+                setMobileSheet(false);
+            });
+        }
+        if (mobileBackdrop) {
+            mobileBackdrop.addEventListener('click', function () {
+                setMobileSheet(false);
+            });
+        }
+    })();
+</script>
+{% endblock %}

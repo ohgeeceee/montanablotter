@@ -1,8 +1,8 @@
 """
-Montana Sex Offender Registry Scraper
+Montana Violent / Sexual Offender Registry Scraper
 
 Fetches registrant data from svor.doj.mt.gov and writes to sex_offenders.
-Designed to run weekly via cron.
+Designed to run daily via cron.
 
 Usage:
     python sex_offender_scraper.py --dry-run
@@ -27,8 +27,25 @@ from db import connect_db
 BASE_URL = 'https://svor.doj.mt.gov'
 SEARCH_URL = f'{BASE_URL}/search'
 DETAIL_URL = f'{BASE_URL}/detail'
+ALT_BASE_URL = 'https://app.doj.mt.gov/apps/missingPersonDatabase/search'
+ALT_SEARCH_URL = f'{ALT_BASE_URL}/search.php'
+ALT_RESULTS_URL = f'{ALT_BASE_URL}/results.php'
 DB_PATH = os.getenv('MB_DB_PATH', '/root/montanablotter/blotter.db')
 REQUEST_DELAY = 1.5  # seconds between requests
+CACHE_IMPORT_FILE = os.getenv('MB_SEX_OFFENDER_CACHE_FILE', '').strip()
+MIN_COUNTIES_FOR_FULL_SYNC = int(os.getenv('MB_SEX_OFFENDER_MIN_COUNTIES_FOR_FULL_SYNC', '50'))
+VERIFY_SSL = os.getenv('MB_SEX_OFFENDER_VERIFY_SSL', 'true').strip().lower() not in {'0', 'false', 'no'}
+FALLBACK_COUNTIES = [
+    'Beaverhead', 'Big Horn', 'Blaine', 'Broadwater', 'Carbon', 'Carter', 'Cascade',
+    'Chouteau', 'Custer', 'Daniels', 'Dawson', 'Deer Lodge', 'Fallon', 'Fergus',
+    'Flathead', 'Gallatin', 'Garfield', 'Glacier', 'Golden Valley', 'Granite', 'Hill',
+    'Jefferson', 'Judith Basin', 'Lake', 'Lewis and Clark', 'Liberty', 'Lincoln',
+    'Madison', 'McCone', 'Meagher', 'Mineral', 'Missoula', 'Musselshell', 'Park',
+    'Petroleum', 'Phillips', 'Pondera', 'Powder River', 'Powell', 'Prairie',
+    'Ravalli', 'Richland', 'Roosevelt', 'Rosebud', 'Sanders', 'Sheridan', 'Silver Bow',
+    'Stillwater', 'Sweet Grass', 'Teton', 'Toole', 'Treasure', 'Valley', 'Wheatland',
+    'Wibaux', 'Yellowstone',
+]
 
 
 def _normalize_name(name: str) -> str:
@@ -69,7 +86,7 @@ def _geocode_address(street: str, city: str, state: str = 'MT', zip_code: str = 
 def _fetch_county_list() -> list[dict[str, str]]:
     """Fetch list of counties from the registry search page."""
     try:
-        resp = requests.get(SEARCH_URL, timeout=30, headers={'User-Agent': 'Mozilla/5.0'})
+        resp = requests.get(SEARCH_URL, timeout=30, headers={'User-Agent': 'Mozilla/5.0'}, verify=VERIFY_SSL)
         resp.raise_for_status()
         counties = []
         for match in re.finditer(r'<option[^>]*value="([^"]+)"[^>]*>([^<]+)</option>', resp.text):
@@ -77,10 +94,15 @@ def _fetch_county_list() -> list[dict[str, str]]:
             label = match.group(2).strip()
             if val and label.lower() not in ('select county', 'all counties'):
                 counties.append({'value': val, 'label': label})
-        return counties
+        return counties or _fallback_county_list()
     except Exception as exc:
         print(f'Failed to fetch county list: {exc}')
-        return []
+        return _fallback_county_list()
+
+
+def _fallback_county_list() -> list[dict[str, str]]:
+    """Fallback county list when registry portal is unavailable."""
+    return [{'value': county, 'label': county} for county in FALLBACK_COUNTIES]
 
 
 def _fetch_registrants_for_county(county_value: str) -> list[dict[str, Any]]:
@@ -94,6 +116,7 @@ def _fetch_registrants_for_county(county_value: str) -> list[dict[str, Any]]:
                 data={'county': county_value, 'page': page},
                 timeout=30,
                 headers={'User-Agent': 'Mozilla/5.0', 'Referer': SEARCH_URL},
+                verify=VERIFY_SSL,
             )
             resp.raise_for_status()
             ids = re.findall(r'href="/detail/([^"]+)"', resp.text)
@@ -108,7 +131,29 @@ def _fetch_registrants_for_county(county_value: str) -> list[dict[str, Any]]:
         except Exception as exc:
             print(f'Error fetching county {county_value} page {page}: {exc}')
             break
-    return registrants
+    if registrants:
+        return registrants
+    return _fetch_registrants_for_county_alt(county_value)
+
+
+def _fetch_registrants_for_county_alt(county_value: str) -> list[dict[str, Any]]:
+    """Best-effort fallback parser from alternate DOJ search pages."""
+    out: list[dict[str, Any]] = []
+    try:
+        resp = requests.get(
+            ALT_RESULTS_URL,
+            params={'county': county_value},
+            timeout=30,
+            headers={'User-Agent': 'Mozilla/5.0', 'Referer': ALT_SEARCH_URL},
+            verify=VERIFY_SSL,
+        )
+        resp.raise_for_status()
+        html = resp.text
+        for rid in re.findall(r'OpenDetailsWindow\([^)]*?"(\d{3,})"\)', html):
+            out.append({'registry_id': f'ALT-{county_value}-{rid}', 'county_value': county_value})
+    except Exception as exc:
+        print(f'Fallback source failed for county {county_value}: {exc}')
+    return out
 
 
 def _fetch_registrant_detail(registry_id: str) -> dict[str, Any] | None:
@@ -118,6 +163,7 @@ def _fetch_registrant_detail(registry_id: str) -> dict[str, Any] | None:
             f'{DETAIL_URL}/{registry_id}',
             timeout=30,
             headers={'User-Agent': 'Mozilla/5.0'},
+            verify=VERIFY_SSL,
         )
         resp.raise_for_status()
         html = resp.text
@@ -146,6 +192,7 @@ def _fetch_registrant_detail(registry_id: str) -> dict[str, Any] | None:
             'conviction_date': _normalize_date(_extract('Conviction Date')),
             'conviction_state': _extract('Conviction State') or 'MT',
             'conviction_county': _extract('Conviction County'),
+            'offender_type': _extract('Offender Type') or _extract('Registry Type') or _extract('Type') or '',
             'photo_url': '',
             'source_url': f'{DETAIL_URL}/{registry_id}',
             'raw_json': json.dumps({'html_sample': html[:5000]}),
@@ -183,8 +230,8 @@ def _upsert_offender(conn: sqlite3.Connection, record: dict[str, Any]) -> tuple[
                 address_zip = ?, lat = ?, lon = ?, employer_name = ?, employer_address = ?,
                 school_name = ?, school_address = ?, offense_description = ?,
                 conviction_date = ?, conviction_state = ?, conviction_county = ?,
-                photo_url = ?, source_url = ?, raw_json = ?, last_seen_at = datetime('now'),
-                updated_at = datetime('now')
+                photo_url = ?, source_url = ?, raw_json = ?, offender_type = ?,
+                last_seen_at = datetime('now'), updated_at = datetime('now')
             WHERE id = ?
             ''',
             (
@@ -194,6 +241,7 @@ def _upsert_offender(conn: sqlite3.Connection, record: dict[str, Any]) -> tuple[
                 record['employer_address'], record['school_name'], record['school_address'],
                 record['offense_description'], record['conviction_date'], record['conviction_state'],
                 record['conviction_county'], record['photo_url'], record['source_url'], record['raw_json'],
+                record.get('offender_type', ''),
                 existing['id'],
             ),
         )
@@ -207,8 +255,8 @@ def _upsert_offender(conn: sqlite3.Connection, record: dict[str, Any]) -> tuple[
              address_street, address_city, address_county, address_zip, lat, lon,
              employer_name, employer_address, school_name, school_address,
              offense_description, conviction_date, conviction_state, conviction_county,
-             photo_url, source_url, raw_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             photo_url, source_url, raw_json, offender_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 record['registry_id'], record['full_name'], record['date_of_birth'], record['tier'],
@@ -217,14 +265,14 @@ def _upsert_offender(conn: sqlite3.Connection, record: dict[str, Any]) -> tuple[
                 record['employer_name'], record['employer_address'], record['school_name'],
                 record['school_address'], record['offense_description'], record['conviction_date'],
                 record['conviction_state'], record['conviction_county'], record['photo_url'],
-                record['source_url'], record['raw_json'],
+                record['source_url'], record['raw_json'], record.get('offender_type', ''),
             ),
         )
         conn.commit()
         return cur.lastrowid, True
 
 
-def run_scrape(*, dry_run: bool = False, county_filter: str = '') -> dict[str, Any]:
+def run_scrape(*, dry_run: bool = False, county_filter: str = '', full_sync: bool = False) -> dict[str, Any]:
     """Run full registry scrape. Returns summary stats."""
     start_time = time.time()
     conn = connect_db()
@@ -232,6 +280,28 @@ def run_scrape(*, dry_run: bool = False, county_filter: str = '') -> dict[str, A
         counties = _fetch_county_list()
         if county_filter:
             counties = [c for c in counties if county_filter.lower() in c['label'].lower()]
+        if not counties:
+            counties = _fallback_county_list()
+
+        if not counties and CACHE_IMPORT_FILE and os.path.exists(CACHE_IMPORT_FILE):
+            try:
+                from services.persons.sex_offender_import import import_sex_offender_cache
+
+                cache_result = import_sex_offender_cache(
+                    file_path=CACHE_IMPORT_FILE,
+                    full_sync=False,
+                    source_label='cache_fallback',
+                )
+                return {
+                    'counties': 0,
+                    'new': cache_result.get('new', 0),
+                    'updated': cache_result.get('updated', 0),
+                    'errors': cache_result.get('errors', 0),
+                    'duration': int(time.time() - start_time),
+                    'fallback_imported': cache_result.get('records', 0),
+                }
+            except Exception as exc:
+                print(f'Cache fallback import failed: {exc}')
 
         total_new = 0
         total_updated = 0
@@ -258,15 +328,17 @@ def run_scrape(*, dry_run: bool = False, county_filter: str = '') -> dict[str, A
                 time.sleep(REQUEST_DELAY)
 
         if not dry_run:
-            if all_registry_ids:
+            # Safety guard: if upstream returned nothing, do not mark all records removed.
+            can_full_sync = (
+                full_sync
+                and not county_filter
+                and len(counties) >= MIN_COUNTIES_FOR_FULL_SYNC
+            )
+            if can_full_sync and all_registry_ids:
                 placeholders = ','.join('?' * len(all_registry_ids))
                 conn.execute(
                     f"UPDATE sex_offenders SET status = 'removed', updated_at = datetime('now') WHERE registry_id NOT IN ({placeholders}) AND status = 'active'",
                     list(all_registry_ids),
-                )
-            else:
-                conn.execute(
-                    "UPDATE sex_offenders SET status = 'removed', updated_at = datetime('now') WHERE status = 'active'"
                 )
             conn.commit()
 
@@ -283,7 +355,17 @@ def run_scrape(*, dry_run: bool = False, county_filter: str = '') -> dict[str, A
                 (snapshot_date, total_count, new_count, removed_count, changed_count, scrape_duration_seconds, notes)
                 VALUES (datetime('now'), ?, ?, ?, ?, ?, ?)
                 ''',
-                (total_active, total_new, removed_count, total_updated, int(time.time() - start_time), f"Counties: {len(counties)}"),
+                (
+                    total_active,
+                    total_new,
+                    removed_count,
+                    total_updated,
+                    int(time.time() - start_time),
+                    (
+                        f"Counties: {len(counties)}; full_sync={'yes' if can_full_sync else 'no'}; "
+                        f"registrants_seen={len(all_registry_ids)}"
+                    ),
+                ),
             )
             conn.commit()
 
@@ -299,12 +381,13 @@ def run_scrape(*, dry_run: bool = False, county_filter: str = '') -> dict[str, A
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Scrape MT Sex Offender Registry')
+    parser = argparse.ArgumentParser(description='Scrape MT Violent / Sexual Offender Registry')
     parser.add_argument('--dry-run', action='store_true', help='Do not write to database')
     parser.add_argument('--county', default='', help='Filter to specific county')
+    parser.add_argument('--full-sync', action='store_true', help='Mark records removed only after full statewide scrape')
     args = parser.parse_args()
 
-    result = run_scrape(dry_run=args.dry_run, county_filter=args.county)
+    result = run_scrape(dry_run=args.dry_run, county_filter=args.county, full_sync=args.full_sync)
     print(json.dumps(result, indent=2))
 
 

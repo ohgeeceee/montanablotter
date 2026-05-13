@@ -268,7 +268,12 @@ def upsert_observed_agent(conn: sqlite3.Connection, payload: dict[str, Any]) -> 
     conn.commit()
 
 
-def refresh_observed_agents(conn: sqlite3.Connection, snapshot: dict[str, Any] | None = None) -> int:
+def refresh_observed_agents(
+    conn: sqlite3.Connection,
+    snapshot: dict[str, Any] | None = None,
+    *,
+    include_processes: bool = True,
+) -> int:
     observed = snapshot or _observed_agent_snapshot()
     agents = observed.get("agents") or {}
     count = 0
@@ -293,7 +298,10 @@ def refresh_observed_agents(conn: sqlite3.Connection, snapshot: dict[str, Any] |
             },
         )
         count += 1
-        
+
+    if not include_processes:
+        return count
+
     now = utcnow()
     for proc in psutil.process_iter(["pid", "name", "cmdline", "create_time"]):
         try:
@@ -340,7 +348,7 @@ def refresh_observed_agents(conn: sqlite3.Connection, snapshot: dict[str, Any] |
                 count += 1
         except Exception:
             continue
-        
+
     return count
 
 
@@ -388,7 +396,9 @@ def build_snapshot(
     offline_after_seconds: int = 20,
 ) -> dict[str, list[dict[str, Any]]]:
     current_time = now or utcnow()
-    refresh_observed_agents(conn)
+    existing_count = conn.execute("SELECT COUNT(*) FROM agent_runtime_state").fetchone()[0]
+    if not existing_count:
+        refresh_observed_agents(conn, include_processes=False)
     rows = conn.execute(
         """
         SELECT

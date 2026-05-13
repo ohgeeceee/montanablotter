@@ -27,6 +27,7 @@
     <meta name="twitter:image" content="{{ og_image or 'https://montanablotter.com/static/icons/og-default.png' }}">
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
     {% include "includes/google_analytics.html" %}
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9126743762075114" crossorigin="anonymous"></script>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#f7f4ee">
     <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
@@ -217,6 +218,18 @@
 
     <div class="pb-16 md:pb-0">
     {% block content %}{% endblock %}
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-format="fluid"
+             data-ad-layout-key="-ei-1d-a-1+bd"
+             data-ad-client="ca-pub-9126743762075114"
+             data-ad-slot="7569493707"></ins>
+        <script>
+            (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
     </div>
 
     <footer class="public-footer">

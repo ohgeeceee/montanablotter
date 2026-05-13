@@ -12,6 +12,8 @@ from services.court.source_adapters import (
     sync_montana_supreme_court_oral_arguments,
     sync_montana_supreme_court_previous_oral_arguments,
 )
+from services.court.district_portal_scraper import DISTRICT_COURT_PORTAL_URL, sync_montana_district_court_calendar
+from services.court.colj_portal_scraper import COLJ_PORTAL_URL, sync_montana_colj_calendar
 from services.court.tracker import ensure_court_tracker_schema, upsert_court_source
 from init_db import _configure_sqlite
 
@@ -34,6 +36,18 @@ SOURCE_REGISTRY = {
         'source_url': SUPREME_COURT_DAILY_ORDERS_URL,
         'provider_type': 'document_feed',
         'runner': sync_montana_supreme_court_daily_opinions,
+    },
+    'montana_district_court_calendar': {
+        'name': 'Montana District Court Calendar',
+        'source_url': DISTRICT_COURT_PORTAL_URL,
+        'provider_type': 'court_calendar',
+        'runner': sync_montana_district_court_calendar,
+    },
+    'montana_colj_calendar': {
+        'name': 'Montana Courts of Limited Jurisdiction Calendar',
+        'source_url': COLJ_PORTAL_URL,
+        'provider_type': 'court_calendar',
+        'runner': sync_montana_colj_calendar,
     },
 }
 

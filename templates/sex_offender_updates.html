@@ -2,7 +2,7 @@
 
 {% block breadcrumb %}
 <span class="public-breadcrumb__sep">/</span>
-<a href="/sex-offender-updates">Sex Offender Updates</a>
+<a href="/sex-offender-updates">Violent / Sexual Offender Updates</a>
 {% endblock %}
 
 {% block body_class %}sex-offender-updates-page{% endblock %}
@@ -10,8 +10,8 @@
 {% block content %}
 <section class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
     <div class="mb-6">
-        <h1 class="text-2xl font-bold text-slate-900">Montana Sex Offender Registry Updates</h1>
-        <p class="text-sm text-slate-600 mt-1">Weekly changes to the Montana Sex Offender Registry — new registrations, address changes, removals, and compliance updates.</p>
+        <h1 class="text-2xl font-bold text-slate-900">Montana Violent / Sexual Offender Registry Updates</h1>
+        <p class="text-sm text-slate-600 mt-1">Weekly changes to the Montana Violent / Sexual Offender Registry — new registrations, address changes, removals, and compliance updates.</p>
     </div>
 
     <form method="get" action="/sex-offender-updates" class="flex flex-wrap gap-3 mb-6">
@@ -41,6 +41,7 @@
                     <th class="px-4 py-3 text-left">Date</th>
                     <th class="px-4 py-3 text-left">Type</th>
                     <th class="px-4 py-3 text-left">Name</th>
+                    <th class="px-4 py-3 text-left">Type</th>
                     <th class="px-4 py-3 text-left">County</th>
                     <th class="px-4 py-3 text-left">Note</th>
                 </tr>
@@ -59,6 +60,18 @@
                         </span>
                     </td>
                     <td class="px-4 py-3 font-medium text-slate-900">{{ row.full_name or '—' }}</td>
+                    <td class="px-4 py-3">
+                        {% set ot = (row.offender_type or '').strip().lower() %}
+                        {% if 'violent' in ot and 'sexual' in ot %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700">Violent &amp; Sexual</span>
+                        {% elif 'violent' in ot %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-50 text-orange-700">Violent</span>
+                        {% elif 'sexual' in ot %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-red-50 text-red-700">Sexual</span>
+                        {% else %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-600">{{ row.offender_type or '—' }}</span>
+                        {% endif %}
+                    </td>
                     <td class="px-4 py-3 text-slate-600">{{ row.address_county or '—' }}</td>
                     <td class="px-4 py-3 text-slate-600">{{ row.change_note or '—' }}</td>
                 </tr>

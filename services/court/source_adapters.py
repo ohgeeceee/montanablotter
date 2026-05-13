@@ -9,6 +9,8 @@ from http.client import RemoteDisconnected
 
 from agendas_scraper.browser import launch_browser
 from services.court.tracker import add_court_event, add_court_filing, ensure_court_tracker_schema, upsert_court, upsert_court_case, upsert_court_source
+from services.court.district_portal_scraper import sync_montana_district_court_calendar
+from services.court.colj_portal_scraper import sync_montana_colj_calendar
 
 
 DISTRICT_COURT_PORTAL_URL = 'https://dcportal.pubcourts.mt.gov/fullcourtweb/start.do'

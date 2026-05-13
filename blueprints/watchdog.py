@@ -60,6 +60,36 @@ def _generate_token() -> str:
 def _normalize_email(email: str) -> str:
     return (email or "").strip().lower()
 
+def _ensure_watchdog_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS watchdog_spending_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subscription_id INTEGER NOT NULL,
+            alert_type TEXT NOT NULL CHECK(alert_type IN ('vendor','agency_threshold')),
+            vendor_name TEXT,
+            agency_name TEXT,
+            threshold_amount REAL,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS watchdog_spending_alert_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subscription_id INTEGER NOT NULL,
+            source_type TEXT NOT NULL,
+            source_record_id INTEGER NOT NULL,
+            message TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(subscription_id, source_type, source_record_id)
+        )
+        """
+    )
+    conn.commit()
+
 
 # ---------------------------------------------------------------------------
 # Public marketing page
@@ -216,6 +246,7 @@ def watchdog_success():
 @watchdog_bp.route("/watchdog/dashboard/<token>")
 def watchdog_dashboard(token):
     conn = _get_db()
+    _ensure_watchdog_schema(conn)
     row = conn.execute(
         "SELECT * FROM watchdog_subscriptions WHERE token = ? AND status = 'active'",
         (token,),
@@ -241,6 +272,18 @@ def watchdog_dashboard(token):
             (sub["id"],),
         ).fetchall()
     ]
+    spending_alerts = [
+        dict(r) for r in conn.execute(
+            "SELECT * FROM watchdog_spending_alerts WHERE subscription_id = ? AND is_active = 1 ORDER BY created_at DESC",
+            (sub["id"],),
+        ).fetchall()
+    ]
+    spending_events = [
+        dict(r) for r in conn.execute(
+            "SELECT * FROM watchdog_spending_alert_events WHERE subscription_id = ? ORDER BY created_at DESC LIMIT 40",
+            (sub["id"],),
+        ).fetchall()
+    ]
 
     conn.close()
 
@@ -249,6 +292,8 @@ def watchdog_dashboard(token):
         sub=sub,
         alerts=alerts,
         digests=digests,
+        spending_alerts=spending_alerts,
+        spending_events=spending_events,
         active_nav="watchdog",
         current_year=datetime.now().year,
     )
@@ -301,6 +346,63 @@ def watchdog_delete_alert(token, alert_id):
     conn.execute(
         "DELETE FROM watchdog_keyword_alerts WHERE id = ? AND subscription_id = ?",
         (alert_id, row["id"]),
+    )
+    conn.commit()
+    conn.close()
+    return redirect(url_for("watchdog.watchdog_dashboard", token=token))
+
+@watchdog_bp.route("/watchdog/dashboard/<token>/spending-alerts", methods=["POST"])
+def watchdog_add_spending_alert(token):
+    conn = _get_db()
+    _ensure_watchdog_schema(conn)
+    sub_row = conn.execute(
+        "SELECT id FROM watchdog_subscriptions WHERE token = ? AND status = 'active'",
+        (token,),
+    ).fetchone()
+    if not sub_row:
+        conn.close()
+        abort(404)
+
+    sub_id = sub_row["id"]
+    alert_type = (request.form.get("alert_type") or "").strip()
+    vendor_name = (request.form.get("vendor_name") or "").strip()[:255]
+    agency_name = (request.form.get("agency_name") or "").strip()[:255]
+    threshold_amount = request.form.get("threshold_amount", type=float)
+
+    if alert_type == "vendor" and vendor_name:
+        conn.execute(
+            """
+            INSERT INTO watchdog_spending_alerts (subscription_id, alert_type, vendor_name)
+            VALUES (?, 'vendor', ?)
+            """,
+            (sub_id, vendor_name),
+        )
+    elif alert_type == "agency_threshold" and agency_name and threshold_amount is not None:
+        conn.execute(
+            """
+            INSERT INTO watchdog_spending_alerts (subscription_id, alert_type, agency_name, threshold_amount)
+            VALUES (?, 'agency_threshold', ?, ?)
+            """,
+            (sub_id, agency_name, threshold_amount),
+        )
+
+    conn.commit()
+    conn.close()
+    return redirect(url_for("watchdog.watchdog_dashboard", token=token))
+
+@watchdog_bp.route("/watchdog/dashboard/<token>/spending-alerts/<int:alert_id>/delete", methods=["POST"])
+def watchdog_delete_spending_alert(token, alert_id):
+    conn = _get_db()
+    sub_row = conn.execute(
+        "SELECT id FROM watchdog_subscriptions WHERE token = ? AND status = 'active'",
+        (token,),
+    ).fetchone()
+    if not sub_row:
+        conn.close()
+        abort(404)
+    conn.execute(
+        "UPDATE watchdog_spending_alerts SET is_active = 0 WHERE id = ? AND subscription_id = ?",
+        (alert_id, sub_row["id"]),
     )
     conn.commit()
     conn.close()
@@ -393,4 +495,9 @@ def watchdog_csv_export(token):
 # ---------------------------------------------------------------------------
 
 def register_watchdog_blueprint(app):
+    conn = _get_db()
+    try:
+        _ensure_watchdog_schema(conn)
+    finally:
+        conn.close()
     app.register_blueprint(watchdog_bp)

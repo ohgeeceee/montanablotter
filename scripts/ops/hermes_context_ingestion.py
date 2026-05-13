@@ -24,6 +24,66 @@ def _watchdog() -> dict:
         return {"status": "error", "details": "watchdog JSON parse failure"}
 
 
+def _compact_watchdog(payload: dict) -> dict:
+    """Keep only high-signal watchdog fields to control prompt token size."""
+    if not isinstance(payload, dict):
+        return {"status": "error", "details": "watchdog payload invalid"}
+
+    checks = payload.get("checks") or []
+    failing_checks = []
+    for row in checks:
+        status = (row or {}).get("status")
+        if status and status != "ok":
+            failing_checks.append(
+                {
+                    "name": row.get("name"),
+                    "kind": row.get("kind"),
+                    "status": status,
+                    "details": row.get("details"),
+                    "last_seen_at": row.get("last_seen_at"),
+                    "age_hours": row.get("age_hours"),
+                }
+            )
+
+    # Keep only a small sample of near-threshold "ok" jobs for early warning.
+    near_stale = []
+    for row in checks:
+        if (row or {}).get("kind") != "job":
+            continue
+        if (row or {}).get("status") != "ok":
+            continue
+        max_age = row.get("max_age_hours")
+        age = row.get("age_hours")
+        if isinstance(max_age, (int, float)) and isinstance(age, (int, float)) and max_age > 0:
+            ratio = age / max_age
+            if ratio >= 0.75:
+                near_stale.append(
+                    {
+                        "name": row.get("name"),
+                        "cadence": row.get("cadence"),
+                        "age_hours": age,
+                        "max_age_hours": max_age,
+                    }
+                )
+
+    near_stale = sorted(near_stale, key=lambda r: r["age_hours"] / r["max_age_hours"], reverse=True)[:5]
+
+    summary = payload.get("summary") or {}
+    return {
+        "status": payload.get("status"),
+        "checked_at": payload.get("checked_at"),
+        "summary": {
+            "total": summary.get("total"),
+            "ok": summary.get("ok"),
+            "warn": summary.get("warn"),
+            "critical": summary.get("critical"),
+            "unknown": summary.get("unknown"),
+        },
+        "failing_checks": failing_checks[:12],
+        "near_stale_checks": near_stale,
+    }
+
+
 def _db_snapshot() -> dict:
     if not DB_PATH.exists():
         return {"error": "db missing"}
@@ -68,7 +128,7 @@ def main() -> None:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"UTC now: {now}")
     print("\nWatchdog:")
-    print(json.dumps(_watchdog(), indent=2))
+    print(json.dumps(_compact_watchdog(_watchdog()), indent=2))
     print("\nIngestion DB snapshot:")
     print(json.dumps(_db_snapshot(), indent=2))
 

@@ -141,7 +141,7 @@ def process_incoming_email_item(item: dict[str, Any]) -> dict[str, Any]:
         }
 
         queued_job = parsing_q.enqueue(
-            "tasks.parse_pdf",
+            "core.tasks.parse_pdf",
             parse_payload,
             job_timeout=30 * 60,
             retry=PARSING_RETRY,
@@ -190,7 +190,7 @@ def parse_pdf(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
         queued_job = publishing_q.enqueue(
-            "tasks.publish_incidents",
+            "core.tasks.publish_incidents",
             publish_payload,
             job_timeout=30 * 60,
             retry=PUBLISHING_RETRY,

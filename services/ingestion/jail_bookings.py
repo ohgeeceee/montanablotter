@@ -22,6 +22,7 @@ import os
 import re
 import sqlite3
 import string
+import sys
 import time
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
@@ -32,6 +33,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 import requests
 import urllib3
 
+sys.path.insert(0, "/root/montanablotter")
 import config
 from services.alerts.bail_bonds import dispatch_felony_booking_alerts, dispatch_telegram_booking_alerts
 

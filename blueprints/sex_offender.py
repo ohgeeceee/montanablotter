@@ -84,7 +84,8 @@ def _load_updates_context(
                 so.address_county,
                 so.lat,
                 so.lon,
-                so.photo_url
+                so.photo_url,
+                so.offender_type
             FROM sex_offender_changes soc
             JOIN sex_offenders so ON soc.offender_id = so.id
             WHERE {where_sql}
@@ -150,8 +151,8 @@ def sex_offender_county(county_slug):
             county=county,
             offenders=offenders,
             cities=cities,
-            page_title=f'{county} County Sex Offender Registry — Montana Blotter',
-            meta_description=f'Current sex offender registrants in {county} County, Montana. View address-level map and recent changes.',
+            page_title=f'{county} County Violent / Sexual Offender Registry — Montana Blotter',
+            meta_description=f'Current violent and sexual offender registrants in {county} County, Montana. View address-level map and recent changes.',
         )
     finally:
         conn.close()
@@ -210,6 +211,7 @@ def api_sex_offenders_geojson():
                     'tier': r['tier'],
                     'risk_level': r['risk_level'],
                     'offense': r['offense_description'],
+                    'offender_type': r.get('offender_type') or '—',
                 },
             })
 

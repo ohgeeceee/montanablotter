@@ -386,7 +386,10 @@ def init_database():
     ensure_agent_mission_control_schema(conn)
     ensure_api_auth_schema(conn)
     ensure_code_violation_schema(conn)
+    ensure_license_sanction_schema(conn)
     seed_code_violation_sources(conn)
+    ensure_civil_filing_schema(conn)
+    seed_civil_filing_sources(conn)
     ensure_crash_incident_schema(conn)
     ensure_sex_offender_schema(conn)
 
@@ -403,6 +406,11 @@ def init_database():
     print("  - code_violation_sources")
     print("  - property_addresses")
     print("  - code_violations")
+    print("  - license_sanction_sources")
+    print("  - license_sanctions")
+    print("  - license_sanction_raw_extractions")
+    print("  - civil_filing_sources")
+    print("  - civil_filings")
     print("  - sex_offenders")
     print("  - sex_offender_snapshots")
     print("  - sex_offender_changes")
@@ -561,6 +569,8 @@ def migrate():
     ensure_agent_mission_control_schema(conn)
     ensure_api_auth_schema(conn)
     ensure_code_violation_schema(conn)
+    ensure_license_sanction_schema(conn)
+    ensure_civil_filing_schema(conn)
     ensure_crash_incident_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
@@ -1572,6 +1582,7 @@ def migrate():
 
     # 2026-05-11: code enforcement violations
     ensure_code_violation_schema(conn)
+    ensure_license_sanction_schema(conn)
     ensure_sex_offender_schema(conn)
 
     conn.commit()
@@ -1613,6 +1624,7 @@ def ensure_sex_offender_schema(conn: sqlite3.Connection) -> None:
             photo_url TEXT,
             source_url TEXT,
             raw_json TEXT,
+            offender_type TEXT,
             first_seen_at TEXT DEFAULT (datetime('now')),
             last_seen_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
@@ -1717,6 +1729,7 @@ def ensure_sex_offender_schema(conn: sqlite3.Connection) -> None:
         ('photo_url', 'TEXT'),
         ('source_url', 'TEXT'),
         ('raw_json', 'TEXT'),
+        ('offender_type', 'TEXT'),
         ('first_seen_at', "TEXT DEFAULT (datetime('now'))"),
         ('last_seen_at', "TEXT DEFAULT (datetime('now'))"),
         ('updated_at', "TEXT DEFAULT (datetime('now'))"),
@@ -1967,6 +1980,127 @@ def ensure_code_violation_schema(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             pass
 
+
+def ensure_civil_filing_schema(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS civil_filing_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT UNIQUE NOT NULL,
+            display_name TEXT NOT NULL,
+            adapter_type TEXT NOT NULL DEFAULT 'import_json',
+            jurisdiction TEXT NOT NULL DEFAULT 'Montana',
+            county TEXT,
+            source_url TEXT,
+            is_enabled INTEGER NOT NULL DEFAULT 1,
+            last_success_at TEXT,
+            last_error TEXT DEFAULT '',
+            last_run_count INTEGER NOT NULL DEFAULT 0,
+            checkpoint_json TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS civil_filings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER NOT NULL,
+            property_address_id INTEGER,
+            county TEXT NOT NULL,
+            city TEXT,
+            case_number TEXT NOT NULL,
+            case_type_code TEXT,
+            case_type_label TEXT,
+            filing_class TEXT NOT NULL DEFAULT 'other',
+            caption TEXT,
+            plaintiff_name TEXT,
+            defendant_name TEXT,
+            raw_address TEXT DEFAULT '',
+            filing_date TEXT,
+            case_status TEXT,
+            source_record_id TEXT,
+            source_url TEXT,
+            raw_json TEXT,
+            hash_id TEXT UNIQUE,
+            first_seen_at TEXT DEFAULT (datetime('now')),
+            last_seen_at TEXT DEFAULT (datetime('now')),
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (source_id) REFERENCES civil_filing_sources(id) ON DELETE CASCADE,
+            FOREIGN KEY (property_address_id) REFERENCES property_addresses(id) ON DELETE SET NULL
+        )
+    ''')
+
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_civil_filing_sources_enabled '
+        'ON civil_filing_sources(is_enabled, county)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_civil_filings_lookup '
+        'ON civil_filings(property_address_id, filing_class, filing_date)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_civil_filings_case '
+        'ON civil_filings(county, case_number)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_civil_filings_hash '
+        'ON civil_filings(hash_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_civil_filings_source '
+        'ON civil_filings(source_id, filing_date)'
+    )
+
+    for col, definition in [
+        ('adapter_type', "TEXT NOT NULL DEFAULT 'import_json'"),
+        ('jurisdiction', "TEXT NOT NULL DEFAULT 'Montana'"),
+        ('county', 'TEXT'),
+        ('source_url', 'TEXT'),
+        ('is_enabled', 'INTEGER NOT NULL DEFAULT 1'),
+        ('last_success_at', 'TEXT'),
+        ('last_error', "TEXT DEFAULT ''"),
+        ('last_run_count', 'INTEGER NOT NULL DEFAULT 0'),
+        ('checkpoint_json', 'TEXT'),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE civil_filing_sources ADD COLUMN {col} {definition}')
+            print(f'✅ Added civil_filing_sources.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('property_address_id', 'INTEGER'),
+        ('county', "TEXT NOT NULL DEFAULT ''"),
+        ('city', 'TEXT'),
+        ('case_type_code', 'TEXT'),
+        ('case_type_label', 'TEXT'),
+        ('filing_class', "TEXT NOT NULL DEFAULT 'other'"),
+        ('caption', 'TEXT'),
+        ('plaintiff_name', 'TEXT'),
+        ('defendant_name', 'TEXT'),
+        ('raw_address', "TEXT DEFAULT ''"),
+        ('filing_date', 'TEXT'),
+        ('case_status', 'TEXT'),
+        ('source_record_id', 'TEXT'),
+        ('source_url', 'TEXT'),
+        ('raw_json', 'TEXT'),
+        ('hash_id', 'TEXT UNIQUE'),
+        ('first_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('last_seen_at', "TEXT DEFAULT (datetime('now'))"),
+        ('created_at', "TEXT DEFAULT (datetime('now'))"),
+        ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE civil_filings ADD COLUMN {col} {definition}')
+            print(f'✅ Added civil_filings.{col}')
+        except sqlite3.OperationalError:
+            pass
+
     for col, definition in [
         ('county', 'TEXT'),
         ('lat', 'REAL'),
@@ -2005,6 +2139,120 @@ def ensure_code_violation_schema(conn: sqlite3.Connection) -> None:
             pass
 
 
+def ensure_license_sanction_schema(conn: sqlite3.Connection) -> None:
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS license_sanction_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            board_key TEXT NOT NULL UNIQUE,
+            board_name TEXT NOT NULL,
+            board_url TEXT NOT NULL,
+            source_type TEXT NOT NULL DEFAULT 'html',
+            last_fetched_at TEXT,
+            last_status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS license_sanctions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            name_slug TEXT NOT NULL,
+            license_number TEXT,
+            board TEXT NOT NULL,
+            violation_type TEXT,
+            action_taken TEXT,
+            effective_date TEXT,
+            county TEXT,
+            description TEXT,
+            source_url TEXT,
+            source_document_url TEXT,
+            raw_extraction_id INTEGER,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (source_id) REFERENCES license_sanction_sources(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS license_sanction_raw_extractions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER NOT NULL,
+            fetched_at TEXT NOT NULL,
+            raw_html TEXT,
+            raw_pdf_path TEXT,
+            kimi_response_json TEXT,
+            extraction_status TEXT NOT NULL DEFAULT 'pending',
+            error_message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (source_id) REFERENCES license_sanction_sources(id) ON DELETE CASCADE
+        )
+    ''')
+
+    for col, definition in [
+        ('board_key', 'TEXT'),
+        ('board_name', 'TEXT'),
+        ('board_url', 'TEXT'),
+        ('source_type', "TEXT NOT NULL DEFAULT 'html'"),
+        ('last_fetched_at', 'TEXT'),
+        ('last_status', 'TEXT'),
+        ('created_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE license_sanction_sources ADD COLUMN {col} {definition}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('source_id', 'INTEGER'),
+        ('name', 'TEXT'),
+        ('name_slug', 'TEXT'),
+        ('license_number', 'TEXT'),
+        ('board', 'TEXT'),
+        ('violation_type', 'TEXT'),
+        ('action_taken', 'TEXT'),
+        ('effective_date', 'TEXT'),
+        ('county', 'TEXT'),
+        ('description', 'TEXT'),
+        ('source_url', 'TEXT'),
+        ('source_document_url', 'TEXT'),
+        ('raw_extraction_id', 'INTEGER'),
+        ('is_active', 'INTEGER NOT NULL DEFAULT 1'),
+        ('created_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ('updated_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE license_sanctions ADD COLUMN {col} {definition}')
+        except sqlite3.OperationalError:
+            pass
+
+    for col, definition in [
+        ('source_id', 'INTEGER'),
+        ('fetched_at', 'TEXT'),
+        ('raw_html', 'TEXT'),
+        ('raw_pdf_path', 'TEXT'),
+        ('kimi_response_json', 'TEXT'),
+        ('extraction_status', "TEXT NOT NULL DEFAULT 'pending'"),
+        ('error_message', 'TEXT'),
+        ('created_at', "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE license_sanction_raw_extractions ADD COLUMN {col} {definition}')
+        except sqlite3.OperationalError:
+            pass
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ls_name_slug ON license_sanctions(name_slug)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ls_board ON license_sanctions(board)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ls_county ON license_sanctions(county)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ls_effective_date ON license_sanctions(effective_date)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ls_action ON license_sanctions(action_taken)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ls_active ON license_sanctions(is_active)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ls_source ON license_sanctions(source_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ls_raw_extraction ON license_sanctions(raw_extraction_id)')
+    conn.commit()
+
+
 def seed_code_violation_sources(conn: sqlite3.Connection) -> None:
     sources = [
         ('billings', 'Billings Code Enforcement', 'Billings', 'Yellowstone'),
@@ -2020,6 +2268,37 @@ def seed_code_violation_sources(conn: sqlite3.Connection) -> None:
             VALUES (?, ?, ?, ?)
             ''',
             (key, name, city, county),
+        )
+    conn.commit()
+
+
+def seed_civil_filing_sources(conn: sqlite3.Connection) -> None:
+    counties = [
+        'Beaverhead', 'Big Horn', 'Blaine', 'Broadwater', 'Carbon', 'Carter', 'Cascade',
+        'Chouteau', 'Custer', 'Daniels', 'Dawson', 'Deer Lodge', 'Fallon', 'Fergus',
+        'Flathead', 'Gallatin', 'Garfield', 'Glacier', 'Golden Valley', 'Granite', 'Hill',
+        'Jefferson', 'Judith Basin', 'Lake', 'Lewis and Clark', 'Liberty', 'Lincoln',
+        'Madison', 'McCone', 'Meagher', 'Mineral', 'Missoula', 'Musselshell', 'Park',
+        'Petroleum', 'Phillips', 'Pondera', 'Powder River', 'Powell', 'Prairie',
+        'Ravalli', 'Richland', 'Roosevelt', 'Rosebud', 'Sanders', 'Sheridan', 'Silver Bow',
+        'Stillwater', 'Sweet Grass', 'Teton', 'Toole', 'Treasure', 'Valley', 'Wheatland',
+        'Wibaux', 'Yellowstone',
+    ]
+    for county in counties:
+        key = f"icourtcase-{county.lower().replace(' ', '-')}"
+        name = f'iCourtCase {county} County'
+        conn.execute(
+            '''
+            INSERT INTO civil_filing_sources (source_key, display_name, adapter_type, county, source_url)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(source_key) DO UPDATE SET
+                display_name=excluded.display_name,
+                adapter_type=excluded.adapter_type,
+                county=excluded.county,
+                source_url=excluded.source_url,
+                updated_at=datetime('now')
+            ''',
+            (key, name, 'icourtcase', county, 'https://dcportal.pubcourts.mt.gov/'),
         )
     conn.commit()
 

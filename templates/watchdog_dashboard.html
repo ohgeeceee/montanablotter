@@ -122,6 +122,48 @@
                 </div>
             </div>
 
+            <div class="public-card">
+                <div class="p-6 border-b border-slate-100">
+                    <h2 class="font-black text-slate-800 text-lg flex items-center gap-2">
+                        <i class="fas fa-landmark text-indigo-500"></i> Government Spending Alerts
+                    </h2>
+                    <p class="text-slate-500 text-sm mt-1">Track vendor awards and agency spending thresholds.</p>
+                </div>
+                <div class="p-6 space-y-4">
+                    {% if spending_alerts %}
+                    {% for alert in spending_alerts %}
+                    <div class="wd-alert-row">
+                        <div>
+                            {% if alert.alert_type == 'vendor' %}
+                            <span class="font-bold text-slate-800">Vendor: {{ alert.vendor_name }}</span>
+                            {% else %}
+                            <span class="font-bold text-slate-800">Agency: {{ alert.agency_name }} over ${{ "{:,.0f}".format(alert.threshold_amount or 0) }}</span>
+                            {% endif %}
+                        </div>
+                        <form method="POST" action="/watchdog/dashboard/{{ sub.token }}/spending-alerts/{{ alert.id }}/delete" style="display:inline">
+                            <button type="submit" class="text-red-400 hover:text-red-600 text-xs font-bold transition" title="Remove">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-slate-400 text-sm">No government spending alerts yet.</p>
+                    {% endif %}
+
+                    <form method="POST" action="/watchdog/dashboard/{{ sub.token }}/spending-alerts" class="grid md:grid-cols-4 gap-2">
+                        <select name="alert_type" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                            <option value="vendor">Vendor Award</option>
+                            <option value="agency_threshold">Agency Threshold</option>
+                        </select>
+                        <input type="text" name="vendor_name" placeholder="Vendor name" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <input type="text" name="agency_name" placeholder="Agency name" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <input type="number" name="threshold_amount" step="0.01" placeholder="Threshold $" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <button type="submit" class="public-btn public-btn--primary text-sm px-4 md:col-span-4">Add Spending Alert</button>
+                    </form>
+                </div>
+            </div>
+
             <!-- CSV Export -->
             <div class="public-card p-6">
                 <h2 class="font-black text-slate-800 text-lg flex items-center gap-2 mb-4">
@@ -157,6 +199,13 @@
                     </h2>
                 </div>
                 <div class="p-6">
+                    {% if spending_events %}
+                    <div class="mb-4 space-y-2">
+                        {% for ev in spending_events[:8] %}
+                        <div class="text-xs text-slate-600 border border-slate-100 rounded p-2">{{ ev.created_at[:16] }} · {{ ev.message }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     {% if digests %}
                     {% for digest in digests %}
                     <div class="wd-digest-card">
