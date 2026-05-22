@@ -17,7 +17,7 @@ from urllib.parse import urljoin
 
 from playwright.sync_api import sync_playwright
 
-from agendas_scraper.browser import launch_browser
+from agendas_scraper.browser import launch_browser, new_browser_context
 from services.court.tracker import (
     add_court_event,
     ensure_court_tracker_schema,
@@ -115,7 +115,7 @@ class ColjPortalScraper:
 
     def _login(self, court_value: str, court_label: str) -> bool:
         # Fresh page for each court to avoid WAF detection
-        self.page = self.browser.new_page()
+        self.page = new_browser_context(self.browser).new_page()
         self.page.set_default_timeout(30000)
 
         self.page.goto(COLJ_PORTAL_URL, wait_until='domcontentloaded')
@@ -260,9 +260,34 @@ class ColjPortalScraper:
 
         self._start()
         try:
-            self.page.goto(COLJ_PORTAL_URL, wait_until='domcontentloaded')
-            self.page.wait_for_timeout(4000 + random.randint(0, 2000))
-            start_html = self.page.content()
+            self.page = new_browser_context(self.browser).new_page()
+            try:
+                self.page.goto(COLJ_PORTAL_URL, wait_until='domcontentloaded')
+                self.page.wait_for_timeout(4000 + random.randint(0, 2000))
+                start_html = self.page.content()
+            except Exception as exc:
+                error_msg = str(exc)
+                print(f'  ⚠️ Portal unreachable: {error_msg}')
+                conn.execute(
+                    '''UPDATE court_sources SET last_error = ?, updated_at = datetime('now') WHERE id = ?''',
+                    (error_msg[:1000], source_id),
+                )
+                return {
+                    'source_id': source_id,
+                    'source_slug': 'montana-colj-calendar',
+                    'source_url': COLJ_PORTAL_URL,
+                    'court_count': 0,
+                    'case_count': 0,
+                    'event_count': 0,
+                    'synced_at': _now_iso(),
+                    'fetched_live': False,
+                    'fetch_method': 'playwright',
+                    'court_names': [],
+                    'upserts': 0,
+                    'error': error_msg,
+                }
+            finally:
+                self.page.close()
 
             court_options = []
             for match in _COURT_SELECT_RE.finditer(start_html):

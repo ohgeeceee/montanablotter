@@ -106,7 +106,10 @@ def main() -> int:
             try:
                 summary = metadata['runner'](conn)
                 summary['started_at'] = started_at
-                results.append(summary)
+                if summary.get('error'):
+                    failures.append({'source_slug': slug, 'error': summary['error'], 'started_at': started_at})
+                else:
+                    results.append(summary)
             except Exception as exc:
                 _mark_source_failure(conn, slug, str(exc))
                 failures.append({'source_slug': slug, 'error': str(exc), 'started_at': started_at})

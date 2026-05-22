@@ -18,7 +18,7 @@ from urllib.parse import urljoin
 
 from playwright.sync_api import sync_playwright
 
-from agendas_scraper.browser import launch_browser
+from agendas_scraper.browser import launch_browser, new_browser_context
 from services.court.tracker import (
     add_court_event,
     ensure_court_tracker_schema,
@@ -124,10 +124,10 @@ class DistrictPortalScraper:
     def _login(self, court_value: str, court_label: str) -> bool:
         """Navigate to portal, select court, and log in using a fresh browser context."""
         # Fresh context for each court to avoid WAF detection
-        context = self.browser.new_context(
+        self.page = new_browser_context(
+            self.browser,
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        )
-        self.page = context.new_page()
+        ).new_page()
         self.page.set_default_timeout(30000)
 
         self.page.goto(DISTRICT_COURT_PORTAL_URL, wait_until='domcontentloaded')
@@ -288,11 +288,34 @@ class DistrictPortalScraper:
 
         try:
             # Load start page to discover available courts (one-time)
-            temp_page = self.browser.new_page()
-            temp_page.goto(DISTRICT_COURT_PORTAL_URL, wait_until='domcontentloaded')
-            temp_page.wait_for_timeout(4000 + random.randint(0, 2000))
-            start_html = temp_page.content()
-            temp_page.close()
+            temp_page = new_browser_context(self.browser).new_page()
+            try:
+                temp_page.goto(DISTRICT_COURT_PORTAL_URL, wait_until='domcontentloaded')
+                temp_page.wait_for_timeout(4000 + random.randint(0, 2000))
+                start_html = temp_page.content()
+            except Exception as exc:
+                error_msg = str(exc)
+                print(f'  ⚠️ Portal unreachable: {error_msg}')
+                conn.execute(
+                    '''UPDATE court_sources SET last_error = ?, updated_at = datetime('now') WHERE id = ?''',
+                    (error_msg[:1000], source_id),
+                )
+                return {
+                    'source_id': source_id,
+                    'source_slug': 'montana-district-court-calendar',
+                    'source_url': DISTRICT_COURT_PORTAL_URL,
+                    'court_count': 0,
+                    'case_count': 0,
+                    'event_count': 0,
+                    'synced_at': _now_iso(),
+                    'fetched_live': False,
+                    'fetch_method': 'playwright',
+                    'court_names': [],
+                    'upserts': 0,
+                    'error': error_msg,
+                }
+            finally:
+                temp_page.close()
             court_options = _get_court_options_from_start_page(start_html)
 
             if max_courts:
