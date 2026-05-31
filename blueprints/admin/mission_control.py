@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import UTC, datetime
 
-from flask import abort, jsonify, render_template, request
+from flask import abort, jsonify, redirect, request, url_for
 from flask_login import login_required
 
 from services.agents.mission_control import build_snapshot, recent_events, upsert_agent_heartbeat
