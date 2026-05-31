@@ -31,6 +31,90 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#f7f4ee">
     <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
+    <script>
+    (function(){
+      var VAPID_KEY = '{{ config.VAPID_PUBLIC_KEY }}';
+      function urlB64ToUint8Array(b) {
+        var p = (b + '==='.slice((b.length + 3) % 4)).replace(/-/g,'+').replace(/_/g,'/');
+        var r = atob(p), o = new Uint8Array(r.length);
+        for (var i=0;i<r.length;i++) o[i]=r.charCodeAt(i);
+        return o;
+      }
+      function initPushButton() {
+        var btn = document.getElementById('mb-push-btn');
+        if (!btn || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+          if (btn) btn.style.display = 'none';
+          return;
+        }
+        navigator.serviceWorker.ready.then(function(reg) {
+          reg.pushManager.getSubscription().then(function(sub) {
+            btn.style.display = 'inline-flex';
+            btn.setAttribute('data-subscribed', sub ? '1' : '0');
+            btn.textContent = sub ? '🔔 Notifications on' : '🔔 Get alerts';
+          });
+        });
+        btn.addEventListener('click', function() {
+          navigator.serviceWorker.ready.then(function(reg) {
+            reg.pushManager.getSubscription().then(function(existing) {
+              if (existing) {
+                existing.unsubscribe().then(function() {
+                  fetch('/api/push/unsubscribe', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:existing.endpoint})});
+                  btn.textContent = '🔔 Get alerts';
+                  btn.setAttribute('data-subscribed','0');
+                });
+              } else {
+                Notification.requestPermission().then(function(perm) {
+                  if (perm !== 'granted') return;
+                  reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8Array(VAPID_KEY)}).then(function(sub) {
+                    var k = sub.getKey ? sub.getKey('p256dh') : null;
+                    var a = sub.getKey ? sub.getKey('auth') : null;
+                    fetch('/api/push/subscribe', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+                      endpoint: sub.endpoint,
+                      p256dh: k ? btoa(String.fromCharCode.apply(null,new Uint8Array(k))) : '',
+                      auth:   a ? btoa(String.fromCharCode.apply(null,new Uint8Array(a))) : '',
+                      county: document.body.dataset.county || ''
+                    })});
+                    btn.textContent = '🔔 Notifications on';
+                    btn.setAttribute('data-subscribed','1');
+                  });
+                });
+              }
+            });
+          });
+        });
+      }
+      document.addEventListener('DOMContentLoaded', initPushButton);
+    })();
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "NewsMediaOrganization",
+      "name": "Montana Blotter",
+      "alternateName": "The Montana Blotter",
+      "url": "https://montanablotter.com/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://montanablotter.com/static/icons/og-default.png",
+        "width": 1200,
+        "height": 630
+      },
+      "foundingDate": "2023",
+      "description": "Montana Blotter is a statewide public records directory covering arrests, jail bookings, court activity, and civic records across Montana counties.",
+      "areaServed": {
+        "@type": "State",
+        "name": "Montana",
+        "containsPlace": {
+          "@type": "City",
+          "name": "Great Falls",
+          "containedInPlace": {"@type": "AdministrativeArea", "name": "Cascade County"}
+        }
+      },
+      "masthead": "https://montanablotter.com/about",
+      "publishingPrinciples": "https://montanablotter.com/about",
+      "sameAs": ["https://www.facebook.com/montanablotter"]
+    }
+    </script>
     {% block extra_head %}{% endblock %}
     {% if recaptcha_site_key %}
     <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
@@ -68,9 +152,20 @@
                 {% endfor %}
                 <a href="/subscribe" class="public-nav-link public-nav-link--cta" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
                 {% if public_user %}
-                <a href="/account" class="public-nav-link" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action">{{ public_user.display_name }}</a>
-                <a href="/logout?next={{ request.full_path | urlencode }}" class="public-nav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_out }}</a>
-            {% else %}
+                <div class="public-user-chip" id="user-chip-wrap" style="margin-left:8px;">
+                    <button class="public-user-chip__btn" id="user-chip-btn" aria-haspopup="true" aria-expanded="false" type="button">
+                        <span class="public-user-avatar">{{ public_user.display_name[:1].upper() }}</span>
+                        <span class="public-user-chip__name">{{ public_user.display_name }}</span>
+                        <svg class="public-user-chip__caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="public-user-dropdown" id="user-dropdown" hidden>
+                        <a href="/account" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">My Account</a>
+                        <a href="/account#digest" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">Digest Settings</a>
+                        <a href="/account#password-settings" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">Change Password</a>
+                        <a href="/logout?next={{ request.full_path | urlencode }}" class="public-user-dropdown__item public-user-dropdown__item--danger" data-nav-track="1" data-nav-location="user_dropdown">{{ public_action_labels.sign_out }}</a>
+                    </div>
+                </div>
+                {% else %}
                 <a href="/login?next={{ request.full_path | urlencode }}" class="public-nav-link" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
                 <a href="/register?next={{ request.full_path | urlencode }}" class="public-nav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
                 {% endif %}
@@ -129,6 +224,18 @@
         </div>
     </div>
 
+    <div class="public-ad-slot max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-9126743762075114"
+             data-ad-slot="4077573892"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-2">
@@ -141,16 +248,24 @@
     {% endif %}
     {% endwith %}
 
-    {% set show_conversion_cta = (
-        request.path == '/trends'
-        or request.path == '/blog'
-        or request.path.startswith('/blog/')
-        or request.path.startswith('/post/')
-        or request.path.startswith('/county/')
-        or request.path.startswith('/city/')
-        or request.path == '/arrests'
-        or request.path.startswith('/arrests')
+    {% set _cta_exclude = (
+        request.path.startswith('/admin')
+        or request.path.startswith('/subscribe')
+        or request.path.startswith('/donate')
+        or request.path.startswith('/login')
+        or request.path.startswith('/register')
+        or request.path.startswith('/support')
+        or request.path.startswith('/terms')
+        or request.path.startswith('/privacy')
+        or request.path.startswith('/advertise')
+        or request.path.startswith('/api/')
+        or request.path.startswith('/uploads/')
+        or request.path.startswith('/static/')
+        or request.path.startswith('/checkout')
+        or request.path.startswith('/plans')
+        or request.path.startswith('/email/')
     ) %}
+    {% set show_conversion_cta = not _cta_exclude %}
     {% set show_donation_popup = (
         donations_enabled|default(true)
         and not request.path.startswith('/donate')
@@ -220,15 +335,16 @@
     {% block content %}{% endblock %}
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div class="public-ad-slot max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <!-- Main -->
         <ins class="adsbygoogle"
              style="display:block"
-             data-ad-format="fluid"
-             data-ad-layout-key="-ei-1d-a-1+bd"
              data-ad-client="ca-pub-9126743762075114"
-             data-ad-slot="7569493707"></ins>
+             data-ad-slot="4077573892"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
         <script>
-            (adsbygoogle = window.adsbygoogle || []).push({});
+             (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
     </div>
 
@@ -265,6 +381,28 @@
 
     <script>
     (function(){
+        function collapseUnfilledAds() {
+            try {
+                document.querySelectorAll('.public-ad-slot ins.adsbygoogle').forEach(function (ins) {
+                    var status = (ins.getAttribute('data-ad-status') || '').toLowerCase();
+                    if (status === 'unfilled') {
+                        var wrap = ins.closest('.public-ad-slot');
+                        if (wrap) wrap.style.display = 'none';
+                        return;
+                    }
+
+                    // If the ads script is blocked or fails, hide only *large* empty slots to avoid a giant gap.
+                    if (!status) {
+                        var hasIframe = !!ins.querySelector('iframe');
+                        if (!hasIframe && ins.offsetHeight >= 200) {
+                            var wrap2 = ins.closest('.public-ad-slot');
+                            if (wrap2) wrap2.style.display = 'none';
+                        }
+                    }
+                });
+            } catch (e) {}
+        }
+
         function sendSubscribeEvent(eventType, source, pagePath) {
             try {
                 var payload = JSON.stringify({
@@ -322,6 +460,21 @@
         var menu = document.getElementById('pub-mobile-menu');
         if (menuBtn && menu) {
             menuBtn.addEventListener('click', function(){ menu.classList.toggle('hidden'); });
+        }
+
+        var chipBtn = document.getElementById('user-chip-btn');
+        var chipDropdown = document.getElementById('user-dropdown');
+        if (chipBtn && chipDropdown) {
+            chipBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var isOpen = !chipDropdown.hidden;
+                chipDropdown.hidden = isOpen;
+                chipBtn.setAttribute('aria-expanded', String(!isOpen));
+            });
+            document.addEventListener('click', function() {
+                chipDropdown.hidden = true;
+                chipBtn.setAttribute('aria-expanded', 'false');
+            });
         }
 
         document.addEventListener('click', function (event) {
@@ -399,6 +552,11 @@
                 });
             }
         }
+
+        // Adsense sometimes reserves large empty space on desktop when an ad is unfilled.
+        // Collapse those slots so the page doesn't show a giant gap under the header.
+        setTimeout(collapseUnfilledAds, 1500);
+        setTimeout(collapseUnfilledAds, 6000);
 
         var donatePopup = document.getElementById('donate-popup');
         var donatePopupClose = document.getElementById('donate-popup-close');

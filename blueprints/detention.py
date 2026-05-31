@@ -4,6 +4,7 @@ from datetime import datetime
 
 from flask import Blueprint, abort, jsonify, render_template, request, url_for
 
+from services.monetization.paywall import preview_allowed
 
 detention_bp = Blueprint('detention', __name__)
 
@@ -183,6 +184,9 @@ def booking_detail(booking_id):
         # Page title
         page_title = f"{person_name} — {county} County Jail Booking"
 
+        paywall_allowed, paywall_counts = preview_allowed(resource_type='booking', resource_id=booking_id)
+        paywall_blocked = not paywall_allowed
+
         return render_template(
             'booking_detail.html',
             booking=booking,
@@ -193,6 +197,8 @@ def booking_detail(booking_id):
             meta_description=meta_desc,
             page_title=page_title,
             canonical_url=f"https://montanablotter.com/booking/{booking_id}",
+            paywall_blocked=paywall_blocked,
+            paywall_counts=paywall_counts,
         )
     finally:
         conn.close()

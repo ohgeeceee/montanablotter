@@ -36,7 +36,8 @@ logging.basicConfig(
 # ---------------------------------------------------------------------------
 # Sources (ordered by preference)
 # ---------------------------------------------------------------------------
-MHP_NEWS_URL = "https://dojmt.gov/highway-patrol/news-releases/"
+MHP_NEWS_URL = "https://dojmt.gov/montana-highway-patrol/mhp-news/"
+MHP_FATAL_URL = "https://dojmt.gov/montana-highway-patrol/weekly-fatal-report/"
 DOJ_NEWS_URL = "https://dojmt.gov/news/"
 REQUEST_TIMEOUT = 30
 
@@ -174,13 +175,19 @@ def parse_mhp_news_list(html_text: str, base_url: str) -> list[dict[str, Any]]:
     for link in soup.find_all("a", href=True):
         href = link["href"]
         full_url = urljoin(base_url, href)
-        # Heuristic: news article URLs often contain year/month or /news/
-        if "/news/" not in full_url and not re.search(r"/\d{4}/", full_url):
+        # Accept: date-formatted WP paths, /news/ paths, or plain dojmt.gov article slugs
+        is_dated = bool(re.search(r"/\d{4}/", full_url))
+        is_news_path = "/news/" in full_url or "/mhp-news/" in full_url
+        is_dojmt_slug = (
+            re.match(r"https://dojmt\.gov/[a-z0-9-]{10,}/$", full_url)
+            and "/wp-" not in full_url
+            and "/montana-highway-patrol/" not in full_url
+        )
+        if not (is_dated or is_news_path or is_dojmt_slug):
             continue
         title = link.get_text(strip=True)
         if len(title) < 10:
             continue
-        # Skip navigation / pagination links
         if title.lower() in {"news", "releases", "older posts", "newer posts", "next", "previous"}:
             continue
         articles.append({

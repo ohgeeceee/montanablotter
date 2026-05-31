@@ -1718,6 +1718,9 @@ def admin_email_ops():
     conn = get_db()
     _ensure_subscriber_schema(conn)
     sponsor_announcement = _build_sponsor_announcement_preview(conn)
+    weekly_runs = conn.execute(
+        "SELECT * FROM digest_runs WHERE kind='weekly_digest' ORDER BY created_at DESC LIMIT 5"
+    ).fetchall()
     conn.close()
     return render_template(
         'admin_email_ops.html',
@@ -1725,6 +1728,7 @@ def admin_email_ops():
         preview=preview,
         test_recipient=test_recipient,
         sponsor_announcement=sponsor_announcement,
+        weekly_runs=weekly_runs,
         can_send_email_ops=current_user.role in EMAIL_OPS_SEND_ROLES,
     )
 
@@ -1772,6 +1776,27 @@ def admin_email_ops_send_now():
     except Exception as exc:
         flash(f'Digest send failed: {str(exc)[:200]}', 'error')
     return redirect(url_for('admin.admin_email_ops', target_date=request.form.get('target_date') or ''))
+
+
+@admin_bp.route('/audience/email-ops/send-weekly', methods=['POST'])
+@login_required
+@require_role(*EMAIL_OPS_SEND_ROLES)
+def admin_email_ops_send_weekly():
+    from services.publishing.weekly_digest import run_weekly_digest
+    dry_run = request.form.get('dry_run') == '1'
+    try:
+        results = run_weekly_digest(dry_run=dry_run, initiated_by=current_user.username)
+        if dry_run:
+            flash('Weekly digest dry run complete — check server logs for details.', 'success')
+        else:
+            flash(
+                f"Weekly digest sent: {results['sent_count']} sent, "
+                f"{results['skipped_count']} skipped, {results['failed_count']} failed.",
+                'success' if results['failed_count'] == 0 else 'warning',
+            )
+    except Exception as exc:
+        flash(f'Weekly digest failed: {str(exc)[:200]}', 'error')
+    return redirect(url_for('admin.admin_email_ops'))
 
 
 @admin_bp.route('/audience/email-ops/sponsor-draft', methods=['POST'])

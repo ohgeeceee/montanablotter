@@ -513,6 +513,7 @@ def public_account():
     conn = get_db()
     m._sync_public_user_subscription_from_donations(conn, public_user.id, public_user.email)
     refreshed_user = m._load_public_user(public_user.id, conn=conn)
+    counties = m._all_subscription_counties(conn)
     conn.commit()
     conn.close()
     g.public_user = refreshed_user
@@ -520,6 +521,7 @@ def public_account():
     return render_template(
         'public_account.html',
         account_user=refreshed_user,
+        counties=counties,
         page_title='Account',
         meta_description='Review your Montana Blotter account and subscriber access status.',
         canonical_url=f'{m.BASE_URL}/account',
@@ -528,3 +530,101 @@ def public_account():
         active_nav='account',
         current_year=datetime.now().year,
     )
+
+
+@auth_bp.route('/account/update-name', methods=['POST'])
+def public_account_update_name():
+    m = _app()
+    public_user = m._get_public_user()
+    if not public_user:
+        return redirect(url_for('.public_login', next='/account'))
+
+    display_name = (request.form.get('display_name') or '').strip()
+    if len(display_name) < 2:
+        flash('Display name must be at least 2 characters.', 'error')
+        return redirect('/account#name-settings')
+    if len(display_name) > 120:
+        flash('Display name must be 120 characters or fewer.', 'error')
+        return redirect('/account#name-settings')
+
+    conn = get_db()
+    conn.execute(
+        'UPDATE public_users SET display_name = ? WHERE id = ?',
+        (display_name[:120], public_user.id),
+    )
+    conn.commit()
+    conn.close()
+    m._set_public_user_session(public_user.id)
+    flash('Display name updated.', 'success')
+    return redirect('/account#name-settings')
+
+
+@auth_bp.route('/account/update-counties', methods=['POST'])
+def public_account_update_counties():
+    m = _app()
+    public_user = m._get_public_user()
+    if not public_user:
+        return redirect(url_for('.public_login', next='/account'))
+
+    selected = m._selected_counties_from_form()
+
+    conn = get_db()
+    valid_counties = set(m._all_subscription_counties(conn))
+    invalid = [c for c in selected if c not in valid_counties]
+    if invalid:
+        conn.close()
+        flash('One or more county values were invalid.', 'error')
+        return redirect('/account#digest')
+
+    conn.execute(
+        'UPDATE public_users SET subscription_counties = ? WHERE id = ?',
+        (','.join(selected), public_user.id),
+    )
+    conn.commit()
+    conn.close()
+    m._set_public_user_session(public_user.id)
+    flash('Digest counties updated.', 'success')
+    return redirect('/account#digest')
+
+
+@auth_bp.route('/account/update-password', methods=['POST'])
+def public_account_update_password():
+    m = _app()
+    public_user = m._get_public_user()
+    if not public_user:
+        return redirect(url_for('.public_login', next='/account'))
+
+    current_password = request.form.get('current_password') or ''
+    new_password = request.form.get('new_password') or ''
+    confirm_password = request.form.get('confirm_password') or ''
+
+    conn = get_db()
+    row = conn.execute(
+        'SELECT password_hash FROM public_users WHERE id = ?',
+        (public_user.id,),
+    ).fetchone()
+
+    if not row or not m.bcrypt.check_password_hash(row['password_hash'], current_password):
+        conn.close()
+        flash('Current password is incorrect.', 'error')
+        return redirect('/account#password-settings')
+
+    if len(new_password) < 8:
+        conn.close()
+        flash('New password must be at least 8 characters.', 'error')
+        return redirect('/account#password-settings')
+
+    if new_password != confirm_password:
+        conn.close()
+        flash('New passwords do not match.', 'error')
+        return redirect('/account#password-settings')
+
+    new_hash = m.bcrypt.generate_password_hash(new_password).decode('utf-8')
+    conn.execute(
+        'UPDATE public_users SET password_hash = ? WHERE id = ?',
+        (new_hash, public_user.id),
+    )
+    conn.commit()
+    conn.close()
+    flash('Password changed successfully.', 'success')
+    return redirect('/account#password-settings')

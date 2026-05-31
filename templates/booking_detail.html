@@ -83,7 +83,7 @@
 {% endblock %}
 
 {% block content %}
-<main class="public-route-layout public-route-layout--wide">
+<main class="public-route-layout public-route-layout--wide{% if paywall_blocked %} paywall-active{% endif %}">
     <div class="public-main-stack">
         <div class="public-detail-frame">
             <div class="public-detail-frame__header">
@@ -213,4 +213,5 @@
         </section>
     </aside>
 </main>
+{% include "_paywall_overlay.html" %}
 {% endblock %}

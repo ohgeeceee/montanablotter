@@ -294,15 +294,14 @@ def run_alert_delivery(conn: sqlite3.Connection | None = None) -> dict[str, Any]
     for row in pending:
         notif_id = row["id"]
         channel = row["channel"]
-        message = row["message"]
 
         try:
             if channel == "email":
-                _send_email(message)
+                _send_email(row, conn)
             elif channel == "sms":
-                _send_sms(message)
+                _send_sms(row, conn)
             elif channel == "push":
-                _send_push(message)
+                _send_push(row, conn)
             else:
                 logger.warning("Unknown channel %s for notification %s", channel, notif_id)
                 continue
@@ -326,20 +325,45 @@ def run_alert_delivery(conn: sqlite3.Connection | None = None) -> dict[str, Any]
     return {"status": "ok", "sent": sent, "failed": failed}
 
 
-# Stub delivery functions — wire to your actual providers
-def _send_email(message: str) -> None:
-    # TODO: integrate with Resend / Postmark / SMTP
-    logger.info("[EMAIL] %s", message[:120])
+def _resolve_user_email(rule_id: int, conn: sqlite3.Connection) -> str | None:
+    """Look up the email address for the user who owns an alert rule."""
+    row = conn.execute(
+        "SELECT u.email FROM alert_rules ar JOIN users u ON u.id = ar.user_id WHERE ar.id = ?",
+        (rule_id,),
+    ).fetchone()
+    if not row:
+        return None
+    email = (row[0] or "").strip()
+    return email or None
 
 
-def _send_sms(message: str) -> None:
-    # TODO: integrate with Twilio
-    logger.info("[SMS] %s", message[:120])
+def _send_email(row: sqlite3.Row, conn: sqlite3.Connection) -> None:
+    """Send an alert notification via SMTP using the project's existing mail config."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from services.alerts.legacy import send_plaintext_email
+
+    to_addr = _resolve_user_email(row["rule_id"], conn)
+    if not to_addr:
+        raise RuntimeError(f"No email address found for rule_id={row['rule_id']}")
+
+    message = row["message"]
+    first_line = message.splitlines()[0] if message else "Montana Blotter Alert"
+    subject = first_line[:80] if first_line.startswith("Alert:") else f"Alert: {first_line[:74]}"
+
+    ok = send_plaintext_email([to_addr], subject, message)
+    if not ok:
+        raise RuntimeError(f"SMTP delivery failed for {to_addr} (check SMTP config)")
+    logger.info("Email alert sent to %s (rule_id=%s)", to_addr, row["rule_id"])
 
 
-def _send_push(message: str) -> None:
-    # TODO: integrate with web push API
-    logger.info("[PUSH] %s", message[:120])
+def _send_sms(row: sqlite3.Row, conn: sqlite3.Connection) -> None:
+    raise NotImplementedError("SMS delivery not yet configured (Twilio integration pending)")
+
+
+def _send_push(row: sqlite3.Row, conn: sqlite3.Connection) -> None:
+    raise NotImplementedError("Push delivery not yet configured (web push integration pending)")
 
 
 # ---------------------------------------------------------------------------

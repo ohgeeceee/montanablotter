@@ -1,0 +1,10 @@
+# Montana Blotter agent fleet digests
+# Times are interpreted in the system timezone — set TZ explicitly so this
+# survives a VPS rebuild where the default might be UTC.
+TZ=America/Denver
+
+# Daily digest — trigger profiles, aggregate, deliver
+50 6 * * *    /root/montanablotter/agent-queue/bin/run-digest.sh daily  >> /var/log/montana-digest.log 2>&1
+
+# Weekly digest — Sunday evening
+50 18 * * Sun /root/montanablotter/agent-queue/bin/run-digest.sh weekly >> /var/log/montana-digest.log 2>&1

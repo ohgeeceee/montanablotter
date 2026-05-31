@@ -7,6 +7,8 @@ import requests
 import services.ingestion.fetchers.bozeman as bozeman_police_fetcher
 import services.ingestion.jail_bookings as jail_booking_ingest
 import services.ingestion.fetchers.missoula as missoula_public_report_fetcher
+import services.ingestion.fetchers.missoula_inmate as missoula_inmate_fetcher
+import services.ingestion.fetchers.yellowstone_inmate as yellowstone_fetcher
 from email_worker import EmailWorker
 from services.ingestion.fetchers.missoula import _fetch_report_html
 
@@ -159,7 +161,7 @@ class IngestionSourceTests(unittest.TestCase):
     def test_yellowstone_prompt_solver_handles_words_and_subtraction(self) -> None:
         html = '<label for="Answer" class="form-label text-uppercase w-50">7 - Three = </label>'
 
-        answer = jail_booking_ingest._solve_yellowstone_prompt(html)
+        answer = yellowstone_fetcher._solve_prompt(html)
 
         self.assertEqual(answer, "4")
 
@@ -174,7 +176,7 @@ class IngestionSourceTests(unittest.TestCase):
             "© 2026 Missoula County",
         ]
 
-        rows = jail_booking_ingest._parse_missoula_lines(
+        rows = missoula_inmate_fetcher._parse_missoula_lines(
             lines,
             "https://webapps.missoulacounty.us/jailroster/Inmates",
         )
@@ -209,7 +211,7 @@ class IngestionSourceTests(unittest.TestCase):
             "© Sunday, March 15, 2026 - Missoula County Inmate Information Portal",
         ]
 
-        rows = jail_booking_ingest._parse_missoula_lines(
+        rows = missoula_inmate_fetcher._parse_missoula_lines(
             lines,
             "https://webapps.missoulacounty.us/jailroster/Inmates",
         )
@@ -225,7 +227,7 @@ class IngestionSourceTests(unittest.TestCase):
         <a href="javascript:__doPostBack(&#39;ctl00$MainContent$ParentRepeater$ctl01$lnkCharges&#39;,&#39;&#39;)">Charges</a>
         """
 
-        targets = jail_booking_ingest._extract_missoula_charge_targets(html)
+        targets = missoula_inmate_fetcher._extract_missoula_charge_targets(html)
 
         self.assertEqual(
             targets,
@@ -257,18 +259,18 @@ class IngestionSourceTests(unittest.TestCase):
         </table>
         """
 
-        summary = jail_booking_ingest._parse_missoula_charges(html)
+        summary = missoula_inmate_fetcher._parse_missoula_charges(html)
 
         self.assertIn("1. Fed Hold", summary)
         self.assertIn("Stats", summary)
         self.assertIn("USMS/Cascade Co. Transport", summary)
         self.assertIn("Bond $0.00", summary)
 
-    def test_yellowstone_roster_parser_extracts_rows(self) -> None:
+    def test_yellowstone_full_roster_parser_extracts_rows(self) -> None:
         html = """
         <table class="table table-striped _table-sm caption-top data-table">
             <tr>
-                <td><a href="inmatedet.asp?Booknum=2026-00001637&LName=POLETTE&FName=AMBER&MName=ELIZABETH">POLETTE</a></td>
+                <td>POLETTE</td>
                 <td>AMBER</td>
                 <td>ELIZABETH</td>
                 <td>39473</td>
@@ -280,14 +282,37 @@ class IngestionSourceTests(unittest.TestCase):
         </table>
         """
 
-        rows = jail_booking_ingest._parse_yellowstone_roster(
+        rows = yellowstone_fetcher._parse_full_roster(html)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["last_name"], "POLETTE")
+        self.assertEqual(rows[0]["first_name"], "AMBER")
+        self.assertEqual(rows[0]["booking_date"], "03/15/2026")
+        self.assertEqual(rows[0]["jacket_number"], "39473")
+
+    def test_yellowstone_search_result_parser_extracts_detail_links(self) -> None:
+        html = """
+        <table class="table table-striped table-sm caption-top data-table">
+            <tr>
+                <td><a href="inmatedet.asp?Booknum=2026-00001637&LName=POLETTE&FName=AMBER&MName=ELIZABETH">POLETTE, AMBER ELIZABETH </a></td>
+                <td class="text-center">39473</td>
+                <td class="text-center">Bkg-BKW</td>
+                <td class="text-center"><a href="inmatedet.asp?Booknum=2026-00001637&LName=POLETTE&FName=AMBER&MName=ELIZABETH">View Charges</a></td>
+                <td class="text-center">$185.00</td>
+                <td class="text-center">03/15/2026</td>
+                <td class="text-center">10/17/1977</td>
+            </tr>
+        </table>
+        """
+
+        rows = yellowstone_fetcher._parse_search_result(
             html,
             "https://www.yellowstonecountymt.gov/Sheriff/Detention",
         )
 
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["last_name"], "POLETTE")
-        self.assertEqual(rows[0]["booking_date"], "03/15/2026")
+        self.assertEqual(rows[0]["person_name"], "POLETTE, AMBER ELIZABETH")
+        self.assertEqual(rows[0]["jacket_number"], "39473")
         self.assertIn("Booknum=2026-00001637", rows[0]["detail_url"])
 
     def test_yellowstone_charge_parser_extracts_summary(self) -> None:
@@ -303,11 +328,94 @@ class IngestionSourceTests(unittest.TestCase):
         </table>
         """
 
-        summary = jail_booking_ingest._parse_yellowstone_charges(html)
+        summary = yellowstone_fetcher._parse_charges(html)
 
         self.assertIn("Criminal Trespass To Property", summary)
         self.assertIn("Misdemeanor", summary)
         self.assertIn("Bond $185.00", summary)
+
+    def test_yellowstone_discover_roster_url_finds_dcsearch(self) -> None:
+        with mock.patch("services.ingestion.fetchers.yellowstone_inmate.requests.get") as mock_get:
+            mock_get.return_value = mock.Mock(
+                status_code=200,
+                text='<a href="/Sheriff/Detention/dcsearch.asp">Inmate Search</a>',
+                raise_for_status=mock.Mock(),
+            )
+            url = yellowstone_fetcher.discover_roster_url("https://www.yellowstonecountymt.gov/sheriff/")
+            self.assertEqual(url, "https://www.yellowstonecountymt.gov/Sheriff/Detention/dcsearch.asp")
+
+    @mock.patch("services.ingestion.fetchers.yellowstone_inmate.requests.Session")
+    def test_fetch_yellowstone_bookings_end_to_end(self, session_cls) -> None:
+        prompt_page = mock.Mock(
+            raise_for_status=mock.Mock(),
+            text='<label for="Answer">5 + 2 = </label>',
+        )
+        roster_page = mock.Mock(
+            raise_for_status=mock.Mock(),
+            text="""
+            <table class="table table-striped _table-sm caption-top data-table">
+                <tr>
+                    <td>DOE</td>
+                    <td>JOHN</td>
+                    <td></td>
+                    <td>12345</td>
+                    <td>Bkg-BKW</td>
+                    <td>$500.00</td>
+                    <td>05/20/2026</td>
+                    <td>01/01/1990</td>
+                </tr>
+            </table>
+            """,
+        )
+        search_page = mock.Mock(
+            raise_for_status=mock.Mock(),
+            text="""
+            <table class="table table-striped table-sm caption-top data-table">
+                <tr>
+                    <td><a href="inmatedet.asp?Booknum=2026-000001&LName=DOE&FName=JOHN">DOE, JOHN </a></td>
+                    <td class="text-center">12345</td>
+                    <td class="text-center">Bkg-BKW</td>
+                    <td class="text-center"><a href="inmatedet.asp?Booknum=2026-000001&LName=DOE&FName=JOHN">View Charges</a></td>
+                    <td class="text-center">$500.00</td>
+                    <td class="text-center">05/20/2026</td>
+                    <td class="text-center">01/01/1990</td>
+                </tr>
+            </table>
+            """,
+        )
+        charge_page = mock.Mock(
+            raise_for_status=mock.Mock(),
+            text="""
+            <table class="table table-striped text-center data-table">
+                <tr>
+                    <td>00001</td>
+                    <td>MPD</td>
+                    <td>Misdemeanor</td>
+                    <td>Theft</td>
+                    <td>$500.00</td>
+                </tr>
+            </table>
+            """,
+        )
+
+        session = mock.Mock()
+        session.get.side_effect = [prompt_page, charge_page]
+        session.post.side_effect = [roster_page, search_page]
+        session_cls.return_value = session
+
+        records = yellowstone_fetcher.fetch_bookings(
+            "https://www.yellowstonecountymt.gov/Sheriff/Detention/dcsearch.asp",
+            fetch_charges=True,
+            max_charge_lookups=1,
+        )
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].person_name, "Doe, John")
+        self.assertEqual(records[0].booking_number, "2026-000001")
+        self.assertEqual(records[0].booking_at, "2026-05-20 00:00:00")
+        self.assertIn("Theft", records[0].charges_summary)
+        self.assertIn("Misdemeanor", records[0].charges_summary)
+        self.assertIn("Bond $500.00", records[0].charges_summary)
 
     def test_broadwater_page_url_extractor_finds_pagination(self) -> None:
         html = """
@@ -370,7 +478,7 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertEqual(rows[1].source_record_id, "broadwater:03299")
         self.assertIn("Probation And Parole Detention", rows[1].charges_summary)
 
-    @mock.patch('jail_booking_ingest.requests.Session')
+    @mock.patch('services.ingestion.jail_bookings.requests.Session')
     def test_fetch_broadwater_bookings_walks_pages(self, session_cls) -> None:
         page_one = mock.Mock(
             raise_for_status=mock.Mock(),
@@ -464,7 +572,7 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertIn("Bond - Cash/Surety, $50000.00", summary)
         self.assertIn("Additional Hold for DOC", summary)
 
-    @mock.patch('jail_booking_ingest.requests.Session')
+    @mock.patch('services.ingestion.jail_bookings.requests.Session')
     def test_fetch_jefferson_bookings_reads_portal_api(self, session_cls) -> None:
         session = mock.Mock()
         session.post.return_value = mock.Mock(
@@ -496,6 +604,47 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertIn("Local Warrant: Bench warrant", rows[0].charges_summary)
         self.assertEqual(rows[0].source_url, "https://jefferson-so-mt.zuercherportal.com/#/inmates")
         self.assertEqual(len(rows[0].source_record_id), 20)
+
+    @mock.patch('services.ingestion.jail_bookings.requests.Session')
+    def test_fetch_ravalli_bookings_reads_portal_api(self, session_cls) -> None:
+        session = mock.Mock()
+        session.post.return_value = mock.Mock(
+            raise_for_status=mock.Mock(),
+            json=mock.Mock(
+                return_value={
+                    "total_record_count": 1,
+                    "records": [
+                        {
+                            "name": "DOE, JOHN ALBERT",
+                            "sex": "Male",
+                            "arrest_date": "2026-04-01",
+                            "held_for_agency": "Ravalli County Sheriff's Office",
+                            "hold_reasons": "",
+                        }
+                    ],
+                }
+            ),
+        )
+        session_cls.return_value = session
+
+        rows = jail_booking_ingest.fetch_ravalli_bookings(
+            "https://ravalli-so-mt.zuercherportal.com/#/inmates"
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].person_name, "Doe, John Albert")
+        self.assertEqual(rows[0].booking_at, "2026-04-01 00:00:00")
+        self.assertIn("Ravalli County", rows[0].charges_summary)
+        self.assertEqual(rows[0].source_url, "https://ravalli-so-mt.zuercherportal.com/#/inmates")
+        self.assertEqual(len(rows[0].source_record_id), 20)
+
+    def test_fetch_zuercher_bookings_generic_fallback_message(self) -> None:
+        summary = jail_booking_ingest._summarize_zuercher_hold_reasons("", county_name="Test County")
+        self.assertEqual(summary, "Charge details available on the official Test County inmate portal.")
+
+    def test_fetch_zuercher_bookings_generic_fallback_no_county(self) -> None:
+        summary = jail_booking_ingest._summarize_zuercher_hold_reasons("")
+        self.assertEqual(summary, "Charge details available on the official inmate portal.")
 
     def test_sanders_search_parser_extracts_rows(self) -> None:
         html = """
@@ -668,6 +817,70 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertEqual(fetched, 1)
         self.assertEqual(normalized, 1)
         ensure_source_document.assert_not_called()
+
+    def test_extract_cascade_pdf_url_finds_direct_link(self) -> None:
+        html = '<a href="https://ccmtgov-my.sharepoint.com/personal/test/jailroster.pdf?e=abcd">Roster</a>'
+        url = jail_booking_ingest._extract_cascade_pdf_url(html)
+        self.assertEqual(url, "https://ccmtgov-my.sharepoint.com/personal/test/jailroster.pdf?e=abcd")
+
+    def test_extract_cascade_pdf_url_fallback_to_any_sharepoint_pdf(self) -> None:
+        html = '<a href="https://ccmtgov-my.sharepoint.com/personal/test/somefile.pdf">Roster</a>'
+        url = jail_booking_ingest._extract_cascade_pdf_url(html)
+        self.assertEqual(url, "https://ccmtgov-my.sharepoint.com/personal/test/somefile.pdf")
+
+    def test_extract_cascade_pdf_url_returns_none_when_no_link(self) -> None:
+        html = '<div>No roster here</div>'
+        url = jail_booking_ingest._extract_cascade_pdf_url(html)
+        self.assertIsNone(url)
+
+    def test_parse_cascade_pdf_text_extracts_name_and_age(self) -> None:
+        text = """Cascade County Jail Roster\nPage 1\nDOE, JOHN MICHAEL 35\nBooking: 03/15/2026\nCharges: Theft; Burglary\nBond $5000\nSMITH, JANE 28\nBooking: 03/14/2026\nCharges: DUI\nBond $1000"""
+        records = jail_booking_ingest._parse_cascade_pdf_text(text, "https://example.test/roster.pdf")
+        self.assertEqual(len(records), 2)
+        self.assertEqual(records[0].person_name, "Doe, John Michael")
+        self.assertEqual(records[0].age, 35)
+        self.assertEqual(records[0].booking_at, "2026-03-15 00:00:00")
+        self.assertIn("Theft", records[0].charges_summary)
+        self.assertIn("Burglary", records[0].charges_summary)
+        self.assertEqual(records[1].person_name, "Smith, Jane")
+        self.assertEqual(records[1].age, 28)
+        self.assertEqual(records[1].booking_at, "2026-03-14 00:00:00")
+        self.assertIn("DUI", records[1].charges_summary)
+
+    def test_parse_cascade_pdf_text_skips_headers(self) -> None:
+        text = "Jail Roster\nPrinted 03/15/2026\nDate: 03/15/2026\nPage 1 of 2"
+        records = jail_booking_ingest._parse_cascade_pdf_text(text, "https://example.test/roster.pdf")
+        self.assertEqual(len(records), 0)
+
+    @mock.patch('services.ingestion.jail_bookings.requests.get')
+    def test_fetch_pdf_text_raises_on_auth_wall(self, mock_get) -> None:
+        mock_get.return_value = mock.Mock(
+            status_code=200,
+            headers={"Content-Type": "text/html; charset=utf-8"},
+            content=b"<!DOCTYPE html><html><body>Sign in</body></html>",
+            raise_for_status=mock.Mock(),
+        )
+        with self.assertRaises(jail_booking_ingest.SourceTemporarilyUnavailable) as ctx:
+            jail_booking_ingest._fetch_pdf_text("https://ccmtgov-my.sharepoint.com/roster.pdf")
+        self.assertIn("authentication", str(ctx.exception).lower())
+
+    @mock.patch('services.ingestion.jail_bookings._fetch_pdf_text')
+    @mock.patch('services.ingestion.jail_bookings._fetch_html')
+    def test_fetch_cascade_bookings_end_to_end(self, mock_fetch_html, mock_fetch_pdf_text) -> None:
+        mock_fetch_html.return_value = '<a href="https://ccmtgov-my.sharepoint.com/roster.pdf">PDF</a>'
+        mock_fetch_pdf_text.return_value = "DOE, JOHN 30\nBooking: 03/15/2026\nCharges: Theft\nBond $0"
+        records = jail_booking_ingest.fetch_cascade_bookings("https://cascadecountymt.gov/roster")
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].person_name, "Doe, John")
+        self.assertEqual(records[0].age, 30)
+        self.assertEqual(records[0].booking_at, "2026-03-15 00:00:00")
+        self.assertIn("Theft", records[0].charges_summary)
+
+    @mock.patch('services.ingestion.jail_bookings._fetch_html')
+    def test_fetch_cascade_bookings_returns_empty_when_no_pdf_link(self, mock_fetch_html) -> None:
+        mock_fetch_html.return_value = "<div>No roster here</div>"
+        records = jail_booking_ingest.fetch_cascade_bookings("https://cascadecountymt.gov/roster")
+        self.assertEqual(len(records), 0)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,35 @@
+UPLOADS/ TRIAGE REPORT — Stuck/Unprocessed PDFs
+================================================
+
+Context: 68 PDFs in uploads/.
+
+GROUP A — NOT IN source_documents (11 files)
+Note: Database check confirms these 11 are absent from source_documents,
+but they DO exist in the blotters table (likely ingested via legacy path).
+
+  1. 0223 log.pdf              | 216K | Hill County    | Media log / daily log
+  2. 0224 log.pdf              |  71K | Hill County    | Media log / daily log
+  3. 0225 log.pdf              |  66K | Hill County    | Media log / daily log
+  4. 2-27_media_log.pdf        |  88K | Hill County    | Media log
+  5. GCSO CFS02162026.pdf      |  59K | Gallatin County| CFS (Call for Service) report
+  6. GCSO CFS02172026.pdf      |  58K | Gallatin County| CFS report
+  7. GCSO CFS02182026.pdf      | 195K | Gallatin County| CFS report
+  8. gallatin.pdf              |  57K | Gallatin County| Unknown / generic weekly/daily
+  9. log 2-19.pdf              |  90K | Hill County    | Media log
+ 10. log_2-19.pdf              |  90K | Hill County    | Media log
+ 11. your_file.pdf             |  57K | Gallatin County| Unknown / likely test upload
+
+GROUP B — IN source_documents but NOT IN blotters (1 file)
+This file is stuck in the modern ingestion pipeline.
+
+ 12. G145417169.pdf            |  71K | N/A            | NOT a police report —
+                                  Microsoft invoice (email subject: "Your Microsoft
+                                  invoice G145417169 is ready"). Safe to delete or
+                                  archive; will never parse as a blotter.
+
+SUMMARY
+-------
+- 11 PDFs are missing from source_documents (legacy ingestion gap).
+- 1 PDF (G145417169.pdf) is a false-positive IMAP capture (Microsoft invoice)
+  and is the only file truly stuck between source_documents and blotters.
+- No action taken per instructions (report only).

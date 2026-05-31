@@ -108,12 +108,12 @@ def main() -> int:
 
     env_lines = [
         "# Suggested settings from capture_icourtcase_session.py",
-        f"ICOURTCASE_BASE_URLS={','.join(base_urls) if base_urls else 'https://dcportal.pubcourts.mt.gov'}",
-        f"ICOURTCASE_SEARCH_PATHS={','.join(paths) if paths else '/public-portal/search/civil'}",
+        f"export ICOURTCASE_BASE_URLS={','.join(base_urls) if base_urls else 'https://dcportal.pubcourts.mt.gov'}",
+        f"export ICOURTCASE_SEARCH_PATHS={','.join(paths) if paths else '/public-portal/search/civil'}",
         (
-            f"ICOURTCASE_COOKIE_HEADER={cookie_header}"
+            f"export ICOURTCASE_COOKIE_HEADER={cookie_header}"
             if args.include_cookies
-            else "ICOURTCASE_COOKIE_HEADER="
+            else "export ICOURTCASE_COOKIE_HEADER="
         ),
     ]
     output_env.write_text("\n".join(env_lines) + "\n", encoding="utf-8")

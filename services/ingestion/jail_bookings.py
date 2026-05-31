@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import io
 import json
 import logging
 import os
@@ -33,9 +34,18 @@ from urllib.parse import parse_qs, urljoin, urlparse
 import requests
 import urllib3
 
+import pdfplumber
+
 sys.path.insert(0, "/root/montanablotter")
 import config
 from services.alerts.bail_bonds import dispatch_felony_booking_alerts, dispatch_telegram_booking_alerts
+from services.ingestion.models import JailBookingRecord
+from services.ingestion.fetchers.flathead_inmate import (
+    fetch_flathead_bookings,
+    _parse_flathead_roster,
+)
+from services.ingestion.fetchers.rosebud_inmate import fetch_rosebud_bookings
+from services.ingestion.fetchers.yellowstone_inmate import fetch_bookings as _fetch_yellowstone_bookings_raw
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +53,18 @@ DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
 DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
 DB_LOCK_RETRY_ATTEMPTS = int(getattr(config, "DB_LOCK_RETRY_ATTEMPTS", 3))
 DB_LOCK_RETRY_SLEEP_SECONDS = float(getattr(config, "DB_LOCK_RETRY_SLEEP_SECONDS", 2.0))
-MISSOULA_CHARGE_LOOKBACK_DAYS = int(getattr(config, "MISSOULA_CHARGE_LOOKBACK_DAYS", 30))
 PUBLISHER_PAYLOAD_PATH = str(getattr(config, "NEXTJS_JAIL_BOOKING_PAYLOAD_PATH", "") or "").strip()
 
-SUPPORTED_ADAPTERS = {"broadwater", "flathead", "jefferson", "missoula", "sanders", "yellowstone"}
+SUPPORTED_ADAPTERS = {"broadwater", "cascade", "carbon", "flathead", "gallatin", "jefferson", "lake", "madison", "meagher", "missoula", "ravalli", "roosevelt", "rosebud", "sanders", "stillwater", "valley", "wheatland", "yellowstone"}
 SKIPPED_SOURCES = {
     "broadwater": "Official roster host is timing out from the ingest machine.",
 }
+
+ZUERCHER_COUNTIES = frozenset({
+    "jefferson", "ravalli", "madison", "carbon",
+    "stillwater", "meagher", "wheatland", "valley", "roosevelt",
+    "broadwater", "gallatin",
+})
 TRACKED_SOURCES = {
     "yellowstone": {
         "county_name": "Yellowstone",
@@ -83,6 +98,14 @@ TRACKED_SOURCES = {
         "coverage_tier": "major",
         "is_featured": 1,
     },
+    "lake": {
+        "county_name": "Lake",
+        "facility_name": "Lake County Detention Center",
+        "roster_url": "https://www.lakemt.gov/DocumentCenter/View/816/Jail_Roster-?bidId=",
+        "phone": "406-883-7301",
+        "coverage_tier": "major",
+        "is_featured": 1,
+    },
     "cascade": {
         "county_name": "Cascade",
         "facility_name": "Cascade County Detention Center",
@@ -107,18 +130,87 @@ TRACKED_SOURCES = {
         "coverage_tier": "standard",
         "is_featured": 0,
     },
+    "ravalli": {
+        "county_name": "Ravalli",
+        "facility_name": "Ravalli County Detention Center",
+        "roster_url": "https://ravalli-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "rosebud": {
+        "county_name": "Rosebud",
+        "facility_name": "Rosebud County Detention Center",
+        "roster_url": "https://www.rosebudcountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "madison": {
+        "county_name": "Madison",
+        "facility_name": "Madison County Detention Center",
+        "roster_url": "https://madison-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "carbon": {
+        "county_name": "Carbon",
+        "facility_name": "Carbon County Detention Center",
+        "roster_url": "https://carbon-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "stillwater": {
+        "county_name": "Stillwater",
+        "facility_name": "Stillwater County Detention Center",
+        "roster_url": "https://stillwater-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "meagher": {
+        "county_name": "Meagher",
+        "facility_name": "Meagher County Detention Center",
+        "roster_url": "https://meagher-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "wheatland": {
+        "county_name": "Wheatland",
+        "facility_name": "Wheatland County Detention Center",
+        "roster_url": "https://wheatland-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "valley": {
+        "county_name": "Valley",
+        "facility_name": "Valley County Detention Center",
+        "roster_url": "https://valley-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "roosevelt": {
+        "county_name": "Roosevelt",
+        "facility_name": "Roosevelt County Detention Center",
+        "roster_url": "https://roosevelt-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "broadwater": {
+        "county_name": "Broadwater",
+        "facility_name": "Broadwater County Detention Center",
+        "roster_url": "https://broadwater-so-mt.zuercherportal.com/#/inmates",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
 }
-
-
-@dataclass(frozen=True)
-class JailBookingRecord:
-    source_record_id: str
-    person_name: str
-    age: int | None
-    booking_number: str
-    booking_at: str | None
-    charges_summary: str
-    source_url: str | None = None
 
 
 @dataclass
@@ -294,6 +386,8 @@ def _normalize_datetime(value: str) -> str | None:
         "%m-%d-%Y - %I:%M %p",
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d %H:%M",
+        "%m/%d/%Y",
+        "%Y-%m-%d",
     )
     for fmt in candidates:
         try:
@@ -325,328 +419,12 @@ def _extract_hidden_form_fields(page_html: str) -> dict[str, str]:
     return fields
 
 
-def _extract_missoula_charge_targets(page_html: str) -> list[str]:
-    matches = re.findall(
-        r"__doPostBack\(&#39;(ctl00\$MainContent\$ParentRepeater\$ctl\d+\$lnkCharges)&#39;,\s*&#39;&#39;\)",
-        page_html,
-        re.IGNORECASE,
-    )
-    seen: set[str] = set()
-    targets: list[str] = []
-    for match in matches:
-        if match in seen:
-            continue
-        seen.add(match)
-        targets.append(match)
-    return targets
-
-
 def _is_name_line(line: str) -> bool:
     if "," not in line:
         return False
     if line.upper() != line:
         return False
     return bool(re.match(r"^[A-Z' .-]+,\s*[A-Z' .-]+$", line))
-
-
-def _parse_missoula_lines(lines: list[str], source_url: str) -> list[JailBookingRecord]:
-    records: list[JailBookingRecord] = []
-    in_list = False
-    idx = 0
-
-    while idx < len(lines):
-        line = lines[idx]
-        if line.startswith("Current Inmate List for Today:"):
-            in_list = True
-            idx += 1
-            continue
-        if in_list and line.startswith("© "):
-            break
-        if not in_list:
-            idx += 1
-            continue
-        if line in {
-            "For details on an inmates charges or court schedule, please use the buttons to access that information.",
-            "Name Age Booking ID Global/Jacket No Booking Date Charge Details",
-        }:
-            idx += 1
-            continue
-        if not _is_name_line(line):
-            idx += 1
-            continue
-
-        name = line.title()
-        age_line = lines[idx + 1] if idx + 1 < len(lines) else ""
-        booking_id_line = lines[idx + 2] if idx + 2 < len(lines) else ""
-        jacket_line = lines[idx + 3] if idx + 3 < len(lines) else ""
-        booking_date_line = lines[idx + 4] if idx + 4 < len(lines) else ""
-        charges_line = lines[idx + 5] if idx + 5 < len(lines) else ""
-        if (
-            re.fullmatch(r"\d{1,3}", age_line)
-            and re.fullmatch(r"\d{4}-\d{8}", booking_id_line)
-            and re.fullmatch(r"\d+", jacket_line)
-            and _normalize_datetime(booking_date_line)
-            and charges_line == "Charges"
-        ):
-            records.append(
-                JailBookingRecord(
-                    source_record_id=booking_id_line,
-                    person_name=name,
-                    age=int(age_line),
-                    booking_number=booking_id_line,
-                    booking_at=_normalize_datetime(booking_date_line),
-                    charges_summary="Charge details available on the official Missoula County inmate portal.",
-                    source_url=source_url,
-                )
-            )
-            idx += 6
-            continue
-
-        meta_line = lines[idx + 1] if idx + 1 < len(lines) else ""
-        match = re.match(
-            r"^(?P<age>\d{1,3})\s+"
-            r"(?P<booking_id>\d{4}-\d{8})\s+"
-            r"(?P<jacket>\d+)\s+"
-            r"(?P<booking_date>\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M)"
-            r"(?:\s+Charges)?$",
-            meta_line,
-        )
-        if not match:
-            idx += 1
-            continue
-
-        booking_number = match.group("booking_id")
-        records.append(
-            JailBookingRecord(
-                source_record_id=booking_number,
-                person_name=name,
-                age=int(match.group("age")),
-                booking_number=booking_number,
-                booking_at=_normalize_datetime(match.group("booking_date")),
-                charges_summary="Charge details available on the official Missoula County inmate portal.",
-                source_url=source_url,
-            )
-        )
-        idx += 2
-
-    return records
-
-
-def _parse_missoula_charges(page_html: str) -> str:
-    table_match = re.search(
-        r'<table class="table table-bordered table-striped">\s*<tr class="ChargeRecordHeaderTopRow">(.*?)</table>',
-        page_html,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if not table_match:
-        return "Charge details available on the official Missoula County inmate portal."
-
-    summaries: list[str] = []
-    for row_html in re.findall(r"<tr[^>]*>(.*?)</tr>", table_match.group(0), re.IGNORECASE | re.DOTALL):
-        cell_matches = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row_html, re.IGNORECASE | re.DOTALL)
-        if len(cell_matches) != 6:
-            continue
-        charge_text = _text_from_html(cell_matches[0])
-        crime_type = _text_from_html(cell_matches[1])
-        agency = _text_from_html(cell_matches[2]).replace(" /", "/").replace("/ ", "/")
-        bond = _text_from_html(cell_matches[3])
-        cash_surety = _text_from_html(cell_matches[4])
-        parts = [charge_text]
-        if crime_type:
-            parts.append(crime_type)
-        if agency:
-            parts.append(agency)
-        if bond:
-            parts.append(f"Bond {bond}")
-        if cash_surety:
-            parts.append(cash_surety)
-        summary = " | ".join(part for part in parts if part)
-        if summary and not summary.startswith("Charge(s)"):
-            summaries.append(summary)
-
-    if not summaries:
-        return "Charge details available on the official Missoula County inmate portal."
-    return "; ".join(summaries[:3])
-
-
-def _should_fetch_missoula_charge_detail(record: JailBookingRecord) -> bool:
-    if not record.booking_at:
-        return True
-    try:
-        booked_at = datetime.strptime(record.booking_at, "%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        return True
-    cutoff = datetime.now() - timedelta(days=MISSOULA_CHARGE_LOOKBACK_DAYS)
-    return booked_at >= cutoff
-
-
-def fetch_missoula_bookings(source_url: str) -> list[JailBookingRecord]:
-    session = requests.Session()
-    session.headers.update(
-        {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Referer": source_url,
-        }
-    )
-    response = session.get(source_url, timeout=45)
-    response.raise_for_status()
-    page_html = response.text
-
-    payload = _extract_hidden_form_fields(page_html)
-    if "__VIEWSTATE" in payload:
-        payload.update(
-            {
-                "__EVENTTARGET": "ctl00$MainContent$li9",
-                "__EVENTARGUMENT": "",
-                "__LASTFOCUS": "",
-            }
-        )
-        all_response = session.post(source_url, data=payload, timeout=45)
-        all_response.raise_for_status()
-        all_html = all_response.text
-        all_lines = _extract_text_lines(all_html)
-        records = _parse_missoula_lines(all_lines, source_url)
-        if records:
-            charge_targets = _extract_missoula_charge_targets(all_html)
-            if len(charge_targets) == len(records):
-                detail_payload = _extract_hidden_form_fields(all_html)
-                enriched_records: list[JailBookingRecord] = []
-                for record, target in zip(records, charge_targets):
-                    if not _should_fetch_missoula_charge_detail(record):
-                        enriched_records.append(record)
-                        continue
-                    per_record_payload = dict(detail_payload)
-                    per_record_payload.update(
-                        {
-                            "__EVENTTARGET": target,
-                            "__EVENTARGUMENT": "",
-                            "__LASTFOCUS": "",
-                        }
-                    )
-                    try:
-                        detail_response = session.post(source_url, data=per_record_payload, timeout=45)
-                        detail_response.raise_for_status()
-                        enriched_records.append(
-                            replace(
-                                record,
-                                charges_summary=_parse_missoula_charges(detail_response.text),
-                                source_url=detail_response.url or source_url,
-                            )
-                        )
-                    except requests.RequestException:
-                        logger.warning("Missoula charge lookup failed for %s", record.booking_number)
-                        enriched_records.append(record)
-                return enriched_records
-            return records
-
-    lines = _extract_text_lines(page_html)
-    return _parse_missoula_lines(lines, source_url)
-
-
-def _solve_yellowstone_prompt(page_html: str) -> str:
-    match = re.search(r'<label for="Answer"[^>]*>([^<]+)</label>', page_html)
-    if not match:
-        raise RuntimeError("Yellowstone verification prompt not found")
-    label = _text_from_html(match.group(1))
-    expr = label.split("=")[0].strip()
-    parts = expr.split()
-    if len(parts) != 3:
-        raise RuntimeError(f"Unexpected Yellowstone prompt: {label}")
-
-    words = {
-        "zero": 0,
-        "one": 1,
-        "two": 2,
-        "three": 3,
-        "four": 4,
-        "five": 5,
-        "six": 6,
-        "seven": 7,
-        "eight": 8,
-        "nine": 9,
-        "ten": 10,
-        "eleven": 11,
-        "twelve": 12,
-    }
-
-    def parse_value(raw: str) -> int:
-        token = raw.strip()
-        if token.isdigit():
-            return int(token)
-        lowered = token.lower()
-        if lowered not in words:
-            raise RuntimeError(f"Unsupported Yellowstone prompt token: {token}")
-        return words[lowered]
-
-    left = parse_value(parts[0])
-    op = parts[1]
-    right = parse_value(parts[2])
-    if op == "+":
-        return str(left + right)
-    if op == "-":
-        return str(left - right)
-    raise RuntimeError(f"Unsupported Yellowstone operator: {op}")
-
-
-def _parse_yellowstone_roster(page_html: str, base_url: str) -> list[dict[str, str | None]]:
-    table_match = re.search(
-        r'<table class="table table-striped _table-sm caption-top data-table">(.*?)</table>',
-        page_html,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if not table_match:
-        raise RuntimeError("Yellowstone roster table not found")
-
-    rows: list[dict[str, str | None]] = []
-    for row_html in re.findall(r"<tr>(.*?)</tr>", table_match.group(1), re.IGNORECASE | re.DOTALL):
-        cell_matches = re.findall(r"<td[^>]*>(.*?)</td>", row_html, re.IGNORECASE | re.DOTALL)
-        if len(cell_matches) != 8:
-            continue
-        detail_match = re.search(r'href="([^"]*inmatedet\.asp\?[^"]+)"', cell_matches[0], re.IGNORECASE)
-        rows.append(
-            {
-                "last_name": _text_from_html(cell_matches[0]),
-                "first_name": _text_from_html(cell_matches[1]),
-                "middle_name": _text_from_html(cell_matches[2]),
-                "jacket_number": _text_from_html(cell_matches[3]),
-                "housing_unit": _text_from_html(cell_matches[4]),
-                "total_bond": _text_from_html(cell_matches[5]),
-                "booking_date": _text_from_html(cell_matches[6]),
-                "date_of_birth": _text_from_html(cell_matches[7]),
-                "detail_url": f"{base_url}/{detail_match.group(1)}" if detail_match else None,
-            }
-        )
-    return rows
-
-
-def _parse_yellowstone_charges(page_html: str) -> str:
-    table_match = re.search(
-        r'<table class="table table-striped text-center data-table">(.*?)</table>',
-        page_html,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if not table_match:
-        return "Charge details available on the official Yellowstone County inmate page."
-
-    summaries: list[str] = []
-    for row_html in re.findall(r"<tr>(.*?)</tr>", table_match.group(1), re.IGNORECASE | re.DOTALL):
-        cell_matches = re.findall(r"<td[^>]*>(.*?)</td>", row_html, re.IGNORECASE | re.DOTALL)
-        if len(cell_matches) != 5:
-            continue
-        charge_type = _text_from_html(cell_matches[2])
-        charge = _text_from_html(cell_matches[3])
-        bond_amount = _text_from_html(cell_matches[4])
-        parts = [charge]
-        if charge_type:
-            parts.append(charge_type)
-        if bond_amount:
-            parts.append(f"Bond {bond_amount}")
-        summaries.append(" | ".join([part for part in parts if part]))
-
-    if not summaries:
-        return "Charge details available on the official Yellowstone County inmate page."
-    return "; ".join(summaries[:3])
 
 
 def _extract_broadwater_page_urls(page_html: str, source_url: str) -> list[str]:
@@ -761,106 +539,30 @@ def fetch_broadwater_bookings(source_url: str) -> list[JailBookingRecord]:
     return records
 
 
-def _parse_flathead_roster(page_html: str, source_url: str) -> list[JailBookingRecord]:
-    records: list[JailBookingRecord] = []
-    entry_matches = re.findall(
-        r'<div class="inmate-entry">\s*(.*?)<div class="inmate-entry-footer"></div>\s*</div>',
-        page_html,
-        re.IGNORECASE | re.DOTALL,
-    )
-
-    def extract_stat(entry_html: str, label: str) -> str:
-        match = re.search(
-            rf'<div class="inmate-stat">\s*<h6>\s*{re.escape(label)}:\s*</h6>\s*<p>(.*?)</p>\s*</div>',
-            entry_html,
-            re.IGNORECASE | re.DOTALL,
-        )
-        return _text_from_html(match.group(1)) if match else ""
-
-    for entry_html in entry_matches:
-        name_match = re.search(
-            r'<div class="inmate-name">\s*<h2[^>]*>(.*?)</h2>',
-            entry_html,
-            re.IGNORECASE | re.DOTALL,
-        )
-        if not name_match:
-            continue
-
-        raw_name = _text_from_html(name_match.group(1))
-        if "," in raw_name:
-            last_name, first_name = [part.strip() for part in raw_name.split(",", 1)]
-            person_name = f"{last_name.title()}, {first_name.title()}"
-        else:
-            person_name = raw_name.title()
-
-        age_value = extract_stat(entry_html, "Age")
-        age = int(age_value) if age_value.isdigit() else None
-
-        mugshot_match = re.search(
-            r"url\('images/inmates/([^']+)'\)",
-            entry_html,
-            re.IGNORECASE,
-        )
-        booking_number = ""
-        if mugshot_match:
-            booking_number = re.sub(r"\.[A-Za-z0-9]+$", "", mugshot_match.group(1)).strip()
-
-        pin_value = extract_stat(entry_html, "PIN")
-        if not booking_number:
-            booking_number = pin_value
-
-        charge_matches = re.findall(
-            r'<p[^>]*class="disposition-description[^"]*"[^>]*>(.*?)</p>',
-            entry_html,
-            re.IGNORECASE | re.DOTALL,
-        )
-        charges = [_text_from_html(match) for match in charge_matches if _text_from_html(match)]
-        charges_summary = (
-            "; ".join(charges[:5])
-            if charges
-            else "Charge details available on the official Flathead County inmate page."
-        )
-
-        source_record_id = booking_number or pin_value or person_name.lower().replace(" ", "-")
-        records.append(
-            JailBookingRecord(
-                source_record_id=source_record_id,
-                person_name=person_name,
-                age=age,
-                booking_number=booking_number or pin_value,
-                booking_at=None,
-                charges_summary=charges_summary,
-                source_url=source_url,
-            )
-        )
-
-    return records
-
-
-def fetch_flathead_bookings(source_url: str) -> list[JailBookingRecord]:
-    page_html = _fetch_html(f"{source_url}?report=inmates&sort=lastname")
-    return _parse_flathead_roster(page_html, source_url)
-
-
-def _summarize_zuercher_hold_reasons(raw_value: str) -> str:
+def _summarize_zuercher_hold_reasons(raw_value: str, *, county_name: str = "") -> str:
     raw = (raw_value or "").strip()
+    fallback = (
+        f"Charge details available on the official {county_name} inmate portal."
+        if county_name
+        else "Charge details available on the official inmate portal."
+    )
     if not raw:
-        return "Charge details available on the official Jefferson County inmate portal."
+        return fallback
     parts = [
         _text_from_html(fragment)
         for fragment in re.split(r"<br\s*/?>", raw, flags=re.IGNORECASE)
         if _text_from_html(fragment)
     ]
     if not parts:
-        return "Charge details available on the official Jefferson County inmate portal."
+        return fallback
     return "; ".join(parts[:4])
 
 
 def _summarize_jefferson_hold_reasons(raw_value: str) -> str:
-    return _summarize_zuercher_hold_reasons(raw_value)
+    return _summarize_zuercher_hold_reasons(raw_value, county_name="Jefferson County")
 
 
-def fetch_jefferson_bookings(source_url: str) -> list[JailBookingRecord]:
+def fetch_zuercher_bookings(source_url: str, *, county_name: str = "") -> list[JailBookingRecord]:
     api_base = source_url.rstrip("/")
     if api_base.endswith("#/inmates"):
         api_base = api_base[:-9].rstrip("/")
@@ -894,12 +596,21 @@ def fetch_jefferson_bookings(source_url: str) -> list[JailBookingRecord]:
             },
             timeout=45,
         )
+        if response.status_code == 404:
+            raise SourceTemporarilyUnavailable(
+                f"Zuercher API endpoint not found for {api_base} (portal may not expose public API)."
+            )
         response.raise_for_status()
+        content_type = response.headers.get("Content-Type", "")
+        if "text/html" in content_type or (response.content[:100].strip().lower().startswith(b"<")):
+            raise SourceTemporarilyUnavailable(
+                f"Zuercher portal at {api_base} returned HTML instead of JSON — likely in maintenance mode."
+            )
         payload = response.json() or {}
         rows = payload.get("records") or []
 
         for row in rows:
-            charges_summary = _summarize_zuercher_hold_reasons(row.get("hold_reasons", ""))
+            charges_summary = _summarize_zuercher_hold_reasons(row.get("hold_reasons", ""), county_name=county_name)
             arrest_date = _normalize_datetime(f"{row.get('arrest_date', '')} 00:00")
             identity_parts = [
                 (row.get("name") or "").strip().upper(),
@@ -929,6 +640,14 @@ def fetch_jefferson_bookings(source_url: str) -> list[JailBookingRecord]:
             break
 
     return records
+
+
+def fetch_jefferson_bookings(source_url: str) -> list[JailBookingRecord]:
+    return fetch_zuercher_bookings(source_url, county_name="Jefferson County")
+
+
+def fetch_ravalli_bookings(source_url: str) -> list[JailBookingRecord]:
+    return fetch_zuercher_bookings(source_url, county_name="Ravalli County")
 
 
 def _parse_sanders_search_results(page_html: str, base_url: str) -> list[dict[str, str]]:
@@ -1057,53 +776,138 @@ def fetch_sanders_bookings(source_url: str) -> list[JailBookingRecord]:
 
 
 def fetch_yellowstone_bookings(source_url: str) -> list[JailBookingRecord]:
-    session = requests.Session()
-    session.headers.update(
-        {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Referer": source_url,
-        }
+    raw_records = _fetch_yellowstone_bookings_raw(source_url)
+    return [
+        JailBookingRecord(
+            source_record_id=r.source_record_id,
+            person_name=r.person_name,
+            age=None,
+            booking_number=r.booking_number,
+            booking_at=r.booking_at,
+            charges_summary=r.charges_summary,
+            source_url=r.source_url,
+        )
+        for r in raw_records
+    ]
+
+
+def _extract_cascade_pdf_url(page_html: str) -> str | None:
+    """Find the SharePoint PDF link embedded in the Cascade County roster page."""
+    match = re.search(
+        r'href="(https://ccmtgov-my\.sharepoint\.com/[^"]*jailroster[^"]*\.pdf[^"]*)"',
+        page_html,
+        re.IGNORECASE,
     )
-    page_html = session.get(source_url, timeout=45).text
-    answer = _solve_yellowstone_prompt(page_html)
-    response = session.post(
-        source_url,
-        data={
-            "ViewFullRoster": "True",
-            "Answer": answer,
-            "action": "Search",
+    if match:
+        return match.group(1)
+    # Broader fallback for any sharepoint PDF link on the page
+    match = re.search(
+        r'href="(https://ccmtgov-my\.sharepoint\.com/[^"]*\.pdf[^"]*)"',
+        page_html,
+        re.IGNORECASE,
+    )
+    if match:
+        return match.group(1)
+    return None
+
+
+def _fetch_pdf_text(pdf_url: str) -> str:
+    """Download a PDF and return extracted plain text using pdfplumber."""
+    response = requests.get(
+        pdf_url,
+        timeout=60,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "Accept": "application/pdf,*/*",
         },
-        timeout=45,
     )
     response.raise_for_status()
-    roster_rows = _parse_yellowstone_roster(response.text, "https://www.yellowstonecountymt.gov/Sheriff/Detention")
-
-    records: list[JailBookingRecord] = []
-    for row in roster_rows:
-        detail_url = row["detail_url"]
-        charge_summary = "Charge details available on the official Yellowstone County inmate page."
-        if detail_url:
-            detail_html = session.get(detail_url, timeout=45).text
-            charge_summary = _parse_yellowstone_charges(detail_html)
-        person_name = ", ".join(
-            [
-                row["last_name"].title(),
-                " ".join(part.title() for part in [row["first_name"], row["middle_name"]] if part),
-            ]
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "text/html" in content_type or b"<!DOCTYPE html" in response.content[:256].lower():
+        raise SourceTemporarilyUnavailable(
+            "Cascade County PDF is behind authentication (SharePoint sign-in required)."
         )
+    with pdfplumber.open(io.BytesIO(response.content)) as pdf:
+        pages = [page.extract_text() or "" for page in pdf.pages]
+    return "\n".join(pages)
+
+
+def _parse_cascade_pdf_text(pdf_text: str, source_url: str) -> list[JailBookingRecord]:
+    """Parse plain text extracted from a Cascade County jail roster PDF.
+
+    The PDF format is not publicly documented, so this parser uses heuristics
+    matched against common Montana jail roster layouts.
+    """
+    records: list[JailBookingRecord] = []
+    lines = [line.strip() for line in pdf_text.splitlines() if line.strip()]
+    for idx, line in enumerate(lines):
+        # Skip header/footer/metadata lines
+        if re.match(r"^(Jail Roster|Inmate Roster|Cascade County|Printed|Page \d|Date:)", line, re.IGNORECASE):
+            continue
+        # Name lines: LASTNAME, FIRSTNAME or LASTNAME, FIRSTNAME MIDDLE
+        name_match = re.match(
+            r"^([A-Z][A-Z' -]+),\s+([A-Z][A-Z' -]+(?:\s+[A-Z][A-Z' -]+)*)\s*(\d{1,3})?\s*",
+            line,
+        )
+        if not name_match:
+            continue
+        last = name_match.group(1).strip()
+        first = name_match.group(2).strip()
+        age_str = name_match.group(3)
+        person_name = f"{last.title()}, {first.title()}"
+        age = int(age_str) if age_str and age_str.isdigit() else None
+
+        # Look for booking date and charges in current line and next few lines
+        booking_at: str | None = None
+        charges_parts: list[str] = []
+        context = line + " " + " ".join(lines[idx + 1 : idx + 4])
+
+        date_match = re.search(
+            r"Booking\s*:?\s*(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}|\d{4}-\d{2}-\d{2})",
+            context,
+            re.IGNORECASE,
+        )
+        if date_match:
+            booking_at = _normalize_datetime(date_match.group(1))
+
+        charges_match = re.search(
+            r"Charges?\s*:?\s*(.+?)(?:\s+Bond\s|Bond\s|$)",
+            context,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if charges_match:
+            raw_charges = charges_match.group(1).strip().rstrip(";, ")
+            if raw_charges:
+                charges_parts.append(raw_charges[:300])
+
+        charges_summary = (
+            "; ".join(charges_parts)
+            if charges_parts
+            else "Charge details available on the official Cascade County inmate roster."
+        )
+        source_record_id = f"cascade:{person_name.lower().replace(' ', '-')}:{booking_at or idx}"
         records.append(
             JailBookingRecord(
-                source_record_id=(detail_url or row["jacket_number"] or "").strip(),
-                person_name=person_name.strip(),
-                age=None,
-                booking_number=(detail_url or "").split("Booknum=")[-1].split("&")[0] if detail_url and "Booknum=" in detail_url else row["jacket_number"],
-                booking_at=_normalize_datetime(f"{row['booking_date']} 12:00 AM"),
-                charges_summary=charge_summary,
-                source_url=detail_url or source_url,
+                source_record_id=source_record_id,
+                person_name=person_name,
+                age=age,
+                booking_number="",
+                booking_at=booking_at,
+                charges_summary=charges_summary,
+                source_url=source_url,
             )
         )
     return records
+
+
+def fetch_cascade_bookings(source_url: str) -> list[JailBookingRecord]:
+    page_html = _fetch_html(source_url)
+    pdf_url = _extract_cascade_pdf_url(page_html)
+    if not pdf_url:
+        logger.warning("Cascade roster: no PDF link found on %s", source_url)
+        return []
+    pdf_text = _fetch_pdf_text(pdf_url)
+    return _parse_cascade_pdf_text(pdf_text, pdf_url)
 
 
 def _record_run(
@@ -1371,14 +1175,22 @@ def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool 
             records = fetch_broadwater_bookings(roster_url)
         elif county_slug == "flathead":
             records = fetch_flathead_bookings(roster_url)
-        elif county_slug == "jefferson":
-            records = fetch_jefferson_bookings(roster_url)
+        elif county_slug in ZUERCHER_COUNTIES:
+            records = fetch_zuercher_bookings(roster_url, county_name=source["county_name"])
         elif county_slug == "missoula":
+            from services.ingestion.fetchers.missoula_inmate import fetch_missoula_bookings
             records = fetch_missoula_bookings(roster_url)
         elif county_slug == "sanders":
             records = fetch_sanders_bookings(roster_url)
         elif county_slug == "yellowstone":
             records = fetch_yellowstone_bookings(roster_url)
+        elif county_slug == "cascade":
+            records = fetch_cascade_bookings(roster_url)
+        elif county_slug == "lake":
+            from services.ingestion.fetchers.lake_inmate import fetch_lake_bookings
+            records = fetch_lake_bookings(roster_url)
+        elif county_slug == "rosebud":
+            records = fetch_rosebud_bookings(roster_url)
         else:
             raise RuntimeError(f"No adapter for county slug: {county_slug}")
     except SourceTemporarilyUnavailable as exc:

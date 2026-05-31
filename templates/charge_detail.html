@@ -1,0 +1,150 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/charges" class="hover:text-slate-700">Charges</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ charge_label }}</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl">
+            <p class="public-eyebrow" style="color:var(--public-steel);">Montana Arrest Records</p>
+            <h1 class="public-title mt-3 max-w-4xl">{{ charge_label }}</h1>
+            <div class="mt-5 flex flex-wrap gap-3 text-xs font-semibold text-slate-700">
+                {% if stats.total %}
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ stats.total }} incident{{ 's' if stats.total != 1 }}</div>
+                {% endif %}
+                {% if stats.county_count %}
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ stats.county_count }} count{{ 'ies' if stats.county_count != 1 else 'y' }}</div>
+                {% endif %}
+                {% if court_cases %}
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ court_cases | length }} court case{{ 's' if court_cases | length != 1 }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="bg-slate-50 text-slate-900">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid lg:grid-cols-[minmax(0,1fr)_300px] gap-8">
+
+        <div class="space-y-6">
+
+            {% if court_cases %}
+            <section class="public-card p-6 sm:p-8 border-l-4" style="border-left-color:var(--public-red);">
+                <h2 class="text-lg font-black mb-5 text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">Supreme Court cases</h2>
+                <div class="space-y-3">
+                    {% for case in court_cases %}
+                    <a href="/court-case/{{ case.slug }}" class="block rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300 transition-all">
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                                <p class="text-sm font-bold text-slate-900">{{ case.defendant_name or case.case_number }}</p>
+                                <p class="mt-0.5 text-xs text-slate-500">{{ case.case_number }} · {{ case.court_name }}</p>
+                                {% if case.charges_text %}
+                                <p class="mt-1 text-[11px] font-bold uppercase tracking-wide text-slate-500" style="font-family:'IBM Plex Mono',monospace;">{{ case.charges_text }}</p>
+                                {% endif %}
+                            </div>
+                            {% if case.disposition %}
+                            <div>
+                                {% if case.disposition == 'affirmed' %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">Upheld</span>
+                                {% elif case.disposition == 'reversed_and_remanded' %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-orange-50 text-orange-700 border border-orange-200">Reversed &amp; Remanded</span>
+                                {% elif case.disposition == 'reversed' %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-red-50 text-red-700 border border-red-200">Reversed</span>
+                                {% else %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-slate-100 text-slate-500">{{ case.disposition }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="public-card p-6 sm:p-8">
+                <h2 class="text-lg font-black mb-5 text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">Recent incidents</h2>
+                {% if incidents %}
+                <div class="space-y-3">
+                    {% for inc in incidents %}
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                                <p class="text-sm font-bold text-slate-900">{{ inc.incident_type or charge_label }}</p>
+                                {% if inc.location %}
+                                <p class="mt-0.5 text-xs text-slate-600">{{ inc.location }}</p>
+                                {% endif %}
+                                {% if inc.summary %}
+                                <p class="mt-1 text-xs text-slate-500 leading-5">{{ inc.summary[:180] }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="text-right shrink-0">
+                                <p class="text-[11px] font-black uppercase tracking-wide" style="font-family:'IBM Plex Mono',monospace; color:var(--public-red);">{{ (inc.date or '')[:10] }}</p>
+                                {% if inc.county %}
+                                <p class="mt-0.5 text-[11px] text-slate-400">{{ inc.county }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-slate-500">
+                    No recent incidents found for this charge type.
+                </div>
+                {% endif %}
+            </section>
+
+        </div>
+
+        <aside class="space-y-5">
+            <section class="public-sidebar-card p-5">
+                <h2 class="public-sidebar-card__eyebrow">Summary</h2>
+                <div class="mt-3 space-y-3">
+                    {% if stats.total %}
+                    <div class="public-sidebar-card__panel">
+                        <p class="public-sidebar-card__eyebrow">Total incidents</p>
+                        <p class="public-sidebar-card__title mt-1">{{ stats.total }}</p>
+                    </div>
+                    {% endif %}
+                    {% if stats.county_count %}
+                    <div class="public-sidebar-card__panel">
+                        <p class="public-sidebar-card__eyebrow">Counties</p>
+                        <p class="public-sidebar-card__title mt-1">{{ stats.county_count }}</p>
+                    </div>
+                    {% endif %}
+                    {% if stats.latest %}
+                    <div class="public-sidebar-card__panel">
+                        <p class="public-sidebar-card__eyebrow">Latest</p>
+                        <p class="public-sidebar-card__title mt-1">{{ stats.latest[:10] }}</p>
+                    </div>
+                    {% endif %}
+                    {% if court_cases %}
+                    <div class="public-sidebar-card__panel">
+                        <p class="public-sidebar-card__eyebrow">Court cases</p>
+                        <p class="public-sidebar-card__title mt-1">{{ court_cases | length }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="public-sidebar-card p-5">
+                <h2 class="public-sidebar-card__eyebrow">Browse charges</h2>
+                <div class="mt-3 space-y-2 text-sm">
+                    <a href="/charges" class="public-btn w-full block text-center py-2">All charge types</a>
+                    <a href="/criminal-cases" class="public-btn w-full block text-center py-2">Criminal cases</a>
+                    <a href="/people" class="public-btn w-full block text-center py-2">People directory</a>
+                </div>
+            </section>
+        </aside>
+
+    </div>
+</main>
+{% endblock %}

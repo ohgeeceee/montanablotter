@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import os
 import shlex
 import subprocess
@@ -223,12 +224,34 @@ def _run_command(command: list[str], *, workdir: str | None, timeout: int | None
         return 'failed', 1, traceback.format_exc()
 
 
+def _acquire_lock(job_name: str, max_instances: int) -> 'list[object]':
+    """Acquire up to max_instances flock-based slots.  Returns held file objects (keep alive).
+
+    Raises BlockingIOError if all slots are already held by running instances.
+    Uses max_instances lock files: /tmp/job_runner_<name>_<slot>.lock
+    """
+    lock_dir = '/tmp'
+    held = []
+    for slot in range(max_instances):
+        path = os.path.join(lock_dir, f'job_runner_{job_name}_{slot}.lock')
+        fh = open(path, 'w')
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            held.append(fh)
+            return held  # got a free slot
+        except BlockingIOError:
+            fh.close()
+    raise BlockingIOError(f"all {max_instances} instance(s) of '{job_name}' already running")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description='Run a scheduled job with DB-backed state and email alerts.')
     parser.add_argument('--name', required=True, help='Stable job name for run history and alerts.')
     parser.add_argument('--log', default='', help='Optional log file to append command output.')
     parser.add_argument('--workdir', default='', help='Optional working directory for the child process.')
     parser.add_argument('--timeout', type=int, default=0, help='Optional timeout in seconds.')
+    parser.add_argument('--max-instances', type=int, default=1,
+                        help='Maximum concurrent instances of this job (default 1 = skip if already running).')
     parser.add_argument('command', nargs=argparse.REMAINDER, help='Command to execute after --')
     args = parser.parse_args()
 
@@ -237,6 +260,14 @@ def main() -> int:
         command = command[1:]
     if not command:
         parser.error('a child command is required after --')
+
+    lock_handles: list[object] = []
+    if args.max_instances > 0:
+        try:
+            lock_handles = _acquire_lock(args.name, args.max_instances)
+        except BlockingIOError as exc:
+            sys.stderr.write(f"job_runner: skipping '{args.name}' — {exc}\n")
+            return 0
 
     command_text = ' '.join(shlex.quote(part) for part in command)
     started_at = _iso_now()
@@ -289,6 +320,12 @@ def main() -> int:
 
     if db_error:
         sys.stderr.write(f"job_runner warning: failed to persist state: {db_error}\n")
+
+    for fh in lock_handles:
+        try:
+            fh.close()
+        except Exception:
+            pass
 
     return exit_code or 0
 

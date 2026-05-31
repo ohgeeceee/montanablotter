@@ -2,7 +2,8 @@
 set -euo pipefail
 
 HERMES_BIN="${HERMES_BIN:-/root/.local/bin/hermes}"
-HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+# Default to a workspace-local Hermes home so this works on servers where `/root` may be read-only.
+HERMES_HOME="${HERMES_HOME:-/root/montanablotter/.hermes}"
 HERMES_SCRIPT_DIR="${HERMES_HOME}/scripts"
 
 if [[ ! -x "$HERMES_BIN" ]]; then

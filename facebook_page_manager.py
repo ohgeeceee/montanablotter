@@ -209,7 +209,7 @@ def _mode_post(conn: sqlite3.Connection, settings: dict[str, Any], limit: int = 
         """
         SELECT bp.id
         FROM blog_posts bp
-        LEFT JOIN facebook_post_queue fbq ON fbq.post_id = bp.id
+        LEFT JOIN facebook_post_queue fbq ON fbq.blog_post_id = bp.id AND fbq.content_type = 'blog'
         WHERE bp.published = 1
           AND fbq.id IS NULL
         ORDER BY bp.created_at DESC
@@ -222,7 +222,8 @@ def _mode_post(conn: sqlite3.Connection, settings: dict[str, Any], limit: int = 
     skipped = 0
     for row in rows:
         result = queue_post(
-            post_id=int(row["id"]),
+            blog_post_id=int(row["id"]),
+            content_type="blog",
             enqueue_source="fb_page_manager_auto",
             conn=conn,
         )

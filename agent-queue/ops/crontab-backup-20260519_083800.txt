@@ -1,0 +1,10 @@
+
+# Montana Blotter agent fleet digests
+TZ=America/Denver
+50 6 * * *    /root/montanablotter/agent-queue/bin/run-digest.sh daily  >> /var/log/montana-digest.log 2>&1
+50 18 * * Sun /root/montanablotter/agent-queue/bin/run-digest.sh weekly >> /var/log/montana-digest.log 2>&1
+
+# Montana Blotter agent fleet digests
+TZ=America/Denver
+50 6 * * *    /root/montanablotter/agent-queue/bin/run-digest.sh daily  >> /var/log/montana-digest.log 2>&1
+50 18 * * Sun /root/montanablotter/agent-queue/bin/run-digest.sh weekly >> /var/log/montana-digest.log 2>&1

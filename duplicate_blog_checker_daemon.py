@@ -38,6 +38,24 @@ HEARTBEAT_INTERVAL_SECONDS = 10
 SIMILARITY_THRESHOLD = 0.85
 BODY_OVERLAP_THRESHOLD = 0.92
 
+# Singleton guard — prevent duplicate daemon instances
+_PIDFILE = "/tmp/duplicate_blog_checker.pid"
+_existing_pid = None
+try:
+    with open(_PIDFILE) as _pf:
+        _existing_pid = int(_pf.read().strip())
+except (FileNotFoundError, ValueError):
+    pass
+if _existing_pid is not None:
+    try:
+        os.kill(_existing_pid, 0)
+        print(f"duplicate_blog_checker_daemon already running (pid {_existing_pid}), exiting.", file=sys.stderr)
+        sys.exit(0)
+    except OSError:
+        pass  # stale pid file — process is gone, safe to continue
+with open(_PIDFILE, "w") as _pf:
+    _pf.write(str(os.getpid()))
+
 # Graceful shutdown
 _shutdown_event = threading.Event()
 

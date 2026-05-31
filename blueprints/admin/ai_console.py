@@ -6,10 +6,12 @@ from flask_login import current_user
 
 from services.admin.ai import (
     DEFAULT_MODEL,
+    PENDING_ACTION_SESSION_KEY,
     clear_pending_action,
     execute_pending_admin_ai_action,
     get_pending_action,
     run_admin_ai_query,
+    save_pending_action,
     validate_pending_action,
 )
 from blueprints.admin import admin_bp, _log_admin_action, require_role
@@ -81,7 +83,8 @@ def admin_ai_query():
         }
     pending_action = result.get('pending_action')
     if pending_action:
-        session['admin_ai_pending_action'] = pending_action
+        save_pending_action(current_user.id, pending_action)
+        session[PENDING_ACTION_SESSION_KEY] = pending_action['token']
         _log_admin_action(
             'admin_ai_action_proposed',
             'admin_ai',

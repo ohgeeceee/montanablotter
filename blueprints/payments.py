@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime
 
 import stripe
-from flask import Blueprint, current_app, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
 import config
@@ -682,6 +682,97 @@ def advertise_bail_checkout_cancel():
         'advertise_bail_checkout_cancel.html',
         contract_info=m._bail_ad_contract_context(),
         active_nav='advertise',
+        current_year=datetime.now().year,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Subscription checkout routes
+# ---------------------------------------------------------------------------
+
+@payments_bp.route('/checkout/subscription', methods=['POST'])
+def checkout_subscription():
+    m = _app()
+    keys = m._stripe_keys()
+    stripe.api_key = keys['secret_key']
+
+    plan = (request.form.get('plan') or '').strip().lower()
+    interval = (request.form.get('interval') or 'monthly').strip().lower()
+
+    if plan not in {'insider', 'professional'}:
+        return render_template('pricing.html', checkout_error='Invalid plan selected.'), 400
+    if interval not in {'monthly', 'yearly'}:
+        return render_template('pricing.html', checkout_error='Invalid billing interval.'), 400
+
+    # Require public user session so we can tie the subscription to an account
+    public_user_id = session.get('public_user_id')
+    if not public_user_id:
+        return redirect(url_for('auth.register', next=request.full_path, message='Please create a free account before subscribing.'))
+
+    conn = get_db()
+    user_row = conn.execute(
+        'SELECT id, email, subscriber_plan FROM public_users WHERE id = ? AND is_active = 1',
+        (int(public_user_id),),
+    ).fetchone()
+    conn.close()
+    if not user_row:
+        return redirect(url_for('auth.register', next=request.full_path, message='Please create a free account before subscribing.'))
+
+    pricing = {
+        'insider': {'monthly': 799, 'yearly': 6999, 'name': 'Insider'},
+        'professional': {'monthly': 1499, 'yearly': 12999, 'name': 'Professional'},
+    }
+    plan_info = pricing[plan]
+    amount_cents = plan_info[interval]
+    interval_spec = 'year' if interval == 'yearly' else 'month'
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            mode='subscription',
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': f"Montana Blotter {plan_info['name']}",
+                        'description': f"{plan_info['name']} subscription — {interval} billing",
+                    },
+                    'unit_amount': amount_cents,
+                    'recurring': {'interval': interval_spec},
+                },
+                'quantity': 1,
+            }],
+            success_url=f"{m.BASE_URL}/checkout/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{m.BASE_URL}/checkout/subscription/cancel",
+            customer_email=user_row['email'] or None,
+            metadata={
+                'flow': 'subscription',
+                'plan': plan,
+                'interval': interval,
+                'public_user_id': str(user_row['id']),
+            },
+        )
+    except Exception as exc:
+        return render_template('pricing.html', checkout_error=f'Unable to start checkout: {exc}'), 503
+
+    return redirect(checkout_session.url)
+
+
+@payments_bp.route('/checkout/subscription/success')
+def checkout_subscription_success():
+    session_id = (request.args.get('session_id') or '').strip()
+    return render_template(
+        'checkout_subscription_success.html',
+        session_id=session_id,
+        active_nav='pricing',
+        current_year=datetime.now().year,
+    )
+
+
+@payments_bp.route('/checkout/subscription/cancel')
+def checkout_subscription_cancel():
+    return render_template(
+        'checkout_subscription_cancel.html',
+        active_nav='pricing',
         current_year=datetime.now().year,
     )
 

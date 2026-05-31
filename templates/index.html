@@ -60,12 +60,72 @@
     font-size: 0.85rem;
     flex-shrink: 0;
 }
-.hub-card__icon--courts { background: var(--steel-soft); color: var(--steel); }
-.hub-card__icon--jails { background: rgba(14, 36, 50, 0.08); color: var(--navy); }
-.hub-card__icon--sanctions { background: var(--signal-soft); color: var(--signal); }
-.hub-card__icon--offenders { background: var(--amber-soft); color: var(--amber); }
-.hub-card__icon--missing { background: var(--signal-soft); color: var(--signal); }
-.hub-card__icon--blog { background: var(--green-soft); color: var(--green); }
+.hub-card__icon--courts   { background: var(--steel-soft); color: var(--steel); }
+.hub-card__icon--jails    { background: rgba(14, 36, 50, 0.08); color: var(--navy); }
+.hub-card__icon--sanctions{ background: var(--signal-soft); color: var(--signal); }
+.hub-card__icon--offenders{ background: var(--amber-soft); color: var(--amber); }
+.hub-card__icon--missing  { background: var(--signal-soft); color: var(--signal); }
+.hub-card__icon--warrants { background: rgba(107, 64, 168, 0.12); color: #6b40a8; }
+
+/* ── Hero snapshot (desktop right-column) ── */
+.hero-panel__snapshot { display: none; }
+.hero-snapshot__item {
+    padding: .85rem .7rem;
+    border-radius: var(--radius-sm);
+    background: rgba(14,36,50,.04);
+    border: 1px solid var(--line);
+    display: grid;
+    gap: .2rem;
+}
+.hero-snapshot__label {
+    font-size: .55rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+.hero-snapshot__value {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.15;
+}
+
+/* ── Report-card status accent border ── */
+.report-card {
+    border-left: 4px solid transparent;
+    padding-left: calc(1rem - 4px);
+}
+.report-card--active   { border-left-color: var(--signal); }
+.report-card--pending  { border-left-color: var(--amber); }
+.report-card--resolved { border-left-color: var(--green); }
+.report-card__title    { font-size: 1.45rem; }
+
+@media (min-width: 1024px) {
+    /* Two-column hero on desktop */
+    .hero-panel--hub {
+        display: grid;
+        grid-template-columns: 1fr 210px;
+        grid-template-rows: auto auto;
+        column-gap: 2rem;
+        align-items: start;
+    }
+    .hero-panel--hub .hero-panel__intro { grid-column: 1; grid-row: 1; }
+    .hero-panel--hub .hero-panel__snapshot {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .6rem;
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+    }
+    .hero-panel--hub .ticker-rail {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        margin-top: 1.3rem;
+    }
+}
 
 .hub-card__name {
     font-size: 0.85rem;
@@ -155,6 +215,165 @@
     font-family: "IBM Plex Mono", monospace;
     color: var(--ink);
 }
+
+/* ── Missing Person Spotlight ── */
+.missing-spotlight {
+    margin: 2rem 0 0;
+    background: rgba(195, 66, 63, 0.04);
+    border: 1px solid rgba(195, 66, 63, 0.18);
+    border-left: 4px solid var(--signal);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+}
+.missing-spotlight__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+.missing-spotlight__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--signal);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+.missing-spotlight__count {
+    background: var(--signal);
+    color: #fff;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 100px;
+}
+.missing-spotlight__cta {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--steel);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.missing-spotlight__cta:hover { text-decoration: underline; }
+.missing-spotlight__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+@media (max-width: 1024px) {
+    .missing-spotlight__grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+    .missing-spotlight__grid { grid-template-columns: 1fr; }
+}
+.missing-spotlight__card {
+    display: block;
+    background: var(--paper-strong);
+    border: 1px solid rgba(195, 66, 63, 0.15);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    color: inherit;
+}
+.missing-spotlight__card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+.missing-spotlight__card-banner {
+    background: var(--signal);
+    color: #fff;
+    padding: 0.45rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.missing-spotlight__card-banner-text {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.missing-spotlight__card-banner-loc {
+    font-size: 0.62rem;
+    opacity: 0.82;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+}
+.missing-spotlight__card-body {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+}
+.missing-spotlight__card-media {
+    width: 90px;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    background: rgba(195, 66, 63, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.missing-spotlight__card-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.missing-spotlight__card-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    color: rgba(195, 66, 63, 0.35);
+    font-size: 0.62rem;
+}
+.missing-spotlight__card-placeholder i { font-size: 1.5rem; }
+.missing-spotlight__card-info {
+    padding: 0.65rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.missing-spotlight__card-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+    margin: 0;
+}
+.missing-spotlight__card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+}
+.missing-spotlight__card-detail {
+    font-size: 0.68rem;
+    color: var(--ink-muted);
+    line-height: 1.3;
+}
+.missing-spotlight__card-detail strong {
+    color: var(--ink-soft);
+    font-weight: 600;
+}
+.missing-spotlight__card-action {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--signal);
+    margin-top: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
 </style>
 <script type="application/ld+json">
 {
@@ -196,12 +415,32 @@
                 </p>
 
                 <div class="hero-hub-bar">
+                    <a href="/crime-data" class="hero-hub-pill"><strong>{{ "{:,}".format(total_records | default(0)) }}</strong> Police Records</a>
                     <a href="/courts" class="hero-hub-pill"><strong>{{ hub_counts.courts }}</strong> Court Events</a>
                     <a href="/detention" class="hero-hub-pill"><strong>{{ hub_counts.jails }}</strong> Jail Bookings</a>
                     <a href="/license-sanctions" class="hero-hub-pill"><strong>{{ hub_counts.sanctions }}</strong> Sanctions</a>
                     <a href="/sex-offender-updates" class="hero-hub-pill"><strong>{{ hub_counts.sex_offenders }}</strong> Registry</a>
                     <a href="/missing-persons" class="hero-hub-pill"><strong>{{ hub_counts.missing_persons }}</strong> Missing</a>
                     <a href="/blog" class="hero-hub-pill"><strong>{{ hub_counts.blog }}</strong> Blog Posts</a>
+                </div>
+            </div>
+
+            <div class="hero-panel__snapshot" aria-hidden="true">
+                <div class="hero-snapshot__item">
+                    <span class="hero-snapshot__label">Total Records</span>
+                    <span class="hero-snapshot__value">{{ total_records | default(0) }}</span>
+                </div>
+                <div class="hero-snapshot__item">
+                    <span class="hero-snapshot__label">Bookings</span>
+                    <span class="hero-snapshot__value">{{ hub_counts.jails }}</span>
+                </div>
+                <div class="hero-snapshot__item">
+                    <span class="hero-snapshot__label">Sanctions</span>
+                    <span class="hero-snapshot__value">{{ hub_counts.sanctions }}</span>
+                </div>
+                <div class="hero-snapshot__item">
+                    <span class="hero-snapshot__label">Missing</span>
+                    <span class="hero-snapshot__value">{{ hub_counts.missing_persons }}</span>
                 </div>
             </div>
 
@@ -227,6 +466,56 @@
                 </div>
             </div>
         </section>
+
+        {% if missing_persons_alert and missing_persons_alert.rows %}
+        <section class="missing-spotlight" aria-label="Active missing persons alerts">
+            <div class="missing-spotlight__header">
+                <span class="missing-spotlight__badge">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    Active Missing Persons
+                    <span class="missing-spotlight__count">{{ hub_counts.missing_persons }}</span>
+                </span>
+                <a href="/missing-persons" class="missing-spotlight__cta">
+                    View all alerts <i class="fas fa-arrow-right text-[10px]"></i>
+                </a>
+            </div>
+            <div class="missing-spotlight__grid">
+                {% for person in missing_persons_alert.rows %}
+                <a href="/missing-persons/{{ person.slug }}" class="missing-spotlight__card">
+                    <div class="missing-spotlight__card-banner">
+                        <span class="missing-spotlight__card-banner-text">MISSING</span>
+                        <span class="missing-spotlight__card-banner-loc">{{ person.last_seen_location or 'Montana' }}</span>
+                    </div>
+                    <div class="missing-spotlight__card-body">
+                        <div class="missing-spotlight__card-media">
+                            {% if person.photos and person.photos|length > 0 %}
+                            <img src="{{ person.photos[0].url }}" alt="{{ person.full_name }}" loading="lazy">
+                            {% elif person.photo_url %}
+                            <img src="{{ person.photo_url }}" alt="{{ person.full_name }}" loading="lazy">
+                            {% else %}
+                            <div class="missing-spotlight__card-placeholder">
+                                <i class="fas fa-user"></i>
+                                <span>No photo</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="missing-spotlight__card-info">
+                            <h3 class="missing-spotlight__card-name">{{ person.full_name }}</h3>
+                            <div class="missing-spotlight__card-details">
+                                {% if person.age %}<span class="missing-spotlight__card-detail"><strong>Age</strong> {{ person.age }}</span>{% endif %}
+                                {% if person.height_label or person.weight_lbs %}
+                                <span class="missing-spotlight__card-detail"><strong>Ht</strong> {{ person.height_label or '—' }}{% if person.weight_lbs %} · {{ person.weight_lbs }} lbs{% endif %}</span>
+                                {% endif %}
+                                <span class="missing-spotlight__card-detail"><strong>Last seen</strong> {{ person.last_seen_at_label or 'Unknown' }}</span>
+                            </div>
+                            <span class="missing-spotlight__card-action">View alert <i class="fas fa-arrow-right"></i></span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
         <section class="hub-grid" aria-label="Data hubs">
             <article class="hub-card">
@@ -325,91 +614,16 @@
                     </div>
                     <span class="hub-card__count">{{ hub_counts.missing_persons }}</span>
                 </div>
-                {% if missing_persons_alert and missing_persons_alert.rows %}
-                <div class="missing-poster-carousel missing-poster-carousel--embedded" id="missingPosterCarousel">
-                    {% for person in missing_persons_alert.rows %}
-                    <article class="missing-poster-slide{% if loop.first %} is-active{% endif %}" data-index="{{ loop.index0 }}">
-                        <a href="/missing-persons/{{ person.slug }}" class="missing-poster-card">
-                            <div class="missing-poster-card__banner">
-                                <span class="missing-poster-card__banner-text">MISSING</span>
-                                <span class="missing-poster-card__banner-sub">{{ person.last_seen_location or 'Montana' }}</span>
-                            </div>
-                            <div class="missing-poster-card__body">
-                                <div class="missing-poster-card__media">
-                                    {% if person.photos and person.photos|length > 0 %}
-                                    <img src="{{ person.photos[0].url }}" alt="{{ person.full_name }}" loading="lazy">
-                                    {% elif person.photo_url %}
-                                    <img src="{{ person.photo_url }}" alt="{{ person.full_name }}" loading="lazy">
-                                    {% else %}
-                                    <div class="missing-poster-card__placeholder">
-                                        <i class="fas fa-user"></i>
-                                        <span>No photo</span>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <div class="missing-poster-card__info">
-                                    <h3 class="missing-poster-card__name">{{ person.full_name }}</h3>
-                                    <div class="missing-poster-card__details">
-                                        {% if person.age %}<span class="missing-poster-card__detail"><strong>Age</strong> {{ person.age }}</span>{% endif %}
-                                        {% if person.height_label or person.weight_lbs %}
-                                        <span class="missing-poster-card__detail"><strong>Ht</strong> {{ person.height_label or '—' }}{% if person.weight_lbs %} · {{ person.weight_lbs }} lbs{% endif %}</span>
-                                        {% endif %}
-                                        <span class="missing-poster-card__detail"><strong>Seen</strong> {{ person.last_seen_at_label or 'Date unknown' }}</span>
-                                        <span class="missing-poster-card__detail"><strong>Loc</strong> {{ person.last_seen_location or 'Montana' }}</span>
-                                    </div>
-                                    <span class="missing-poster-card__cta">View alert <i class="fas fa-arrow-right"></i></span>
-                                </div>
-                            </div>
-                        </a>
-                    </article>
-                    {% endfor %}
-                    <div class="missing-poster-nav">
-                        <button type="button" class="missing-poster-nav__btn missing-poster-nav__btn--prev" aria-label="Previous missing person" onclick="missingPoster.prev()">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <div class="missing-poster-dots">
-                            {% for person in missing_persons_alert.rows %}
-                            <button type="button" class="missing-poster-dot{% if loop.first %} is-active{% endif %}" aria-label="Show {{ person.full_name }}" onclick="missingPoster.goTo({{ loop.index0 }})"></button>
-                            {% endfor %}
-                        </div>
-                        <button type="button" class="missing-poster-nav__btn missing-poster-nav__btn--next" aria-label="Next missing person" onclick="missingPoster.next()">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
-                </div>
-                <script>
-                (function() {
-                    const carousel = document.getElementById('missingPosterCarousel');
-                    if (!carousel) return;
-                    const slides = carousel.querySelectorAll('.missing-poster-slide');
-                    const dots = carousel.querySelectorAll('.missing-poster-dot');
-                    let current = 0;
-                    let timer = null;
-                    function show(index) {
-                        if (index < 0) index = slides.length - 1;
-                        if (index >= slides.length) index = 0;
-                        current = index;
-                        slides.forEach((s, i) => s.classList.toggle('is-active', i === current));
-                        dots.forEach((d, i) => d.classList.toggle('is-active', i === current));
-                    }
-                    function next() { show(current + 1); }
-                    function prev() { show(current - 1); }
-                    function start() {
-                        if (timer) clearInterval(timer);
-                        timer = setInterval(next, 6000);
-                    }
-                    function stop() { if (timer) clearInterval(timer); }
-                    carousel.addEventListener('mouseenter', stop);
-                    carousel.addEventListener('mouseleave', start);
-                    window.missingPoster = { next, prev, goTo: show };
-                    if (slides.length > 1) start();
-                })();
-                </script>
-                {% else %}
                 <div class="hub-card__list">
+                    {% for person in (missing_persons_alert.rows if missing_persons_alert else [])[:3] %}
+                    <a href="/missing-persons/{{ person.slug }}" class="hub-card__item">
+                        <strong>{{ person.full_name }}</strong>
+                        <span>Last seen {{ person.last_seen_at_label or 'date unknown' }} · {{ person.last_seen_location or 'Montana' }}</span>
+                    </a>
+                    {% else %}
                     <div class="hub-card__item"><span>No active missing person alerts at this time.</span></div>
+                    {% endfor %}
                 </div>
-                {% endif %}
                 <div class="hub-card__footer">
                     <a href="/missing-persons">View missing persons <i class="fas fa-arrow-right text-[10px]"></i></a>
                 </div>
@@ -418,26 +632,66 @@
             <article class="hub-card">
                 <div class="hub-card__header">
                     <div class="hub-card__title-group">
-                        <div class="hub-card__icon hub-card__icon--blog"><i class="fas fa-newspaper"></i></div>
-                        <span class="hub-card__name">Blog</span>
+                        <div class="hub-card__icon hub-card__icon--warrants"><i class="fas fa-bolt"></i></div>
+                        <span class="hub-card__name">Warrants</span>
                     </div>
-                    <span class="hub-card__count">{{ hub_counts.blog }}</span>
                 </div>
                 <div class="hub-card__list">
-                    {% for post in recent_blog_posts[:3] %}
-                    <a href="/blog/{{ post.slug }}" class="hub-card__item">
-                        <strong>{{ post.title }}</strong>
-                        <span>{{ post.created_at[:10] if post.created_at else 'Date pending' }} — {{ post.excerpt or 'Read more' }}</span>
-                    </a>
-                    {% else %}
-                    <div class="hub-card__item"><span>Blog posts will appear here as they are published.</span></div>
-                    {% endfor %}
+                    <div class="hub-card__item">
+                        <strong>Montana County Warrant Lists</strong>
+                        <span>Active warrant listings by county with direct sheriff and court links statewide.</span>
+                    </div>
+                    <div class="hub-card__item">
+                        <strong>How to Search Warrants</strong>
+                        <span>Step-by-step guide for finding active Montana warrants through official sources.</span>
+                    </div>
                 </div>
                 <div class="hub-card__footer">
-                    <a href="/blog">View all posts <i class="fas fa-arrow-right text-[10px]"></i></a>
+                    <a href="/warrants">View warrant hub <i class="fas fa-arrow-right text-[10px]"></i></a>
                 </div>
             </article>
         </section>
+
+        <!-- ── Mobile sidebar strip (visible < 1024px) ── -->
+        <div class="mobile-strip-wrapper" aria-label="Quick access">
+
+            <div class="mobile-strip-card">
+                <p class="section-kicker">Live Activity</p>
+                {% for record in live_activity[:3] %}
+                <a href="/record/{{ record.id }}" class="mobile-strip-item">
+                    <strong>{{ record.incident_label }}</strong>
+                    <span>{{ record.location or record.county or 'Montana' }}</span>
+                </a>
+                {% else %}
+                <p class="mobile-strip-empty">No recent activity yet.</p>
+                {% endfor %}
+            </div>
+
+            <div class="mobile-strip-card">
+                <p class="section-kicker">Most Viewed</p>
+                {% for item in most_viewed_pages[:3] %}
+                <a href="{{ item.href }}" class="mobile-strip-item">
+                    <strong>{{ item.label }}</strong>
+                    <span>{{ item.view_count }} views &middot; {{ item.kind }}</span>
+                </a>
+                {% else %}
+                <p class="mobile-strip-empty">Traffic data populates after activity is recorded.</p>
+                {% endfor %}
+            </div>
+
+            <div class="mobile-strip-card">
+                <p class="section-kicker">Latest Posts</p>
+                {% for post in recent_blog_posts[:3] %}
+                <a href="/blog/{{ post.slug }}" class="mobile-strip-item">
+                    <strong>{{ post.title }}</strong>
+                    <span>{{ post.created_at[:10] if post.created_at else 'Date pending' }}</span>
+                </a>
+                {% else %}
+                <p class="mobile-strip-empty">Blog posts will appear here when published.</p>
+                {% endfor %}
+            </div>
+
+        </div>
 
         <div class="content-grid">
             <section class="main-column">
@@ -552,7 +806,7 @@
                     <div class="report-stack">
                         {% for post in posts %}
                         {% set lead = post.lead_record %}
-                        <article class="report-card">
+                        <article class="report-card report-card--{{ post.case_status or 'pending' }}">
                             <div class="report-card__header">
                                 <div class="report-card__meta">
                                     <span class="status-pill status-pill--{{ post.case_status or 'pending' }}">
@@ -771,6 +1025,31 @@
                         <a href="/support?source=homepage_top" class="card-link card-link--primary">See support options</a>
                         <a href="/subscribe" class="card-link">Subscribe</a>
                     </div>
+                </section>
+
+                <section class="panel sidebar-panel">
+                    <div class="panel__header panel__header--compact">
+                        <div>
+                            <p class="section-kicker">Latest Posts</p>
+                            <h2 class="panel__title">Recent coverage.</h2>
+                        </div>
+                    </div>
+                    <div class="activity-list">
+                        {% for post in recent_blog_posts %}
+                        <a href="/blog/{{ post.slug }}" class="activity-item">
+                            <span class="activity-item__timestamp">{{ post.created_at[:10] if post.created_at else 'Date pending' }}</span>
+                            <strong class="activity-item__title">{{ post.title }}</strong>
+                            {% if post.excerpt %}<span class="activity-item__meta">{{ post.excerpt[:80] }}</span>{% endif %}
+                        </a>
+                        {% else %}
+                        <p class="sidebar-empty">Blog posts will appear here as they are published.</p>
+                        {% endfor %}
+                    </div>
+                    {% if hub_counts.blog > 0 %}
+                    <div style="margin-top:.75rem;">
+                        <a href="/blog" class="button button--ghost" style="width:100%;justify-content:center;">View all {{ hub_counts.blog }} posts</a>
+                    </div>
+                    {% endif %}
                 </section>
             </aside>
         </div>

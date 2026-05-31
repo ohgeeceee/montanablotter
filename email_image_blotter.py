@@ -91,6 +91,7 @@ AGENCY_MAP: dict[str, str] = {
 }
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"}
+MAX_RETRIES = 5
 
 
 class ImageBlotterWorker(EmailWorker):
@@ -166,6 +167,37 @@ class ImageBlotterWorker(EmailWorker):
                 continue
 
         return "\n\n".join(text_parts)
+
+    def _move_to_folder(self, mail: imaplib.IMAP4_SSL, num: bytes, folder_name: str) -> None:
+        """Move an email to the named IMAP folder, creating it if needed."""
+        try:
+            mail.create(folder_name)
+        except Exception:
+            pass  # Already exists — ignore
+        try:
+            mail.copy(num, folder_name)
+            mail.store(num, "+FLAGS", "\\Deleted")
+        except Exception as e:
+            print(f"[email_image_blotter] Failed to move email to {folder_name}/: {e}")
+
+    def _get_message_retry_count(self, message_id: str) -> int:
+        """Return how many times this message_id has been retried in ingestion_jobs."""
+        if not message_id:
+            return 0
+        try:
+            conn = get_db()
+            row = conn.execute(
+                """SELECT ij.retry_count
+                   FROM ingestion_jobs ij
+                   JOIN source_documents sd ON sd.id = ij.source_document_id
+                   WHERE sd.source_message_id = ?
+                   ORDER BY ij.id DESC LIMIT 1""",
+                (message_id,),
+            ).fetchone()
+            conn.close()
+            return row[0] if row else 0
+        except Exception:
+            return 0
 
     def _process_image_attachments(
         self,
@@ -277,18 +309,41 @@ class ImageBlotterWorker(EmailWorker):
                 else:
                     print(f"[email_image_blotter] All incidents duplicate for {county or 'Unknown'} from {sender} — no new batch")
                 any_succeeded = True
-            except Exception as e:
-                print(f"[email_image_blotter] Failed to process PDF: {e}")
-                increment_ingestion_retry(ingestion_job_id, str(e))
-                set_ingestion_job_status_legacy(
-                    ingestion_job_id, "failed", last_error=str(e), finished=True
-                )
-                log_pipeline_event(
-                    ingestion_job_id,
-                    "publish",
-                    "error",
-                    {"filename": pdf_name, "error": str(e)},
-                )
+            except Exception as pdf_exc:
+                # PDF parser failed — likely a scanned image PDF with no embedded text.
+                # Try OCR before giving up.
+                print(f"[email_image_blotter] PDF parse failed, trying OCR fallback: {pdf_exc}")
+                ocr_text = self._ocr_pdf(pdf_path)
+                if ocr_text.strip():
+                    print(f"[email_image_blotter] OCR extracted {len(ocr_text)} chars, ingesting as text blotter")
+                    try:
+                        from services.blotter.processor import process_text_blotter
+                        process_text_blotter(
+                            ocr_text,
+                            sender_email=sender,
+                            source_document_id=source_document_id,
+                            ingestion_job_id=ingestion_job_id,
+                        )
+                        print(f"[email_image_blotter] OCR fallback succeeded for {sender}")
+                        any_succeeded = True
+                    except Exception as ocr_exc:
+                        print(f"[email_image_blotter] OCR fallback also failed: {ocr_exc}")
+                        increment_ingestion_retry(ingestion_job_id, str(ocr_exc))
+                        set_ingestion_job_status_legacy(
+                            ingestion_job_id, "failed", last_error=str(ocr_exc), finished=True
+                        )
+                        log_pipeline_event(
+                            ingestion_job_id, "publish", "error", {"filename": pdf_name, "error": str(ocr_exc)}
+                        )
+                else:
+                    print(f"[email_image_blotter] OCR produced no text — marking failed: {pdf_exc}")
+                    increment_ingestion_retry(ingestion_job_id, str(pdf_exc))
+                    set_ingestion_job_status_legacy(
+                        ingestion_job_id, "failed", last_error=str(pdf_exc), finished=True
+                    )
+                    log_pipeline_event(
+                        ingestion_job_id, "publish", "error", {"filename": pdf_name, "error": str(pdf_exc)}
+                    )
 
         return had_images, any_succeeded
 
@@ -344,6 +399,7 @@ class ImageBlotterWorker(EmailWorker):
 
             processed_count = 0
             skipped_count = 0
+            failed_count = 0
 
             for num in email_ids:
                 try:
@@ -378,7 +434,12 @@ class ImageBlotterWorker(EmailWorker):
                                     processed_count += 1
                                     print(f"[email_image_blotter] Processed PDF email: {subject}")
                                 else:
+                                    failed_count += 1
                                     print(f"[email_image_blotter] PDF failed: {subject}")
+                                    retry_count = self._get_message_retry_count(message_id)
+                                    if retry_count >= MAX_RETRIES:
+                                        print(f"[email_image_blotter] Max retries ({MAX_RETRIES}) reached, moving to Failed/: {subject}")
+                                        self._move_to_folder(mail, num, "Failed")
                                 continue
 
                             # No PDF — try image attachments
@@ -392,7 +453,12 @@ class ImageBlotterWorker(EmailWorker):
                                     processed_count += 1
                                     print(f"[email_image_blotter] Processed image email: {subject}")
                                 else:
+                                    failed_count += 1
                                     print(f"[email_image_blotter] Image processing failed: {subject}")
+                                    retry_count = self._get_message_retry_count(message_id)
+                                    if retry_count >= MAX_RETRIES:
+                                        print(f"[email_image_blotter] Max retries ({MAX_RETRIES}) reached, moving to Failed/: {subject}")
+                                        self._move_to_folder(mail, num, "Failed")
                                 continue
 
                             # No PDF or images — try plain-text body
@@ -470,25 +536,19 @@ class ImageBlotterWorker(EmailWorker):
 
             mail.expunge()
             mail.logout()
-            print(f"[email_image_blotter] Complete: {processed_count} processed, {skipped_count} already-ingested skipped")
-            return processed_count
+            print(f"[email_image_blotter] Complete: {processed_count} processed, {skipped_count} skipped, {failed_count} failed")
+            return failed_count
 
         except Exception as e:
             print(f"[email_image_blotter] Critical error: {e}")
-            return 0
+            return 1
 
 
-def run_image_blotter(since_days: int = 14):
-    """Run the image blotter worker.
-    
-    Args:
-        since_days: How many days back to search for emails.
-                   Default 14 to catch backlog of read emails.
-    """
+def run_image_blotter(since_days: int = 14) -> int:
+    """Run the image blotter worker. Returns number of failed emails."""
     worker = ImageBlotterWorker()
-    count = worker.fetch_and_process_emails(since_days=since_days)
-    print(f"Processed {count} emails")
-    return count
+    failed = worker.fetch_and_process_emails(since_days=since_days)
+    return failed
 
 
 if __name__ == "__main__":
@@ -496,4 +556,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process blotter emails with image/PDF attachments")
     parser.add_argument("--since-days", type=int, default=14, help="Days back to search (default: 14)")
     args = parser.parse_args()
-    run_image_blotter(since_days=args.since_days)
+    failed = run_image_blotter(since_days=args.since_days)
+    if failed > 0:
+        print(f"[email_image_blotter] WARNING: {failed} email(s) failed — job_runner will alert on repeated failures.")
+        sys.exit(1)

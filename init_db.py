@@ -16,6 +16,22 @@ from services.agents.mission_control import ensure_agent_mission_control_schema
 from services.alerts.incidents import ensure_incident_notification_schema
 from services.persons.missing import ensure_missing_person_schema
 from services.meetings.public import ensure_public_meeting_schema
+from services.ingestion.warrants.models import ensure_warrant_schema
+
+def _safe_add_column(cursor: 'sqlite3.Cursor', table: str, col: str, definition: str) -> bool:
+    """ALTER TABLE … ADD COLUMN, silencing only 'duplicate column' errors.
+
+    Returns True if the column was added, False if it already existed.
+    Re-raises any other OperationalError so real failures aren't swallowed.
+    """
+    try:
+        cursor.execute(f'ALTER TABLE {table} ADD COLUMN {col} {definition}')
+        return True
+    except sqlite3.OperationalError as exc:
+        if 'duplicate column' in str(exc).lower():
+            return False
+        raise
+
 
 def _env_int(name: str, default: int) -> int:
     raw = os.getenv(name, '').strip()
@@ -328,6 +344,7 @@ def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
         ('notes', "TEXT DEFAULT ''"),
         ('created_at', "TEXT DEFAULT (datetime('now'))"),
         ('updated_at', "TEXT DEFAULT (datetime('now'))"),
+        ('name_slug', 'TEXT'),
     ]:
         try:
             cursor.execute(f'ALTER TABLE jail_bookings ADD COLUMN {col} {definition}')
@@ -336,8 +353,22 @@ def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
             pass
 
     cursor.execute(
+        """
+        UPDATE jail_bookings
+        SET name_slug = LOWER(
+            REPLACE(REPLACE(REPLACE(REPLACE(TRIM(person_name), ' ', '-'), '.', ''), \"'\", ''), ',', '')
+        )
+        WHERE name_slug IS NULL AND person_name IS NOT NULL AND person_name != ''
+        """
+    )
+
+    cursor.execute(
         'CREATE INDEX IF NOT EXISTS idx_jail_bookings_hash_id '
         'ON jail_bookings(hash_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_bookings_name_slug '
+        'ON jail_bookings(name_slug)'
     )
     cursor.execute(
         'CREATE INDEX IF NOT EXISTS idx_jail_bookings_source_record_id '
@@ -370,7 +401,7 @@ def init_database():
         print(f"⚠️  Backing up existing database to: {backup_path}")
         os.system(f'cp {DB_PATH} {backup_path}')
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     _configure_sqlite(conn)
     cursor = conn.cursor()
@@ -379,8 +410,10 @@ def init_database():
     ensure_public_meeting_schema(conn)
     ensure_public_engagement_schema(conn)
     ensure_incident_notification_schema(conn)
+
     ensure_missing_person_schema(conn)
     ensure_jail_booking_schema(conn)
+    ensure_warrant_schema(conn)
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
     ensure_agent_mission_control_schema(conn)
@@ -561,8 +594,42 @@ def migrate():
     _create_core_tables(cursor)
     ensure_source_material_schema(conn)
     ensure_public_meeting_schema(conn)
+
+    # Add lat/lon to meeting_locations for map display
+    for col, definition in [('lat', 'REAL'), ('lon', 'REAL')]:
+        try:
+            cursor.execute(f'ALTER TABLE meeting_locations ADD COLUMN {col} {definition}')
+            print(f'✅ Added meeting_locations.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    _MT_CITY_COORDS = {
+        'billings':                      (45.7833, -108.5007),
+        'great-falls':                   (47.5053, -111.3008),
+        'missoula-county':               (46.8721, -113.9940),
+        'belgrade':                      (45.7763, -111.1771),
+        'whitefish':                     (48.4118, -114.3352),
+        'kalispell':                     (48.1961, -114.3117),
+        'columbia-falls':                (48.3719, -114.1835),
+        'anaconda-deer-lodge-county':    (46.1285, -112.9471),
+        'miles-city':                    (46.4083, -105.8408),
+        'helena':                        (46.5958, -112.0270),
+        'livingston':                    (45.6625, -110.5607),
+        'havre':                         (48.5484, -109.6821),
+        'big-sandy':                     (48.1840, -110.1179),
+        'fort-benton':                   (47.8230, -110.6666),
+        'choteau':                       (47.8127, -112.1802),
+    }
+    for slug, (lat, lon) in _MT_CITY_COORDS.items():
+        cursor.execute(
+            'UPDATE meeting_locations SET lat=?, lon=? WHERE slug=? AND (lat IS NULL OR lon IS NULL)',
+            (lat, lon, slug),
+        )
+    conn.commit()
+
     ensure_public_engagement_schema(conn)
     ensure_jail_booking_schema(conn)
+    ensure_warrant_schema(conn)
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
     ensure_recovery_ad_schema(conn)
@@ -572,6 +639,7 @@ def migrate():
     ensure_license_sanction_schema(conn)
     ensure_civil_filing_schema(conn)
     ensure_crash_incident_schema(conn)
+    ensure_agency_contacts_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -1391,6 +1459,8 @@ def migrate():
         ('audit_status',     "TEXT DEFAULT 'pending'"),
         ('pii_flags',        'TEXT'),
         ('meta_description', 'TEXT'),
+        ('seo_title',        'TEXT'),
+        ('seo_slug',         'TEXT'),
         ('audited_at',       'TEXT'),
     ]:
         try:
@@ -1406,7 +1476,7 @@ def migrate():
         print(f'✅ Seeded {created_journeys} case journeys')
 
     try:
-        from agency_normalization import normalize_existing_post_agencies
+        from core.agency_normalization import normalize_existing_post_agencies
 
         normalized_posts = normalize_existing_post_agencies(conn)
         if normalized_posts:
@@ -1584,6 +1654,104 @@ def migrate():
     ensure_code_violation_schema(conn)
     ensure_license_sanction_schema(conn)
     ensure_sex_offender_schema(conn)
+
+    # Admin AI pending actions — survives session expiry
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS admin_ai_pending_actions (
+            token      TEXT PRIMARY KEY,
+            user_id    INTEGER,
+            tool_name  TEXT NOT NULL,
+            summary    TEXT,
+            arguments_json TEXT,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        )
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_ai_pending_expires ON admin_ai_pending_actions(expires_at)'
+    )
+
+    # facebook_post_queue extended columns (content_type, blog support, link)
+    for col, definition in [
+        ('content_type', "TEXT NOT NULL DEFAULT 'blotter'"),
+        ('blog_post_id', 'INTEGER'),
+        ('link_url', 'TEXT'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE facebook_post_queue ADD COLUMN {col} {definition}')
+            print(f'✅ Added facebook_post_queue.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    # Unsplash image cache keyed by city/county slug
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS unsplash_image_cache (
+            slug TEXT PRIMARY KEY,
+            image_url TEXT NOT NULL,
+            photographer TEXT,
+            photographer_url TEXT,
+            fetched_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+
+    # Criminal outcome fields on court_cases
+    for col, definition in [
+        ('defendant_name', 'TEXT'),
+        ('is_criminal', 'INTEGER NOT NULL DEFAULT 0'),
+        ('charges_text', 'TEXT'),
+        ('charges_json', 'TEXT'),
+        ('plea', 'TEXT'),
+        ('disposition', 'TEXT'),
+        ('sentence_text', 'TEXT'),
+        ('sentence_date', 'TEXT'),
+        ('sentencing_judge', 'TEXT'),
+        ('outcome_scraped_at', 'TEXT'),
+        ('original_court', 'TEXT'),
+        ('original_case_number', 'TEXT'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE court_cases ADD COLUMN {col} {definition}')
+            print(f'✅ Added court_cases.{col}')
+        except sqlite3.OperationalError:
+            pass
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_court_cases_criminal '
+        'ON court_cases(is_criminal, outcome_scraped_at, status)'
+    )
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            endpoint TEXT NOT NULL UNIQUE,
+            p256dh TEXT NOT NULL,
+            auth TEXT NOT NULL,
+            county_filter TEXT DEFAULT '',
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            last_sent_at TEXT
+        )
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_push_subs_active ON push_subscriptions(active, county_filter)'
+    )
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS social_posts_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blog_post_id INTEGER,
+            platform TEXT NOT NULL,
+            status TEXT NOT NULL,
+            fb_post_id TEXT,
+            ig_media_id TEXT,
+            image_path TEXT,
+            error_message TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_social_posts_log_platform '
+        'ON social_posts_log(platform, created_at)'
+    )
 
     conn.commit()
     conn.close()
@@ -1781,12 +1949,24 @@ def ensure_sex_offender_schema(conn: sqlite3.Connection) -> None:
         ('is_active', 'INTEGER NOT NULL DEFAULT 1'),
         ('last_sent_at', 'TEXT'),
         ('created_at', "TEXT DEFAULT (datetime('now'))"),
+        ('zip_code', 'TEXT'),
+        ('unsubscribe_token', 'TEXT'),
     ]:
         try:
             cursor.execute(f'ALTER TABLE sex_offender_alert_subscriptions ADD COLUMN {col} {definition}')
             print(f'✅ Added sex_offender_alert_subscriptions.{col}')
         except sqlite3.OperationalError:
             pass
+
+    # Zip geocode cache — converts zip codes to lat/lon at signup time
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS zip_geocode_cache (
+            zip_code  TEXT PRIMARY KEY,
+            lat       REAL,
+            lon       REAL,
+            cached_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
 
 
 def ensure_crash_incident_schema(conn: sqlite3.Connection) -> None:
@@ -2300,6 +2480,26 @@ def seed_civil_filing_sources(conn: sqlite3.Connection) -> None:
             ''',
             (key, name, 'icourtcase', county, 'https://dcportal.pubcourts.mt.gov/'),
         )
+    conn.commit()
+
+
+def ensure_agency_contacts_schema(conn):
+    """Create agency_contacts table for weekly crime brief emails."""
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS agency_contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            county TEXT NOT NULL,
+            agency_name TEXT,
+            contact_email TEXT NOT NULL UNIQUE,
+            contact_name TEXT,
+            is_active INTEGER DEFAULT 1,
+            weekly_brief_enabled INTEGER DEFAULT 1,
+            last_sent_at TEXT,
+            created_at TEXT
+        )
+    ''')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_agency_contacts_county ON agency_contacts(county)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_agency_contacts_active ON agency_contacts(is_active, weekly_brief_enabled)')
     conn.commit()
 
 

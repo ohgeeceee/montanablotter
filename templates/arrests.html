@@ -51,7 +51,7 @@
                         </div>
                         <div class="public-stat-box">
                             <p class="public-stat-label">Mode</p>
-                            <p class="public-stat-value">Source-linked</p>
+                            <p class="public-stat-value">Live Feed</p>
                         </div>
                     </div>
                 </div>
@@ -128,7 +128,7 @@
         {% if records %}
         <div class="space-y-3">
             {% for record in records %}
-            <a href="/record/{{ record.id }}"
+            <a href="{% if record.source_type == 'booking' %}/booking/{{ record.link_id }}{% else %}/record/{{ record.link_id }}{% endif %}"
                class="public-card public-card--lift block p-5 group">
                 <div class="flex items-start justify-between gap-4">
                     <div class="flex-1 min-w-0">
@@ -136,20 +136,22 @@
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-black uppercase tracking-wide">
                                 <i class="fas fa-handcuffs text-[9px]"></i> Arrest
                             </span>
+                            {% if record.source_type == 'booking' %}
+                            <span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-[10px] font-bold uppercase tracking-wide">Jail Booking</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold uppercase tracking-wide">Blotter Record</span>
+                            {% endif %}
                             <span class="text-[10px] font-mono text-slate-400">
-                                {{ record.date }}{% if record.time %} &bull; {{ record.time }}{% endif %}
+                                {{ record.date }}
                             </span>
                             {% if record.county %}
                             <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold">
                                 {{ record.county }}
                             </span>
                             {% endif %}
-                            {% if record.cfs_number %}
-                            <span class="text-[10px] font-mono text-slate-300">{{ record.cfs_number }}</span>
-                            {% endif %}
                         </div>
                         <h3 class="font-bold text-slate-800 mb-1">
-                            {{ record.incident_type or record.incident or 'Arrest' }}
+                            {{ record.title or 'Arrest' }}
                         </h3>
                         {% if record.location %}
                         <p class="text-xs text-slate-500 mb-1.5">
@@ -173,11 +175,11 @@
             <p class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }} &mdash; {{ total }} arrests</p>
             <div class="flex gap-2">
                 {% if page > 1 %}
-                <a href="?county={{ county }}&q={{ q }}&page={{ page - 1 }}"
+                <a href="?county={{ county|urlencode }}&q={{ q|urlencode }}&page={{ page - 1 }}"
                    class="public-btn public-btn--secondary">&larr; Prev</a>
                 {% endif %}
                 {% if page < total_pages %}
-                <a href="?county={{ county }}&q={{ q }}&page={{ page + 1 }}"
+                <a href="?county={{ county|urlencode }}&q={{ q|urlencode }}&page={{ page + 1 }}"
                    class="public-btn public-btn--secondary">Next &rarr;</a>
                 {% endif %}
             </div>

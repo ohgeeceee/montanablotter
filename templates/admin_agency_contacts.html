@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Agency Contacts — Admin{% endblock %}
+{% block content %}
+<div class="adm-page-header">
+  <h1 class="adm-page-title">Agency Email Contacts</h1>
+  <p class="adm-page-sub">Manage weekly crime brief recipients for Montana law enforcement agencies.</p>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="adm-alert adm-alert-{{ cat }}" style="margin-bottom:16px">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+  <div class="adm-stat-card">
+    <div class="adm-stat-value">{{ contacts | length }}</div>
+    <div class="adm-stat-label">Total Contacts</div>
+  </div>
+  <div class="adm-stat-card">
+    <div class="adm-stat-value">{{ contacts | selectattr('weekly_brief_enabled') | list | length }}</div>
+    <div class="adm-stat-label">Weekly Brief Active</div>
+  </div>
+</div>
+
+<!-- Add contact form -->
+<div class="adm-card" style="margin-bottom:24px">
+  <div class="adm-card-header">Add New Contact</div>
+  <form method="POST" action="{{ url_for('admin.admin_agency_contacts_add') }}"
+        style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr)) auto;gap:10px;align-items:end">
+    <div>
+      <label class="adm-label">County *</label>
+      <select name="county" required class="adm-input">
+        <option value="">Select…</option>
+        {% for c in counties %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="adm-label">Agency Name</label>
+      <input type="text" name="agency_name" placeholder="e.g. Cascade County Sheriff" class="adm-input">
+    </div>
+    <div>
+      <label class="adm-label">Contact Email *</label>
+      <input type="email" name="contact_email" required placeholder="sheriff@example.gov" class="adm-input">
+    </div>
+    <div>
+      <label class="adm-label">Contact Name</label>
+      <input type="text" name="contact_name" placeholder="Optional" class="adm-input">
+    </div>
+    <div>
+      <button type="submit" class="adm-btn adm-btn-primary" style="margin-top:20px">Add</button>
+    </div>
+  </form>
+</div>
+
+<!-- Test & Send -->
+<div class="adm-card" style="margin-bottom:24px">
+  <div class="adm-card-header">Test &amp; Send Briefs</div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+    <div>
+      <label class="adm-label">Send Test Brief</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="testCounty" class="adm-input" style="width:170px">
+          {% for c in counties %}<option>{{ c }}</option>{% endfor %}
+        </select>
+        <input type="email" id="testEmail" class="adm-input" placeholder="your@email.com" style="width:200px">
+        <button class="adm-btn adm-btn-secondary" id="sendTestBtn">Send Test</button>
+      </div>
+    </div>
+    <div>
+      <label class="adm-label">Send to All Active Contacts</label>
+      <button class="adm-btn adm-btn-danger" id="sendAllBtn">Send Weekly Briefs Now</button>
+    </div>
+  </div>
+  <div id="sendResult" style="margin-top:10px;font-size:13px;color:#64748b"></div>
+</div>
+
+<!-- Contacts table -->
+<div class="adm-card">
+  <div class="adm-card-header">All Contacts ({{ contacts | length }})</div>
+  {% if contacts %}
+  <div style="overflow-x:auto">
+  <table class="adm-table" style="width:100%">
+    <thead>
+      <tr>
+        <th>County</th><th>Agency</th><th>Email</th><th>Contact</th>
+        <th>Active</th><th>Brief</th><th>Last Sent</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contacts %}
+      <tr>
+        <td>{{ c.county }}</td>
+        <td style="color:#94a3b8;font-size:12px">{{ c.agency_name or '—' }}</td>
+        <td><a href="mailto:{{ c.contact_email }}" style="color:#38bdf8;font-size:12px">{{ c.contact_email }}</a></td>
+        <td style="font-size:12px">{{ c.contact_name or '—' }}</td>
+        <td>
+          <button class="toggle-btn adm-badge {% if c.is_active %}adm-badge-green{% else %}adm-badge-muted{% endif %}"
+                  data-id="{{ c.id }}" data-field="is_active">
+            {{ 'Active' if c.is_active else 'Paused' }}
+          </button>
+        </td>
+        <td>
+          <button class="toggle-btn adm-badge {% if c.weekly_brief_enabled %}adm-badge-sky{% else %}adm-badge-muted{% endif %}"
+                  data-id="{{ c.id }}" data-field="weekly_brief_enabled">
+            {{ 'On' if c.weekly_brief_enabled else 'Off' }}
+          </button>
+        </td>
+        <td style="color:#64748b;font-size:12px">{{ c.last_sent_at[:10] if c.last_sent_at else 'Never' }}</td>
+        <td>
+          <form method="POST"
+                action="{{ url_for('admin.admin_agency_contacts_delete', contact_id=c.id) }}"
+                onsubmit="return confirm('Remove this contact?')">
+            <button type="submit" class="adm-btn adm-btn-sm adm-btn-danger">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div style="padding:24px;color:#64748b;text-align:center">
+    No agency contacts yet. Add the first one above.<br>
+    <small style="color:#475569;margin-top:8px;display:block">
+      Tip: Use agency email addresses from source_documents.source_sender to seed the list.
+    </small>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const res = await fetch(`/admin/agency-contacts/${btn.dataset.id}/toggle`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/x-www-form-urlencoded'},
+      body: `field=${btn.dataset.field}`,
+    });
+    if (res.ok) window.location.reload();
+  });
+});
+
+document.getElementById('sendTestBtn').addEventListener('click', async () => {
+  const county = document.getElementById('testCounty').value;
+  const email  = document.getElementById('testEmail').value;
+  const result = document.getElementById('sendResult');
+  if (!email) { result.textContent = 'Enter an email address first'; result.style.color = '#f97316'; return; }
+  result.textContent = 'Sending…'; result.style.color = '#64748b';
+  const res = await fetch('/admin/agency-contacts/send-test', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: `county=${encodeURIComponent(county)}&email=${encodeURIComponent(email)}`,
+  });
+  const data = await res.json();
+  result.textContent = data.ok ? `✓ Test brief sent to ${data.sent_to}` : `Error: ${data.error}`;
+  result.style.color = data.ok ? '#10b981' : '#ef4444';
+});
+
+document.getElementById('sendAllBtn').addEventListener('click', async () => {
+  if (!confirm('Send weekly crime briefs to all active contacts now?')) return;
+  const result = document.getElementById('sendResult');
+  result.textContent = 'Sending to all active contacts…'; result.style.color = '#64748b';
+  const res = await fetch('/admin/agency-contacts/send-all', { method: 'POST' });
+  const data = await res.json();
+  result.textContent = `Done — Sent: ${data.sent} | Failed: ${data.failed} | Skipped: ${data.skipped}`;
+  result.style.color = '#94a3b8';
+});
+</script>
+{% endblock %}

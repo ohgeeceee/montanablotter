@@ -1,0 +1,38 @@
+[Unit]
+Description=Hermes Gateway (Montana Blotter profiles)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/montanablotter
+Environment=HERMES_HOME=/root/montanablotter/.hermes
+ExecStart=/root/.local/bin/hermes gateway run --replace --accept-hooks
+Restart=always
+RestartSec=5
+StandardOutput=append:/root/montanablotter/logs/hermes-gateway.log
+StandardError=append:/root/montanablotter/logs/hermes-gateway.log
+
+# Tighten defaults for any files the service creates.
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+
+# Additional hardening (keep compatible with a /root working directory).
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+
+ReadWritePaths=/root/montanablotter
+
+[Install]
+WantedBy=multi-user.target

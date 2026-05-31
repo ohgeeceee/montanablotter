@@ -1,0 +1,157 @@
+{
+  "probed_at": "2026-05-21T13:17:52.830730",
+  "zuercher_api": {
+    "broadwater": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    },
+    "carbon": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    },
+    "gallatin": {
+      "status": -1,
+      "ok": false,
+      "error": "Expecting value: line 1 column 1 (char 0)"
+    },
+    "jefferson": {
+      "status": 200,
+      "ok": true,
+      "records": 7,
+      "total": 14
+    },
+    "madison": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    },
+    "meagher": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    },
+    "ravalli": {
+      "status": 200,
+      "ok": true,
+      "records": 7,
+      "total": 53
+    },
+    "roosevelt": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    },
+    "rosebud": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    },
+    "stillwater": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    },
+    "valley": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    },
+    "wheatland": {
+      "status": 404,
+      "ok": false,
+      "error": "HTTP 404"
+    }
+  },
+  "html_rosters": {
+    "beaverhead": {
+      "status": 200,
+      "ok": true
+    },
+    "big-horn": {
+      "status": 200,
+      "ok": true
+    },
+    "carbon": {
+      "status": 200,
+      "ok": true
+    },
+    "cascade": {
+      "status": 200,
+      "ok": true
+    },
+    "dawson": {
+      "status": 403,
+      "ok": false
+    },
+    "fergus": {
+      "status": 200,
+      "ok": true
+    },
+    "glacier": {
+      "status": 200,
+      "ok": true
+    },
+    "granite": {
+      "status": 403,
+      "ok": false
+    },
+    "lewis-and-clark": {
+      "status": 200,
+      "ok": true
+    },
+    "mineral": {
+      "status": 200,
+      "ok": true
+    },
+    "park": {
+      "status": 200,
+      "ok": true
+    },
+    "phillips": {
+      "status": 200,
+      "ok": true
+    },
+    "pondera": {
+      "status": 403,
+      "ok": false
+    },
+    "powell": {
+      "status": 403,
+      "ok": false
+    },
+    "ravalli": {
+      "status": 200,
+      "ok": true
+    },
+    "silver-bow": {
+      "status": 200,
+      "ok": true
+    },
+    "valley": {
+      "status": 200,
+      "ok": true
+    }
+  },
+  "police_blotters": {
+    "missoula_public": {
+      "status": 404,
+      "ok": false
+    },
+    "whitefish": {
+      "status": 200,
+      "ok": true
+    },
+    "bozeman_calls": {
+      "status": 200,
+      "ok": false,
+      "error": "Invalid URL"
+    },
+    "kalispell": {
+      "status": 200,
+      "ok": true
+    }
+  },
+  "changes": []
+}

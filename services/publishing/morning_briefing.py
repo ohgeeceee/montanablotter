@@ -175,7 +175,7 @@ def group_posts_by_county(posts):
     return grouped
 
 
-def build_html(posts, date_str, unsubscribe_url=None):
+def build_html(posts, date_str, unsubscribe_url=None, open_tracking_url=None):
     county_counts = Counter((post["county"] or "Unknown") for post in posts)
     county_total = len(county_counts)
     top_county = county_counts.most_common(1)[0] if county_counts else None
@@ -263,7 +263,10 @@ def build_html(posts, date_str, unsubscribe_url=None):
     """
     if unsubscribe_url:
         html += f' &mdash; <a href="{unsubscribe_url}" style="color:#94a3b8;">Unsubscribe</a>'
-    html += "</p></div>"
+    html += "</p>"
+    if open_tracking_url:
+        html += f'<img src="{open_tracking_url}" width="1" height="1" style="display:block;border:0;" alt="">'
+    html += "</div>"
     return html
 
 

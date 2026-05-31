@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import hashlib
 import json
 import os
@@ -10,15 +11,53 @@ from flask import Blueprint, abort, current_app, jsonify, render_template, reque
 from werkzeug.utils import secure_filename
 
 from db import get_db
-from services.api.auth import require_api_key
+from services.api.auth import require_api_key, validate_request
 
 
 api_bp = Blueprint('api', __name__)
+
+# Geo/map endpoints are first-party UI calls — give them a generous anonymous
+# quota so Crime Atlas and Crime Map don't hit the default 100 req/day limit.
+_GEO_QUOTA = {"window_seconds": 86400, "max_requests": 2000}
 
 
 def register_api_blueprint(app):
     """Register the api blueprint onto the Flask app."""
     app.register_blueprint(api_bp)
+
+@api_bp.before_request
+def enforce_public_user_csrf():
+    """
+    CSRF protection for cookie-authenticated "me" endpoints.
+
+    These endpoints rely on the Flask session (`public_user_id`). If a request is
+    authenticated via an API key, CSRF does not apply.
+    """
+    from flask import session
+
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return None
+    if not request.path.startswith("/api/me/"):
+        return None
+    if not session.get("public_user_id"):
+        return None
+
+    # If an API key is present and valid, treat it as non-cookie auth.
+    try:
+        conn = get_db()
+        if validate_request(conn) is not None:
+            conn.close()
+            return None
+        conn.close()
+    except Exception:
+        # Fail closed to avoid bypassing CSRF due to auth lookup issues.
+        return jsonify({"error": "csrf_validation_failed"}), 400
+
+    session_token = session.get("_csrf_token")
+    submitted_token = (request.headers.get("X-CSRF-Token") or "").strip()
+    if not session_token or not submitted_token or not hmac.compare_digest(session_token, submitted_token):
+        return jsonify({"error": "csrf_validation_failed"}), 400
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +308,7 @@ def _current_public_user():
 # ---------------------------------------------------------------------------
 
 @api_bp.route('/api/geo/incidents')
-@require_api_key(allow_anonymous=True)
+@require_api_key(allow_anonymous=True, anonymous_quota=_GEO_QUOTA)
 def api_geo_incidents():
     bounds = request.args.get('bounds', '').strip()
     county = (request.args.get('county') or '').strip()[:60]
@@ -315,7 +354,7 @@ def api_geo_incidents():
 
 
 @api_bp.route('/api/geo/heatmap')
-@require_api_key(allow_anonymous=True)
+@require_api_key(allow_anonymous=True, anonymous_quota=_GEO_QUOTA)
 def api_geo_heatmap():
     county = (request.args.get('county') or '').strip()[:60]
     date_from = (request.args.get('date_from') or '').strip()[:10]
@@ -1179,9 +1218,8 @@ from services.api.auth import (
 
 def _require_admin_secret():
     """Abort 403 if the X-Admin-Secret header doesn't match."""
-    import api_auth as _api_auth_mod
     provided = (request.headers.get("X-Admin-Secret") or "").strip()
-    secret = _api_auth_mod.MB_API_ADMIN_SECRET
+    secret = (MB_API_ADMIN_SECRET or "").strip()
     if not secret:
         abort(503, description="API admin secret not configured.")
     if not secrets.compare_digest(provided, secret):
@@ -1260,3 +1298,208 @@ def api_whoami():
         "tier": client.tier,
         "is_active": bool(client.is_active),
     })
+
+
+# ---------------------------------------------------------------------------
+# Maps & Data Expansion — new endpoints (2026)
+# ---------------------------------------------------------------------------
+
+# Handles both MM/DD/YY (8-char) and YYYY-MM-DD (10-char) date storage formats
+_ISO = (
+    "(CASE WHEN length(r.date)=8 "
+    "THEN '20'||substr(r.date,7,2)||'-'||substr(r.date,1,2)||'-'||substr(r.date,4,2) "
+    "ELSE r.date END)"
+)
+
+
+@api_bp.route('/api/geo/choropleth')
+@require_api_key(allow_anonymous=True, anonymous_quota=_GEO_QUOTA)
+def api_geo_choropleth():
+    """County-level incident aggregates for choropleth map coloring."""
+    from datetime import datetime, timedelta
+    days = max(1, min(730, request.args.get('days', 90, type=int)))
+    mode = (request.args.get('mode') or 'per_capita').strip().lower()
+    category = (request.args.get('category') or '').strip().lower()[:40]
+    date_from = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%d')
+
+    where = [f"{_ISO} >= ?", "r.county IS NOT NULL", "r.county != ''"]
+    params = [date_from]
+    if mode == 'category' and category:
+        where.append("r.charge_category = ?")
+        params.append(category)
+
+    conn = get_db()
+    rows = conn.execute(
+        f"SELECT r.county, COUNT(*) AS n FROM records r "
+        f"WHERE {' AND '.join(where)} GROUP BY r.county ORDER BY r.county",
+        params,
+    ).fetchall()
+    conn.close()
+
+    from data.mt_county_populations import MT_COUNTY_POPULATIONS
+    features = []
+    for row in rows:
+        name = (row['county'] or '').strip().title()
+        count = int(row['n'] or 0)
+        pop = MT_COUNTY_POPULATIONS.get(name, 0)
+        features.append({
+            'county': row['county'],
+            'incident_count': count,
+            'per_capita_per_1k': round(count / pop * 1000, 2) if pop else None,
+            'population': pop,
+        })
+    return jsonify({'features': features, 'days': days, 'mode': mode,
+                    'category': category, 'date_from': date_from})
+
+
+@api_bp.route('/api/geo/county-detail')
+@require_api_key(allow_anonymous=True, anonymous_quota=_GEO_QUOTA)
+def api_geo_county_detail():
+    """Incident breakdown for a single county — charge categories, sparkline, agencies."""
+    from datetime import datetime, timedelta
+    from collections import defaultdict
+    county = (request.args.get('county') or '').strip()[:80]
+    days = max(1, min(365, request.args.get('days', 90, type=int)))
+    if not county:
+        return jsonify({'error': 'county required'}), 400
+    date_from = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%d')
+    spark_from = (datetime.utcnow() - timedelta(weeks=12)).strftime('%Y-%m-%d')
+
+    conn = get_db()
+    top_types = conn.execute(
+        f"SELECT charge_category, COUNT(*) AS n FROM records r "
+        f"WHERE r.county=? AND {_ISO}>=? AND r.charge_category IS NOT NULL "
+        f"GROUP BY r.charge_category ORDER BY n DESC LIMIT 6",
+        (county, date_from),
+    ).fetchall()
+    spark = conn.execute(
+        f"SELECT strftime('%Y-W%W', {_ISO}) AS wk, COUNT(*) AS n FROM records r "
+        f"WHERE r.county=? AND {_ISO}>=? GROUP BY wk ORDER BY wk",
+        (county, spark_from),
+    ).fetchall()
+    agencies = conn.execute(
+        "SELECT b.county AS agency, COUNT(r.id) AS n FROM records r "
+        "JOIN blotters b ON b.id=r.blotter_id WHERE r.county=? "
+        "GROUP BY b.county ORDER BY n DESC LIMIT 5",
+        (county,),
+    ).fetchall()
+    conn.close()
+
+    slug = county.lower().replace(' ', '-').replace("'", '')
+    return jsonify({
+        'county': county,
+        'top_charge_categories': [{'category': r['charge_category'], 'count': int(r['n'])} for r in top_types],
+        'sparkline': [{'week': r['wk'], 'count': int(r['n'])} for r in spark],
+        'agency_breakdown': [{'agency': r['agency'], 'count': int(r['n'])} for r in agencies],
+        'county_page_url': f'/county/{slug}',
+    })
+
+
+@api_bp.route('/api/stats/crime-calendar')
+@require_api_key(allow_anonymous=True)
+def api_stats_crime_calendar():
+    """Daily incident counts for a given year — used by the crime calendar heatmap."""
+    from datetime import datetime
+    year = request.args.get('year', datetime.utcnow().year, type=int)
+    year = max(2018, min(datetime.utcnow().year + 1, year))
+    date_from = f'{year}-01-01'
+    date_to = f'{year}-12-31'
+
+    conn = get_db()
+    rows = conn.execute(
+        f"SELECT {_ISO} AS iso_date, COUNT(*) AS n FROM records r "
+        f"WHERE {_ISO} >= ? AND {_ISO} <= ? GROUP BY iso_date ORDER BY iso_date",
+        (date_from, date_to),
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'year': year,
+        'days': [{'date': r['iso_date'], 'count': int(r['n'] or 0)} for r in rows
+                 if r['iso_date'] and len(r['iso_date']) == 10],
+    })
+
+
+@api_bp.route('/api/stats/charge-trends')
+@require_api_key(allow_anonymous=True)
+def api_stats_charge_trends():
+    """Monthly charge category counts for stacked area chart."""
+    from datetime import datetime, timedelta
+    from collections import defaultdict
+    months = max(1, min(24, request.args.get('months', 12, type=int)))
+    date_from = (datetime.utcnow() - timedelta(days=months * 31)).strftime('%Y-%m-%d')
+
+    conn = get_db()
+    rows = conn.execute(
+        f"SELECT strftime('%Y-%m', {_ISO}) AS mo, charge_category, COUNT(*) AS n "
+        f"FROM records r WHERE {_ISO}>=? AND charge_category IS NOT NULL "
+        f"GROUP BY mo, charge_category ORDER BY mo, charge_category",
+        (date_from,),
+    ).fetchall()
+    conn.close()
+
+    result = defaultdict(lambda: defaultdict(int))
+    categories = set()
+    for row in rows:
+        if not row['mo']:
+            continue
+        result[row['mo']][row['charge_category']] += int(row['n'] or 0)
+        categories.add(row['charge_category'])
+
+    sorted_months = sorted(result.keys())
+    return jsonify({
+        'months': sorted_months,
+        'categories': sorted(categories),
+        'data': {mo: dict(counts) for mo, counts in sorted(result.items())},
+    })
+
+
+@api_bp.route('/api/stats/agency-activity')
+@require_api_key(allow_anonymous=True)
+def api_stats_agency_activity():
+    """Per-county blotter filing frequency — most active reporting counties."""
+    from datetime import datetime, timedelta
+    days = max(7, min(365, request.args.get('days', 90, type=int)))
+    date_from = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%d')
+
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT county, COUNT(*) AS blotter_count, "
+        "SUM(COALESCE(incident_count,0)) AS total_incidents, MAX(upload_date) AS last_upload "
+        "FROM blotters WHERE upload_date>=? AND county IS NOT NULL AND county!='' "
+        "GROUP BY county ORDER BY blotter_count DESC LIMIT 30",
+        (date_from,),
+    ).fetchall()
+    conn.close()
+    return jsonify({'agencies': [
+        {'county': r['county'], 'blotter_count': int(r['blotter_count'] or 0),
+         'total_incidents': int(r['total_incidents'] or 0), 'last_upload': r['last_upload']}
+        for r in rows
+    ]})
+
+
+@api_bp.route('/api/geo/zip-location')
+@require_api_key(allow_anonymous=True, anonymous_quota=_GEO_QUOTA)
+def api_geo_zip_location():
+    """Resolve a Montana zip code to lat/lng for the 'Near Me' map feature."""
+    zip_code = (request.args.get('zip') or '').strip()[:5]
+    if len(zip_code) != 5 or not zip_code.isdigit():
+        return jsonify({'error': 'Invalid zip code'}), 400
+    from services.geo.zip_geocode import zip_to_latlon
+    result = zip_to_latlon(zip_code)
+    if result:
+        return jsonify({'lat': result[0], 'lng': result[1], 'zip': zip_code})
+    return jsonify({'error': 'Zip code not found'}), 404
+
+
+@api_bp.route('/api/geo/sex-offender-county-counts')
+@require_api_key(allow_anonymous=True, anonymous_quota=_GEO_QUOTA)
+def api_geo_sex_offender_county_counts():
+    """County-level aggregate sex offender counts — no individual locations exposed."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT address_county AS county, COUNT(*) AS count FROM sex_offenders "
+        "WHERE status='active' AND address_county IS NOT NULL AND address_county!='' "
+        "GROUP BY address_county ORDER BY address_county"
+    ).fetchall()
+    conn.close()
+    return jsonify({'counts': [{'county': r['county'], 'count': int(r['count'])} for r in rows]})

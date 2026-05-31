@@ -327,26 +327,17 @@ def _agent_snapshot() -> dict:
 @admin_bp.route('/agents')
 @login_required
 def admin_agents():
-    snapshot = _agent_snapshot()
-    sys_snapshot = system_snapshot()
-    snapshot['alerts'] = [
-        *(snapshot.get('alerts') or []),
-        *(sys_snapshot.get('alerts') or []),
-    ]
-    client_snapshot = _client_snapshot()
-    return render_template(
-        'admin_agents.html',
-        snapshot=snapshot,
-        known_agents=KNOWN_AGENTS,
-        client_snapshot=client_snapshot,
-        system_snapshot=sys_snapshot,
-    )
+    from flask import redirect, url_for
+
+    return redirect(url_for('admin.admin_command_center'))
 
 
 @admin_bp.route('/office')
 @login_required
 def admin_office():
-    return admin_agents()
+    from flask import redirect, url_for
+
+    return redirect(url_for('admin.admin_command_center'))
 
 
 @admin_bp.route('/agents/client-snapshot')

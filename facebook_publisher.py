@@ -19,6 +19,62 @@ DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
 DEFAULT_BASE_URL = (os.getenv("BASE_URL") or getattr(config, "BASE_URL", "") or "https://montanablotter.com").rstrip("/")
 GRAPH_API_VERSION = getattr(config, "FACEBOOK_GRAPH_API_VERSION", "v22.0")
 
+
+def _unsplash_image_for_location(conn: sqlite3.Connection, city: str, county: str) -> Optional[str]:
+    """Return a cached Unsplash image URL for the given city/county, fetching if needed."""
+    access_key = (os.getenv("MB_UNSPLASH_ACCESS_KEY") or getattr(config, "UNSPLASH_ACCESS_KEY", "")).strip()
+    if not access_key:
+        return None
+
+    location = (city or county or "").strip()
+    if not location:
+        return None
+
+    slug = re.sub(r"[^a-z0-9]+", "-", location.lower()).strip("-")
+
+    cached = conn.execute(
+        "SELECT image_url FROM unsplash_image_cache WHERE slug = ?", (slug,)
+    ).fetchone()
+    if cached:
+        return cached["image_url"]
+
+    query = f"{location} Montana"
+    try:
+        resp = requests.get(
+            "https://api.unsplash.com/search/photos",
+            params={"query": query, "per_page": 1, "orientation": "landscape"},
+            headers={"Authorization": f"Client-ID {access_key}"},
+            timeout=10,
+        )
+        data = resp.json()
+        results = data.get("results", [])
+        if not results:
+            return None
+
+        photo = results[0]
+        image_url = photo.get("urls", {}).get("regular", "")
+        photographer = photo.get("user", {}).get("name", "")
+        photographer_url = photo.get("user", {}).get("links", {}).get("html", "")
+
+        if image_url:
+            conn.execute(
+                """
+                INSERT INTO unsplash_image_cache (slug, image_url, photographer, photographer_url)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(slug) DO UPDATE SET
+                    image_url=excluded.image_url,
+                    photographer=excluded.photographer,
+                    photographer_url=excluded.photographer_url,
+                    fetched_at=datetime('now')
+                """,
+                (slug, image_url, photographer, photographer_url),
+            )
+            return image_url
+    except Exception as exc:
+        LOGGER.warning("Unsplash fetch failed for %r: %s", location, exc)
+
+    return None
+
 DEFAULT_FACEBOOK_TEMPLATE = (
     "{title}\n\n"
     "{summary_snippet}\n\n"
@@ -184,24 +240,46 @@ def _render_message(post: sqlite3.Row, settings: Dict[str, Any], custom_message:
 
 
 def queue_post(
-    post_id: int,
+    post_id: Optional[int] = None,
+    blog_post_id: Optional[int] = None,
+    content_type: str = "blotter",
     created_by_user_id: Optional[int] = None,
     scheduled_for: Optional[str] = None,
     enqueue_source: str = "manual",
     custom_message: Optional[str] = None,
+    link_url: Optional[str] = None,
     conn: Optional[sqlite3.Connection] = None,
 ) -> Dict[str, Any]:
+    if content_type not in ("blotter", "blog", "custom"):
+        content_type = "blotter"
     owns_conn = conn is None
     if owns_conn:
         conn = _connect_db()
     assert conn is not None
 
     try:
-        post = _fetch_post(conn, post_id)
-        if not post:
-            return {"ok": False, "error": "post_not_found"}
+        if content_type == "blotter":
+            if not post_id:
+                return {"ok": False, "error": "post_id_required_for_blotter"}
+            post = _fetch_post(conn, post_id)
+            if not post:
+                return {"ok": False, "error": "post_not_found"}
+            dedupe_key = f"facebook:blotter:{post_id}"
+        elif content_type == "blog":
+            if not blog_post_id:
+                return {"ok": False, "error": "blog_post_id_required_for_blog"}
+            blog_post = conn.execute(
+                "SELECT id, title, excerpt, body, slug, published FROM blog_posts WHERE id = ?",
+                (blog_post_id,),
+            ).fetchone()
+            if not blog_post:
+                return {"ok": False, "error": "blog_post_not_found"}
+            if not blog_post["published"]:
+                return {"ok": False, "error": "blog_post_not_published"}
+            dedupe_key = f"facebook:blog:{blog_post_id}"
+        else:  # custom
+            dedupe_key = f"facebook:custom:{hash((custom_message or '') + (link_url or ''))}"
 
-        dedupe_key = f"facebook:post:{post_id}"
         existing = conn.execute(
             "SELECT id, status FROM facebook_post_queue WHERE dedupe_key = ?",
             (dedupe_key,),
@@ -209,56 +287,37 @@ def queue_post(
 
         if existing:
             if existing["status"] in ("failed", "skipped"):
+                update_sql = """
+                    UPDATE facebook_post_queue
+                    SET status = 'queued',
+                        last_error = NULL,
+                        enqueue_source = ?,
+                        custom_message = COALESCE(?, custom_message),
+                        link_url = COALESCE(?, link_url),
+                        updated_at = datetime('now')
+                """
+                params: list = [enqueue_source, custom_message, link_url]
                 if scheduled_for:
-                    conn.execute(
-                        """
-                        UPDATE facebook_post_queue
-                        SET status = 'queued',
-                            last_error = NULL,
-                            scheduled_for = ?,
-                            enqueue_source = ?,
-                            custom_message = COALESCE(?, custom_message),
-                            updated_at = datetime('now')
-                        WHERE id = ?
-                        """,
-                        (scheduled_for, enqueue_source, custom_message, existing["id"]),
-                    )
-                else:
-                    conn.execute(
-                        """
-                        UPDATE facebook_post_queue
-                        SET status = 'queued',
-                            last_error = NULL,
-                            enqueue_source = ?,
-                            custom_message = COALESCE(?, custom_message),
-                            updated_at = datetime('now')
-                        WHERE id = ?
-                        """,
-                        (enqueue_source, custom_message, existing["id"]),
-                    )
+                    update_sql += ", scheduled_for = ?"
+                    params.append(scheduled_for)
+                update_sql += " WHERE id = ?"
+                params.append(existing["id"])
+                conn.execute(update_sql, params)
                 if owns_conn:
                     conn.commit()
                 return {"ok": True, "created": False, "requeued": True, "queue_id": int(existing["id"]), "status": "queued"}
             return {"ok": True, "created": False, "requeued": False, "queue_id": int(existing["id"]), "status": existing["status"]}
 
-        if scheduled_for:
-            cursor = conn.execute(
-                """
-                INSERT INTO facebook_post_queue
-                    (post_id, dedupe_key, status, custom_message, enqueue_source, scheduled_for, created_by_user_id, created_at, updated_at)
-                VALUES (?, ?, 'queued', ?, ?, ?, ?, datetime('now'), datetime('now'))
-                """,
-                (post_id, dedupe_key, custom_message, enqueue_source, scheduled_for, created_by_user_id),
-            )
-        else:
-            cursor = conn.execute(
-                """
-                INSERT INTO facebook_post_queue
-                    (post_id, dedupe_key, status, custom_message, enqueue_source, created_by_user_id, created_at, updated_at)
-                VALUES (?, ?, 'queued', ?, ?, ?, datetime('now'), datetime('now'))
-                """,
-                (post_id, dedupe_key, custom_message, enqueue_source, created_by_user_id),
-            )
+        insert_sql = """
+            INSERT INTO facebook_post_queue
+                (content_type, post_id, blog_post_id, dedupe_key, status, custom_message,
+                 link_url, enqueue_source, scheduled_for, created_by_user_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        """
+        cursor = conn.execute(
+            insert_sql,
+            (content_type, post_id, blog_post_id, dedupe_key, custom_message, link_url, enqueue_source, scheduled_for, created_by_user_id),
+        )
         if owns_conn:
             conn.commit()
         return {"ok": True, "created": True, "requeued": False, "queue_id": int(cursor.lastrowid or 0), "status": "queued"}
@@ -291,7 +350,8 @@ def queue_recent_posts(
         skipped = 0
         for row in rows:
             result = queue_post(
-                int(row["id"]),
+                post_id=int(row["id"]),
+                content_type="blotter",
                 created_by_user_id=created_by_user_id,
                 enqueue_source=enqueue_source,
                 conn=conn,
@@ -343,21 +403,51 @@ def publish_queue_item(queue_id: int) -> Dict[str, Any]:
                 return {"ok": False, "error": "queue_not_found"}
             return {"ok": False, "error": f"not_queueable:{row['status']}"}
 
-        queue_row = conn.execute(
-            """
-            SELECT q.*, p.id AS post_id_ref, p.title, p.summary, p.county, p.city, p.agency_name, p.agency_type, p.incident_date
-            FROM facebook_post_queue q
-            JOIN posts p ON p.id = q.post_id
-                       AND COALESCE(p.audit_status, 'pending') = 'clean'
-            WHERE q.id = ?
-            """,
-            (queue_id,),
-        ).fetchone()
-
+        queue_row = conn.execute("SELECT * FROM facebook_post_queue WHERE id = ?", (queue_id,)).fetchone()
         if not queue_row:
-            _mark_failed(conn, queue_id, "post_missing")
+            _mark_failed(conn, queue_id, "queue_row_missing")
             conn.commit()
-            return {"ok": False, "error": "post_missing"}
+            return {"ok": False, "error": "queue_row_missing"}
+
+        content_type = queue_row["content_type"] or "blotter"
+        message = ""
+        post_url = ""
+
+        if content_type == "blotter":
+            post_row = conn.execute(
+                """
+                SELECT p.id, p.title, p.summary, p.county, p.city, p.agency_name, p.agency_type, p.incident_date
+                FROM posts p
+                WHERE p.id = ? AND COALESCE(p.audit_status, 'pending') = 'clean'
+                """,
+                (queue_row["post_id"],),
+            ).fetchone()
+            if not post_row:
+                _mark_failed(conn, queue_id, "post_missing_or_not_clean")
+                conn.commit()
+                return {"ok": False, "error": "post_missing_or_not_clean"}
+            message = _render_message(post_row, settings=load_facebook_settings(conn), custom_message=queue_row["custom_message"])
+            post_url = _post_url(int(post_row["id"]), load_facebook_settings(conn))
+        elif content_type == "blog":
+            blog_row = conn.execute(
+                "SELECT id, title, excerpt, body, slug FROM blog_posts WHERE id = ? AND published = 1",
+                (queue_row["blog_post_id"],),
+            ).fetchone()
+            if not blog_row:
+                _mark_failed(conn, queue_id, "blog_post_missing_or_not_published")
+                conn.commit()
+                return {"ok": False, "error": "blog_post_missing_or_not_published"}
+            settings = load_facebook_settings(conn)
+            base_url = settings.get("base_url", DEFAULT_BASE_URL).rstrip("/")
+            post_url = f"{base_url}/blog/{blog_row['slug']}"
+            snippet = _summary_snippet(blog_row["excerpt"] or blog_row["body"])
+            if queue_row["custom_message"]:
+                message = queue_row["custom_message"]
+            else:
+                message = f"{blog_row['title']}\n\n{snippet}\n\nRead more: {post_url}\n\n#Montana #MontanaBlotter #PublicSafety"
+        else:  # custom
+            message = queue_row["custom_message"] or ""
+            post_url = queue_row["link_url"] or ""
 
         settings = load_facebook_settings(conn)
         if not settings.get("enabled"):
@@ -369,15 +459,45 @@ def publish_queue_item(queue_id: int) -> Dict[str, Any]:
             conn.commit()
             return {"ok": False, "error": "missing_credentials"}
 
-        message = _render_message(queue_row, settings, custom_message=queue_row["custom_message"])
-        post_url = _post_url(int(queue_row["post_id"]), settings)
+        access_token = settings["access_token"]
+        app_secret = (os.getenv("MB_FACEBOOK_APP_SECRET") or getattr(config, "FACEBOOK_APP_SECRET", "")).strip()
+        appsecret_proof = ""
+        if app_secret:
+            appsecret_proof = hmac.new(
+                app_secret.encode("utf-8"),
+                access_token.encode("utf-8"),
+                "sha256",
+            ).hexdigest()
 
-        graph_url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{settings['page_id']}/feed"
-        payload = {
+        # Try to fetch a town image from Unsplash for blotter posts
+        image_url: Optional[str] = None
+        if content_type == "blotter" and post_row:
+            image_url = _unsplash_image_for_location(
+                conn,
+                city=post_row["city"] or "",
+                county=post_row["county"] or "",
+            )
+
+        base_payload: Dict[str, Any] = {
+            "access_token": access_token,
             "message": message,
-            "link": post_url,
-            "access_token": settings["access_token"],
         }
+        if appsecret_proof:
+            base_payload["appsecret_proof"] = appsecret_proof
+
+        if image_url:
+            # Photo post — richer visual in the feed
+            graph_url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{settings['page_id']}/photos"
+            payload = {**base_payload, "url": image_url}
+            if post_url:
+                # Append the link to the caption so it's still clickable
+                payload["message"] = message + f"\n\n{post_url}"
+        else:
+            # Fallback: plain link post
+            graph_url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{settings['page_id']}/feed"
+            payload = {**base_payload}
+            if post_url:
+                payload["link"] = post_url
 
         try:
             response = requests.post(graph_url, data=payload, timeout=35)
@@ -467,6 +587,7 @@ def auto_queue_post_if_enabled(post_id: int) -> Dict[str, Any]:
             return {"ok": True, "queued": False, "reason": "auto_enqueue_disabled"}
         result = queue_post(
             post_id=post_id,
+            content_type="blotter",
             enqueue_source="auto_ingestion",
             conn=conn,
         )

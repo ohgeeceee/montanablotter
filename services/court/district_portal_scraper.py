@@ -9,6 +9,7 @@ Targets: https://dcportal.pubcourts.mt.gov
 from __future__ import annotations
 
 import hashlib
+import json
 import random
 import re
 import sqlite3
@@ -98,6 +99,141 @@ def _county_from_court_label(label: str) -> str:
     if raw.endswith(' District Court'):
         return raw[:-15].strip()
     return raw
+
+
+_CRIMINAL_CASE_TYPES = frozenset({
+    'DC', 'DCF', 'DCM', 'CF', 'CM', 'CR', 'FELONY', 'MISDEMEANOR', 'CRIMINAL',
+})
+
+_DEFENDANT_NAME_RE = re.compile(
+    r'(?:State of Montana|Montana)\s+v[s]?\.?\s+(.+)',
+    re.IGNORECASE,
+)
+
+_TABLE_RE = re.compile(r'<table[^>]*>(.*?)</table>', re.DOTALL | re.IGNORECASE)
+_TR_RE = re.compile(r'<tr[^>]*>(.*?)</tr>', re.DOTALL | re.IGNORECASE)
+_TH_RE = re.compile(r'<t[hd][^>]*>(.*?)</t[hd]>', re.DOTALL | re.IGNORECASE)
+
+
+def _extract_defendant_name(caption: str) -> str:
+    m = _DEFENDANT_NAME_RE.search(caption or '')
+    if not m:
+        return ''
+    return m.group(1).strip().rstrip('.,;')
+
+
+def _is_criminal_case_type(case_type: str) -> bool:
+    return (case_type or '').strip().upper() in _CRIMINAL_CASE_TYPES
+
+
+def _extract_charges_from_html(html: str) -> tuple[str, list[dict]]:
+    """Parse charge table rows from raw FullCourt case detail HTML."""
+    charges: list[dict] = []
+    for table_match in _TABLE_RE.finditer(html):
+        table_html = table_match.group(1)
+        rows = _TR_RE.findall(table_html)
+        if not rows:
+            continue
+        # Identify header row
+        header_cells = [_clean_text(c) for c in _TH_RE.findall(rows[0])]
+        header_text = ' '.join(header_cells).lower()
+        if not any(k in header_text for k in ('charge', 'citation', 'statute', 'count')):
+            continue
+        # Map header positions
+        col_idx: dict[str, int] = {}
+        for i, h in enumerate(header_cells):
+            h_lower = h.lower()
+            if 'charge' in h_lower or 'offense' in h_lower:
+                col_idx.setdefault('charge', i)
+            elif 'citation' in h_lower or 'statute' in h_lower or 'mca' in h_lower:
+                col_idx.setdefault('mca', i)
+            elif 'class' in h_lower:
+                col_idx.setdefault('charge_class', i)
+            elif 'count' in h_lower:
+                col_idx.setdefault('counts', i)
+            elif 'disposition' in h_lower or 'finding' in h_lower:
+                col_idx.setdefault('disposition', i)
+        for row_html in rows[1:]:
+            cells = [_clean_text(c) for c in _TH_RE.findall(row_html)]
+            if not cells or not any(cells):
+                continue
+            def _cell(key: str) -> str:
+                idx = col_idx.get(key)
+                return cells[idx] if idx is not None and idx < len(cells) else ''
+            charges.append({
+                'charge': _cell('charge'),
+                'mca': _cell('mca'),
+                'charge_class': _cell('charge_class'),
+                'counts': _cell('counts'),
+                'disposition': _cell('disposition'),
+            })
+        if charges:
+            break
+    charges_text = '; '.join(
+        c['charge'] for c in charges if c.get('charge')
+    )
+    return charges_text, charges
+
+
+def _extract_docket_outcome(html: str) -> dict:
+    """Scan docket entries in raw HTML for plea, conviction, and sentence."""
+    result = {
+        'plea': '',
+        'disposition': '',
+        'sentence_text': '',
+        'sentence_date': '',
+        'sentencing_judge': '',
+    }
+    docket_rows: list[tuple[str, str, str]] = []  # (date, event_type, description)
+    for table_match in _TABLE_RE.finditer(html):
+        table_html = table_match.group(1)
+        rows = _TR_RE.findall(table_html)
+        if len(rows) < 2:
+            continue
+        header_text = _clean_text(rows[0]).lower()
+        if not any(k in header_text for k in ('docket', 'event', 'filing', 'activity')):
+            continue
+        for row_html in rows[1:]:
+            cells = [_clean_text(c) for c in _TH_RE.findall(row_html)]
+            if len(cells) < 2:
+                continue
+            date_cell = cells[0] if cells else ''
+            desc_cells = ' '.join(cells[1:]).lower()
+            docket_rows.append((date_cell, desc_cells, ' '.join(cells)))
+        if docket_rows:
+            break
+
+    for date_cell, desc_lower, full_text in reversed(docket_rows):
+        if not result['plea']:
+            if 'plea of guilty' in desc_lower or 'guilty plea' in desc_lower:
+                result['plea'] = 'guilty'
+            elif 'not guilty' in desc_lower:
+                result['plea'] = 'not_guilty'
+            elif 'no contest' in desc_lower or 'nolo contendere' in desc_lower:
+                result['plea'] = 'no_contest'
+
+        if not result['disposition']:
+            if any(k in desc_lower for k in ('judgment of conviction', 'found guilty', 'convicted')):
+                result['disposition'] = 'convicted'
+            elif any(k in desc_lower for k in ('dismissed', 'nolle prosequi', 'nol pros')):
+                result['disposition'] = 'dismissed'
+            elif 'acquitted' in desc_lower or 'not guilty verdict' in desc_lower:
+                result['disposition'] = 'acquitted'
+
+        if not result['sentence_text'] and any(
+            k in desc_lower for k in ('sentenced to', 'sentence imposed', 'sentence:')
+        ):
+            result['sentence_text'] = full_text[:300]
+            result['sentence_date'] = _parse_date(date_cell)
+            # Look for judge label near sentence
+            judge_match = re.search(r'(?:Judge|Hon\.?)\s*:?\s*([A-Z][a-z]+ [A-Z][a-z]+)', full_text)
+            if judge_match:
+                result['sentencing_judge'] = judge_match.group(1)
+
+        if result['plea'] and result['disposition'] and result['sentence_text']:
+            break
+
+    return result
 
 
 class DistrictPortalScraper:
@@ -248,6 +384,12 @@ class DistrictPortalScraper:
         if ct_match:
             case_type = ct_match.group(1).strip()
 
+        # Criminal outcome extraction (operates on raw HTML to preserve table structure)
+        is_criminal = 1 if _is_criminal_case_type(case_type) else 0
+        defendant_name = _extract_defendant_name(caption) if is_criminal else ''
+        charges_text, charges_list = _extract_charges_from_html(html) if is_criminal else ('', [])
+        outcome = _extract_docket_outcome(html) if is_criminal else {}
+
         return {
             'case_number': case_number,
             'caption': caption or case_number,
@@ -256,6 +398,15 @@ class DistrictPortalScraper:
             'case_type': case_type,
             'judge': judge,
             'source_url': detail_url,
+            'is_criminal': is_criminal,
+            'defendant_name': defendant_name,
+            'charges_text': charges_text,
+            'charges_json': json.dumps(charges_list) if charges_list else '',
+            'plea': outcome.get('plea', ''),
+            'disposition': outcome.get('disposition', ''),
+            'sentence_text': outcome.get('sentence_text', ''),
+            'sentence_date': outcome.get('sentence_date', ''),
+            'sentencing_judge': outcome.get('sentencing_judge', ''),
         }
 
     def scrape_all_courts(
@@ -371,6 +522,28 @@ class DistrictPortalScraper:
                         source_url=event['detail_url'],
                         external_case_id=case_number,
                     )
+
+                    if case_detail and case_detail.get('is_criminal'):
+                        conn.execute(
+                            '''UPDATE court_cases SET
+                               defendant_name=?, is_criminal=1, charges_text=?,
+                               charges_json=?, plea=?, disposition=?,
+                               sentence_text=?, sentence_date=?, sentencing_judge=?,
+                               outcome_scraped_at=datetime('now'), updated_at=datetime('now')
+                               WHERE court_id=? AND case_number=?''',
+                            (
+                                case_detail.get('defendant_name', ''),
+                                case_detail.get('charges_text', ''),
+                                case_detail.get('charges_json', ''),
+                                case_detail.get('plea', ''),
+                                case_detail.get('disposition', ''),
+                                case_detail.get('sentence_text', ''),
+                                case_detail.get('sentence_date', ''),
+                                case_detail.get('sentencing_judge', ''),
+                                court_id,
+                                case_number,
+                            ),
+                        )
 
                     add_court_event(
                         conn,

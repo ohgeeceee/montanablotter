@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Montana Crime Atlas — MontanaBlotter.com</title>
+<meta name="description" content="Interactive Montana county crime map. Compare incident rates per capita across all 56 counties with real blotter data.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg:#0b0f19; --panel:#121827; --text:#e2e8f0; --accent:#38bdf8;
+  --muted:#94a3b8; --border:#1e293b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;height:100vh;overflow:hidden}
+#app{display:flex;height:100vh}
+#sidebar{width:300px;min-width:260px;background:var(--panel);border-right:1px solid var(--border);padding:16px;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
+#sidebar h1{font-size:17px;letter-spacing:.4px;border-bottom:1px solid var(--border);padding-bottom:10px}
+#sidebar h1 span{color:var(--accent)}
+.field label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.field select,.field input{width:100%;background:#0b1220;border:1px solid var(--border);color:var(--text);padding:7px 9px;border-radius:6px;font-size:13px}
+.field input::placeholder{color:var(--muted)}
+.field input:focus{outline:none;border-color:var(--accent)}
+.btn{width:100%;padding:9px;border:none;border-radius:6px;background:var(--accent);color:#0b0f19;font-weight:700;cursor:pointer;font-size:13px}
+.btn:hover{opacity:.9}
+.mode-btns{display:flex;gap:6px}
+.mode-btn{flex:1;padding:7px 4px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);font-size:11px;cursor:pointer;text-align:center;transition:all .15s}
+.mode-btn.active{background:var(--accent);border-color:var(--accent);color:#0b0f19;font-weight:700}
+.legend-section{border-top:1px solid var(--border);padding-top:10px}
+.legend-section h3{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.scale-bar{display:flex;gap:3px;align-items:center}
+.scale-swatch{width:20px;height:14px;border-radius:3px;flex-shrink:0}
+.scale-label{font-size:10px;color:var(--muted);margin-left:2px}
+.legend-nodata{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10px;color:var(--muted)}
+.legend-nodata-swatch{width:20px;height:14px;border-radius:3px;background:repeating-linear-gradient(45deg,#1e293b 0px,#1e293b 2px,#0b0f19 2px,#0b0f19 6px)}
+#coverage-badge{font-size:11px;color:var(--muted);padding:4px 0}
+#coverage-badge span{color:var(--accent);font-weight:600}
+#stat-list{font-size:12px;line-height:1.8}
+.stat-row{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:3px 0}
+.stat-county{color:var(--text)}
+.stat-val{color:var(--accent);font-weight:600}
+#map-wrap{position:relative;flex:1}
+#atlas-map{width:100%;height:100%}
+#county-panel{position:absolute;top:12px;right:12px;width:290px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;z-index:1000;display:none;max-height:calc(100vh - 80px);overflow-y:auto}
+#county-panel h2{font-size:15px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.close-btn{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1}
+.panel-stat{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #1a2233}
+.panel-stat-label{color:var(--muted)}
+.panel-stat-val{color:var(--text);font-weight:600}
+.panel-section-label{font-size:11px;color:var(--muted);margin:10px 0 6px}
+.panel-link{display:block;margin-top:12px;text-align:center;font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:6px;padding:6px}
+.panel-link:hover{background:var(--accent);color:#0b0f19}
+.bar-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px}
+.bar-label{width:90px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+.bar-fill{height:8px;border-radius:3px;background:var(--accent);min-width:2px}
+.bar-count{color:var(--text);font-size:10px;margin-left:2px}
+.spark{display:flex;align-items:flex-end;gap:1px;height:28px;margin-top:8px}
+.spark-bar{flex:1;background:var(--accent);opacity:.6;border-radius:1px 1px 0 0;min-height:1px}
+.spark-bar:hover{opacity:1}
+.incident-row{font-size:11px;padding:4px 0;border-bottom:1px solid #1a2233;line-height:1.4;overflow:hidden}
+.incident-row .inc-type{color:var(--accent);font-weight:600;display:block}
+.incident-row .inc-meta{color:var(--muted);font-size:10px}
+.no-data-panel{padding:12px 0;text-align:center}
+.no-data-panel p{color:var(--muted);font-size:12px;line-height:1.6}
+.no-data-panel strong{color:var(--text);display:block;margin-bottom:6px;font-size:13px}
+#loading-overlay{position:absolute;inset:0;background:rgba(11,15,25,.7);display:flex;align-items:center;justify-content:center;z-index:2000;font-size:14px;color:var(--muted)}
+.leaflet-container{background:#0b0f19!important}
+.leaflet-popup-content-wrapper,.leaflet-tooltip{background:var(--panel);color:var(--text);border:1px solid var(--border)}
+.leaflet-popup-tip{background:var(--panel)}
+.nav-back{display:block;font-size:12px;color:var(--muted);text-decoration:none;margin-bottom:6px}
+.nav-back:hover{color:var(--accent)}
+.search-wrap{position:relative}
+#search-results{position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;z-index:20;max-height:160px;overflow-y:auto;display:none}
+#search-results div{padding:6px 9px;font-size:12px;cursor:pointer}
+#search-results div:hover{background:#1a2233;color:var(--accent)}
+@media(max-width:680px){
+  #sidebar{width:100%;height:auto;max-height:40vh;flex-direction:row;flex-wrap:wrap;gap:8px;padding:10px}
+  #sidebar h1{width:100%}
+  #app{flex-direction:column}
+  #county-panel{width:calc(100vw - 24px);right:12px;top:auto;bottom:12px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <a class="nav-back" href="/">← MontanaBlotter.com</a>
+    <h1>Montana <span>Crime Atlas</span></h1>
+
+    <div class="field search-wrap">
+      <label>Jump to County</label>
+      <input type="text" id="countySearch" placeholder="e.g. Cascade, Missoula…" autocomplete="off" />
+      <div id="search-results"></div>
+    </div>
+
+    <div class="field">
+      <label>Time Range</label>
+      <select id="selDays">
+        <option value="30">Last 30 days</option>
+        <option value="90" selected>Last 90 days</option>
+        <option value="180">Last 6 months</option>
+        <option value="365">Last year</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>View Mode</label>
+      <div class="mode-btns">
+        <button class="mode-btn active" data-mode="per_capita">Per Capita</button>
+        <button class="mode-btn" data-mode="raw">Raw Count</button>
+        <button class="mode-btn" data-mode="category">By Type</button>
+      </div>
+    </div>
+
+    <div class="field" id="categoryField" style="display:none">
+      <label>Charge Category</label>
+      <select id="selCategory">
+        <option value="dui">DUI</option>
+        <option value="violent">Violent</option>
+        <option value="domestic">Domestic</option>
+        <option value="drug">Drug</option>
+        <option value="weapons">Weapons</option>
+        <option value="property">Property</option>
+        <option value="traffic">Traffic</option>
+        <option value="welfare">Welfare Check</option>
+        <option value="public_order">Public Order</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <button class="btn" id="applyBtn">Update Map</button>
+
+    <div class="legend-section">
+      <h3>Scale</h3>
+      <div class="scale-bar">
+        <div class="scale-swatch" style="background:#0e7490"></div>
+        <div class="scale-swatch" style="background:#16a34a"></div>
+        <div class="scale-swatch" style="background:#ca8a04"></div>
+        <div class="scale-swatch" style="background:#ea580c"></div>
+        <div class="scale-swatch" style="background:#dc2626"></div>
+        <span class="scale-label">Low → High</span>
+      </div>
+      <div class="legend-nodata">
+        <div class="legend-nodata-swatch"></div>
+        <span>No data yet</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px" id="scaleNote">Incidents per 1,000 residents</div>
+    </div>
+
+    <div class="legend-section">
+      <h3>Top Counties</h3>
+      <div id="coverage-badge">Coverage: <span id="coverageCount">…</span> of 56 counties</div>
+      <div id="stat-list"><div style="color:var(--muted);font-size:12px">Loading…</div></div>
+    </div>
+
+    <div style="margin-top:auto;padding-top:10px;border-top:1px solid var(--border)">
+      <a href="/crime-data" style="font-size:12px;color:var(--accent);text-decoration:none">View Crime Data Dashboard →</a><br>
+      <a href="/crime-map" style="font-size:12px;color:var(--muted);text-decoration:none;margin-top:4px;display:block">View Incident Map →</a>
+    </div>
+  </aside>
+
+  <div id="map-wrap">
+    <div id="atlas-map"></div>
+    <div id="loading-overlay">Loading Montana Crime Atlas…</div>
+
+    <div id="county-panel">
+      <button class="close-btn" id="panelClose">×</button>
+      <h2 id="panelTitle">County Details</h2>
+      <div id="panelBody"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MAP_CENTER = [46.87, -110.36];
+const GEOJSON_URL = '/static/geo/mt_counties.geojson';
+const COLORS = ['#0e7490','#16a34a','#ca8a04','#ea580c','#dc2626'];
+
+let map, geoLayer;
+let choroplethData = {}, currentMode = 'per_capita', currentDays = 90, currentCategory = 'dui';
+let allCountyNames = [];
+
+function getColor(value, sortedVals) {
+  if (value == null || sortedVals.length === 0) return null;
+  const n = sortedVals.length;
+  const q = [
+    sortedVals[Math.floor(n * 0.2)] || 0,
+    sortedVals[Math.floor(n * 0.4)] || 0,
+    sortedVals[Math.floor(n * 0.6)] || 0,
+    sortedVals[Math.floor(n * 0.8)] || 0,
+  ];
+  if (value <= q[0]) return COLORS[0];
+  if (value <= q[1]) return COLORS[1];
+  if (value <= q[2]) return COLORS[2];
+  if (value <= q[3]) return COLORS[3];
+  return COLORS[4];
+}
+
+function getValue(countyName) {
+  const e = choroplethData[countyName] || {};
+  return currentMode === 'per_capita' ? e.per_capita_per_1k : e.incident_count;
+}
+
+function hasData(name) { return choroplethData[name] != null; }
+
+function buildTooltipContent(name) {
+  if (!hasData(name)) {
+    return `<strong>${name} County</strong><br><span style="color:#64748b;font-size:11px">No data yet — coverage expanding</span>`;
+  }
+  const e = choroplethData[name];
+  const val = currentMode === 'per_capita'
+    ? (e.per_capita_per_1k != null ? e.per_capita_per_1k.toFixed(1) + '/1k residents' : 'No data')
+    : (e.incident_count != null ? e.incident_count.toLocaleString() + ' incidents' : 'No data');
+  return `<strong>${name} County</strong><br>${val}`;
+}
+
+let cachedSortedVals = [];
+
+function injectHatchPattern() {
+  const svgEl = document.querySelector('#atlas-map svg');
+  if (!svgEl) return;
+  let defs = svgEl.querySelector('defs');
+  if (!defs) {
+    defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    svgEl.insertBefore(defs, svgEl.firstChild);
+  }
+  if (!defs.querySelector('#no-data-hatch')) {
+    defs.innerHTML += `
+      <pattern id="no-data-hatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="6" stroke="#1e293b" stroke-width="2.5"/>
+      </pattern>`;
+  }
+}
+
+function layerStyle(feature) {
+  const name = feature.properties.NAME;
+  const val = getValue(name);
+  const color = getColor(val, cachedSortedVals);
+  if (color == null) {
+    return { fillColor: 'url(#no-data-hatch)', weight: 1, color: '#1e293b', fillOpacity: 1 };
+  }
+  return { fillColor: color, weight: 1.2, color: '#334155', fillOpacity: 0.78 };
+}
+
+async function loadChoropleth() {
+  document.getElementById('loading-overlay').style.display = 'flex';
+  const params = new URLSearchParams({ days: currentDays, mode: currentMode });
+  if (currentMode === 'category') params.set('category', currentCategory);
+
+  try {
+    const res = await fetch('/api/geo/choropleth?' + params);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    choroplethData = {};
+    (data.features || []).forEach(f => {
+      const key = f.county || '';
+      choroplethData[key] = f;
+      const titleKey = key.replace(/\b\w/g, c => c.toUpperCase());
+      if (titleKey !== key) choroplethData[titleKey] = f;
+    });
+
+    cachedSortedVals = Object.values(choroplethData)
+      .map(e => currentMode === 'per_capita' ? e.per_capita_per_1k : e.incident_count)
+      .filter(v => v != null)
+      .sort((a,b) => a - b);
+
+    if (geoLayer) {
+      geoLayer.setStyle(layerStyle);
+      geoLayer.eachLayer(layer => {
+        const name = layer.feature.properties.NAME;
+        if (layer.getTooltip()) layer.setTooltipContent(buildTooltipContent(name));
+      });
+    }
+
+    injectHatchPattern();
+    renderTopCounties(data.features || []);
+
+    const withData = (data.features || []).filter(f => (f.incident_count||0) > 0).length;
+    document.getElementById('coverageCount').textContent = withData;
+  } catch(e) {
+    console.error('Choropleth load error', e);
+    document.getElementById('stat-list').innerHTML = '<div style="color:#ef4444;font-size:12px">Failed to load data</div>';
+  }
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+function renderTopCounties(features) {
+  const sorted = [...features]
+    .filter(f => (f.incident_count || 0) > 0)
+    .sort((a,b) => {
+      const va = currentMode === 'per_capita' ? (a.per_capita_per_1k||0) : (a.incident_count||0);
+      const vb = currentMode === 'per_capita' ? (b.per_capita_per_1k||0) : (b.incident_count||0);
+      return vb - va;
+    })
+    .slice(0, 8);
+
+  const html = sorted.map(f => {
+    const val = currentMode === 'per_capita' ? f.per_capita_per_1k : f.incident_count;
+    const display = currentMode === 'per_capita' ? (val||0).toFixed(1) : (val||0).toLocaleString();
+    return `<div class="stat-row"><span class="stat-county">${f.county}</span><span class="stat-val">${display}</span></div>`;
+  }).join('');
+
+  document.getElementById('stat-list').innerHTML = html || '<div style="color:var(--muted);font-size:12px">No data yet</div>';
+  document.getElementById('scaleNote').textContent = currentMode === 'per_capita' ? 'Incidents per 1,000 residents' : 'Total incidents';
+}
+
+async function openCountyPanel(countyName) {
+  const panel = document.getElementById('county-panel');
+  document.getElementById('panelTitle').textContent = countyName + ' County';
+  panel.style.display = 'block';
+
+  const slug = countyName.toLowerCase().replace(/ /g,'-').replace(/'/g,'');
+
+  if (!hasData(countyName)) {
+    document.getElementById('panelBody').innerHTML = `
+      <div class="no-data-panel">
+        <strong>${countyName} County</strong>
+        <p>No incident data yet for this county.<br>Coverage is expanding — check back soon.</p>
+      </div>
+      <a class="panel-link" href="/county/${slug}">Browse ${countyName} records →</a>`;
+    return;
+  }
+
+  document.getElementById('panelBody').innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">Loading…</div>';
+
+  try {
+    const [detailRes, incidentRes] = await Promise.all([
+      fetch(`/api/geo/county-detail?county=${encodeURIComponent(countyName)}&days=${currentDays}`),
+      fetch(`/api/geo/incidents?county=${encodeURIComponent(countyName)}&limit=5`),
+    ]);
+    const data = await detailRes.json();
+    const incData = incidentRes.ok ? await incidentRes.json() : { incidents: [] };
+    const entry = choroplethData[countyName] || {};
+
+    const totalHtml = [
+      `<div class="panel-stat"><span class="panel-stat-label">Incidents (${currentDays}d)</span><span class="panel-stat-val">${(entry.incident_count||0).toLocaleString()}</span></div>`,
+      entry.per_capita_per_1k != null ? `<div class="panel-stat"><span class="panel-stat-label">Per 1,000 residents</span><span class="panel-stat-val">${entry.per_capita_per_1k.toFixed(1)}</span></div>` : '',
+      entry.population ? `<div class="panel-stat"><span class="panel-stat-label">Population (2020)</span><span class="panel-stat-val">${entry.population.toLocaleString()}</span></div>` : '',
+    ].join('');
+
+    const cats = data.top_charge_categories || [];
+    const maxCat = cats.length ? cats[0].count : 1;
+    const catsHtml = cats.length
+      ? cats.map(c => `<div class="bar-row"><span class="bar-label">${c.category}</span><div class="bar-fill" style="width:${Math.max(4,Math.round(c.count/maxCat*120))}px"></div><span class="bar-count">${c.count}</span></div>`).join('')
+      : '<div style="color:var(--muted);font-size:11px">No category data</div>';
+
+    const spark = data.sparkline || [];
+    const maxSp = spark.length ? Math.max(...spark.map(s=>s.count), 1) : 1;
+    const sparkHtml = spark.length
+      ? `<div class="panel-section-label">12-week trend</div><div class="spark">${spark.map(s=>`<div class="spark-bar" style="height:${Math.max(2,Math.round(s.count/maxSp*26))}px" title="${s.week}: ${s.count}"></div>`).join('')}</div>`
+      : '';
+
+    const incidents = (incData.incidents || []).slice(0, 5);
+    const incHtml = incidents.length
+      ? '<div class="panel-section-label" style="margin-top:12px">Recent incidents</div>'
+        + incidents.map(i => `<div class="incident-row"><span class="inc-type">${i.incident_type||'Incident'}</span><span class="inc-meta">${i.location||''} · ${i.date||''}</span></div>`).join('')
+      : '';
+
+    document.getElementById('panelBody').innerHTML = totalHtml
+      + '<div class="panel-section-label">Charge breakdown</div>'
+      + catsHtml + sparkHtml + incHtml
+      + `<a class="panel-link" href="/county/${slug}">View all ${countyName} incidents →</a>`;
+  } catch(e) {
+    document.getElementById('panelBody').innerHTML = '<div style="color:#ef4444;font-size:12px">Failed to load details</div>';
+  }
+}
+
+function flyToCounty(name) {
+  if (!geoLayer) return;
+  geoLayer.eachLayer(layer => {
+    if (layer.feature.properties.NAME === name) {
+      map.flyToBounds(layer.getBounds(), { duration: 0.7, padding: [40, 40] });
+      openCountyPanel(name);
+    }
+  });
+}
+
+function setupSearch() {
+  const input = document.getElementById('countySearch');
+  const results = document.getElementById('search-results');
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) { results.style.display = 'none'; return; }
+    const matches = allCountyNames.filter(n => n.toLowerCase().startsWith(q))
+      .concat(allCountyNames.filter(n => n.toLowerCase().includes(q) && !n.toLowerCase().startsWith(q)))
+      .slice(0, 8);
+    if (!matches.length) { results.style.display = 'none'; return; }
+    results.innerHTML = matches.map(n =>
+      `<div data-name="${n}">${n} County${hasData(n) ? '' : ' <span style="color:#475569;font-size:10px">no data</span>'}</div>`
+    ).join('');
+    results.style.display = 'block';
+  });
+
+  results.addEventListener('click', e => {
+    const el = e.target.closest('[data-name]');
+    if (!el) return;
+    input.value = '';
+    results.style.display = 'none';
+    flyToCounty(el.dataset.name);
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) results.style.display = 'none';
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { input.value = ''; results.style.display = 'none'; }
+  });
+}
+
+async function initMap() {
+  map = L.map('atlas-map', { zoomControl: true, renderer: L.svg() }).setView(MAP_CENTER, 6);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CartoDB', subdomains: 'abcd', maxZoom: 18,
+  }).addTo(map);
+
+  const geoRes = await fetch(GEOJSON_URL);
+  const geoData = await geoRes.json();
+  allCountyNames = (geoData.features || []).map(f => f.properties.NAME).sort();
+
+  geoLayer = L.geoJSON(geoData, {
+    style: layerStyle,
+    onEachFeature: (feature, layer) => {
+      const name = feature.properties.NAME;
+      layer.bindTooltip('', { sticky: true });
+      layer.on({
+        click: () => openCountyPanel(name),
+        mouseover() {
+          this.setStyle({ weight: 2.5, color: '#38bdf8' });
+          this.bringToFront();
+          this.setTooltipContent(buildTooltipContent(name));
+          this.openTooltip();
+        },
+        mouseout() { geoLayer.resetStyle(this); },
+      });
+    },
+  }).addTo(map);
+
+  map.fitBounds(geoLayer.getBounds(), { padding: [20, 20] });
+  injectHatchPattern();
+  await loadChoropleth();
+  setupSearch();
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = btn.dataset.mode;
+    document.getElementById('categoryField').style.display = currentMode === 'category' ? 'block' : 'none';
+  });
+});
+document.getElementById('applyBtn').addEventListener('click', () => {
+  currentDays = parseInt(document.getElementById('selDays').value);
+  currentCategory = document.getElementById('selCategory').value;
+  loadChoropleth();
+});
+document.getElementById('panelClose').addEventListener('click', () => {
+  document.getElementById('county-panel').style.display = 'none';
+});
+
+initMap().catch(console.error);
+</script>
+</body>
+</html>

@@ -15,7 +15,14 @@ from services.court.source_adapters import (
 from services.court.district_portal_scraper import DISTRICT_COURT_PORTAL_URL, sync_montana_district_court_calendar
 from services.court.colj_portal_scraper import COLJ_PORTAL_URL, sync_montana_colj_calendar
 from services.court.tracker import ensure_court_tracker_schema, upsert_court_source
+from services.court.watercourt_scraper import WATER_COURT_BASE_URL, sync_montana_water_court
+from services.court.taxappeal_scraper import TAX_APPEAL_BASE_URL, sync_montana_tax_appeal_board
 from init_db import _configure_sqlite
+
+
+def _sync_montana_criminal_outcomes(conn: sqlite3.Connection) -> dict:
+    from services.court.outcome_scraper import run_outcome_backfill
+    return run_outcome_backfill(conn, batch=50)
 
 
 SOURCE_REGISTRY = {
@@ -48,6 +55,24 @@ SOURCE_REGISTRY = {
         'source_url': COLJ_PORTAL_URL,
         'provider_type': 'court_calendar',
         'runner': sync_montana_colj_calendar,
+    },
+    'montana_criminal_outcomes': {
+        'name': 'Montana District Court Criminal Outcomes',
+        'source_url': DISTRICT_COURT_PORTAL_URL,
+        'provider_type': 'case_outcomes',
+        'runner': _sync_montana_criminal_outcomes,
+    },
+    'montana_water_court': {
+        'name': 'Montana Water Court Notices',
+        'source_url': WATER_COURT_BASE_URL,
+        'provider_type': 'document_feed',
+        'runner': sync_montana_water_court,
+    },
+    'montana_tax_appeal_board': {
+        'name': 'Montana Tax Appeal Board Decisions',
+        'source_url': TAX_APPEAL_BASE_URL,
+        'provider_type': 'document_feed',
+        'runner': sync_montana_tax_appeal_board,
     },
 }
 
@@ -113,11 +138,12 @@ def main() -> int:
             except Exception as exc:
                 _mark_source_failure(conn, slug, str(exc))
                 failures.append({'source_slug': slug, 'error': str(exc), 'started_at': started_at})
+            # Commit per-source to avoid holding a write lock across HTTP scrapes.
+            if not args.dry_run:
+                conn.commit()
 
         if args.dry_run:
             conn.rollback()
-        else:
-            conn.commit()
     finally:
         conn.close()
 

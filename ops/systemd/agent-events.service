@@ -9,15 +9,31 @@ WorkingDirectory=/root/montanablotter
 EnvironmentFile=/root/montanablotter/.env
 Environment=MB_AGENT_EVENTS_WS_URL=/ws/agents
 Environment=MB_AGENT_EVENTS_APPROVAL_ENDPOINT=/api/monitoring/agents/reviews
-ExecStart=/root/montanablotter/venv/bin/python -m uvicorn services.agents.events_service:app --host 0.0.0.0 --port 8010
+ExecStart=/root/montanablotter/venv/bin/python -m uvicorn services.agents.events_service:app --host 127.0.0.1 --port 8010
 Restart=always
 RestartSec=5
 StandardOutput=append:/root/montanablotter/logs/agent-events.log
 StandardError=append:/root/montanablotter/logs/agent-events.log
+
+# Tighten defaults for any files the service creates.
+UMask=0077
+
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=false
+
+# Additional hardening (keep compatible with a /root working directory).
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+
+ReadWritePaths=/root/montanablotter
 
 [Install]
 WantedBy=multi-user.target

@@ -11,6 +11,7 @@ import logging
 import smtplib
 import re
 import contextlib
+import time
 from datetime import datetime, UTC
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -71,6 +72,23 @@ class EmailWorker:
         if not (self.imap_server or '').strip():
             return 'MB_IMAP_SERVER is not set'
         return None
+
+    def _connect_imap(self, retries: int = 3) -> imaplib.IMAP4_SSL:
+        """Connect and authenticate to IMAP with exponential backoff on failure."""
+        delay = 2
+        last_exc: Exception = RuntimeError("IMAP connection failed")
+        for attempt in range(retries):
+            try:
+                mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
+                mail.login(self.email_user, self.email_pass)
+                return mail
+            except (imaplib.IMAP4.error, OSError) as exc:
+                last_exc = exc
+                if attempt < retries - 1:
+                    logging.warning(f"IMAP connect attempt {attempt + 1} failed: {exc}; retrying in {delay}s")
+                    time.sleep(delay)
+                    delay *= 2
+        raise last_exc
 
     @staticmethod
     def _sender_domain(sender: str) -> str:
@@ -207,11 +225,8 @@ class EmailWorker:
             return 0
 
         try:
-            # Connect to IONOS IMAP
-            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
-            mail.login(self.email_user, self.email_pass)
+            mail = self._connect_imap()
             mail.select("INBOX")
-            
             logging.info("Connected to IONOS IMAP successfully")
             
             # Search all unread emails
@@ -384,8 +399,7 @@ class EmailWorker:
         items: list[dict] = []
 
         try:
-            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
-            mail.login(self.email_user, self.email_pass)
+            mail = self._connect_imap()
             mail.select("INBOX")
 
             status, messages = mail.search(None, "UNSEEN")
@@ -734,6 +748,18 @@ def enqueue_mode() -> int:
     return queued
 
 
+def _maybe_send_weekly_agency_briefs() -> None:
+    """Send weekly crime briefs on Mondays if not yet sent today."""
+    if datetime.now(UTC).weekday() != 0:
+        return
+    try:
+        from services.email.agency_brief import send_weekly_briefs
+        result = send_weekly_briefs()
+        logging.info(f"Weekly agency briefs: {result}")
+    except Exception as e:
+        logging.error(f"Weekly agency briefs failed: {e}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -743,6 +769,8 @@ def main() -> None:
         help="queue = discover and enqueue, inline = legacy direct processing",
     )
     args = parser.parse_args()
+
+    _maybe_send_weekly_agency_briefs()
 
     if args.mode == "inline":
         process_inline_legacy()

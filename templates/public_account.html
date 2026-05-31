@@ -30,7 +30,10 @@
     <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <aside class="public-card p-6">
             <p class="public-card__eyebrow">Profile</p>
-            <h2 class="mt-3 text-2xl font-black text-slate-900">{{ account_user.display_name }}</h2>
+            <div class="mt-3 flex items-center gap-3">
+                <span class="public-user-avatar" style="width:42px; height:42px; font-size:18px; flex-shrink:0;">{{ account_user.display_name[:1].upper() }}</span>
+                <h2 class="text-2xl font-black text-slate-900">{{ account_user.display_name }}</h2>
+            </div>
             <dl class="mt-6 space-y-4 text-sm text-slate-600">
                 <div>
                     <dt class="font-black uppercase tracking-[0.16em] text-[10px] text-slate-400">Email</dt>
@@ -84,6 +87,58 @@
             </div>
             {% endif %}
         </div>
+    </div>
+
+    <!-- Editable settings sections -->
+    <div class="mt-6 space-y-6">
+
+        <section id="name-settings" class="public-card p-6">
+            <p class="public-card__eyebrow">Display Name</p>
+            <p class="mt-1 text-sm text-slate-600">This is how your name appears on comments.</p>
+            <form method="post" action="/account/update-name" class="mt-4 flex flex-wrap gap-3 items-start">
+                <input type="text" name="display_name" value="{{ account_user.display_name }}"
+                       class="public-form-input" maxlength="120" required style="flex:1; min-width:180px;">
+                <button type="submit" class="public-btn public-btn--primary">Save</button>
+            </form>
+        </section>
+
+        <section id="digest" class="public-card p-6">
+            <p class="public-card__eyebrow">Digest Counties</p>
+            <p class="mt-1 text-sm text-slate-600">Select the counties you want in your morning digest. Leave all unchecked for statewide coverage.</p>
+            <form method="post" action="/account/update-counties" class="mt-4">
+                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {% for county in counties %}
+                    <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 cursor-pointer hover:bg-slate-100">
+                        <input type="checkbox" name="counties" value="{{ county }}"
+                               {% if county in account_user.county_list %}checked{% endif %}
+                               class="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500">
+                        <span>{{ county }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="public-btn public-btn--primary mt-4">Update Counties</button>
+            </form>
+        </section>
+
+        <section id="password-settings" class="public-card p-6">
+            <p class="public-card__eyebrow">Change Password</p>
+            <form method="post" action="/account/update-password" class="mt-4 space-y-4 max-w-md">
+                <div>
+                    <label class="public-form-label">Current Password</label>
+                    <input type="password" name="current_password" class="public-form-input" required autocomplete="current-password">
+                </div>
+                <div>
+                    <label class="public-form-label">New Password</label>
+                    <input type="password" name="new_password" class="public-form-input" minlength="8" required autocomplete="new-password">
+                </div>
+                <div>
+                    <label class="public-form-label">Confirm New Password</label>
+                    <input type="password" name="confirm_password" class="public-form-input" minlength="8" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="public-btn public-btn--primary">Change Password</button>
+            </form>
+        </section>
+
     </div>
 </section>
 {% endblock %}

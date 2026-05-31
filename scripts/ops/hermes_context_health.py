@@ -68,9 +68,9 @@ def main() -> None:
     ))
 
     print("\nRecent cron_errors.log tail:")
-    print(_tail(ROOT / "cron_errors.log"))
+    print(_tail(ROOT / "logs" / "cron_errors.log"))
     print("\nRecent ingestion_alerts.log tail:")
-    print(_tail(ROOT / "ingestion_alerts.log"))
+    print(_tail(ROOT / "logs" / "ingestion_alerts.log"))
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ Replaces the old processor.py with actual parsing logic
 import sqlite3
 import os
 import logging
+import threading
 from typing import Optional
 import config
 from services.blotter.parser import BlotterParser, parse_text_blotter
@@ -52,6 +53,47 @@ def _post_count_for_blotter(blotter_id: int) -> int:
     ).fetchone()[0]
     conn.close()
     return int(count)
+
+
+def _async_geocode_blotter_records(blotter_id: int) -> None:
+    """Background-thread geocoding for freshly ingested records. Daemon so it never blocks shutdown."""
+    def _run():
+        try:
+            from services.geo.pipeline import geocode_location, GEOCODE_SLEEP
+            import time
+            conn = _connect_db()
+            rows = conn.execute(
+                """SELECT r.id, r.location, r.county
+                   FROM records r
+                   LEFT JOIN incident_geocodes g ON r.id = g.record_id
+                   WHERE r.blotter_id = ?
+                     AND g.record_id IS NULL
+                     AND r.location IS NOT NULL
+                     AND trim(r.location) != ''
+                   LIMIT 100""",
+                (blotter_id,),
+            ).fetchall()
+            geocoded = 0
+            for row in rows:
+                result = geocode_location(row[1], county=row[2])
+                if result:
+                    conn.execute(
+                        """INSERT OR IGNORE INTO incident_geocodes
+                           (record_id, raw_location, lat, lng, geocode_confidence, county, geocoded_at)
+                           VALUES (?, ?, ?, ?, ?, ?, datetime('now'))""",
+                        (row[0], row[1], result["lat"], result["lng"],
+                         result["confidence"], row[2]),
+                    )
+                    geocoded += 1
+                time.sleep(GEOCODE_SLEEP)
+            conn.commit()
+            conn.close()
+            if geocoded:
+                logging.info(f"Background geocoder: {geocoded} records geocoded for blotter #{blotter_id}")
+        except Exception as e:
+            logging.warning(f"Background geocoder failed for blotter #{blotter_id}: {e}")
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def _load_existing_incident_keys(
@@ -236,6 +278,7 @@ def _publish_blotter_outputs(
                     finished=True,
                 )
 
+    _async_geocode_blotter_records(blotter_id)
     return visible_post_count
 
 
@@ -272,32 +315,34 @@ def _extract_date_from_subject(subject: str) -> Optional[str]:
     import re
     from datetime import datetime
 
-    # Pattern: "5/6/ log" or "5/6 log" → 2026-05-06
+    year = datetime.today().year
+
+    # Pattern: "5/6/ log" or "5/6 log" → YYYY-05-06
     m = re.search(r'(\d{1,2})/(\d{1,2})/?\s+', subject)
     if m:
         try:
-            dt = datetime(2026, int(m.group(1)), int(m.group(2)))
+            dt = datetime(year, int(m.group(1)), int(m.group(2)))
             return dt.strftime('%Y-%m-%d')
         except ValueError:
             pass
 
-    # Pattern: "LOG 5-4" or "5-5 LOG" or "5-4 media log" → 2026-05-04
+    # Pattern: "LOG 5-4" or "5-5 LOG" or "5-4 media log" → YYYY-05-04
     m = re.search(r'(?:^|\s)(\d{1,2})-(\d{1,2})(?:\s|$|\D)', subject)
     if m:
         try:
-            dt = datetime(2026, int(m.group(1)), int(m.group(2)))
+            dt = datetime(year, int(m.group(1)), int(m.group(2)))
             return dt.strftime('%Y-%m-%d')
         except ValueError:
             pass
 
-    # Pattern: "0507 log" → 2026-05-07
+    # Pattern: "0507 log" → YYYY-05-07
     m = re.search(r'(?:^|\s)(\d{2})(\d{2})\s+', subject)
     if m:
         try:
             month = int(m.group(1))
             day = int(m.group(2))
             if 1 <= month <= 12 and 1 <= day <= 31:
-                dt = datetime(2026, month, day)
+                dt = datetime(year, month, day)
                 return dt.strftime('%Y-%m-%d')
         except ValueError:
             pass

@@ -130,26 +130,14 @@ class AdminAgentsTests(unittest.TestCase):
         self.assertEqual(snapshot['history']['reporter'][0]['agent'], 'reporter')
         self.assertEqual(snapshot['history']['scout'][0]['msg'], 'Scout idle heartbeat | lane=session:agent:scout:main durationMs=6')
 
-    def test_admin_agents_page_renders_for_authenticated_user(self) -> None:
+    def test_admin_agents_page_redirects_to_command_center(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        fake_snapshot = {
-            'agents': {
-                name: {'status': 'unknown', 'last_seen': '', 'last_msg': ''}
-                for name in agents_module.KNOWN_AGENTS
-            },
-            'history': {name: [] for name in agents_module.KNOWN_AGENTS},
-        }
+        response = client.get('/admin/agents')
 
-        with mock.patch.object(agents_module, '_agent_snapshot', return_value=fake_snapshot):
-            response = client.get('/admin/agents')
-
-        html = response.get_data(as_text=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Office Ops Panel', html)
-        self.assertIn('/admin/agents/stream', html)
-        self.assertIn('Agent Live Feed', html)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/admin/command-center', response.headers['Location'])
 
     def test_admin_agents_stream_returns_error_event_when_openclaw_missing(self) -> None:
         client = app_module.app.test_client()

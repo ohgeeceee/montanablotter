@@ -1,0 +1,117 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = 'Pricing' %}
+{% set meta_description = 'Montana Blotter subscription plans. Scout is free. Upgrade to Insider or Professional for full incident details, jail booking records, crime map popups, data exports, and API access.' %}
+{% set canonical_url = 'https://montanablotter.com/pricing' %}
+{% set active_nav = 'pricing' %}
+
+{% block content %}
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+    <div class="text-center mb-12">
+        <h1 class="text-3xl sm:text-4xl font-black text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">Choose Your Access Level</h1>
+        <p class="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+            Montana Blotter is funded by readers. Free access keeps headlines public.
+            Subscribers unlock full detail pages, deeper search, and data tools.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+        <!-- Scout -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
+            <div class="mb-6">
+                <p class="text-sm font-black uppercase tracking-widest text-slate-400">Scout</p>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span class="text-4xl font-black text-slate-900">$0</span>
+                    <span class="text-slate-500">/mo</span>
+                </div>
+                <p class="mt-2 text-sm text-slate-500">Free public access</p>
+            </div>
+            <ul class="space-y-3 text-sm text-slate-700 mb-8">
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Headlines & list views</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Basic search</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Crime map pins & heatmap</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Free email alerts</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>3 detail previews / day</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>5 detail previews / week</li>
+            </ul>
+            <a href="/register?next={{ request.full_path | urlencode }}" class="public-btn public-btn--secondary w-full block text-center">Get Started Free</a>
+        </div>
+
+        <!-- Insider -->
+        <div class="rounded-2xl border-2 border-slate-900 bg-white p-6 sm:p-8 relative">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full">Most Popular</div>
+            <div class="mb-6">
+                <p class="text-sm font-black uppercase tracking-widest text-slate-400">Insider</p>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span class="text-4xl font-black text-slate-900">$7.99</span>
+                    <span class="text-slate-500">/mo</span>
+                </div>
+                <p class="mt-2 text-sm text-slate-500">$69.99/yr (~27% off)</p>
+            </div>
+            <ul class="space-y-3 text-sm text-slate-700 mb-8">
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Everything in Scout</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i><strong>Unlimited</strong> incident details</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i><strong>Unlimited</strong> jail booking details</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Crime map detail popups</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Deeper search filters</li>
+            </ul>
+            <form action="/checkout/subscription" method="POST" class="space-y-2">
+                <input type="hidden" name="plan" value="insider">
+                <input type="hidden" name="interval" value="monthly">
+                <button type="submit" class="public-btn public-btn--primary w-full">Subscribe Monthly</button>
+            </form>
+            <form action="/checkout/subscription" method="POST" class="mt-2">
+                <input type="hidden" name="plan" value="insider">
+                <input type="hidden" name="interval" value="yearly">
+                <button type="submit" class="public-btn public-btn--secondary w-full">Subscribe Yearly — $69.99</button>
+            </form>
+        </div>
+
+        <!-- Professional -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
+            <div class="mb-6">
+                <p class="text-sm font-black uppercase tracking-widest text-slate-400">Professional</p>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span class="text-4xl font-black text-slate-900">$14.99</span>
+                    <span class="text-slate-500">/mo</span>
+                </div>
+                <p class="mt-2 text-sm text-slate-500">$129.99/yr (~27% off)</p>
+            </div>
+            <ul class="space-y-3 text-sm text-slate-700 mb-8">
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Everything in Insider</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Data exports (CSV)</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>API access</li>
+                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Priority alerts</li>
+            </ul>
+            <form action="/checkout/subscription" method="POST" class="space-y-2">
+                <input type="hidden" name="plan" value="professional">
+                <input type="hidden" name="interval" value="monthly">
+                <button type="submit" class="public-btn public-btn--primary w-full">Subscribe Monthly</button>
+            </form>
+            <form action="/checkout/subscription" method="POST" class="mt-2">
+                <input type="hidden" name="plan" value="professional">
+                <input type="hidden" name="interval" value="yearly">
+                <button type="submit" class="public-btn public-btn--secondary w-full">Subscribe Yearly — $129.99</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="max-w-3xl mx-auto text-center">
+        <h2 class="text-xl font-black text-slate-900 mb-4">Frequently Asked Questions</h2>
+        <div class="text-left space-y-4">
+            <details class="rounded-xl border border-slate-200 bg-white p-4">
+                <summary class="font-semibold text-slate-800 cursor-pointer">What happens when I hit my preview limit?</summary>
+                <p class="mt-2 text-sm text-slate-600">You'll see a blurred summary of the incident or booking with an option to upgrade. List views, search, and the crime map remain fully accessible.</p>
+            </details>
+            <details class="rounded-xl border border-slate-200 bg-white p-4">
+                <summary class="font-semibold text-slate-800 cursor-pointer">Can I cancel anytime?</summary>
+                <p class="mt-2 text-sm text-slate-600">Yes. Cancel from your account page or by contacting support. You'll keep access until the end of your billing period.</p>
+            </details>
+            <details class="rounded-xl border border-slate-200 bg-white p-4">
+                <summary class="font-semibold text-slate-800 cursor-pointer">Is my payment secure?</summary>
+                <p class="mt-2 text-sm text-slate-600">All payments are processed securely through Stripe. We never store your card details.</p>
+            </details>
+        </div>
+    </div>
+</main>
+{% endblock %}

@@ -8,6 +8,12 @@
 
 {% block body_class %}public-meetings-page{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<style>#meetings-map { height: 340px; }</style>
+{% endblock %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
 <span>Public Meetings</span>
@@ -85,7 +91,17 @@
         </form>
     </section>
 
-    <section class="max-w-7xl mx-auto pt-8">
+    <section class="max-w-7xl mx-auto pt-6">
+        <div class="public-card mb-6 overflow-hidden">
+            <div class="px-4 pt-4 pb-2">
+                <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Upcoming meetings by location</p>
+                <p class="text-xs text-slate-500 mt-0.5">Click a marker to filter the list below.</p>
+            </div>
+            <div id="meetings-map"></div>
+        </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto pt-2">
         <div class="public-card mb-6 p-5">
             <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div class="max-w-3xl">
@@ -216,4 +232,47 @@
         {% endif %}
     </section>
 </main>
+
+<script>
+(function () {
+    var map = L.map('meetings-map').setView([47.0, -109.5], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 18,
+    }).addTo(map);
+
+    fetch('/api/meetings/geojson')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            L.geoJSON(data, {
+                pointToLayer: function (feature, latlng) {
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        fillColor: '#f59e0b',
+                        color: '#b45309',
+                        weight: 1.5,
+                        opacity: 1,
+                        fillOpacity: 0.85,
+                    });
+                },
+                onEachFeature: function (feature, layer) {
+                    var p = feature.properties;
+                    var label = p.meeting_count === 1
+                        ? '1 upcoming meeting'
+                        : p.meeting_count + ' upcoming meetings';
+                    layer.bindPopup(
+                        '<strong>' + p.name + '</strong><br>' +
+                        label + '<br>' +
+                        (p.next_date ? 'Next: ' + p.next_date + '<br>' : '') +
+                        '<a href="' + p.filter_url + '" style="color:#b45309;font-weight:600">View meetings →</a>'
+                    );
+                    layer.on('click', function () {
+                        window.location.href = p.filter_url;
+                    });
+                },
+            }).addTo(map);
+        })
+        .catch(function () {});
+})();
+</script>
 {% endblock %}

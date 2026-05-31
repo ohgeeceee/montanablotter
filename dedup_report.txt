@@ -1,0 +1,54 @@
+DEDUPLICATION ANALYSIS REPORT
+==============================
+Generated: Sat May 16 12:17:21 UTC 2026
+Scope: Records with created_at >= 2026-05-02 (last 14 days)
+
+TOTAL RECENT RECORDS
+--------------------
+4,316 records created in the last 14 days
+
+DUPLICATES BY CFS_NUMBER + DATE
+-------------------------------
+31 duplicate groups found
+93 total duplicate records
+All in Hill county (31 groups, 93 records)
+
+Sample true duplicates:
+  - CFS 26-5737 on 05/06/26 (3 records: IDs 21377, 21408, 21899)
+  - These have identical cfs_number, date, time, and incident fields
+
+DUPLICATES BY INCIDENT_TYPE + LOCATION + DATE + COUNTY
+------------------------------------------------------
+271 duplicate groups found
+2,051 total duplicate records
+
+By county:
+  Gallatin        : 271 groups, 1,718 records
+  Missoula        :  54 groups,   111 records
+  Flathead        :  41 groups,   110 records
+  Hill            :  32 groups,    95 records
+  Lewis and Clark :   5 groups,    13 records
+  Yellowstone     :   2 groups,     4 records
+
+Caveat: Many Gallatin combo duplicates are distinct incidents with
+different cfs_numbers (e.g., CFS26-067274 vs CFS26-067271) and different
+times, but share generic incident_type="TRAFFIC STOP" and
+location="Bozeman, MT". These are likely false positives for true
+duplication unless additional fields (cfs_number, time) are included.
+
+BLOTTERS WITH 0 RECORDS
+-----------------------
+8 blotters have zero attached records:
+
+  ID  Filename        County      Upload Date
+  --  --------        ------      -----------
+  34  email-body      Flathead    2026-02-25 16:45:01
+  33  email-body      Missoula    2026-02-25 15:15:01
+  32  email-body      Missoula    2026-02-25 15:15:01
+  29  email-body      Valley      2026-02-24 18:30:01
+  27  email-body      Flathead    2026-02-24 00:15:02
+  25  email-body      Yellowstone 2026-02-23 18:15:01
+  20  email-body      Missoula    2026-02-22 07:00:02
+   9  log_2-19.pdf    Hill        2026-02-21 00:39:43
+
+No records were deleted.

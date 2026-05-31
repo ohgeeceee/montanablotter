@@ -679,6 +679,78 @@ def court_hearing_feed_context(
     }
 
 
+def criminal_cases_context(
+    conn: sqlite3.Connection,
+    *,
+    disposition: str = '',
+    charges: str = '',
+    page: int = 1,
+    per_page: int = 25,
+) -> dict:
+    ensure_court_tracker_schema(conn)
+    selected_disposition = (disposition or '').strip().lower()
+    selected_charges = (charges or '').strip().lower()
+
+    sql = '''
+        SELECT
+            cc.id, cc.slug, cc.case_number, cc.caption, cc.case_type,
+            cc.defendant_name, cc.charges_text, cc.disposition,
+            cc.sentencing_judge, cc.original_court, cc.original_case_number,
+            cc.filed_date, cc.status, cc.outcome_scraped_at,
+            c.name AS court_name, c.county
+        FROM court_cases cc
+        JOIN courts c ON c.id = cc.court_id
+        WHERE cc.is_criminal = 1
+    '''
+    params: list = []
+    if selected_disposition:
+        sql += ' AND cc.disposition = ?'
+        params.append(selected_disposition)
+    if selected_charges:
+        sql += ' AND lower(cc.charges_text) LIKE ?'
+        params.append(f'%{selected_charges}%')
+    sql += " ORDER BY cc.filed_date DESC NULLS LAST, cc.id DESC"
+
+    all_rows = conn.execute(sql, params).fetchall()
+    total = len(all_rows)
+    offset = (max(page, 1) - 1) * per_page
+    cases = [dict(row) for row in all_rows[offset: offset + per_page]]
+
+    disposition_rows = conn.execute(
+        "SELECT disposition, COUNT(*) AS n FROM court_cases"
+        " WHERE is_criminal = 1 AND disposition != ''"
+        " GROUP BY disposition ORDER BY n DESC"
+    ).fetchall()
+
+    charge_rows = conn.execute(
+        "SELECT charges_text, COUNT(*) AS n FROM court_cases"
+        " WHERE is_criminal = 1 AND charges_text != ''"
+        " GROUP BY charges_text ORDER BY n DESC LIMIT 30"
+    ).fetchall()
+
+    summary = conn.execute(
+        '''SELECT
+               COUNT(*) AS total,
+               SUM(CASE WHEN disposition = 'affirmed' THEN 1 ELSE 0 END) AS affirmed,
+               SUM(CASE WHEN disposition LIKE 'reversed%' THEN 1 ELSE 0 END) AS reversed,
+               SUM(CASE WHEN disposition = '' OR disposition IS NULL THEN 1 ELSE 0 END) AS pending
+           FROM court_cases WHERE is_criminal = 1'''
+    ).fetchone()
+
+    return {
+        'cases': cases,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': max(1, (total + per_page - 1) // per_page),
+        'selected_disposition': selected_disposition,
+        'selected_charges': selected_charges,
+        'disposition_options': [dict(r) for r in disposition_rows],
+        'charge_options': [dict(r) for r in charge_rows],
+        'summary': dict(summary) if summary else {},
+    }
+
+
 def court_case_detail(conn: sqlite3.Connection, slug: str) -> dict | None:
     ensure_court_tracker_schema(conn)
     row = conn.execute(
@@ -725,6 +797,23 @@ def court_case_detail(conn: sqlite3.Connection, slug: str) -> dict | None:
         (event for event in case['events'] if (event.get('event_date') or '') >= date.today().isoformat()),
         None,
     )
+    if case.get('defendant_name'):
+        case['related_cases'] = [dict(r) for r in conn.execute(
+            '''
+            SELECT court_cases.slug, court_cases.caption, court_cases.case_number,
+                   court_cases.disposition, court_cases.charges_text, court_cases.filed_date,
+                   courts.name AS court_name
+            FROM court_cases
+            JOIN courts ON courts.id = court_cases.court_id
+            WHERE court_cases.defendant_name = ?
+              AND court_cases.id != ?
+            ORDER BY court_cases.filed_date DESC
+            LIMIT 6
+            ''',
+            (case['defendant_name'], case['id']),
+        ).fetchall()]
+    else:
+        case['related_cases'] = []
     return case
 
 

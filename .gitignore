@@ -16,10 +16,12 @@ config.py
 .env.local
 .env.bak.*
 .env.save
+.secrets/
 .claude/
 db_backups/
 backup.log
 .sisyphus/
+.hermes/
 crime-extractor/
 =1.54.0
 reports/pattern_conversion_*.csv
@@ -27,3 +29,4 @@ reports/pattern_conversion_*.csv
 reports/civil_filings/*.csv
 reports/civil_filings/*.json
 reports/civil_filings/*.env
+vapid_private.pem
