@@ -65,6 +65,11 @@
         <p class="text-slate-600 text-sm">
             One quick signup. No account required.
         </p>
+        {% if subscriber_count and subscriber_count > 10 %}
+        <p class="mt-2 text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+            Join {{ subscriber_count|int }} Montana readers
+        </p>
+        {% endif %}
         </div>
     </div>
 

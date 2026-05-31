@@ -6,6 +6,11 @@ PY="$ROOT/venv/bin/python"
 
 cd "$ROOT"
 
+# Auto-source sidecar env file if present and vars are missing
+if [[ -z "${ICOURTCASE_BASE_URLS:-}" && -f "$ROOT/.secrets/icourtcase.env" ]]; then
+  source "$ROOT/.secrets/icourtcase.env"
+fi
+
 if [[ -z "${ICOURTCASE_BASE_URLS:-}" ]]; then
   echo "ERROR: ICOURTCASE_BASE_URLS is not set"
   exit 2
@@ -34,10 +39,6 @@ resp = requests.get(
     url,
     timeout=30,
     headers={
-        "User-Agent": (
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Cookie": cookie,
     },

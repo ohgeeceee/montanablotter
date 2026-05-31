@@ -44,6 +44,98 @@
             {% endif %}
         </div>
 
+        {% if case.is_criminal %}
+        <section class="public-card p-6 sm:p-8 border-l-4" style="border-left-color:var(--public-red);">
+            <h2 class="text-lg font-black mb-5 text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">Criminal case outcome</h2>
+            <div class="grid sm:grid-cols-2 gap-4">
+                {% if case.defendant_name %}
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Defendant</p>
+                    <p class="mt-1 text-sm font-bold text-slate-900">{{ case.defendant_name }}</p>
+                </div>
+                {% endif %}
+                {% if case.charges_text %}
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Charges</p>
+                    <p class="mt-1 text-sm font-bold text-slate-900">{{ case.charges_text }}</p>
+                </div>
+                {% endif %}
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Appellate outcome</p>
+                    <div class="mt-1">
+                        {% if case.disposition == 'affirmed' %}
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">Conviction upheld</span>
+                        {% elif case.disposition == 'reversed_and_remanded' %}
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide bg-orange-50 text-orange-700 border border-orange-200">Reversed &amp; Remanded</span>
+                        {% elif case.disposition == 'reversed' %}
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide bg-red-50 text-red-700 border border-red-200">Conviction Reversed</span>
+                        {% elif case.disposition == 'remanded' %}
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide bg-yellow-50 text-yellow-700 border border-yellow-200">Remanded</span>
+                        {% else %}
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide bg-slate-100 text-slate-500 border border-slate-200">Pending decision</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if case.sentencing_judge %}
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Opinion author</p>
+                    <p class="mt-1 text-sm font-bold text-slate-900">{{ case.sentencing_judge }}</p>
+                </div>
+                {% endif %}
+                {% if case.plea %}
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Plea</p>
+                    <p class="mt-1 text-sm font-bold text-slate-900">{{ case.plea }}</p>
+                </div>
+                {% endif %}
+                {% if case.sentence_text %}
+                <div class="sm:col-span-2">
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Sentence{% if case.sentence_date %} · {{ case.sentence_date }}{% endif %}</p>
+                    <p class="mt-1 text-sm font-bold text-slate-900">{{ case.sentence_text }}</p>
+                </div>
+                {% endif %}
+                {% if case.sentencing_judge %}
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Opinion author</p>
+                    <p class="mt-1 text-sm font-bold text-slate-900">{{ case.sentencing_judge }}</p>
+                </div>
+                {% endif %}
+                {% if case.original_court %}
+                <div>
+                    <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-400">Original trial court</p>
+                    <p class="mt-1 text-sm font-bold text-slate-900">{{ case.original_court }}</p>
+                    {% if case.original_case_number %}
+                    <p class="mt-0.5 text-xs text-slate-500">Case {{ case.original_case_number }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if case.related_cases %}
+        <section class="public-card p-6 sm:p-8">
+            <h2 class="text-lg font-black mb-5 text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">Other cases — {{ case.defendant_name }}</h2>
+            <div class="space-y-3">
+                {% for rc in case.related_cases %}
+                <a href="/court-case/{{ rc.slug }}" class="block rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-slate-400 transition-colors">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-wide">{{ rc.case_number }} · {{ rc.court_name }}</p>
+                    <p class="mt-1 text-sm font-bold text-slate-900">{{ rc.caption }}</p>
+                    {% if rc.charges_text %}<p class="mt-0.5 text-xs text-slate-500">{{ rc.charges_text }}</p>{% endif %}
+                    {% if rc.disposition %}
+                    <span class="mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide
+                        {% if rc.disposition == 'affirmed' %}bg-emerald-50 text-emerald-700 border border-emerald-200
+                        {% elif rc.disposition in ['reversed', 'reversed_and_remanded'] %}bg-red-50 text-red-700 border border-red-200
+                        {% else %}bg-slate-100 text-slate-500 border border-slate-200{% endif %}">
+                        {{ rc.disposition | replace('_', ' ') | title }}
+                    </span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
         <section class="public-card p-6 sm:p-8">
             <h2 class="text-lg font-black mb-5 text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">Hearing timeline</h2>
             <div class="space-y-3">
@@ -125,4 +217,33 @@
         </section>
     </aside>
 </main>
+
+{% if case.is_criminal and case.defendant_name %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  "headline": {{ page_title | tojson }},
+  "description": {{ meta_description | tojson }},
+  "url": {{ canonical_url | tojson }},
+  "publisher": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  },
+  "about": {
+    "@type": "LegalCase",
+    "name": {{ case.caption | tojson }},
+    "caseNumber": {{ case.case_number | tojson }},
+    "court": {
+      "@type": "LegalService",
+      "name": {{ case.court_name | tojson }}{% if case.county %},
+      "address": { "@type": "PostalAddress", "addressLocality": "{{ case.county }} County", "addressRegion": "MT" }{% endif %}
+    }{% if case.defendant_name %},
+    "defendant": { "@type": "Person", "name": {{ case.defendant_name | tojson }} }{% endif %}{% if case.charges_text %},
+    "description": {{ case.charges_text | tojson }}{% endif %}
+  }
+}
+</script>
+{% endif %}
 {% endblock %}

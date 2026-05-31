@@ -5,7 +5,6 @@
     ('/', 'home', public_nav_menu_labels_by_href.get('/', 'Home'), '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'),
     ('/arrests', 'arrests', public_nav_menu_labels_by_href.get('/arrests', 'Arrests'), '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
     ('/counties', 'counties', public_nav_menu_labels_by_href.get('/counties', 'Counties'), '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'),
-    ('/missing-persons', 'missing_persons', public_nav_menu_labels_by_href.get('/missing-persons', 'Missing'), '<path d="M12 2l4 8-4 12-4-12z"/><circle cx="12" cy="9" r="2"/>'),
   ] %}
 
   {% for href, nav_id, label, svg_path in tabs %}
@@ -15,6 +14,18 @@
     {{ label }}
   </a>
   {% endfor %}
+
+  {% if public_user %}
+  <a href="/account" class="public-mobile-tabbar__link {% if active_nav == 'account' %}active{% endif %}" data-nav-track="1" data-nav-location="mobile_tabbar" data-short-label="Account" data-full-label="My Account">
+    <span class="public-user-avatar public-user-avatar--sm">{{ public_user.display_name[:1].upper() }}</span>
+    Account
+  </a>
+  {% else %}
+  <a href="/login" class="public-mobile-tabbar__link" data-nav-track="1" data-nav-location="mobile_tabbar" data-short-label="Sign In" data-full-label="Sign In">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Sign In
+  </a>
+  {% endif %}
 
   <!-- More tab -->
   <button id="mb-more-btn" onclick="document.getElementById('mb-more-drawer').showModal()" class="public-mobile-tabbar__button">
@@ -30,6 +41,18 @@
     <button onclick="document.getElementById('mb-more-drawer').close()" class="public-mobile-drawer__close" aria-label="Close more menu">&#x2715;</button>
   </div>
   <div class="public-mobile-drawer__body" style="padding-top:0.35rem; padding-bottom:4.5rem;">
+    {% if public_user %}
+    <a href="/account" class="public-mobile-drawer__item" style="font-weight:700;" data-nav-track="1" data-nav-location="mobile_drawer">
+      <span class="public-user-avatar public-user-avatar--sm" style="display:inline-flex; margin-right:6px; vertical-align:middle;">{{ public_user.display_name[:1].upper() }}</span>
+      {{ public_user.display_name }}
+    </a>
+    <a href="/logout" class="public-mobile-drawer__item public-mobile-drawer__item--danger" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.sign_out }}</a>
+    <div style="border-top:1px solid var(--public-border); margin:6px 0;"></div>
+    {% else %}
+    <a href="/login" class="public-mobile-drawer__item" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.sign_in }}</a>
+    <a href="/register" class="public-mobile-drawer__item" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.join }}</a>
+    <div style="border-top:1px solid var(--public-border); margin:6px 0;"></div>
+    {% endif %}
     {% if public_mobile_short_label_legend %}
     <p class="public-mobile-label" style="text-transform:none; letter-spacing:0; opacity:0.82; margin:0 1rem 0.5rem;">{{ public_mobile_short_label_legend }}</p>
     {% endif %}
@@ -48,13 +71,6 @@
     <a href="{{ href }}" class="public-mobile-drawer__item" title="{{ full_label }}" aria-label="{{ full_label }}" data-nav-track="1" data-nav-location="mobile_drawer" data-short-label="{{ label }}" data-full-label="{{ full_label }}">{{ label }}</a>
     {% endfor %}
 
-    {% if public_user %}
-    <a href="/account" class="public-mobile-drawer__item public-mobile-drawer__item--muted" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.account }}</a>
-    <a href="/logout" class="public-mobile-drawer__item public-mobile-drawer__item--danger" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.sign_out }}</a>
-    {% else %}
-    <a href="/login" class="public-mobile-drawer__item public-mobile-drawer__item--muted" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.sign_in }}</a>
-    <a href="/register" class="public-mobile-drawer__item" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.join }}</a>
-    {% endif %}
   </div>
 </dialog>
 

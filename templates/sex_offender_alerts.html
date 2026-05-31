@@ -4,34 +4,118 @@
 <span class="public-breadcrumb__sep">/</span>
 <a href="/sex-offender-updates">Violent / Sexual Offender Updates</a>
 <span class="public-breadcrumb__sep">/</span>
-<a href="/sex-offender-alerts">Alerts</a>
+<a href="/sex-offender-alerts">Proximity Alerts</a>
 {% endblock %}
 
 {% block body_class %}sex-offender-alerts-page{% endblock %}
+
+{% if recaptcha_site_key %}
+<script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
+{% endif %}
 
 {% block content %}
 <section class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
     <div class="mb-6">
         <h1 class="text-2xl font-bold text-slate-900">Violent / Sexual Offender Proximity Alerts</h1>
-        <p class="text-sm text-slate-600 mt-1">Get notified when a new registrant moves within a chosen distance of your address.</p>
+        <p class="text-slate-600 mt-1 text-sm max-w-prose">
+            Enter your Montana zip code to receive email notifications when a registered violent or sexual
+            offender moves into or registers within your chosen distance.
+            Alerts are sourced from the
+            <a href="https://svor.doj.mt.gov" target="_blank" rel="noopener noreferrer" class="underline text-blue-700">MT DOJ Violent/Sexual Offender Registry</a>.
+        </p>
     </div>
 
-    <form method="post" action="/sex-offender-alerts" class="max-w-md space-y-4">
+    {% if success %}
+    <div class="rounded-lg bg-green-50 border border-green-200 p-4 max-w-md mb-6">
+        <p class="text-sm font-medium text-green-800">
+            {% if updated %}
+                Your alert preferences for <strong>{{ zip_code }}</strong> have been updated.
+            {% else %}
+                You're subscribed! We'll email <strong>{{ email }}</strong> when a registrant
+                moves within {{ radius }} mile{{ 's' if radius != 1 else '' }} of zip code <strong>{{ zip_code }}</strong>.
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    {% if unsubscribed %}
+    <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 max-w-md mb-6">
+        <p class="text-sm text-slate-700">You have been unsubscribed from proximity alerts.</p>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="rounded-lg bg-red-50 border border-red-200 p-4 max-w-md mb-6">
+        <p class="text-sm font-medium text-red-800">{{ error }}</p>
+    </div>
+    {% endif %}
+
+    {% if not success and not unsubscribed %}
+    <form method="post" action="/sex-offender-alerts" id="so-alert-form" class="max-w-md space-y-5">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if recaptcha_site_key %}
+        <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+        {% endif %}
+
         <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
-            <input type="email" name="email" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="you@example.com">
+            <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Email address</label>
+            <input type="email" id="email" name="email" required autocomplete="email"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                   placeholder="you@example.com"
+                   value="{{ email or '' }}">
         </div>
+
         <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Address</label>
-            <input type="text" name="address" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400" placeholder="123 Main St, Billings, MT">
+            <label for="zip_code" class="block text-sm font-medium text-slate-700 mb-1">Montana zip code</label>
+            <input type="text" id="zip_code" name="zip_code" required maxlength="5" pattern="\d{5}"
+                   inputmode="numeric"
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                   placeholder="e.g. 59401"
+                   value="{{ zip_code or '' }}">
+            <p class="text-xs text-slate-500 mt-1">Must be a Montana zip code.</p>
         </div>
+
         <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Radius (miles)</label>
-            <input type="range" name="radius" min="1" max="25" value="5" class="w-full" oninput="document.getElementById('radius-val').textContent = this.value + ' miles'">
-            <p class="text-sm text-slate-600 mt-1"><span id="radius-val">5 miles</span></p>
+            <label for="radius" class="block text-sm font-medium text-slate-700 mb-1">Alert radius</label>
+            <select id="radius" name="radius"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                <option value="1">1 mile</option>
+                <option value="3">3 miles</option>
+                <option value="5" selected>5 miles (default)</option>
+                <option value="10">10 miles</option>
+                <option value="25">25 miles</option>
+            </select>
         </div>
-        <button type="submit" class="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-medium hover:bg-slate-800">Subscribe</button>
+
+        <button type="submit"
+                class="rounded-lg bg-slate-900 text-white px-5 py-2 text-sm font-medium hover:bg-slate-800 transition-colors">
+            Subscribe to alerts
+        </button>
     </form>
+
+    {% if recaptcha_site_key %}
+    <script>
+    document.getElementById('so-alert-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+        grecaptcha.ready(function() {
+            grecaptcha.execute('{{ recaptcha_site_key }}', {action: 'sex_offender_alert'}).then(function(token) {
+                document.getElementById('g-recaptcha-response').value = token;
+                form.submit();
+            });
+        });
+    });
+    </script>
+    {% endif %}
+    {% endif %}
+
+    <div class="mt-10 border-t border-slate-200 pt-6 text-xs text-slate-500 max-w-prose">
+        <p>
+            Alerts are based on data from the
+            <a href="https://svor.doj.mt.gov" target="_blank" rel="noopener noreferrer" class="underline">MT DOJ Violent/Sexual Offender Registry</a>.
+            Montana Blotter does not guarantee completeness or accuracy of registry data.
+            For emergencies, contact local law enforcement.
+        </p>
+    </div>
 </section>
 {% endblock %}

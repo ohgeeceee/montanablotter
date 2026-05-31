@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Montana Crime Data — MontanaBlotter.com</title>
+<meta name="description" content="Montana crime statistics: daily incident calendar, charge category trends, and agency activity charts powered by real blotter data.">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b0f19;--panel:#121827;--text:#e2e8f0;--accent:#38bdf8;--muted:#94a3b8;--border:#1e293b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:18px;letter-spacing:.3px}
+header h1 span{color:var(--accent)}
+header a{font-size:12px;color:var(--muted);text-decoration:none}
+header a:hover{color:var(--accent)}
+header .nav-links{display:flex;gap:12px;margin-left:auto;flex-wrap:wrap}
+.container{max-width:1200px;margin:0 auto;padding:24px 20px;display:flex;flex-direction:column;gap:32px}
+.section-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px}
+.section-card h2{font-size:15px;margin-bottom:4px}
+.section-card .sub{font-size:12px;color:var(--muted);margin-bottom:16px}
+.year-controls{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.year-btn{padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer}
+.year-btn.active{background:var(--accent);border-color:var(--accent);color:#0b0f19;font-weight:700}
+#calendar-svg-wrap{width:100%;overflow-x:auto}
+.cal-month-label{font-size:10px;fill:#64748b;font-family:system-ui,sans-serif}
+.cal-dow-label{font-size:9px;fill:#475569;font-family:system-ui,sans-serif}
+.cal-cell{cursor:default}
+.cal-tooltip{display:none;position:fixed;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);z-index:1000;pointer-events:none}
+.chart-wrap{position:relative;height:300px}
+.chart-wrap.tall{height:380px}
+.chart-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.ctrl-btn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
+.ctrl-btn.active{background:var(--accent);color:#0b0f19;font-weight:700;border-color:var(--accent)}
+.loading-msg{color:var(--muted);font-size:13px;padding:20px 0}
+.legend-inline{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;font-size:11px;color:var(--muted)}
+.legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;flex-shrink:0;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Montana <span>Crime Data</span></h1>
+  <div class="nav-links">
+    <a href="/crime-atlas">Crime Atlas →</a>
+    <a href="/crime-map">Incident Map →</a>
+    <a href="/">← Home</a>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Section 1: Crime Calendar -->
+  <div class="section-card" id="card-calendar">
+    <h2>Incident Calendar</h2>
+    <p class="sub">Daily incident count across all Montana blotters — darker red = more incidents.</p>
+    <div class="year-controls" id="yearControls"></div>
+    <div id="calendar-svg-wrap"><div class="loading-msg">Loading calendar…</div></div>
+    <div class="cal-tooltip" id="calTooltip"></div>
+  </div>
+
+  <!-- Section 2: Charge Category Trends -->
+  <div class="section-card" id="card-trends">
+    <h2>Charge Category Trends</h2>
+    <p class="sub">Monthly breakdown of charge categories statewide.</p>
+    <div class="chart-controls" id="trendsControls">
+      <button class="ctrl-btn active" data-months="6">6 months</button>
+      <button class="ctrl-btn" data-months="12">12 months</button>
+      <button class="ctrl-btn" data-months="24">24 months</button>
+    </div>
+    <div class="legend-inline" id="trendLegend"></div>
+    <div class="chart-wrap tall"><canvas id="chartTrends"></canvas></div>
+  </div>
+
+  <!-- Section 3: Agency Activity -->
+  <div class="section-card" id="card-agency">
+    <h2>Most Active Reporting Counties</h2>
+    <p class="sub">Counties ranked by blotter filings — shows who reports most consistently.</p>
+    <div class="chart-controls" id="agencyControls">
+      <button class="ctrl-btn active" data-days="90">Last 90 days</button>
+      <button class="ctrl-btn" data-days="180">Last 6 months</button>
+      <button class="ctrl-btn" data-days="365">Last year</button>
+    </div>
+    <div class="chart-wrap tall"><canvas id="chartAgency"></canvas></div>
+  </div>
+
+</div>
+
+<div class="cal-tooltip" id="calTooltip2"></div>
+
+<script>
+const CATEGORY_COLORS = {
+  dui:         '#f97316',
+  violent:     '#ef4444',
+  domestic:    '#ec4899',
+  drug:        '#a855f7',
+  weapons:     '#6366f1',
+  property:    '#3b82f6',
+  traffic:     '#06b6d4',
+  welfare:     '#10b981',
+  public_order:'#84cc16',
+  other:       '#94a3b8',
+};
+
+const CURRENT_YEAR = {{ current_year }};
+let calYear = CURRENT_YEAR;
+let trendsChart = null;
+let agencyChart = null;
+
+// ── Calendar ──────────────────────────────────────────────────────────────
+
+function getWeekOfYear(d) {
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  const days = Math.floor((d - jan1) / 86400000);
+  return Math.floor((days + jan1.getDay()) / 7);
+}
+
+function renderCalendar(days) {
+  const wrap = document.getElementById('calendar-svg-wrap');
+  if (!days || !days.length) {
+    wrap.innerHTML = '<div class="loading-msg">No data available for this year yet.</div>';
+    return;
+  }
+  const dayMap = {};
+  days.forEach(d => { dayMap[d.date] = d.count; });
+  const maxCount = Math.max(...days.map(d => d.count), 1);
+
+  const CELL = 12, GAP = 2, STEP = CELL + GAP;
+  const svgW = 56 * STEP + 32;
+  const svgH = 7 * STEP + 32;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DOWS   = ['S','M','T','W','T','F','S'];
+
+  let cells = '', monthLabels = '', lastMonth = -1;
+  const yearStart = new Date(calYear, 0, 1);
+  const yearEnd   = new Date(calYear, 11, 31);
+
+  for (let d = new Date(yearStart); d <= yearEnd; d.setDate(d.getDate() + 1)) {
+    const iso   = d.toISOString().slice(0,10);
+    const count = dayMap[iso] || 0;
+    const week  = getWeekOfYear(d);
+    const dow   = d.getDay();
+    const x = 30 + week * STEP;
+    const y = 20 + dow * STEP;
+    const mo = d.getMonth();
+    if (mo !== lastMonth && dow === 0) {
+      monthLabels += `<text x="${x}" y="13" class="cal-month-label">${MONTHS[mo]}</text>`;
+      lastMonth = mo;
+    }
+    const opacity = count > 0 ? (0.12 + (count / maxCount) * 0.88) : 0.06;
+    const fill = count > 0 ? `rgba(239,68,68,${opacity.toFixed(2)})` : '#192033';
+    cells += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="${fill}" rx="2" data-date="${iso}" data-count="${count}" class="cal-cell"/>`;
+  }
+  const dowLabels = DOWS.map((l,i) =>
+    `<text x="24" y="${20 + i*STEP + 10}" class="cal-dow-label" text-anchor="end">${l}</text>`
+  ).join('');
+
+  wrap.innerHTML = `<svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;min-width:680px">${monthLabels}${dowLabels}${cells}</svg>`;
+
+  const tooltip = document.getElementById('calTooltip');
+  wrap.querySelectorAll('.cal-cell').forEach(cell => {
+    cell.addEventListener('mousemove', e => {
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top  = (e.clientY - 32) + 'px';
+      const cnt = cell.dataset.count;
+      tooltip.textContent = `${cell.dataset.date}: ${cnt} incident${cnt==1?'':'s'}`;
+    });
+    cell.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  });
+}
+
+async function loadCalendar(year) {
+  document.getElementById('calendar-svg-wrap').innerHTML = '<div class="loading-msg">Loading…</div>';
+  try {
+    const res = await fetch(`/api/stats/crime-calendar?year=${year}`);
+    const data = await res.json();
+    renderCalendar(data.days || []);
+  } catch(e) {
+    document.getElementById('calendar-svg-wrap').innerHTML = '<div class="loading-msg">Failed to load.</div>';
+  }
+}
+
+function buildYearControls() {
+  const wrap = document.getElementById('yearControls');
+  const years = [];
+  for (let y = CURRENT_YEAR; y >= Math.max(2020, CURRENT_YEAR - 4); y--) years.push(y);
+  wrap.innerHTML = years.map(y =>
+    `<button class="year-btn${y===calYear?' active':''}" data-year="${y}">${y}</button>`
+  ).join('');
+  wrap.addEventListener('click', e => {
+    const btn = e.target.closest('.year-btn');
+    if (!btn) return;
+    wrap.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    calYear = parseInt(btn.dataset.year);
+    loadCalendar(calYear);
+  });
+}
+
+// ── Charge Trends ─────────────────────────────────────────────────────────
+
+async function loadTrends(months) {
+  try {
+    const res = await fetch(`/api/stats/charge-trends?months=${months}`);
+    if (!res.ok) {
+      document.getElementById('trendLegend').innerHTML = `<span style="color:#ef4444">Error loading trends (${res.status}). Please refresh.</span>`;
+      return;
+    }
+    const data = await res.json();
+    const { months: labels, categories, data: raw } = data;
+    if (!labels || !labels.length) return;
+
+    const datasets = (categories || []).map(cat => ({
+      label: cat,
+      data: labels.map(mo => (raw[mo] || {})[cat] || 0),
+      backgroundColor: (CATEGORY_COLORS[cat] || '#94a3b8') + 'bb',
+      borderColor: CATEGORY_COLORS[cat] || '#94a3b8',
+      borderWidth: 1,
+      fill: true,
+      tension: 0.3,
+    }));
+
+    document.getElementById('trendLegend').innerHTML = (categories || []).map(cat =>
+      `<span><span class="legend-dot" style="background:${CATEGORY_COLORS[cat]||'#94a3b8'}"></span>${cat}</span>`
+    ).join('');
+
+    if (trendsChart) trendsChart.destroy();
+    trendsChart = new Chart(
+      document.getElementById('chartTrends').getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { stacked: true, ticks: { color: '#64748b', font: { size: 11 } }, grid: { color: '#1e293b' } },
+            y: { stacked: true, ticks: { color: '#64748b', font: { size: 11 } }, grid: { color: '#1e293b' } },
+          },
+          elements: { point: { radius: 0 } },
+        },
+      }
+    );
+  } catch(e) { console.error('Trends load error', e); }
+}
+
+// ── Agency Activity ───────────────────────────────────────────────────────
+
+async function loadAgency(days) {
+  try {
+    const res = await fetch(`/api/stats/agency-activity?days=${days}`);
+    if (!res.ok) {
+      const canvas = document.getElementById('chartAgency');
+      canvas.parentNode.innerHTML = `<div style="color:#ef4444;padding:20px 0">Error loading county data (${res.status}). Please refresh.</div>`;
+      return;
+    }
+    const data = await res.json();
+    const agencies = (data.agencies || []).slice(0, 20);
+    if (!agencies.length) return;
+
+    if (agencyChart) agencyChart.destroy();
+    agencyChart = new Chart(
+      document.getElementById('chartAgency').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: agencies.map(a => a.county),
+          datasets: [{
+            label: 'Blotters filed',
+            data: agencies.map(a => a.blotter_count),
+            backgroundColor: '#38bdf899',
+            borderColor: '#38bdf8',
+            borderWidth: 1,
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#64748b', font: { size: 11 } }, grid: { color: '#1e293b' } },
+            y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: '#1e293b' } },
+          },
+        },
+      }
+    );
+  } catch(e) { console.error('Agency load error', e); }
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────
+
+document.getElementById('trendsControls').addEventListener('click', e => {
+  const btn = e.target.closest('.ctrl-btn');
+  if (!btn) return;
+  document.getElementById('trendsControls').querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadTrends(parseInt(btn.dataset.months));
+});
+document.getElementById('agencyControls').addEventListener('click', e => {
+  const btn = e.target.closest('.ctrl-btn');
+  if (!btn) return;
+  document.getElementById('agencyControls').querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadAgency(parseInt(btn.dataset.days));
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+
+buildYearControls();
+loadCalendar(calYear);
+loadTrends(6);
+loadAgency(90);
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+{% extends "public_page_base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ canonical_url }}">{% endblock %}
+
+{% block content %}
+<div class="public-page-wrap">
+
+  <div class="public-hero-strip" style="background:#0f172a;padding:2.5rem 1rem 2rem;">
+    <div style="max-width:860px;margin:0 auto;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">🚗</div>
+      <h1 style="color:#fff;font-size:1.75rem;font-weight:900;margin:0 0 0.5rem;">Montana DUI Leaderboard</h1>
+      <p style="color:#94a3b8;font-size:0.95rem;margin:0;">
+        {{ total }} DUI incidents tracked across {{ leaderboard|length }} counties · Combined arrests &amp; jail bookings
+      </p>
+    </div>
+  </div>
+
+  <div style="max-width:1100px;margin:0 auto;padding:1.5rem 1rem 3rem;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+    <!-- Leaderboard table -->
+    <div>
+      <h2 style="font-size:1rem;font-weight:800;color:#0f172a;margin:0 0 0.75rem;text-transform:uppercase;letter-spacing:.05em;">County Rankings</h2>
+      <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+          <thead>
+            <tr style="background:#f8fafc;">
+              <th style="padding:0.6rem 0.75rem;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">#</th>
+              <th style="padding:0.6rem 0.75rem;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">County</th>
+              <th style="padding:0.6rem 0.75rem;text-align:right;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Incidents</th>
+              <th style="padding:0.6rem 0.75rem;text-align:right;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in leaderboard %}
+            {% set pct = ((row.count / total * 100) | round(1)) if total > 0 else 0 %}
+            <tr style="border-bottom:1px solid #f1f5f9;{% if loop.index <= 3 %}background:#fefce8;{% endif %}">
+              <td style="padding:0.55rem 0.75rem;color:#94a3b8;font-weight:700;">
+                {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+              </td>
+              <td style="padding:0.55rem 0.75rem;">
+                <a href="/county/{{ row.slug }}" style="color:#0f172a;font-weight:700;text-decoration:none;">{{ row.name }}</a>
+              </td>
+              <td style="padding:0.55rem 0.75rem;text-align:right;font-weight:800;color:#dc2626;">{{ row.count }}</td>
+              <td style="padding:0.55rem 0.75rem;text-align:right;">
+                <span style="display:inline-flex;align-items:center;gap:0.35rem;color:#64748b;">
+                  <span style="display:inline-block;width:{{ [pct * 0.7, 50]|min }}px;height:6px;background:#fca5a5;border-radius:9999px;"></span>
+                  {{ pct }}%
+                </span>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" style="padding:1rem;text-align:center;color:#94a3b8;">No DUI data available.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Choropleth map -->
+    <div>
+      <h2 style="font-size:1rem;font-weight:800;color:#0f172a;margin:0 0 0.75rem;text-transform:uppercase;letter-spacing:.05em;">Heatmap</h2>
+      <div id="dui-map" style="height:420px;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;"></div>
+    </div>
+
+  </div>
+
+  <!-- Recent DUI bookings -->
+  <div style="max-width:1100px;margin:0 auto;padding:0 1rem 3rem;">
+    <h2 style="font-size:1rem;font-weight:800;color:#0f172a;margin:0 0 0.75rem;text-transform:uppercase;letter-spacing:.05em;">Recent DUI Bookings</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0.75rem;">
+      {% for b in recent_bookings %}
+      <a href="/booking/{{ b.id }}" style="display:block;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem 1rem;background:#fff;text-decoration:none;transition:box-shadow 0.15s;">
+        <div style="font-weight:800;color:#0f172a;font-size:0.9rem;margin-bottom:0.2rem;">{{ b.person_name or 'Unknown' }}</div>
+        <div style="font-size:0.8rem;color:#64748b;margin-bottom:0.4rem;">
+          {{ b.county_name }} · {{ b.booking_at[:10] if b.booking_at else '' }}
+        </div>
+        <div style="font-size:0.78rem;color:#475569;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+          {{ b.charges_summary or '' }}
+        </div>
+      </a>
+      {% else %}
+      <p style="color:#94a3b8;font-size:0.9rem;">No recent DUI bookings found.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function() {
+  var counts = {{ leaderboard | tojson }};
+  var countMap = {};
+  counts.forEach(function(r) { countMap[r.name.toLowerCase()] = r.count; });
+  var max = counts.length ? counts[0].count : 1;
+
+  function getColor(n) {
+    if (!n) return '#f1f5f9';
+    var t = Math.min(n / max, 1);
+    var r = Math.round(252 + (220 - 252) * t);
+    var g = Math.round(226 + (38 - 226) * t);
+    var b = Math.round(226 + (38 - 226) * t);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  var map = L.map('dui-map', { scrollWheelZoom: false, zoomControl: true });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19
+  }).addTo(map);
+
+  fetch('/static/geo/mt_counties.geojson')
+    .then(function(r){ return r.json(); })
+    .then(function(geo){
+      var layer = L.geoJSON(geo, {
+        style: function(f) {
+          var name = (f.properties.NAME || '').toLowerCase();
+          var n = countMap[name] || 0;
+          return { fillColor: getColor(n), weight: 1, color: '#cbd5e1', fillOpacity: 0.85 };
+        },
+        onEachFeature: function(f, l) {
+          var name = f.properties.NAME || '';
+          var n = countMap[name.toLowerCase()] || 0;
+          l.bindTooltip('<strong>' + name + ' County</strong><br>' + n + ' DUI incident' + (n !== 1 ? 's' : ''), { sticky: true });
+          l.on('click', function() {
+            var slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            window.location.href = '/county/' + slug;
+          });
+        }
+      }).addTo(map);
+      map.fitBounds(layer.getBounds(), { padding: [10, 10] });
+    });
+})();
+</script>
+{% endblock %}

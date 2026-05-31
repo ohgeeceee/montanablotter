@@ -81,10 +81,17 @@ def _redis_url() -> str:
 
 
 def create_redis_client(*, async_mode: bool = False):
+    kwargs = dict(
+        decode_responses=True,
+        socket_connect_timeout=2,
+        socket_timeout=3,
+        retry_on_timeout=True,
+        health_check_interval=30,
+    )
     if async_mode:
         from redis.asyncio import Redis as AsyncRedis
-        return AsyncRedis.from_url(_redis_url(), decode_responses=True)
-    return Redis.from_url(_redis_url(), decode_responses=True)
+        return AsyncRedis.from_url(_redis_url(), **kwargs)
+    return Redis.from_url(_redis_url(), **kwargs)
 
 
 def serialize_agent_event(event: AgentEvent | dict[str, Any]) -> str:
@@ -153,11 +160,18 @@ class RedisAgentEventHub:
         return agents
 
     def bootstrap_snapshot(self, *, limit: int | None = None) -> dict[str, Any]:
+        try:
+            agents = self.load_agents()
+            feed_items = self.load_recent_events(limit=limit)
+        except RedisError as exc:
+            import logging
+            logging.getLogger(__name__).error("Redis unavailable for bootstrap snapshot: %s", exc)
+            agents, feed_items = [], []
         return {
             'connected': False,
             'generated_at': _utcnow_iso(),
-            'agents': self.load_agents(),
-            'feed_items': self.load_recent_events(limit=limit),
+            'agents': agents,
+            'feed_items': feed_items,
             'channel': self.channel,
         }
 

@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""
+roasebud_inmate_fetcher.py
+==========================
+Fetches Rosebud County inmate roster and warrants PDFs from their sheriff website.
+Integrates into the standard Montana Blotter ingestion pipeline.
+"""
+
+from __future__ import annotations
+
+import argparse
+import html
+import logging
+import os
+import re
+import sys
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from html.parser import HTMLParser
+from typing import Iterable
+from urllib.parse import urljoin
+
+import requests
+
+sys.path.insert(0, "/root/montanablotter")
+import config
+from core.pipeline_state import (
+    ensure_ingestion_job,
+    ensure_source_document,
+    get_ingestion_job_status,
+    increment_ingestion_retry,
+    log_pipeline_event,
+    set_ingestion_job_status,
+    sha256_bytes,
+)
+from services.blotter.processor import process_new_blotter
+
+logger = logging.getLogger(__name__)
+
+BASE_URL = "https://www.rosebudcountymt.gov/sheriff"
+SOURCE_TYPE = "rosebud_pdf"
+SOURCE_SENDER = "Rosebud County Sheriff's Office"
+
+
+@dataclass
+class FetchStats:
+    discovered: int = 0
+    processed: int = 0
+    created_blotters: int = 0
+    duplicate_only: int = 0
+    skipped_published: int = 0
+    failed: int = 0
+
+
+class _AnchorCollector(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.items: list[dict[str, str]] = []
+        self._current: dict[str, str] | None = None
+        self._text_parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() != "a":
+            return
+        attr_map = {name.lower(): (value or "") for name, value in attrs}
+        href = attr_map.get("href", "")
+        if not href:
+            return
+        self._current = {"href": href.strip()}
+        self._text_parts = []
+
+    def handle_data(self, data: str) -> None:
+        if self._current is None:
+            return
+        self._text_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() != "a" or self._current is None:
+            return
+        text = " ".join(part.strip() for part in self._text_parts if part and part.strip())
+        item = {
+            "href": self._current.get("href", ""),
+            "text": html.unescape(text).strip(),
+        }
+        self.items.append(item)
+        self._current = None
+        self._text_parts = []
+
+
+def _discover_pdfs(session: requests.Session) -> list[dict]:
+    """Scrape the Rosebud sheriff page for PDF links."""
+    logger.info("Fetching Rosebud sheriff page: %s", BASE_URL)
+    resp = session.get(BASE_URL, timeout=30)
+    resp.raise_for_status()
+
+    parser = _AnchorCollector()
+    parser.feed(resp.text)
+
+    pdfs = []
+    for item in parser.items:
+        href = item["href"]
+        text = item["text"]
+        if not href.lower().endswith(".pdf"):
+            continue
+        full_url = urljoin(BASE_URL, href)
+        pdfs.append({
+            "url": full_url,
+            "text": text or os.path.basename(href),
+            "filename": os.path.basename(href),
+        })
+
+    logger.info("Discovered %d PDFs on Rosebud page", len(pdfs))
+    return pdfs
+
+
+def _is_inmate_or_warrant_pdf(pdf: dict) -> bool:
+    text = f"{pdf['text']} {pdf['filename']}".lower()
+    return any(k in text for k in ["inmate", "incarceration", "roster", "warrant", "booking"])
+
+
+def ingest_roasebud_pdfs(dry_run: bool = False) -> FetchStats:
+    stats = FetchStats()
+
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    })
+
+    pdfs = _discover_pdfs(session)
+    stats.discovered = len(pdfs)
+
+    target_pdfs = [p for p in pdfs if _is_inmate_or_warrant_pdf(p)]
+    logger.info("Selected %d inmate/warrant PDFs from %d total", len(target_pdfs), len(pdfs))
+
+    if dry_run:
+        for pdf in target_pdfs:
+            print(f"{pdf['text']}\t{pdf['url']}")
+        return stats
+
+    if not target_pdfs:
+        logger.info("No Rosebud inmate/warrant PDFs found")
+        return stats
+
+    upload_dir = os.path.join(config.UPLOAD_DIR, "rosebud")
+    os.makedirs(upload_dir, exist_ok=True)
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    for pdf in target_pdfs:
+        source_subject = f"Rosebud County {pdf['text']}"
+        filename = pdf["filename"]
+        storage_path = os.path.join(upload_dir, filename)
+        document_url = pdf["url"]
+        ingestion_job_id = None
+
+        try:
+            logger.info("Downloading %s", document_url)
+            resp = session.get(document_url, timeout=45)
+            resp.raise_for_status()
+            payload = resp.content
+
+            if len(payload) < 512:
+                logger.warning("Skipping unusually small PDF from %s", document_url)
+                continue
+
+            digest = sha256_bytes(payload)
+
+            source_document_id = ensure_source_document(
+                source_type=SOURCE_TYPE,
+                source_sender=SOURCE_SENDER,
+                source_subject=source_subject,
+                source_received_at=now_iso,
+                filename=filename,
+                content_sha256=digest,
+                storage_path=storage_path,
+                raw_text=None,
+                extraction_method="web_download",
+                extraction_warnings=[],
+            )
+            ingestion_job_id = ensure_ingestion_job(source_document_id)
+            existing_status = get_ingestion_job_status(source_document_id)
+            if existing_status == "published":
+                stats.skipped_published += 1
+                logger.info("Skipping already published Rosebud source doc #%s", source_document_id)
+                continue
+
+            with open(storage_path, "wb") as handle:
+                handle.write(payload)
+
+            set_ingestion_job_status(ingestion_job_id, "extracted")
+            log_pipeline_event(
+                ingestion_job_id,
+                "extract",
+                "ok",
+                {"filename": filename, "storage_path": storage_path, "source_url": document_url},
+            )
+
+            blotter_id = process_new_blotter(
+                storage_path,
+                county="Rosebud",
+                source_document_id=source_document_id,
+                ingestion_job_id=ingestion_job_id,
+            )
+            stats.processed += 1
+            if blotter_id:
+                stats.created_blotters += 1
+                logger.info("Rosebud PDF %s ingested as blotter #%s", pdf["text"], blotter_id)
+            else:
+                stats.duplicate_only += 1
+                logger.info("Rosebud PDF %s had no new incidents", pdf["text"])
+
+        except Exception as exc:
+            stats.failed += 1
+            logger.exception("Failed ingest for Rosebud PDF %s (%s)", pdf["text"], document_url)
+            if ingestion_job_id is not None:
+                try:
+                    increment_ingestion_retry(ingestion_job_id, str(exc))
+                    set_ingestion_job_status(ingestion_job_id, "failed", last_error=str(exc), finished=True)
+                    log_pipeline_event(
+                        ingestion_job_id,
+                        "publish",
+                        "error",
+                        {"error": str(exc), "source_url": document_url},
+                    )
+                except Exception:
+                    pass
+
+    return stats
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Pull Rosebud County inmate/warrant PDFs into Montana Blotter")
+    parser.add_argument("--dry-run", action="store_true", help="Print discovered PDFs without downloading")
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
+    stats = ingest_roasebud_pdfs(dry_run=args.dry_run)
+    print(
+        f"Rosebud fetch complete (discovered={stats.discovered}, processed={stats.processed}, "
+        f"created={stats.created_blotters}, duplicate_only={stats.duplicate_only}, "
+        f"skipped_published={stats.skipped_published}, failed={stats.failed})"
+    )
+    if stats.discovered and stats.failed and stats.processed == 0:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

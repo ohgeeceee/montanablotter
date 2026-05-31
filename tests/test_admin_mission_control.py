@@ -150,49 +150,29 @@ class AdminMissionControlTests(unittest.TestCase):
         upsert_heartbeat.assert_called_once()
         self.assertEqual(upsert_heartbeat.call_args.args[1], heartbeat)
 
-    def test_mission_control_page_renders_office_shell(self) -> None:
+    def test_mission_control_page_redirects_to_command_center(self) -> None:
         client = app_module.app.test_client()
         self._login(client)
 
-        with mock.patch(
-            "blueprints.admin.mission_control.build_snapshot",
-            return_value={
-                "captured_at": "2026-04-23T00:00:00+00:00",
-                "agents": [
-                    {
-                        "agent_id": "reporter",
-                        "display_name": "Reporter",
-                        "runtime": "openclaw",
-                        "state": "working",
-                        "current_task": "Scanning Gallatin feed",
-                        "problem_id": "case-42",
-                        "step_label": "fetch",
-                        "last_tool": "curl",
-                        "detail_text": "Polling official endpoint",
-                        "confidence": "heartbeat",
-                        "source_kind": "heartbeat",
-                        "last_heartbeat_at": "2026-04-23T00:00:00+00:00",
-                        "state_started_at": "2026-04-23T00:00:00+00:00",
-                        "updated_at": "2026-04-23T00:00:00+00:00",
-                        "stale": False,
-                        "heartbeat_age_seconds": 1,
-                    }
-                ],
-            },
-        ):
-            response = client.get("/admin/mission-control")
+        response = client.get("/admin/mission-control")
 
-        html = response.get_data(as_text=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Mission Control", html)
-        self.assertIn("Working Desks", html)
-        self.assertIn("Reporter", html)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/command-center", response.headers["Location"])
 
-    def test_mission_control_runbook_renders(self) -> None:
+    def test_mission_control_runbook_redirects_to_command_center_runbook(self) -> None:
         client = app_module.app.test_client()
         self._login(client)
 
         response = client.get("/admin/mission-control/runbook")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/command-center/runbook", response.headers["Location"])
+
+    def test_command_center_runbook_renders(self) -> None:
+        client = app_module.app.test_client()
+        self._login(client)
+
+        response = client.get("/admin/command-center/runbook")
 
         html = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)

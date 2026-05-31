@@ -8,7 +8,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path("/root/montanablotter/blotter.db")
+DB_PATH = Path("/root/montanablotter/data/blotter.db")
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
@@ -27,7 +27,7 @@ def _rows(conn: sqlite3.Connection, sql: str, params: tuple = ()) -> list[dict]:
 def main() -> None:
     print(f"UTC now: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}")
     if not DB_PATH.exists():
-        print("Database missing: /root/montanablotter/blotter.db")
+        print(f"Database missing: {DB_PATH}")
         return
 
     conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)

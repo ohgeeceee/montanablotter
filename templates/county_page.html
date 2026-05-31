@@ -95,6 +95,30 @@
 }
 </script>
 {% endif %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "{{ county.name }} County Public Records — Montana Blotter",
+  "description": "Arrest records, police blotter reports, and incident logs for {{ county.name }} County, Montana. Updated regularly from official public records.",
+  "url": "https://montanablotter.com/county/{{ county.slug }}",
+  "keywords": ["{{ county.name }} County arrests", "{{ county.name }} police blotter", "Montana public records", "{{ county.name }} jail bookings"],
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "isAccessibleForFree": true,
+  "creator": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  },
+  "spatialCoverage": {
+    "@type": "AdministrativeArea",
+    "name": "{{ county.name }} County",
+    "containedInPlace": {"@type": "State", "name": "Montana"}
+  }{% if last_report %},
+  "temporalCoverage": "../{{ last_report }}"{% endif %}{% if record_count %},
+  "size": "{{ record_count }} public records"{% endif %}
+}
+</script>
 {% endblock %}
 
 {% block body_class %}county-page{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "public_page_base.html" %}
+
+{% macro disposition_badge(d) %}
+{% if d == 'affirmed' %}
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">Upheld</span>
+{% elif d == 'reversed_and_remanded' %}
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-orange-50 text-orange-700 border border-orange-200">Reversed &amp; Remanded</span>
+{% elif d == 'reversed' %}
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-red-50 text-red-700 border border-red-200">Reversed</span>
+{% elif d == 'remanded' %}
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-yellow-50 text-yellow-700 border border-yellow-200">Remanded</span>
+{% else %}
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-slate-100 text-slate-500 border border-slate-200">Pending</span>
+{% endif %}
+{% endmacro %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/courts" class="hover:text-slate-700">Courts</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Criminal Cases</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl">
+            <p class="public-eyebrow" style="color:var(--public-steel);">Montana Supreme Court</p>
+            <h1 class="public-title mt-3 max-w-4xl">
+                Criminal case
+                <span class="block" style="color:var(--public-red);">outcomes</span>
+            </h1>
+            <p class="public-copy max-w-3xl">
+                Montana Supreme Court criminal appeals — convictions upheld, reversed, and remanded. Data sourced directly from official court records.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3 text-xs font-semibold text-slate-700">
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ summary.total or 0 }} criminal cases</div>
+                {% if summary.affirmed %}
+                <div class="rounded-full border border-emerald-200 bg-emerald-50/80 px-4 py-2 text-emerald-700">{{ summary.affirmed }} upheld</div>
+                {% endif %}
+                {% if summary.reversed %}
+                <div class="rounded-full border border-red-200 bg-red-50/80 px-4 py-2 text-red-700">{{ summary.reversed }} reversed</div>
+                {% endif %}
+                {% if summary.pending %}
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-slate-500">{{ summary.pending }} pending</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="bg-slate-50 text-slate-900">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+
+        <form method="get" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm mb-8">
+            <div class="grid gap-4 md:grid-cols-[minmax(0,2fr),minmax(0,2fr),auto] md:items-end">
+                <div>
+                    <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Outcome</label>
+                    <select name="disposition" class="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                        <option value="">All outcomes</option>
+                        <option value="affirmed" {% if selected_disposition == 'affirmed' %}selected{% endif %}>Conviction upheld</option>
+                        <option value="reversed" {% if selected_disposition == 'reversed' %}selected{% endif %}>Reversed</option>
+                        <option value="reversed_and_remanded" {% if selected_disposition == 'reversed_and_remanded' %}selected{% endif %}>Reversed &amp; Remanded</option>
+                        <option value="remanded" {% if selected_disposition == 'remanded' %}selected{% endif %}>Remanded</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Charge type</label>
+                    <select name="charges" class="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                        <option value="">All charges</option>
+                        {% for opt in charge_options %}
+                        <option value="{{ opt.charges_text|lower }}" {% if selected_charges == opt.charges_text|lower %}selected{% endif %}>{{ opt.charges_text }} ({{ opt.n }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="public-btn public-btn--primary px-6 py-3">Filter</button>
+                    {% if selected_disposition or selected_charges %}
+                    <a href="/criminal-cases" class="public-btn px-6 py-3">Clear</a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
+        <p class="text-sm text-slate-500 mb-4">
+            {{ total }} case{{ 's' if total != 1 }}{% if selected_disposition or selected_charges %} matching filters{% endif %}
+        </p>
+
+        <div class="space-y-3">
+            {% for case in cases %}
+            <a href="/court-case/{{ case.slug }}" class="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-300 hover:shadow transition-all">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            {{ disposition_badge(case.disposition) }}
+                            {% if case.charges_text %}
+                            <span class="text-[11px] font-bold uppercase tracking-wide text-slate-500" style="font-family:'IBM Plex Mono',monospace;">{{ case.charges_text }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-base font-black text-slate-900 leading-snug">
+                            {{ case.defendant_name or case.caption }}
+                        </p>
+                        {% if case.original_court %}
+                        <p class="mt-1 text-xs text-slate-500">
+                            Originally tried at {{ case.original_court }}{% if case.original_case_number %} · {{ case.original_case_number }}{% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="text-[11px] font-black uppercase tracking-wide" style="font-family:'IBM Plex Mono',monospace; color:var(--public-red);">{{ case.case_number }}</p>
+                        {% if case.sentencing_judge %}
+                        <p class="mt-1 text-xs text-slate-500">{{ case.sentencing_judge }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-slate-400">{{ case.court_name }}</p>
+                    </div>
+                </div>
+            </a>
+            {% else %}
+            <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+                No criminal cases match your filters.
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if total_pages > 1 %}
+        <div class="mt-8 flex items-center justify-center gap-2">
+            {% if page > 1 %}
+            <a href="?page={{ page - 1 }}{% if selected_disposition %}&disposition={{ selected_disposition }}{% endif %}{% if selected_charges %}&charges={{ selected_charges }}{% endif %}" class="public-btn px-5 py-2 text-sm">&larr; Prev</a>
+            {% endif %}
+            <span class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }}</span>
+            {% if page < total_pages %}
+            <a href="?page={{ page + 1 }}{% if selected_disposition %}&disposition={{ selected_disposition }}{% endif %}{% if selected_charges %}&charges={{ selected_charges }}{% endif %}" class="public-btn px-5 py-2 text-sm">Next &rarr;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </section>
+</main>
+{% endblock %}

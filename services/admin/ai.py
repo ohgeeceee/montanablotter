@@ -16,141 +16,121 @@ PENDING_ACTION_SESSION_KEY = "admin_ai_pending_action"
 PENDING_ACTION_TTL_SECONDS = 900
 
 
-DEFAULT_MODEL = "kimi-k2.6"
-DEFAULT_BASE_URL = "https://api.moonshot.ai/v1"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 
+SYSTEM_PROMPT = (
+    "You are a Montana Blotter admin AI assistant. "
+    "Use the available tools for factual answers. "
+    "Never assume a write action has already been approved."
+)
 
 TOOLS: list[dict[str, Any]] = [
     {
-        "type": "function",
-        "function": {
-            "name": "search_records",
-            "description": "Search Montana blotter records by county and keyword.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "county": {"type": "string", "description": "Optional county filter."},
-                    "keyword": {"type": "string", "description": "Optional keyword filter."},
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of rows to return.",
-                        "minimum": 1,
-                        "maximum": 20,
-                    },
+        "name": "search_records",
+        "description": "Search Montana blotter records by county and keyword.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "county": {"type": "string", "description": "Optional county filter."},
+                "keyword": {"type": "string", "description": "Optional keyword filter."},
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of rows to return.",
+                    "minimum": 1,
+                    "maximum": 20,
                 },
-                "required": ["limit"],
             },
+            "required": ["limit"],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "get_missing_persons_summary",
-            "description": "Get current missing-person counts and source stats.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-            },
+        "name": "get_missing_persons_summary",
+        "description": "Get current missing-person counts and source stats.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "get_recent_posts",
-            "description": "Get recent blog post metadata.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of rows to return.",
-                        "minimum": 1,
-                        "maximum": 10,
-                    },
+        "name": "get_recent_posts",
+        "description": "Get recent blog post metadata.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of rows to return.",
+                    "minimum": 1,
+                    "maximum": 10,
                 },
-                "required": ["limit"],
             },
+            "required": ["limit"],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "get_subscriber_counts",
-            "description": "Get bounded subscriber totals and recent signup stats.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-            },
+        "name": "get_subscriber_counts",
+        "description": "Get bounded subscriber totals and recent signup stats.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "create_blog_draft",
-            "description": "Create a draft blog post. This requires admin confirmation before execution.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string"},
-                    "summary": {"type": "string"},
-                    "body": {"type": "string"},
-                    "author": {"type": "string"},
-                },
-                "required": ["title", "body"],
+        "name": "create_blog_draft",
+        "description": "Create a draft blog post. This requires admin confirmation before execution.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "summary": {"type": "string"},
+                "body": {"type": "string"},
+                "author": {"type": "string"},
             },
+            "required": ["title", "body"],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "update_blog_draft",
-            "description": "Update an existing blog draft. This requires admin confirmation before execution.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "post_id": {"type": "integer"},
-                    "title": {"type": "string"},
-                    "summary": {"type": "string"},
-                    "body": {"type": "string"},
-                    "author": {"type": "string"},
-                },
-                "required": ["post_id"],
+        "name": "update_blog_draft",
+        "description": "Update an existing blog draft. This requires admin confirmation before execution.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "post_id": {"type": "integer"},
+                "title": {"type": "string"},
+                "summary": {"type": "string"},
+                "body": {"type": "string"},
+                "author": {"type": "string"},
             },
+            "required": ["post_id"],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "create_facebook_draft",
-            "description": "Create a queued Facebook draft for an existing post. This requires admin confirmation before execution.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "post_id": {"type": "integer"},
-                    "custom_message": {"type": "string"},
-                },
-                "required": ["post_id"],
+        "name": "create_facebook_draft",
+        "description": "Create a queued Facebook draft for an existing post. This requires admin confirmation before execution.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "post_id": {"type": "integer"},
+                "custom_message": {"type": "string"},
             },
+            "required": ["post_id"],
         },
     },
     {
-        "type": "function",
-        "function": {
-            "name": "create_email_draft",
-            "description": "Save a sponsor email draft in app settings. This requires admin confirmation before execution.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "subject": {"type": "string"},
-                    "sponsor_name": {"type": "string"},
-                    "headline": {"type": "string"},
-                    "body": {"type": "string"},
-                    "cta_label": {"type": "string"},
-                    "cta_url": {"type": "string"},
-                    "notes": {"type": "string"},
-                },
-                "required": ["subject", "headline", "body"],
+        "name": "create_email_draft",
+        "description": "Save a sponsor email draft in app settings. This requires admin confirmation before execution.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "subject": {"type": "string"},
+                "sponsor_name": {"type": "string"},
+                "headline": {"type": "string"},
+                "body": {"type": "string"},
+                "cta_label": {"type": "string"},
+                "cta_url": {"type": "string"},
+                "notes": {"type": "string"},
             },
+            "required": ["subject", "headline", "body"],
         },
     },
 ]
@@ -400,33 +380,98 @@ def run_registered_tool(
 
 
 def build_pending_action(tool_name: str, summary: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    now = int(time.time())
     return {
         "token": secrets.token_urlsafe(24),
         "tool_name": tool_name,
         "summary": (summary or tool_name).strip()[:500],
         "arguments": arguments,
-        "created_at": int(time.time()),
+        "created_at": now,
+        "expires_at": now + PENDING_ACTION_TTL_SECONDS,
     }
 
 
-def get_pending_action(session_obj) -> dict[str, Any] | None:
-    return session_obj.get(PENDING_ACTION_SESSION_KEY)
+def save_pending_action(
+    user_id: int | None,
+    pending_action: dict[str, Any],
+    *,
+    db_path: str | None = None,
+) -> None:
+    """Write pending action to the DB and return; session stores only the token."""
+    conn = connect_db(db_path)
+    try:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO admin_ai_pending_actions
+                (token, user_id, tool_name, summary, arguments_json, created_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                pending_action["token"],
+                user_id,
+                pending_action["tool_name"],
+                pending_action.get("summary", ""),
+                json.dumps(pending_action.get("arguments") or {}, default=str),
+                int(pending_action.get("created_at") or time.time()),
+                int(pending_action.get("expires_at") or time.time() + PENDING_ACTION_TTL_SECONDS),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def validate_pending_action(session_obj, token: str) -> dict[str, Any]:
-    payload = get_pending_action(session_obj)
-    if not payload:
+def _fetch_pending_action_from_db(token: str, *, db_path: str | None = None) -> dict[str, Any] | None:
+    conn = connect_db(db_path)
+    try:
+        row = conn.execute(
+            "SELECT * FROM admin_ai_pending_actions WHERE token = ?", (token,)
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "token": row["token"],
+            "tool_name": row["tool_name"],
+            "summary": row["summary"] or "",
+            "arguments": json.loads(row["arguments_json"] or "{}"),
+            "created_at": row["created_at"],
+            "expires_at": row["expires_at"],
+        }
+    finally:
+        conn.close()
+
+
+def get_pending_action(session_obj, *, db_path: str | None = None) -> dict[str, Any] | None:
+    token = session_obj.get(PENDING_ACTION_SESSION_KEY)
+    if not token or not isinstance(token, str):
+        return None
+    return _fetch_pending_action_from_db(token, db_path=db_path)
+
+
+def validate_pending_action(session_obj, token: str, *, db_path: str | None = None) -> dict[str, Any]:
+    session_token = session_obj.get(PENDING_ACTION_SESSION_KEY)
+    if not session_token:
         raise ValueError("No pending action found.")
-    if payload.get("token") != token:
+    if session_token != token:
         raise ValueError("Pending action token mismatch.")
-    created_at = int(payload.get("created_at") or 0)
-    if int(time.time()) - created_at > PENDING_ACTION_TTL_SECONDS:
+    payload = _fetch_pending_action_from_db(token, db_path=db_path)
+    if not payload:
+        raise ValueError("Pending action not found or already consumed.")
+    if int(time.time()) > int(payload.get("expires_at") or 0):
         raise ValueError("Pending action expired.")
     return payload
 
 
-def clear_pending_action(session_obj) -> None:
-    session_obj.pop(PENDING_ACTION_SESSION_KEY, None)
+def clear_pending_action(session_obj, *, db_path: str | None = None) -> None:
+    token = session_obj.pop(PENDING_ACTION_SESSION_KEY, None)
+    if not token or not isinstance(token, str):
+        return
+    conn = connect_db(db_path)
+    try:
+        conn.execute("DELETE FROM admin_ai_pending_actions WHERE token = ?", (token,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def execute_pending_admin_ai_action(
@@ -449,15 +494,12 @@ def execute_pending_admin_ai_action(
     }
 
 
-def _message_to_dict(message: Any) -> dict[str, Any]:
-    if isinstance(message, dict):
-        return message
-    if hasattr(message, "model_dump"):
-        return message.model_dump()
-    return {
-        "role": getattr(message, "role", "assistant"),
-        "content": getattr(message, "content", "") or "",
-    }
+def create_claude_client():
+    import anthropic
+    api_key = getattr(config, "ANTHROPIC_API_KEY", None) or os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not configured.")
+    return anthropic.Anthropic(api_key=api_key)
 
 
 def run_admin_ai_query(
@@ -468,137 +510,109 @@ def run_admin_ai_query(
 ) -> dict[str, Any]:
     question = (question or "").strip()
     if not question:
-        return {
-            "answer": "",
-            "transcript": [],
-            "pending_action": None,
-        }
+        return {"answer": "", "transcript": [], "pending_action": None}
 
-    client = create_kimi_client()
-    messages: list[dict[str, Any]] = [
-        {
-            "role": "system",
-            "content": (
-                "You are a Montana Blotter admin AI assistant. "
-                "Use the available tools for factual answers. "
-                "Never assume a write action has already been approved."
-            ),
-        },
-        {"role": "user", "content": question},
-    ]
+    import anthropic as _anthropic
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        tools=TOOLS,
-    )
-    assistant_message = response.choices[0].message
+    client = create_claude_client()
+    messages: list[dict[str, Any]] = [{"role": "user", "content": question}]
     transcript: list[dict[str, Any]] = []
-    if assistant_message.content:
-        transcript.append({"role": "assistant", "content": assistant_message.content})
-    messages.append(_message_to_dict(assistant_message))
 
-    if not getattr(assistant_message, "tool_calls", None):
-        return {
-            "answer": assistant_message.content or "",
-            "transcript": transcript,
-            "pending_action": None,
-        }
+    response = client.messages.create(
+        model=model,
+        max_tokens=2048,
+        system=SYSTEM_PROMPT,
+        tools=TOOLS,
+        messages=messages,
+    )
 
-    tool_call = assistant_message.tool_calls[0]
-    tool_name = tool_call.function.name
-    tool_args = json.loads(tool_call.function.arguments or "{}")
+    first_text = next((b.text for b in response.content if hasattr(b, "text")), "")
+    if first_text:
+        transcript.append({"role": "assistant", "content": first_text})
+
+    if response.stop_reason != "tool_use":
+        return {"answer": first_text, "transcript": transcript, "pending_action": None}
+
+    tool_use = next(b for b in response.content if isinstance(b, _anthropic.types.ToolUseBlock))
+    tool_name = tool_use.name
+    tool_args = dict(tool_use.input or {})
 
     if tool_name in WRITE_INTENT_TOOLS:
         return {
-            "answer": assistant_message.content or "",
+            "answer": first_text,
             "transcript": transcript,
-            "pending_action": build_pending_action(
-                tool_name,
-                assistant_message.content or tool_name,
-                tool_args,
-            ),
+            "pending_action": build_pending_action(tool_name, first_text or tool_name, tool_args),
         }
 
     tool_result = run_registered_tool(tool_name, tool_args, db_path=db_path)
-    messages.append(
-        {
-            "role": "tool",
-            "tool_call_id": tool_call.id,
-            "content": json.dumps(tool_result, default=str),
-        }
-    )
-    final_response = client.chat.completions.create(
-        model=model,
-        messages=messages,
-    )
-    final_message = final_response.choices[0].message
-    final_content = final_message.content or ""
     transcript.append({"role": "tool", "content": json.dumps(tool_result, indent=2, default=str)})
-    if final_content:
-        transcript.append({"role": "assistant", "content": final_content})
-    return {
-        "answer": final_content,
-        "transcript": transcript,
-        "pending_action": None,
-    }
 
-
-def create_kimi_client():
-    from openai import OpenAI
-
-    api_key = (
-        os.getenv("MOONSHOT_API_KEY", "").strip()
-        or os.getenv("KIMI_API_KEY", "").strip()
-    )
-    if not api_key:
-        raise RuntimeError("Set MOONSHOT_API_KEY or KIMI_API_KEY before running this script.")
-
-    return OpenAI(
-        api_key=api_key,
-        base_url=DEFAULT_BASE_URL,
-    )
-
-
-def ask_kimi(question: str, *, model: str = DEFAULT_MODEL, db_path: str | None = None) -> str:
-    client = create_kimi_client()
-    messages: list[dict[str, Any]] = [
-        {
-            "role": "system",
-            "content": (
-                "You are a Montana Blotter data assistant. "
-                "Use tools when database facts are needed. "
-                "Do not invent database results."
-            ),
-        },
-        {"role": "user", "content": question},
-    ]
-
-    response = client.chat.completions.create(
+    final_response = client.messages.create(
         model=model,
-        messages=messages,
+        max_tokens=2048,
+        system=SYSTEM_PROMPT,
         tools=TOOLS,
-    )
-    assistant_message = response.choices[0].message
-    messages.append(assistant_message.model_dump())
-
-    if not assistant_message.tool_calls:
-        return assistant_message.content or ""
-
-    for tool_call in assistant_message.tool_calls:
-        tool_name = tool_call.function.name
-        tool_args = json.loads(tool_call.function.arguments or "{}")
-        result = run_registered_tool(tool_name, tool_args, db_path=db_path)
-        messages.append(
+        messages=[
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": response.content},
             {
-                "role": "tool",
-                "tool_call_id": tool_call.id,
-                "content": json.dumps(result, default=str),
-            }
-        )
-
-    final_response = client.chat.completions.create(
-        model=model,
-        messages=messages,
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_use.id,
+                        "content": json.dumps(tool_result, default=str),
+                    }
+                ],
+            },
+        ],
     )
-    return final_response.choices[0].message.content or ""
+    final_text = next((b.text for b in final_response.content if hasattr(b, "text")), "")
+    if final_text:
+        transcript.append({"role": "assistant", "content": final_text})
+    return {"answer": final_text, "transcript": transcript, "pending_action": None}
+
+
+def ask_claude(question: str, *, model: str = DEFAULT_MODEL, db_path: str | None = None) -> str:
+    import anthropic as _anthropic
+
+    client = create_claude_client()
+    response = client.messages.create(
+        model=model,
+        max_tokens=2048,
+        system="You are a Montana Blotter data assistant. Use tools when database facts are needed. Do not invent database results.",
+        tools=TOOLS,
+        messages=[{"role": "user", "content": question}],
+    )
+
+    if response.stop_reason != "tool_use":
+        return next((b.text for b in response.content if hasattr(b, "text")), "")
+
+    tool_results: list[dict[str, Any]] = []
+    for block in response.content:
+        if not isinstance(block, _anthropic.types.ToolUseBlock):
+            continue
+        result = run_registered_tool(block.name, dict(block.input or {}), db_path=db_path)
+        tool_results.append({
+            "type": "tool_result",
+            "tool_use_id": block.id,
+            "content": json.dumps(result, default=str),
+        })
+
+    final_response = client.messages.create(
+        model=model,
+        max_tokens=2048,
+        system="You are a Montana Blotter data assistant. Use tools when database facts are needed. Do not invent database results.",
+        tools=TOOLS,
+        messages=[
+            {"role": "user", "content": question},
+            {"role": "assistant", "content": response.content},
+            {"role": "user", "content": tool_results},
+        ],
+    )
+    return next((b.text for b in final_response.content if hasattr(b, "text")), "")
+
+
+# Backward-compat aliases for sqlite_agent.py and any CLI scripts
+ask_kimi = ask_claude
+create_kimi_client = create_claude_client

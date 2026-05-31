@@ -77,7 +77,7 @@
 {% endblock %}
 
 {% block content %}
-<main class="public-route-layout">
+<main class="public-route-layout{% if paywall_blocked %} paywall-active{% endif %}">
     <section class="public-main-stack">
         <div class="public-detail-frame">
             <div class="public-detail-frame__header">
@@ -221,6 +221,17 @@
             </div>
         </section>
 
+        {% if parent_post_url %}
+        <section class="public-sidebar-card p-5">
+            <h2 class="public-sidebar-card__eyebrow mb-3">Related Blotter Report</h2>
+            <a href="{{ parent_post_url }}" class="public-link-tile">
+                <p class="public-link-tile__eyebrow">Published Summary</p>
+                <p class="public-link-tile__title mt-1">{{ parent_post_title or 'Daily Activity Report' }}</p>
+                <p class="mt-1 text-xs text-slate-500">View the full report this incident was sourced from</p>
+            </a>
+        </section>
+        {% endif %}
+
         {% if sibling_records %}
         <section class="public-sidebar-card p-5">
             <h2 class="public-sidebar-card__eyebrow mb-4">Other Incidents In This Report</h2>
@@ -267,4 +278,5 @@
         </section>
     </aside>
 </main>
+{% include "_paywall_overlay.html" %}
 {% endblock %}

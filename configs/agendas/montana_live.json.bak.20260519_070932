@@ -1,0 +1,363 @@
+[
+  {
+    "slug": "billings-city-council",
+    "name": "Billings City Council",
+    "provider": "custom_html",
+    "url": "https://destinyhosted.com/agenda_publish.cfm?id=24568&mt=CC,SPC,CCWS&vl=true",
+    "selectors": {
+      "row": "#meeting-table tbody tr",
+      "title": "td:nth-child(2)",
+      "date": "td:nth-child(1) a, td:nth-child(1)",
+      "agenda_link": "td:nth-child(1) a",
+      "minutes_link": "a[href*='dsp=minutes'], a[href*='Minutes']"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "billings",
+      "location_name": "Billings",
+      "city_name": "Billings",
+      "county_name": "Yellowstone",
+      "body_name": "Billings City Council"
+    }
+  },
+  {
+    "slug": "great-falls-city-commission",
+    "name": "Great Falls City Commission",
+    "provider": "granicus",
+    "url": "https://greatfallsmt.gov/AgendaCenter",
+    "selectors": {
+      "row": "#category-panel-9 tr.catAgendaRow",
+      "title": "td:first-child p a, td:first-child p",
+      "date": "td:first-child h3 strong, td:first-child h3",
+      "agenda_link": "td.agenda a, a.pdf, a[href*='ViewFile/Agenda']",
+      "minutes_link": "td.minutes a, a[href*='ViewFile/Minutes']"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "great-falls",
+      "location_name": "Great Falls",
+      "city_name": "Great Falls",
+      "county_name": "Cascade",
+      "body_name": "Great Falls City Commission"
+    }
+  },
+  {
+    "slug": "missoula-county-commissioners",
+    "name": "Missoula County Commissioners",
+    "provider": "civicclerk",
+    "url": "https://missoulacomt.portal.civicclerk.com/",
+    "metadata": {
+      "meeting_scope": "county",
+      "location_slug": "missoula-county",
+      "location_name": "Missoula County",
+      "county_name": "Missoula",
+      "body_name": "Missoula County Commissioners",
+      "include_keywords": [
+        "commission"
+      ],
+      "category_allowlist": [
+        "public",
+        "admin"
+      ],
+      "max_documents": 8
+    }
+  },
+  {
+    "slug": "belgrade-city-council",
+    "name": "Belgrade City Council",
+    "provider": "granicus",
+    "url": "https://www.belgrademt.gov/AgendaCenter/City-Council-3",
+    "selectors": {
+      "row": "#category-panel-3 tr.catAgendaRow",
+      "title": "td:first-child a[href*='ViewFile/Agenda/'][aria-describedby]",
+      "date": "td:first-child h3 strong, td:first-child h3",
+      "agenda_link": "a[href*='ViewFile/Agenda/']:not([href*='html=true']):not([href*='packet=true'])",
+      "minutes_link": "a[href*='ViewFile/Minutes/']:not([href*='?'])"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "belgrade",
+      "location_name": "Belgrade",
+      "city_name": "Belgrade",
+      "county_name": "Gallatin",
+      "body_name": "Belgrade City Council",
+      "include_keywords": [
+        "city council"
+      ]
+    }
+  },
+  {
+    "slug": "kalispell-city-council",
+    "name": "Kalispell City Council",
+    "provider": "granicus",
+    "url": "https://www.kalispell.com/AgendaCenter/City-Council-Agenda-8/",
+    "selectors": {
+      "row": "#category-panel-8 tr.catAgendaRow",
+      "title": "td:first-child a[href*='ViewFile/Agenda/'][aria-describedby]",
+      "date": "td:first-child h3 strong, td:first-child h3",
+      "agenda_link": "a[href*='ViewFile/Agenda/']:not([href*='html=true']):not([href*='packet=true'])",
+      "minutes_link": "a[href*='ViewFile/Minutes/']:not([href*='?'])"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "kalispell",
+      "location_name": "Kalispell",
+      "city_name": "Kalispell",
+      "county_name": "Flathead",
+      "body_name": "Kalispell City Council",
+      "include_keywords": [
+        "city council"
+      ]
+    }
+  },
+  {
+    "slug": "whitefish-city-council",
+    "name": "Whitefish Mayor and City Council",
+    "provider": "granicus",
+    "url": "https://www.cityofwhitefish.gov/AgendaCenter/Mayor-City-Council-17",
+    "selectors": {
+      "row": "#category-panel-17 tr.catAgendaRow",
+      "title": "td:first-child a[href*='ViewFile/Agenda/'][aria-describedby]",
+      "date": "td:first-child h3 strong, td:first-child h3",
+      "agenda_link": "a[href*='ViewFile/Agenda/']:not([href*='html=true']):not([href*='packet=true'])",
+      "minutes_link": "a[href*='ViewFile/Minutes/']:not([href*='?'])"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "whitefish",
+      "location_name": "Whitefish",
+      "city_name": "Whitefish",
+      "county_name": "Flathead",
+      "body_name": "Whitefish Mayor and City Council",
+      "include_keywords": [
+        "city council",
+        "mayor and city council"
+      ]
+    }
+  },
+  {
+    "slug": "columbia-falls-city-council",
+    "name": "Columbia Falls City Council",
+    "provider": "granicus",
+    "url": "https://www.cityofcolumbiafalls.org/AgendaCenter",
+    "selectors": {
+      "row": "#category-panel-2 tr.catAgendaRow",
+      "title": "td:first-child a[href*='ViewFile/Agenda/'][aria-describedby]",
+      "date": "td:first-child h3 strong, td:first-child h3",
+      "agenda_link": "a[href*='ViewFile/Agenda/']:not([href*='html=true']):not([href*='packet=true'])",
+      "minutes_link": "a[href*='ViewFile/Minutes/']:not([href*='?'])"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "columbia-falls",
+      "location_name": "Columbia Falls",
+      "city_name": "Columbia Falls",
+      "county_name": "Flathead",
+      "body_name": "Columbia Falls City Council",
+      "include_keywords": [
+        "council"
+      ],
+      "exclude_keywords": [
+        "planning commission",
+        "city court",
+        "tree board"
+      ]
+    }
+  },
+  {
+    "slug": "anaconda-deer-lodge-county-commission",
+    "name": "Anaconda-Deer Lodge County Commission",
+    "provider": "granicus",
+    "url": "https://adlc.us/AgendaCenter",
+    "selectors": {
+      "row": "#category-panel-2 tr.catAgendaRow",
+      "title": "td:first-child a[href*='ViewFile/Agenda/'][aria-describedby]",
+      "date": "td:first-child h3 strong, td:first-child h3",
+      "agenda_link": "a[href*='ViewFile/Agenda/']:not([href*='html=true']):not([href*='packet=true'])",
+      "minutes_link": "a[href*='ViewFile/Minutes/']:not([href*='?'])"
+    },
+    "metadata": {
+      "meeting_scope": "county",
+      "location_slug": "anaconda-deer-lodge-county",
+      "location_name": "Anaconda-Deer Lodge County",
+      "county_name": "Anaconda-Deer Lodge",
+      "body_name": "Anaconda-Deer Lodge County Commission",
+      "include_keywords": [
+        "commission"
+      ],
+      "exclude_keywords": [
+        "study commission"
+      ]
+    }
+  },
+  {
+    "slug": "miles-city-council",
+    "name": "Miles City Council",
+    "provider": "municipalimpact",
+    "url": "https://cityofmiles.org/agendas",
+    "selectors": {
+      "link": "#site_main a[href*='/documents/'], main a[href*='/documents/']"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "miles-city",
+      "location_name": "Miles City",
+      "city_name": "Miles City",
+      "county_name": "Custer",
+      "body_name": "Miles City Council",
+      "document_type": "agenda",
+      "include_keywords": [
+        "agenda"
+      ],
+      "exclude_keywords": [
+        "minutes"
+      ]
+    }
+  },
+  {
+    "slug": "havre-city-council",
+    "name": "Havre City Council",
+    "provider": "custom_html",
+    "url": "https://www.ci.havre.mt.us/council-agenda",
+    "selectors": {
+      "row": "body",
+      "title": "div.sqs-html-content h2",
+      "date": "div.sqs-html-content h2",
+      "agenda_link": "div.sqs-html-content a[href*='drive.google.com']",
+      "minutes_link": "a[href*='__minutes_disabled__']"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "havre",
+      "location_name": "Havre",
+      "city_name": "Havre",
+      "county_name": "Hill",
+      "body_name": "Havre City Council",
+      "include_keywords": [
+        "council agenda"
+      ],
+      "disable_fallback_link": true,
+      "disable_nested_document_hydration": true
+    }
+  },
+  {
+    "slug": "big-sandy-town-council",
+    "name": "Big Sandy Town Council",
+    "provider": "custom_html",
+    "url": "https://townofbigsandy.com/category/agendas/",
+    "selectors": {
+      "row": "article.search-entry.category-agendas",
+      "title": "h4 a",
+      "date": "h4 a",
+      "agenda_link": "h4 a",
+      "minutes_link": "a[href*='__minutes_disabled__']"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "big-sandy",
+      "location_name": "Big Sandy",
+      "city_name": "Big Sandy",
+      "county_name": "Chouteau",
+      "body_name": "Big Sandy Town Council",
+      "include_keywords": [
+        "agenda"
+      ],
+      "disable_fallback_link": true,
+      "disable_nested_document_hydration": true
+    }
+  },
+  {
+    "slug": "fort-benton-city-council",
+    "name": "Fort Benton City Council",
+    "provider": "custom_html",
+    "url": "https://www.cityoffortbenton.org/city-council",
+    "selectors": {
+      "row": "body",
+      "title": "div.sqs-html-content h1 em, div.sqs-html-content h1",
+      "date": "div.sqs-html-content p",
+      "agenda_link": "a.sqs-block-button-element[href]:has-text('Agenda')",
+      "minutes_link": "a[href*='__minutes_disabled__']"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "fort-benton",
+      "location_name": "Fort Benton",
+      "city_name": "Fort Benton",
+      "county_name": "Chouteau",
+      "body_name": "Fort Benton City Council",
+      "disable_fallback_link": true
+    }
+  },
+  {
+    "slug": "choteau-city-council",
+    "name": "Choteau City Council",
+    "provider": "custom_html",
+    "url": "https://www.choteaumt.org/agendasminutes",
+    "selectors": {
+      "row": "div.sqs-html-content p",
+      "title": ":scope",
+      "date": ":scope",
+      "agenda_link": "a[href]"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "choteau",
+      "location_name": "Choteau",
+      "city_name": "Choteau",
+      "county_name": "Teton",
+      "body_name": "Choteau City Council",
+      "include_keywords": [
+        "agenda"
+      ],
+      "exclude_keywords": [
+        "law enforcement advisory board",
+        "minutes",
+        "notice of quorum"
+      ],
+      "disable_fallback_link": true
+    }
+  },
+  {
+    "slug": "helena-city-commission",
+    "name": "Helena City Commission",
+    "provider": "primegov",
+    "url": "https://helenamt.primegov.com/public/portal?fromiframe=1",
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "helena",
+      "location_name": "Helena",
+      "city_name": "Helena",
+      "county_name": "Lewis and Clark",
+      "body_name": "Helena City Commission"
+    }
+  },
+  {
+    "slug": "livingston-city-commission",
+    "name": "Livingston City Commission",
+    "provider": "custom_html",
+    "url": "https://www.livingstonmontana.org/meetings?field_microsite_tid_1=27",
+    "selectors": {
+      "row": "table.views-table tbody tr",
+      "title": "td.views-field-title, td.views-field.views-field-title",
+      "date": "td.views-field-field-calendar-date .date-display-single, td.views-field-field-calendar-date",
+      "agenda_link": "td.views-field-field-agendas a[href]",
+      "packet_link": "td.views-field-field-packets a[href]",
+      "minutes_link": "td.views-field-field-minutes a[href]"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "livingston",
+      "location_name": "Livingston",
+      "city_name": "Livingston",
+      "county_name": "Park",
+      "body_name": "Livingston City Commission",
+      "disable_fallback_link": true,
+      "include_keywords": [
+        "city commission"
+      ],
+      "exclude_keywords": [
+        "notice of quorum"
+      ]
+    }
+  }
+]

@@ -170,7 +170,7 @@ def get_ingestion_job_status(source_document_id: int) -> Optional[str]:
         conn.close()
 
 
-def set_ingestion_job_status(source_document_id: int, status: str, *, last_error: Optional[str] = None, finished: bool = False) -> None:
+def set_ingestion_job_status(job_id: int, status: str, *, last_error: Optional[str] = None, finished: bool = False) -> None:
     fields = ['status = ?', 'updated_at = datetime(\'now\')']
     params: List = [status]
     if last_error is not None:
@@ -178,8 +178,8 @@ def set_ingestion_job_status(source_document_id: int, status: str, *, last_error
         params.append(last_error)
     if finished:
         fields.append('finished_at = datetime(\'now\')')
-    query = f"UPDATE ingestion_jobs SET {', '.join(fields)} WHERE source_document_id = ?"
-    params.append(source_document_id)
+    query = f"UPDATE ingestion_jobs SET {', '.join(fields)} WHERE id = ?"
+    params.append(job_id)
     _execute_write(query, tuple(params))
 
 

@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 import argparse
+import fcntl
 import json
 import sys
 
 from facebook_publisher import run_facebook_queue
+
+# Prevent concurrent runs from causing sqlite3 "database is locked" errors.
+_LOCKFILE = "/tmp/facebook_worker.lock"
+_lock_fh = open(_LOCKFILE, "w")
+try:
+    fcntl.flock(_lock_fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except OSError:
+    sys.exit(0)  # another instance is already running
 
 
 def main() -> int:

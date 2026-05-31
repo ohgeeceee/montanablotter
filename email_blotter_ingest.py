@@ -16,7 +16,7 @@ import os
 import re
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -28,7 +28,9 @@ import config
 from db import get_db
 from services.blotter.processor import process_new_blotter
 from core.pipeline_state import (
+    ensure_ingestion_job,
     ensure_source_document,
+    increment_ingestion_retry,
     log_pipeline_event,
     set_ingestion_job_status,
     sha256_bytes,
@@ -58,6 +60,8 @@ IMAP_PORT = getattr(config, "IMAP_PORT", int(os.getenv("MB_IMAP_PORT", "993")))
 UPLOAD_DIR = Path(getattr(config, "UPLOAD_DIR", "/root/montanablotter/uploads"))
 PROCESSED_FOLDER = getattr(config, "PROCESSED_FOLDER", "Processed")
 BLOTTER_SUBJECT_KEYWORD = getattr(config, "BLOTTER_SUBJECT_KEYWORD", "blotter")
+LOOKBACK_DAYS = int(os.getenv("MB_INGEST_LOOKBACK_DAYS", "14"))
+MAX_RETRIES = 5
 
 # County/agency mapping from sender or subject
 # Configure these to match your email sources
@@ -149,6 +153,19 @@ def _get_message_id(msg: email.message.EmailMessage) -> str:
     return hashlib.sha256(f"{subject}|{date}|{from_}".encode()).hexdigest()[:32]
 
 
+def _move_to_folder(mail: imaplib.IMAP4_SSL, num: bytes, folder_name: str) -> None:
+    """Move an email to the named IMAP folder, creating it if needed."""
+    try:
+        mail.create(folder_name)
+    except Exception:
+        pass  # Already exists — IMAP CREATE is not idempotent, ignore error
+    try:
+        mail.copy(num, folder_name)
+        mail.store(num, "+FLAGS", "\\Deleted")
+    except Exception as e:
+        print(f"[email_blotter_ingest] Failed to move email to {folder_name}/: {e}")
+
+
 def _ensure_processed_folder(mail: imaplib.IMAP4_SSL) -> None:
     """Create the Processed folder if it doesn't exist."""
     status, folders = mail.list()
@@ -186,20 +203,24 @@ def fetch_and_process() -> dict:
     mail.login(EMAIL_USER, EMAIL_PASSWORD)
     mail.select("inbox")
 
-    # Search for unread emails with blotter keyword in subject
-    status, messages = mail.search(None, f'UNSEEN SUBJECT "{BLOTTER_SUBJECT_KEYWORD}"')
+    # Search by date range instead of UNSEEN+subject so emails previewed
+    # in a mail client (marked read) and subject variations are not missed.
+    # Dedup via SHA256 in ensure_source_document prevents reprocessing.
+    since_date = (datetime.now() - timedelta(days=LOOKBACK_DAYS)).strftime("%d-%b-%Y")
+    status, messages = mail.search(None, f'SINCE "{since_date}"')
     if status != "OK" or not messages[0]:
-        print("[email_blotter_ingest] No unread blotter emails found.")
+        print(f"[email_blotter_ingest] No emails found since {since_date}.")
         mail.close()
         mail.logout()
         return results
 
     msg_nums = messages[0].split()
-    print(f"[email_blotter_ingest] Found {len(msg_nums)} unread blotter email(s).")
+    print(f"[email_blotter_ingest] Found {len(msg_nums)} email(s) since {since_date}.")
 
     _ensure_processed_folder(mail)
 
     for num in msg_nums:
+        source_doc_id = None
         try:
             status, data = mail.fetch(num, "(RFC822)")
             if status != "OK" or not data or not data[0]:
@@ -319,7 +340,12 @@ def fetch_and_process() -> dict:
         except Exception as e:
             print(f"[email_blotter_ingest] Error processing email #{num}: {e}")
             results["errors"] += 1
-            # Don't delete on error — leave it unread for retry
+            if source_doc_id is not None:
+                job_id = ensure_ingestion_job(source_doc_id)
+                retry_count = increment_ingestion_retry(job_id, str(e))
+                if retry_count >= MAX_RETRIES:
+                    print(f"[email_blotter_ingest] Max retries reached, moving to Failed/: {e}")
+                    _move_to_folder(mail, num, "Failed")
 
     mail.expunge()
     mail.close()
@@ -330,4 +356,7 @@ def fetch_and_process() -> dict:
 
 
 if __name__ == "__main__":
-    fetch_and_process()
+    results = fetch_and_process()
+    if results["errors"] > 0:
+        print(f"[email_blotter_ingest] {results['errors']} email(s) failed — job_runner will alert on repeated failures.")
+        sys.exit(1)

@@ -18,6 +18,8 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Iterable, Optional
 
 import config
+from services.publishing.chart_generator import generate as generate_charts
+from services.push.push_sender import broadcast as push_broadcast
 
 DB_PATH = config.DB_PATH
 AUTHOR = "Montana Blotter Auto Desk"
@@ -768,6 +770,14 @@ def run_daily_blog(date_override: Optional[str] = None, dry_run: bool = False, f
         title = article["title"].strip()
         excerpt = (article.get("excerpt") or "").strip()
         body = article["body"].strip()
+        chart_md = generate_charts(
+            daily_stats["county_counts"],
+            daily_stats["incident_counts"],
+            analysis_date.isoformat(),
+            conn,
+        )
+        if chart_md:
+            body += "\n" + chart_md
 
         if dry_run:
             print(json.dumps(
@@ -803,6 +813,20 @@ def run_daily_blog(date_override: Optional[str] = None, dry_run: bool = False, f
             analysis_date.isoformat(),
         )
         print(f"{status}: /blog/{slug} (post_id={blog_post_id})")
+
+        if status == "created":
+            try:
+                base_url = (getattr(config, "BASE_URL", "") or "https://montanablotter.com").rstrip("/")
+                push_result = push_broadcast(
+                    conn=conn,
+                    title=title[:80],
+                    body=(excerpt or "New Montana law enforcement activity report.")[:120],
+                    url=f"{base_url}/blog/{slug}",
+                )
+                logger.info("Push broadcast result: %s", push_result)
+            except Exception as push_err:
+                logger.warning("Push broadcast failed (non-fatal): %s", push_err)
+
         return 0
     except Exception as e:
         logger.error("run_daily_blog failed: %s", e)

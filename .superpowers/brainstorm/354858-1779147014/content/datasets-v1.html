@@ -1,0 +1,102 @@
+<h2>MontanaBlotter: Public Datasets (v1)</h2>
+<p class="subtitle">Pick what to launch first. Click cards to select (multi-select).</p>
+
+<div class="mockup">
+  <div class="mockup-header">Proposed IA</div>
+  <div class="mockup-body">
+    <ul>
+      <li><b>/datasets</b> — directory of datasets (MT-only), with “Last updated” and coverage (counties/cities)</li>
+      <li><b>/datasets/&lt;slug&gt;</b> — per-dataset landing page (charts + browse + methodology)</li>
+      <li><b>/datasets/&lt;slug&gt;/records</b> — filterable explorer (existing records table views + dataset-specific filters)</li>
+    </ul>
+  </div>
+</div>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="jail_bookings" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Jail Bookings</h3>
+      <p>Daily bookings by county. Explorer + trends by day/week.</p>
+      <p class="subtitle">Priority: Great Falls (Cascade), Billings (Yellowstone), Missoula</p>
+    </div>
+  </div>
+  <div class="option" data-choice="police_calls" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Police Calls / Calls-for-Service</h3>
+      <p>Daily call logs where available. Explorer + hotspot/time-of-day summaries.</p>
+      <p class="subtitle">Priority: Great Falls, Billings, Missoula</p>
+    </div>
+  </div>
+  <div class="option" data-choice="crime_map_events" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Crime Map Events (Official dashboards)</h3>
+      <p>City-linked dashboards (when official). Explorer + incident type mix.</p>
+      <p class="subtitle">Best where agencies publish structured feeds.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="court_filings" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Court Filings / Dockets</h3>
+      <p>Daily update of new cases/entries. Explorer + “case journey” links.</p>
+      <p class="subtitle">Higher complexity, high value.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="code_violations" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>Code Violations / Property Intelligence</h3>
+      <p>Existing code-violations surfaces → elevate into a dataset page.</p>
+      <p class="subtitle">Pairs well with eviction + civil filings pages.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="license_sanctions" onclick="toggleSelect(this)">
+    <div class="letter">F</div>
+    <div class="content">
+      <h3>Professional License Sanctions</h3>
+      <p>State boards. Explorer + “discipline type” breakdown.</p>
+      <p class="subtitle">Usually clean structured sources.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="sex_offender" onclick="toggleSelect(this)">
+    <div class="letter">G</div>
+    <div class="content">
+      <h3>Sex Offender Registry (State)</h3>
+      <p>Statewide updates. Explorer + change log over time.</p>
+      <p class="subtitle">Careful UX + disclaimers.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="missing_persons" onclick="toggleSelect(this)">
+    <div class="letter">H</div>
+    <div class="content">
+      <h3>Missing Persons (State/Local)</h3>
+      <p>Listings + updates. Explorer + status changes.</p>
+      <p class="subtitle">Strong community value.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="meetings_agendas" onclick="toggleSelect(this)">
+    <div class="letter">I</div>
+    <div class="content">
+      <h3>Public Meetings / Agendas</h3>
+      <p>City/county boards. Calendar view + agenda archive.</p>
+      <p class="subtitle">Great Falls, Billings, Missoula first.</p>
+    </div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top:16px">
+  <div class="mockup-header">Daily Cron “Automizer” (system cron)</div>
+  <div class="mockup-body">
+    <ol>
+      <li>Fetch/update datasets (ingestion scripts)</li>
+      <li>Recompute aggregates for dataset pages (counts, trends)</li>
+      <li>Invalidate caches + update “Last updated” timestamps</li>
+      <li>(Optional later) auto-post daily roundup to the site/social</li>
+    </ol>
+  </div>
+</div>
+
+<p class="subtitle">After you select, I’ll propose the first 2–3 dataset pages (routes, DB queries, templates) and the cron wiring.</p>

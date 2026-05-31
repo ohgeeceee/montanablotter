@@ -1,0 +1,90 @@
+{% if paywall_blocked %}
+<style>
+.paywall-active .public-detail-frame__body,
+.paywall-active .public-card,
+.paywall-active .public-sidebar-card {
+    filter: blur(6px);
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.55;
+    transition: filter 0.3s ease, opacity 0.3s ease;
+}
+.paywall-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    background: rgba(15, 23, 42, 0.25);
+    backdrop-filter: blur(3px);
+    z-index: 1000;
+}
+.paywall-overlay__card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.paywall-overlay__title {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+}
+.paywall-overlay__text {
+    font-size: 0.95rem;
+    color: #475569;
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+}
+.paywall-overlay__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.paywall-overlay__btn:hover { transform: translateY(-1px); }
+.paywall-overlay__btn--primary {
+    background: #0f172a;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(15,23,42,0.25);
+}
+.paywall-overlay__btn--secondary {
+    background: transparent;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    margin-top: 0.5rem;
+}
+.paywall-overlay__counts {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-top: 0.75rem;
+}
+</style>
+<div class="paywall-overlay">
+    <div class="paywall-overlay__card">
+        <div class="text-3xl mb-3">🔐</div>
+        <h2 class="paywall-overlay__title">Unlock the full story</h2>
+        <p class="paywall-overlay__text">
+            You've reached your free preview limit. Subscribe to Montana Blotter Insider for unlimited access to incident details, jail bookings, and deeper search.
+        </p>
+        <a href="/pricing" class="paywall-overlay__btn paywall-overlay__btn--primary">View Plans</a>
+        <a href="/register" class="paywall-overlay__btn paywall-overlay__btn--secondary">Create a free account</a>
+        {% if paywall_counts %}
+        <p class="paywall-overlay__counts">{{ paywall_counts.day }}/3 daily previews used · {{ paywall_counts.week }}/5 weekly previews used</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

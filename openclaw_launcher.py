@@ -20,6 +20,7 @@ Environment:
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import queue
@@ -29,6 +30,9 @@ import threading
 import time
 import urllib.error
 import urllib.request
+
+# Load .env so API keys are available to the child openclaw process
+import config
 
 _DEFAULT_URL = "http://127.0.0.1:5000/admin/api/mission-control/heartbeat"
 _HERMES_URL = os.getenv("HERMES_GATEWAY_URL", "http://127.0.0.1:18789")
@@ -133,7 +137,10 @@ def _discord_emitter_loop(
             break
         result = _post_to_discord(agent_id, line, routing)
         if not result.get("ok"):
-            print(f"[discord error] {result}", file=sys.stderr)
+            # 404 means the gateway deliver endpoint isn't available — suppress
+            # per-line noise; a single warning was already logged at startup.
+            if result.get("status") != 404:
+                print(f"[discord error] {result}", file=sys.stderr)
 
 
 class _LineBuffer:
@@ -175,9 +182,19 @@ def main() -> int:
     parser.add_argument("--discord", action="store_true", default=True, help="Forward output to Discord channel")
     args = parser.parse_args()
 
+    # Prevent concurrent runs of the same agent — each agent type gets its own lock file.
+    # If a previous run is still alive, exit silently rather than pile up in memory.
+    _lock_fh = open(f"/tmp/openclaw_agent_{args.agent}.lock", "w")
+    try:
+        fcntl.flock(_lock_fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print(f"[openclaw_launcher] {args.agent} already running, skipping this run.", file=sys.stderr)
+        return 0
+
     extra_args = args.extra.split() if args.extra else []
     if args.once:
         extra_args.append("--json")
+        extra_args.append("--local")  # bypass broken gateway, run embedded
 
     agent_cmd = _build_openclaw_cmd(args.agent, args.prompt, extra_args)
 
@@ -225,6 +242,10 @@ def main() -> int:
     if args.discord and routing:
         target = _target_for(args.agent, routing)
         print(f"[launcher] Discord routing → {target}", file=sys.stderr)
+        # Probe the deliver endpoint once so failures are visible at startup, not per-line.
+        probe = _post_to_discord(args.agent, "[launcher] agent started", routing)
+        if not probe.get("ok"):
+            print(f"[launcher] Discord delivery unavailable ({probe}) — output will not be forwarded", file=sys.stderr)
 
     line_buf = _LineBuffer(log_queue)
     exit_code = 1

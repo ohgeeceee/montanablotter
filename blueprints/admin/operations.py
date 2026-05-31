@@ -42,8 +42,14 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 
 @admin_bp.route('/', strict_slashes=False)
 @login_required
+def admin_root():
+    return redirect(url_for('admin.admin_command_center'))
+
+
+@admin_bp.route('/dashboard')
+@login_required
 def admin_dashboard():
-    """Admin dashboard with stats and management"""
+    """Legacy dashboard — kept for direct links."""
     import app as _app_module
 
     conn = get_db()

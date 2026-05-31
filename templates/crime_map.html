@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crime Map — MontanaBlotter.com</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <style>
   :root { --bg:#0b0f19; --panel:#121827; --text:#e2e8f0; --accent:#38bdf8; --muted:#94a3b8; }
   * { box-sizing:border-box; }
@@ -60,7 +63,28 @@
       <div class="legend-item"><div class="dot" style="background:#ef4444"></div> Markers</div>
       <div class="legend-item"><div class="dot" style="background:#f59e0b"></div> Heatmap</div>
     </div>
+    <div class="legend" style="margin-top:10px;">
+      <h3>Extra Layers</h3>
+      <label class="legend-item" style="cursor:pointer">
+        <input type="checkbox" id="layerSexOffenders" style="margin-right:6px">
+        <div class="dot" style="background:#a855f7"></div> Sex Offender Density
+      </label>
+    </div>
+
+    <div class="field" style="margin-top:12px;">
+      <label>Near Me (Zip Code)</label>
+      <div class="row" style="gap:6px">
+        <input type="text" id="nearMeZip" placeholder="e.g. 59101" maxlength="5" style="flex:1" />
+        <button class="btn" id="nearMeBtn" style="width:auto;padding:8px 10px;font-size:12px">Go</button>
+      </div>
+    </div>
+
     <div id="stats" style="margin-top:12px;font-size:12px;color:var(--muted);"></div>
+
+    <div style="margin-top:auto;padding-top:10px;border-top:1px solid #1e293b">
+      <a href="/crime-atlas" style="font-size:12px;color:var(--accent);text-decoration:none;display:block">Crime Atlas →</a>
+      <a href="/crime-data" style="font-size:12px;color:var(--muted);text-decoration:none;display:block;margin-top:4px">Crime Data →</a>
+    </div>
   </aside>
 
   <main style="position:relative;flex:1;">
@@ -87,11 +111,41 @@
     maxZoom: 19
   }).addTo(map);
 
-  let markersLayer = L.layerGroup().addTo(map);
+  let markersLayer = L.markerClusterGroup({
+    maxClusterRadius: 40,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+  }).addTo(map);
   let heatLayer = null;
+  let sexOffenderLayer = null;
+  let nearMeCircle = null;
   let allIncidents = [];
   let timelineDates = [];
   let playTimer = null;
+
+  // Montana county centroids for sex offender bubble layer
+  const COUNTY_CENTROIDS = {
+    'BEAVERHEAD':[45.1322,-112.7503],'BIG HORN':[45.4264,-107.4942],'BLAINE':[48.2879,-108.9729],
+    'BROADWATER':[46.5178,-111.5397],'CARBON':[45.2667,-109.0667],'CARTER':[45.5112,-104.5384],
+    'CASCADE':[47.3161,-111.0195],'CHOUTEAU':[47.8784,-110.2498],'CUSTER':[46.3084,-105.7263],
+    'DANIELS':[48.7798,-105.5538],'DAWSON':[47.2668,-104.8876],'DEER LODGE':[46.1285,-112.9471],
+    'FALLON':[46.5539,-104.3898],'FERGUS':[47.2456,-109.2256],'FLATHEAD':[48.1882,-114.0560],
+    'GALLATIN':[45.5451,-111.1710],'GARFIELD':[47.3284,-106.9718],'GLACIER':[48.6875,-112.9406],
+    'GOLDEN VALLEY':[46.3613,-108.8700],'GRANITE':[46.4185,-113.4060],'HILL':[48.5991,-109.7490],
+    'JEFFERSON':[46.2035,-111.8855],'JUDITH BASIN':[47.0284,-110.2678],'LAKE':[47.6384,-114.0785],
+    'LEWIS AND CLARK':[46.9215,-112.0270],'LIBERTY':[48.5708,-110.9805],'LINCOLN':[48.5044,-115.1430],
+    'MADISON':[45.3057,-111.9070],'MCCONE':[47.6534,-105.6375],'MEAGHER':[46.6038,-110.8939],
+    'MINERAL':[47.1548,-115.0750],'MISSOULA':[46.8721,-113.9940],'MUSSELSHELL':[46.5250,-108.4050],
+    'PARK':[45.4267,-110.2990],'PETROLEUM':[47.1118,-108.2150],'PHILLIPS':[48.2101,-107.9760],
+    'PONDERA':[48.2231,-112.2308],'POWDER RIVER':[45.3868,-105.6287],'POWELL':[46.8588,-112.9660],
+    'PRAIRIE':[46.8641,-105.3770],'RAVALLI':[46.0889,-114.1040],'RICHLAND':[47.7734,-104.5478],
+    'ROOSEVELT':[48.2874,-105.0329],'ROSEBUD':[46.3173,-106.7760],'SANDERS':[47.5938,-115.5510],
+    'SHERIDAN':[48.7110,-104.5148],'SILVER BOW':[45.9037,-112.5818],'STILLWATER':[45.6850,-109.1220],
+    'SWEET GRASS':[45.7918,-109.9380],'TETON':[47.8568,-112.2418],'TOOLE':[48.6682,-111.6960],
+    'TREASURE':[46.1323,-107.1590],'VALLEY':[48.3514,-106.6010],'WHEATLAND':[46.4633,-109.8390],
+    'WIBAUX':[46.9738,-104.1828],'YELLOWSTONE':[45.9213,-108.5007],
+  };
 
   async function loadFilters() {
     const res = await fetch(`${API_BASE}/posts?per_page=1`);
@@ -148,7 +202,8 @@
         <strong>${inc.incident_type || 'Incident'}</strong><br/>
         ${inc.date} ${inc.time || ''}<br/>
         ${inc.location || ''}<br/>
-        <em>${inc.county}</em>
+        <em>${inc.county}</em><br/>
+        <a href="/record/${inc.id}" style="color:#38bdf8;text-decoration:none;font-weight:700;">View full details →</a>
       `);
       markersLayer.addLayer(m);
     });
@@ -230,6 +285,43 @@
       }
     }, 600);
   };
+
+  // Near Me zip search
+  document.getElementById('nearMeBtn').addEventListener('click', async () => {
+    const zip = document.getElementById('nearMeZip').value.trim();
+    if (zip.length !== 5) return;
+    const res = await fetch(`/api/geo/zip-location?zip=${zip}`);
+    if (!res.ok) { document.getElementById('stats').textContent = 'Zip code not found'; return; }
+    const data = await res.json();
+    if (nearMeCircle) map.removeLayer(nearMeCircle);
+    map.flyTo([data.lat, data.lng], 10, { duration: 1.5 });
+    nearMeCircle = L.circle([data.lat, data.lng], {
+      radius: 40233,  // 25 miles in meters
+      color: '#38bdf8', fillOpacity: 0.05, weight: 2, dashArray: '6 4',
+    }).addTo(map).bindPopup(`25-mile radius around ${zip}`).openPopup();
+  });
+
+  // Sex offender county density layer
+  document.getElementById('layerSexOffenders').addEventListener('change', async function() {
+    if (!this.checked) {
+      if (sexOffenderLayer) { map.removeLayer(sexOffenderLayer); sexOffenderLayer = null; }
+      return;
+    }
+    const res = await fetch('/api/geo/sex-offender-county-counts');
+    const data = await res.json();
+    sexOffenderLayer = L.layerGroup();
+    (data.counts || []).forEach(item => {
+      const county = (item.county || '').toUpperCase();
+      const center = COUNTY_CENTROIDS[county];
+      if (!center) return;
+      L.circleMarker(center, {
+        radius: Math.min(30, Math.max(5, Math.sqrt(item.count) * 2.5)),
+        fillColor: '#a855f7', color: '#ffffff', weight: 1, fillOpacity: 0.55,
+      }).bindPopup(`<strong>${item.county}</strong><br>${item.count} registered sex offenders`)
+        .addTo(sexOffenderLayer);
+    });
+    sexOffenderLayer.addTo(map);
+  });
 
   // Seed date defaults to last 30 days
   const today = new Date();

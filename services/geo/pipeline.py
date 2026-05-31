@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import time
 from datetime import datetime, timedelta
@@ -16,6 +17,53 @@ import requests
 
 DB_PATH = os.getenv("MB_DB_PATH", "/root/montanablotter/blotter.db").strip() or "/root/montanablotter/blotter.db"
 GEOCODE_SLEEP = float(os.getenv("MB_GEOCODE_SLEEP", "0.25"))
+
+# Primary city for each Montana county — used as geocoding context when
+# the raw location string lacks an explicit city name.
+_COUNTY_PRIMARY_CITY: dict[str, str] = {
+    "Beaverhead": "Dillon", "Big Horn": "Hardin", "Blaine": "Chinook",
+    "Broadwater": "Townsend", "Carbon": "Red Lodge", "Carter": "Ekalaka",
+    "Cascade": "Great Falls", "Chouteau": "Fort Benton", "Custer": "Miles City",
+    "Daniels": "Scobey", "Dawson": "Glendive", "Deer Lodge": "Anaconda",
+    "Fallon": "Baker", "Fergus": "Lewistown", "Flathead": "Kalispell",
+    "Gallatin": "Bozeman", "Garfield": "Jordan", "Glacier": "Cut Bank",
+    "Golden Valley": "Ryegate", "Granite": "Philipsburg", "Hill": "Havre",
+    "Jefferson": "Boulder", "Judith Basin": "Stanford", "Lake": "Polson",
+    "Lewis and Clark": "Helena", "Liberty": "Chester", "Lincoln": "Libby",
+    "Madison": "Virginia City", "McCone": "Circle",
+    "Meagher": "White Sulphur Springs", "Mineral": "Superior",
+    "Missoula": "Missoula", "Musselshell": "Roundup", "Park": "Livingston",
+    "Petroleum": "Winnett", "Phillips": "Malta", "Pondera": "Conrad",
+    "Powder River": "Broadus", "Powell": "Deer Lodge", "Prairie": "Terry",
+    "Ravalli": "Hamilton", "Richland": "Sidney", "Roosevelt": "Wolf Point",
+    "Rosebud": "Forsyth", "Sanders": "Thompson Falls",
+    "Sheridan": "Plentywood", "Silver Bow": "Butte", "Stillwater": "Columbus",
+    "Sweet Grass": "Big Timber", "Teton": "Choteau", "Toole": "Shelby",
+    "Treasure": "Hysham", "Valley": "Glasgow", "Wheatland": "Harlowton",
+    "Wibaux": "Wibaux", "Yellowstone": "Billings",
+}
+
+# Obfuscated block numbers: "1Xx", "22XX", "3x" at the start of a string.
+_OBFUSCATED_NUM_RE = re.compile(r'^\d+[Xx]+\s+', re.IGNORECASE)
+# Block notation: "2300 Blk Avenue C" or "900 Block Of 18th St"
+_BLK_NOTATION_RE = re.compile(r'^(\d+)\s+Bl(?:k|ock\s+Of?)\s+', re.IGNORECASE)
+# Mile-marker prefix common in MT highway calls: "1Xx Mm I90"
+_MM_RE = re.compile(r'\bMm\s+', re.IGNORECASE)
+
+
+def _normalize_location(raw: str) -> str:
+    """Strip police blotter obfuscation to produce a geocodable street string.
+
+    Handles two common Montana blotter patterns:
+    - Block notation: "2300 Blk Avenue C" → "2300 Avenue C"
+    - Obfuscated numbers: "1Xx W Broadway" → "W Broadway"
+    - Mile markers: "1Xx Mm I90" → "I90"
+    """
+    s = raw.strip()
+    s = _BLK_NOTATION_RE.sub(r'\1 ', s)   # keep block number, drop "Blk"
+    s = _OBFUSCATED_NUM_RE.sub('', s)      # drop obfuscated house numbers
+    s = _MM_RE.sub('', s)                  # drop "Mm" mile-marker prefix
+    return s.strip()
 
 
 def _connect() -> sqlite3.Connection:
@@ -30,18 +78,28 @@ def _connect() -> sqlite3.Connection:
 # Geocoding backends
 # ---------------------------------------------------------------------------
 
-def _nominatim_geocode(query: str) -> Optional[dict]:
-    """Free Nominatim (OpenStreetMap) geocoding with polite throttling."""
+def _nominatim_geocode(street: str, city: str = "", state: str = "Montana") -> Optional[dict]:
+    """Free Nominatim (OpenStreetMap) geocoding with polite throttling.
+
+    Uses structured params (street/city/state) rather than free-text concatenation
+    so Nominatim's indexed fields produce better match rates for short street strings.
+    """
     url = "https://nominatim.openstreetmap.org/search"
-    params = {"q": query + ", Montana, USA", "format": "json", "limit": 1}
+    params: dict = {"format": "json", "limit": 1, "countrycodes": "us"}
     headers = {"User-Agent": "MontanaBlotter/1.0 (support@montanablotter.com)"}
+
+    if city:
+        params.update({"street": street, "city": city, "state": state})
+    else:
+        params["q"] = f"{street}, {state}, USA"
+
     try:
         resp = requests.get(url, params=params, headers=headers, timeout=15)
         if resp.status_code == 429:
             time.sleep(2)
             resp = requests.get(url, params=params, headers=headers, timeout=15)
         data = resp.json()
-        if data and len(data) > 0:
+        if data:
             first = data[0]
             return {
                 "lat": float(first["lat"]),
@@ -102,44 +160,96 @@ def _google_geocode(query: str, key: str) -> Optional[dict]:
 # ---------------------------------------------------------------------------
 
 def geocode_location(raw_location: str, county: Optional[str] = None, city: Optional[str] = None) -> Optional[dict]:
-    query = raw_location or ""
-    if city:
-        query = f"{query}, {city}"
-    if county:
-        query = f"{query}, {county} County"
+    """Geocode a blotter location string, normalizing police obfuscation first.
 
-    # Try premium backends first if keys are configured
+    Resolution order: Mapbox → Google → Nominatim (structured) → Nominatim (free-text).
+    """
+    street = _normalize_location(raw_location or "")
+    if not street:
+        return None
+
+    # Resolve city: explicit override → county lookup → empty
+    resolved_city = city or _COUNTY_PRIMARY_CITY.get((county or "").strip().title(), "")
+
+    # Build the full query string for premium backends
+    query_parts = [street]
+    if resolved_city:
+        query_parts.append(resolved_city)
+    query_parts.append("Montana")
+    full_query = ", ".join(query_parts)
+
     mapbox_token = os.getenv("MAPBOX_ACCESS_TOKEN", "").strip()
     google_key = os.getenv("GOOGLE_MAPS_API_KEY", "").strip()
 
     if mapbox_token:
-        result = _mapbox_geocode(query, mapbox_token)
+        result = _mapbox_geocode(full_query, mapbox_token)
         if result:
             return result
     if google_key:
-        result = _google_geocode(query, google_key)
+        result = _google_geocode(full_query, google_key)
         if result:
             return result
 
-    return _nominatim_geocode(query)
+    # Structured Nominatim call (best for street-level with known city)
+    result = _nominatim_geocode(street, city=resolved_city)
+    if result:
+        return result
+
+    # Fallback: free-text with just state (intersections, landmarks, highways)
+    if resolved_city:
+        return _nominatim_geocode(full_query)
+    return None
 
 
 # ---------------------------------------------------------------------------
 # Pipeline: backfill un-geocoded records
 # ---------------------------------------------------------------------------
 
-def backfill_geocodes(batch_size: int = 200) -> dict:
+def _ensure_geocode_failures_table(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS geocode_failures (
+            record_id INTEGER PRIMARY KEY,
+            raw_location TEXT,
+            county TEXT,
+            failed_at TEXT DEFAULT (datetime('now')),
+            attempt_count INTEGER DEFAULT 1
+        )
+    """)
+
+
+def backfill_geocodes(batch_size: int = 200, county: Optional[str] = None) -> dict:
+    """Geocode un-geocoded records, skipping previously-failed attempts.
+
+    Args:
+        batch_size: Max records to process per run.
+        county: If given, restrict backfill to this county.
+    """
     conn = _connect()
+    _ensure_geocode_failures_table(conn)
+
+    where = [
+        "g.record_id IS NULL",
+        "f.record_id IS NULL",
+        "r.location IS NOT NULL",
+        "trim(r.location) != ''",
+    ]
+    params: list = []
+    if county:
+        where.append("r.county = ?")
+        params.append(county)
+    params.append(batch_size)
+
     rows = conn.execute(
-        """
+        f"""
         SELECT r.id, r.location, r.county, r.incident_type
         FROM records r
-        LEFT JOIN incident_geocodes g ON r.id=g.record_id
-        WHERE g.record_id IS NULL AND r.location IS NOT NULL AND trim(r.location) != ''
+        LEFT JOIN incident_geocodes g ON r.id = g.record_id
+        LEFT JOIN geocode_failures f ON r.id = f.record_id
+        WHERE {' AND '.join(where)}
         ORDER BY r.id DESC
         LIMIT ?
         """,
-        (batch_size,),
+        params,
     ).fetchall()
 
     processed = 0
@@ -149,27 +259,31 @@ def backfill_geocodes(batch_size: int = 200) -> dict:
         if result:
             conn.execute(
                 """
-                INSERT INTO incident_geocodes (record_id, raw_location, lat, lng, geocode_confidence, county, city, geocoded_at)
+                INSERT OR IGNORE INTO incident_geocodes
+                  (record_id, raw_location, lat, lng, geocode_confidence, county, city, geocoded_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 """,
-                (
-                    row["id"],
-                    row["location"],
-                    result["lat"],
-                    result["lng"],
-                    result["confidence"],
-                    row["county"],
-                    None,
-                ),
+                (row["id"], row["location"], result["lat"], result["lng"],
+                 result["confidence"], row["county"], None),
             )
             processed += 1
         else:
+            conn.execute(
+                """
+                INSERT INTO geocode_failures (record_id, raw_location, county)
+                VALUES (?, ?, ?)
+                ON CONFLICT(record_id) DO UPDATE SET
+                  attempt_count = attempt_count + 1,
+                  failed_at = datetime('now')
+                """,
+                (row["id"], row["location"], row["county"]),
+            )
             failed += 1
         time.sleep(GEOCODE_SLEEP)
 
     conn.commit()
     conn.close()
-    return {"processed": processed, "failed": failed}
+    return {"processed": processed, "failed": failed, "batch_size": batch_size}
 
 
 # ---------------------------------------------------------------------------
@@ -266,11 +380,20 @@ def compute_safety_scorecards(period_days: int = 30) -> dict:
 
 
 if __name__ == "__main__":
-    import sys
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "backfill"
-    if cmd == "backfill":
-        print(backfill_geocodes())
-    elif cmd == "scorecards":
+    import argparse
+    parser = argparse.ArgumentParser(description="MontanaBlotter geocoding pipeline")
+    sub = parser.add_subparsers(dest="cmd")
+
+    bf = sub.add_parser("backfill", help="Geocode un-geocoded records")
+    bf.add_argument("--batch", type=int, default=200, help="Records per run (default 200)")
+    bf.add_argument("--county", type=str, default=None, help="Restrict to one county")
+
+    sub.add_parser("scorecards", help="Recompute safety scorecards")
+
+    args = parser.parse_args()
+    if args.cmd == "backfill":
+        print(backfill_geocodes(batch_size=args.batch, county=args.county))
+    elif args.cmd == "scorecards":
         print(compute_safety_scorecards())
     else:
-        print("Usage: python geocode_pipeline.py [backfill|scorecards]")
+        parser.print_help()

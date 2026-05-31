@@ -11,38 +11,78 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-    .anav-link { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 3px; font-weight: 600; text-decoration: none; transition: color 0.15s, background 0.15s, border-color 0.15s; border: 1px solid transparent; }
-    .anav-link:hover { color: #E8DFD0; background: rgba(255,255,255,0.03); }
-    .anav-link.is-active { color: #D4892A; background: rgba(212, 137, 42, 0.12); border-color: rgba(212, 137, 42, 0.2); }
-    .anav-logout { color: #C94A3A !important; }
-    .anav-logout:hover { color: #E07060 !important; }
-    .anav-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid #282420; border-radius: 6px; background: rgba(255,255,255,0.02); transition: background 0.2s; position: relative; }
-    .anav-group:hover { background: rgba(255,255,255,0.04); }
-    .anav-group-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.5rem; color: #D4892A; text-transform: uppercase; letter-spacing: 0.18em; font-weight: 700; padding-right: 6px; }
-    .anav-meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.5rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.18em; }
-    .anav-group .anav-link { display: inline-flex; }
-    @media (max-width: 1280px) {
-      .anav-group .anav-link { display: none; }
-      .anav-group:hover .anav-link, .anav-group:focus-within .anav-link { display: inline-flex; }
-      .anav-group { flex-direction: column; align-items: flex-start; }
-      .anav-group:hover, .anav-group:focus-within { position: absolute; z-index: 60; background: #1a1816; border-color: #D4892A; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
-      .anav-group-label { padding-bottom: 4px; }
+    /* ── Admin dark-mode design tokens ── */
+    :root {
+      --adm-bg:           #0d1117;
+      --adm-nav:          #161b27;
+      --adm-surface:      #161b27;
+      --adm-surface-2:    #1e2536;
+      --adm-border:       rgba(255,255,255,0.07);
+      --adm-border-strong:rgba(255,255,255,0.13);
+      --adm-text:         #c9d1d9;
+      --adm-text-soft:    #7d8590;
+      --adm-text-muted:   #484f58;
+      --adm-amber:        #d4892a;
+      --adm-amber-soft:   rgba(212,137,42,0.14);
+      --adm-red:          #f85149;
+      --adm-red-soft:     rgba(248,81,73,0.1);
+      --adm-green:        #3fb950;
+      --adm-green-soft:   rgba(63,185,80,0.1);
+      --adm-blue:         #58a6ff;
+      --adm-blue-soft:    rgba(88,166,255,0.1);
+      --adm-purple:       #bc8cff;
     }
-    .anav-toggle { display: none; font-family: 'IBM Plex Mono', monospace; font-size: 0.55rem; color: #8A7F72; text-transform: uppercase; letter-spacing: 0.12em; background: transparent; border: 1px solid #282420; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
-    .anav-toggle:hover { color: #E8DFD0; border-color: #D4892A; }
-    @media (max-width: 1280px) {
-      .anav-toggle { display: inline-flex; }
-      #admin-nav-bar:not(.nav-expanded) .anav-group { display: none; }
-      #admin-nav-bar.nav-expanded .anav-group { display: flex; flex-direction: column; align-items: flex-start; position: static; background: rgba(255,255,255,0.02); border-color: #282420; box-shadow: none; }
-      #admin-nav-bar.nav-expanded .anav-group .anav-link { display: inline-flex; }
+    /* Shared admin utility classes */
+    .adm-card  { background:var(--adm-surface); border:1px solid var(--adm-border); border-radius:16px; overflow:hidden; }
+    .adm-label { font-size:.6rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--adm-text-muted); }
+    .adm-stat  { background:var(--adm-surface-2); border:1px solid var(--adm-border); border-radius:12px; padding:1rem 1.1rem; }
+    .adm-stat__label { font-size:.58rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--adm-text-muted); }
+    .adm-stat__value { font-size:1.7rem; font-weight:900; color:var(--adm-text); margin-top:.35rem; line-height:1; font-family:'IBM Plex Mono',monospace; }
+    .adm-stat__value--warn { color:var(--adm-amber); }
+    .adm-cmd  { display:block; background:var(--adm-surface-2); border:1px solid var(--adm-border); border-radius:14px; padding:1.1rem 1.15rem; transition:background .15s,border-color .15s; }
+    .adm-cmd:hover { background:#243048; border-color:var(--adm-border-strong); }
+    .adm-cmd--amber { border-left:3px solid var(--adm-amber); }
+    .adm-cmd--blue  { border-left:3px solid var(--adm-blue); }
+    .adm-cmd--slate { border-left:3px solid #475569; }
+    .adm-cmd--green { border-left:3px solid var(--adm-green); }
+    .adm-cmd--purple{ border-left:3px solid var(--adm-purple); }
+    .adm-cmd--sky   { border-left:3px solid #38bdf8; }
+    .adm-cmd--dim   { border-left:3px solid var(--adm-border-strong); }
+    .adm-cmd__cat   { font-size:.56rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--adm-text-muted); margin-bottom:.35rem; }
+    .adm-cmd__title { font-size:1rem; font-weight:900; color:var(--adm-text); margin-bottom:.3rem; }
+    .adm-cmd__desc  { font-size:.8rem; color:var(--adm-text-soft); line-height:1.5; }
+    /* Nav */
+    .anav-link { font-family:'IBM Plex Mono',monospace; font-size:.6rem; color:#7d8590; text-transform:uppercase; letter-spacing:.08em; padding:4px 10px; border-radius:4px; font-weight:600; text-decoration:none; transition:color .15s,background .15s,border-color .15s; border:1px solid transparent; }
+    .anav-link:hover { color:#c9d1d9; background:rgba(255,255,255,0.05); }
+    .anav-link.is-active { color:#d4892a; background:rgba(212,137,42,0.12); border-color:rgba(212,137,42,0.22); }
+    .anav-logout { color:#f85149 !important; }
+    .anav-logout:hover { color:#ff7b72 !important; }
+    .anav-group { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:5px 8px; border:1px solid rgba(255,255,255,0.06); border-radius:7px; background:rgba(255,255,255,0.02); transition:background .2s; position:relative; }
+    .anav-group:hover { background:rgba(255,255,255,0.04); }
+    .anav-group-label { font-family:'IBM Plex Mono',monospace; font-size:.49rem; color:#d4892a; text-transform:uppercase; letter-spacing:.18em; font-weight:700; padding-right:6px; }
+    .anav-group .anav-link { display:inline-flex; }
+    @media (max-width:1280px) {
+      .anav-group .anav-link { display:none; }
+      .anav-group:hover .anav-link,.anav-group:focus-within .anav-link { display:inline-flex; }
+      .anav-group { flex-direction:column; align-items:flex-start; }
+      .anav-group:hover,.anav-group:focus-within { position:absolute; z-index:60; background:#1a2236; border-color:#d4892a; box-shadow:0 12px 32px rgba(0,0,0,0.5); }
+      .anav-group-label { padding-bottom:4px; }
+    }
+    .anav-toggle { display:none; font-family:'IBM Plex Mono',monospace; font-size:.55rem; color:#7d8590; text-transform:uppercase; letter-spacing:.12em; background:transparent; border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:4px 8px; cursor:pointer; }
+    .anav-toggle:hover { color:#c9d1d9; border-color:#d4892a; }
+    @media (max-width:1280px) {
+      .anav-toggle { display:inline-flex; }
+      #admin-nav-bar:not(.nav-expanded) .anav-group { display:none; }
+      #admin-nav-bar.nav-expanded .anav-group { display:flex; flex-direction:column; align-items:flex-start; position:static; background:rgba(255,255,255,0.02); border-color:rgba(255,255,255,0.07); box-shadow:none; }
+      #admin-nav-bar.nav-expanded .anav-group .anav-link { display:inline-flex; }
     }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="{% block body_class %}bg-gray-50 text-gray-900 font-sans{% endblock %}">
+<body class="{% block body_class %}font-sans{% endblock %}" style="background:var(--adm-bg); color:var(--adm-text); min-height:100vh;">
 
     {% set admin_path = request.path or '' %}
-    <nav style="background:#0D0C0B; border-bottom:1px solid #282420; position:sticky; top:0; z-index:50;">
+    <nav style="background:var(--adm-nav); border-bottom:1px solid rgba(255,255,255,0.07); position:sticky; top:0; z-index:50;">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div class="flex items-center gap-3">
                 <div style="width:32px; height:32px; background:#D4892A; border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#0D0C0B;">
@@ -56,6 +96,7 @@
             <div class="flex flex-col gap-2 xl:items-end">
                 <div class="flex flex-wrap gap-2 xl:justify-end" id="admin-nav-bar">
                     <button type="button" class="anav-toggle" onclick="var b=document.getElementById('admin-nav-bar');b.classList.toggle('nav-expanded');this.textContent=b.classList.contains('nav-expanded')?'Close':'Menu'">Menu</button>
+                    <a href="/admin/command-center" class="anav-link {% if admin_path.startswith('/admin/command-center') or admin_path.startswith('/admin/mission-control') or admin_path in ('/admin/office', '/admin/agents') %}is-active{% endif %}" style="border-color:rgba(212,137,42,0.4);color:#d4892a;font-weight:800;">⌂ Command Center</a>
                     <div class="anav-group">
                         <span class="anav-group-label">Data</span>
                         <a href="/admin" class="anav-link {% if admin_path == '/admin' %}is-active{% endif %}">Dashboard</a>
@@ -84,8 +125,8 @@
                     <div class="anav-group">
                         <span class="anav-group-label">System</span>
                         <a href="/admin/analytics" class="anav-link {% if admin_path.startswith('/admin/analytics') or admin_path.startswith('/admin/visitors') %}is-active{% endif %}">Analytics</a>
+                        <a href="/admin/workspace" class="anav-link {% if admin_path.startswith('/admin/workspace') %}is-active{% endif %}">Workspace</a>
                         <a href="/admin/ai" class="anav-link {% if admin_path.startswith('/admin/ai') %}is-active{% endif %}">AI</a>
-                        <a href="/admin/mission-control" class="anav-link {% if admin_path.startswith('/admin/mission-control') or admin_path.startswith('/admin/agents') or admin_path.startswith('/admin/office') %}is-active{% endif %}">Mission</a>
                         <a href="/hermes/" target="_blank" class="anav-link">Hermes</a>
                     </div>
                     {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
@@ -107,17 +148,17 @@
 
     {% if admin_path.startswith('/admin') and admin_path != '/admin' %}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-2">
-        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs text-slate-500">
-            <a href="/admin" class="hover:text-slate-800 transition font-semibold">Dashboard</a>
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs" style="color:var(--adm-text-muted);">
+            <a href="/admin" class="transition font-semibold" style="color:var(--adm-text-soft);" onmouseover="this.style.color='var(--adm-text)'" onmouseout="this.style.color='var(--adm-text-soft)'">Dashboard</a>
             {% set _parts = admin_path.strip('/').split('/') %}
             {% set _accum = [] %}
             {% for part in _parts[1:] %}
                 {% set _ = _accum.append(part) %}
-                <span class="text-slate-300">/</span>
+                <span style="color:var(--adm-border-strong);">/</span>
                 {% if loop.last %}
-                    <span class="font-black text-slate-800">{{ part.replace('-',' ').replace('_',' ').title() }}</span>
+                    <span class="font-black" style="color:var(--adm-text);">{{ part.replace('-',' ').replace('_',' ').title() }}</span>
                 {% else %}
-                    <a href="/admin/{{ '/'.join(_accum) }}" class="hover:text-slate-800 transition font-semibold">{{ part.replace('-',' ').replace('_',' ').title() }}</a>
+                    <a href="/admin/{{ '/'.join(_accum) }}" class="transition font-semibold" style="color:var(--adm-text-soft);" onmouseover="this.style.color='var(--adm-text)'" onmouseout="this.style.color='var(--adm-text-soft)'">{{ part.replace('-',' ').replace('_',' ').title() }}</a>
                 {% endif %}
             {% endfor %}
         </nav>

@@ -8,7 +8,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path("/root/montanablotter/blotter.db")
+DB_PATH = Path("/root/montanablotter/data/blotter.db")
 
 
 def _query(conn: sqlite3.Connection, sql: str) -> int:
@@ -20,7 +20,7 @@ def main() -> None:
     print(f"UTC now: {now}")
 
     if not DB_PATH.exists():
-        print("\nDatabase missing: /root/montanablotter/blotter.db")
+        print(f"\nDatabase missing: {DB_PATH}")
         return
 
     conn = sqlite3.connect(DB_PATH)

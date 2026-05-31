@@ -64,6 +64,21 @@ class ApiClient:
 def _hash_key(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
+def _client_ip() -> str:
+    """
+    Best-effort client IP extraction for rate limiting / logging.
+
+    Note: This trusts reverse-proxy headers. Ensure the edge proxy strips
+    untrusted values from the public internet.
+    """
+    cf_ip = (request.headers.get("CF-Connecting-IP") or "").strip()
+    if cf_ip:
+        return cf_ip
+    forwarded = (request.headers.get("X-Forwarded-For") or "").strip()
+    if forwarded:
+        return forwarded.split(",", 1)[0].strip()
+    return (request.remote_addr or "").strip()
+
 
 def generate_api_key(*, prefix: str = "mb_") -> str:
     """Generate a new random API key. Return the plaintext key (store hash only)."""
@@ -239,6 +254,19 @@ def _count_requests_in_window(conn: sqlite3.Connection, client_id: int, window_s
     ).fetchone()
     return int(row[0]) if row else 0
 
+def _count_anonymous_requests_in_window(conn: sqlite3.Connection, ip_hash: str, window_seconds: int) -> int:
+    row = conn.execute(
+        """
+        SELECT COUNT(*) FROM api_request_logs
+        WHERE client_id IS NULL
+          AND ip_hash = ?
+          AND created_at >= datetime('now', ? || ' seconds')
+          AND path LIKE '/api/%'
+        """,
+        (ip_hash, -window_seconds),
+    ).fetchone()
+    return int(row[0]) if row else 0
+
 
 def check_rate_limit(conn: sqlite3.Connection, client: ApiClient) -> tuple[bool, dict]:
     """Return (allowed: bool, headers: dict)."""
@@ -259,7 +287,7 @@ def check_rate_limit(conn: sqlite3.Connection, client: ApiClient) -> tuple[bool,
 
 def log_request(conn: sqlite3.Connection, client_id: int | None, status_code: int | None = None) -> None:
     if has_request_context():
-        ip = request.remote_addr or ""
+        ip = _client_ip()
         ip_hash = hashlib.sha256(ip.encode()).hexdigest()[:16] if ip else None
         method = request.method
         path = request.path
@@ -314,13 +342,10 @@ def require_api_key(
                 if not allow_anonymous:
                     abort(401, description="API key required. Provide it via Authorization: Bearer <key> or ?api_key=<key>")
                 anon_cfg = anonymous_quota or DEFAULT_TIERS["free"]
-                # Anonymous rate limit by IP hash
-                ip = request.remote_addr or ""
+                # Anonymous rate limit by IP hash (per-IP).
+                ip = _client_ip()
                 ip_hash = hashlib.sha256(ip.encode()).hexdigest()[:16]
-                used = _count_requests_in_window(db, None, anon_cfg["window_seconds"])
-                # We log anonymous requests with a synthetic client_id derived from ip_hash
-                # to keep the schema simple. In practice, high-volume anonymous use should
-                # be discouraged.
+                used = _count_anonymous_requests_in_window(db, ip_hash, anon_cfg["window_seconds"])
                 remaining = max(0, anon_cfg["max_requests"] - used)
                 g._api_rate_headers = {
                     "X-RateLimit-Limit": str(anon_cfg["max_requests"]),
@@ -363,6 +388,10 @@ def after_api_request(response) -> None:
     inject_rate_headers(response)
     client = getattr(g, "_api_client", None)
     try:
+        if not has_request_context():
+            return response
+        if not request.path.startswith("/api/"):
+            return response
         db = _get_db()
         log_request(db, client.id if client else None, response.status_code)
     except Exception:

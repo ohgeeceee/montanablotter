@@ -1,0 +1,78 @@
+{% extends "public_page_base.html" %}
+
+{% set og_title = page_title %}
+{% set og_description = meta_description %}
+{% set og_type = "profile" %}
+{% set twitter_card = "summary" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": {{ person_name | tojson }},
+  "url": {{ canonical_url | tojson }},
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": {{ canonical_url | tojson }}
+  }
+}
+</script>
+{% endblock %}
+
+{% block body_class %}person-detail-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/jail-bookings">Jail Bookings</a>
+<span class="mx-2">/</span>
+<span>{{ person_name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+  <div class="mb-6">
+    <h1 class="public-detail-title">{{ person_name }}</h1>
+    <p class="text-slate-500 text-sm mt-1">{{ bookings | length }} booking record{{ 's' if bookings | length != 1 else '' }} on file &middot; Montana Blotter Public Records</p>
+  </div>
+
+  <div class="public-detail-body space-y-4">
+    {% for booking in bookings %}
+    <a href="/booking/{{ booking.id }}" class="block public-sidebar-card p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1">
+            {% if booking.is_current %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Currently In Custody</span>
+            {% else %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">Released</span>
+            {% endif %}
+            {% if booking.booking_number %}
+            <span class="text-xs text-slate-400">Booking #{{ booking.booking_number }}</span>
+            {% endif %}
+          </div>
+          {% if booking.booking_at %}
+          <p class="text-sm text-slate-600">Booked {{ booking.booking_at[:10] }}{% if booking.release_at %} &middot; Released {{ booking.release_at[:10] }}{% endif %}</p>
+          {% endif %}
+          {% if booking.charges %}
+          <p class="text-sm text-slate-700 mt-2 line-clamp-2">{{ booking.charges }}</p>
+          {% endif %}
+        </div>
+        {% if booking.photo_url %}
+        <img src="{{ booking.photo_url }}" alt="{{ person_name }} booking photo"
+             class="w-14 h-14 rounded object-cover flex-shrink-0 bg-slate-100"
+             loading="lazy" onerror="this.style.display='none'">
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="mt-10 public-sidebar-card p-5 text-sm text-slate-600">
+    <h2 class="font-semibold text-slate-800 mb-2">Record Correction or Removal</h2>
+    <p>If you believe a record on this page is inaccurate or you are entitled to expungement under Montana law, please <a href="/about" class="text-blue-600 hover:underline">contact us</a> with supporting documentation.</p>
+  </div>
+
+</div>
+{% endblock %}

@@ -5,7 +5,7 @@
     "provider": "custom_html",
     "url": "https://destinyhosted.com/agenda_publish.cfm?id=24568&mt=CC,SPC,CCWS&vl=true",
     "selectors": {
-      "row": "#list tbody tr",
+      "row": "#meeting-table tbody tr",
       "title": "td:nth-child(2)",
       "date": "td:nth-child(1) a, td:nth-child(1)",
       "agenda_link": "td:nth-child(1) a",
@@ -264,28 +264,6 @@
       ],
       "disable_fallback_link": true,
       "disable_nested_document_hydration": true
-    }
-  },
-  {
-    "slug": "fort-benton-city-council",
-    "name": "Fort Benton City Council",
-    "provider": "custom_html",
-    "url": "https://www.cityoffortbenton.org/city-council",
-    "selectors": {
-      "row": "body",
-      "title": "div.sqs-html-content h1 em, div.sqs-html-content h1",
-      "date": "div.sqs-html-content p",
-      "agenda_link": "a.sqs-block-button-element[href]:has-text('Agenda')",
-      "minutes_link": "a[href*='__minutes_disabled__']"
-    },
-    "metadata": {
-      "meeting_scope": "city",
-      "location_slug": "fort-benton",
-      "location_name": "Fort Benton",
-      "city_name": "Fort Benton",
-      "county_name": "Chouteau",
-      "body_name": "Fort Benton City Council",
-      "disable_fallback_link": true
     }
   },
   {

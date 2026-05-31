@@ -68,16 +68,26 @@ class AdminDashboardTests(unittest.TestCase):
             session['_fresh'] = True
             session['_csrf_token'] = 'test-csrf-token'
 
-    def test_admin_dashboard_renders_command_center_links(self) -> None:
+    def test_admin_root_redirects_to_command_center(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        response = client.get('/admin')
+        response = client.get('/admin', follow_redirects=True)
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Statewide Operations', html)
         self.assertIn('Command Center', html)
+        self.assertNotIn('/admin/mission-control', html)
+
+    def test_admin_dashboard_renders_operations_summary(self) -> None:
+        client = app_module.app.test_client()
+        self._login_admin_session(client)
+
+        response = client.get('/admin/dashboard')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Admin Dashboard', html)
         self.assertIn('Recent source files', html)
         self.assertIn('County record volume', html)
         self.assertIn('/admin/ingestion', html)
@@ -85,7 +95,6 @@ class AdminDashboardTests(unittest.TestCase):
         self.assertIn('/admin/operations/redaction', html)
         self.assertIn('/admin/audience/subscribers', html)
         self.assertIn('/admin/analytics', html)
-        self.assertIn('/admin/mission-control', html)
 
 
 if __name__ == '__main__':

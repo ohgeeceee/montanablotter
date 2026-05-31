@@ -1,0 +1,694 @@
+roster_version: 1.0.0
+counties:
+  Beaverhead:
+    county: Beaverhead
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Beaverhead County Detention Center
+      url: https://beaverheadcountymt.gov/departments/sheriff/
+      phone: 406-683-3700
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Big Horn:
+    county: Big Horn
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Big Horn County Detention Center
+      url: https://www.bighorncountymt.gov/239/Detention
+      phone: 406-665-9780
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Blaine:
+    county: Blaine
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Broadwater:
+    county: Broadwater
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Broadwater County Detention Center
+      url: https://www.broadwatercountysheriff.org/roster.php
+      phone: 406-266-3445
+      last_success_at: null
+      latest_error: Official roster host is timing out from the ingest machine.
+    last_contact_at: null
+    notes: Official roster host is timing out from the ingest machine.
+  Carbon:
+    county: Carbon
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Carbon County Detention Center
+      url: https://carbonmt.gov/sheriff/
+      phone: 406-446-1234
+      last_success_at: null
+      latest_error: Zuercher API endpoint not found for https://carbonmt.gov/sheriff
+        (portal may not expose public API).
+    last_contact_at: null
+    notes: Zuercher API endpoint not found for https://carbonmt.gov/sheriff (portal
+      may not expose public API).
+  Carter:
+    county: Carter
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Cascade:
+    county: Cascade
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Cascade County Detention Center
+      url: https://www.cascadecountymt.gov/314/Inmate-Roster
+      phone: 406-454-6840
+      last_success_at: '2026-05-21 08:02:13'
+      latest_error: null
+    last_contact_at: null
+    notes: ''
+  Chouteau:
+    county: Chouteau
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Custer:
+    county: Custer
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Custer County Detention Center
+      url: null
+      phone: 406-874-3300
+      last_success_at: null
+      latest_error: null
+    last_contact_at: null
+    notes: ''
+  Daniels:
+    county: Daniels
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Dawson:
+    county: Dawson
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Dawson County Detention Center
+      url: https://www.dawsoncountymontana.com/sheriff
+      phone: 406-377-7600
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Deer Lodge:
+    county: Deer Lodge
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Fallon:
+    county: Fallon
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Fergus:
+    county: Fergus
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Fergus County Detention Center
+      url: https://fergusmt.gov/detention-center-roster
+      phone: 406-535-3860
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Flathead:
+    county: Flathead
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Flathead County Detention Center
+      url: https://apps.flathead.mt.gov/jailroster/
+      phone: 406-758-5610
+      last_success_at: '2026-05-21 08:05:01'
+      latest_error: null
+    - type: whitefish_pdf
+      name: Whitefish Pdf
+      url: null
+      phone: null
+      last_success_at: null
+      latest_error: null
+    last_contact_at: null
+    notes: ''
+  Gallatin:
+    county: Gallatin
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Gallatin County Detention Center
+      url: https://gallatin-so-mt.zuercherportal.com/#/inmates
+      phone: 406-582-2100
+      last_success_at: null
+      latest_error: Zuercher portal is in maintenance mode as of 2026-05-21.
+    - type: bozeman_calls_for_service
+      name: Bozeman Calls For Service
+      url: null
+      phone: null
+      last_success_at: null
+      latest_error: null
+    - type: bozeman_daily_case_reports
+      name: Bozeman Daily Case Reports
+      url: null
+      phone: null
+      last_success_at: null
+      latest_error: null
+    last_contact_at: null
+    notes: Source in maintenance mode.
+  Garfield:
+    county: Garfield
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Glacier:
+    county: Glacier
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Glacier County Detention Center
+      url: https://glaciercountymt.gov/category/jail-roster/
+      phone: 406-873-4600
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Golden Valley:
+    county: Golden Valley
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Granite:
+    county: Granite
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Granite County Detention Center
+      url: https://granitecountyjail.org/
+      phone: 406-859-3771
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Hill:
+    county: Hill
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Hill County Detention Center
+      url: null
+      phone: 406-265-5481
+      last_success_at: null
+      latest_error: null
+    last_contact_at: null
+    notes: ''
+  Jefferson:
+    county: Jefferson
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Jefferson County Detention Center
+      url: https://jefferson-so-mt.zuercherportal.com/#/inmates
+      phone: 406-225-4075
+      last_success_at: '2026-05-21 08:15:02'
+      latest_error: null
+    last_contact_at: null
+    notes: ''
+  Judith Basin:
+    county: Judith Basin
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Lake:
+    county: Lake
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Lewis and Clark:
+    county: Lewis and Clark
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Lewis and Clark County Detention Center
+      url: https://www.lccountymt.gov/Sheriff/Detention-Center
+      phone: 406-447-8270
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Liberty:
+    county: Liberty
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Lincoln:
+    county: Lincoln
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Lincoln County Detention Center
+      url: null
+      phone: 406-293-0242
+      last_success_at: null
+      latest_error: null
+    last_contact_at: null
+    notes: ''
+  Madison:
+    county: Madison
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Madison County Detention Center
+      url: null
+      phone: 406-843-5351
+      last_success_at: null
+      latest_error: '404 Client Error: NOT FOUND for url: https://madison-so-mt.zuercherportal.com/api/portal/inmates/load'
+    last_contact_at: null
+    notes: '404 Client Error: NOT FOUND for url: https://madison-so-mt.zuercherportal.com/api/portal/inmates/load'
+  McCone:
+    county: McCone
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Meagher:
+    county: Meagher
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Meagher County Detention Center
+      url: null
+      phone: 406-547-3397
+      last_success_at: null
+      latest_error: Zuercher API endpoint not found for https://meagher-so-mt.zuercherportal.com
+        (portal may not expose public API).
+    last_contact_at: null
+    notes: Zuercher API endpoint not found for https://meagher-so-mt.zuercherportal.com
+      (portal may not expose public API).
+  Mineral:
+    county: Mineral
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Mineral County Detention Center
+      url: https://co.mineral.mt.us/departments/sheriff/
+      phone: 406-822-3534
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Missoula:
+    county: Missoula
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Missoula County Detention Center
+      url: https://webapps.missoulacounty.us/jailroster/Inmates
+      phone: 406-258-4780
+      last_success_at: '2026-05-21 08:52:01'
+      latest_error: null
+    - type: missoula_public_report
+      name: Missoula Public Report
+      url: null
+      phone: null
+      last_success_at: null
+      latest_error: null
+    last_contact_at: null
+    notes: ''
+  Musselshell:
+    county: Musselshell
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Park:
+    county: Park
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Park County Detention Center
+      url: https://www.parkcounty.org/Government-Departments/Sheriff-s-Office/Inmates-Housed/
+      phone: 406-222-4172
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Petroleum:
+    county: Petroleum
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Phillips:
+    county: Phillips
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Phillips County Detention Center
+      url: https://phillipscosheriff.com/inmates/
+      phone: 406-654-2020
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Pondera:
+    county: Pondera
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Pondera County Detention Center
+      url: https://ponderacountyjail.org/inmate-search/
+      phone: 406-271-4100
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Powder River:
+    county: Powder River
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Powell:
+    county: Powell
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Powell County Detention Center
+      url: https://www.powellcountymt.gov/sheriff/page/detention-facility
+      phone: 406-846-2711
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Prairie:
+    county: Prairie
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Ravalli:
+    county: Ravalli
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Ravalli County Detention Center
+      url: https://ravallicounty.gov/239/Adult-Detention-Center
+      phone: 406-375-4060
+      last_success_at: '2026-05-21 07:06:43'
+      latest_error: Zuercher API endpoint not found for https://ravallicounty.gov/239/Adult-Detention-Center
+        (portal may not expose public API).
+    last_contact_at: null
+    notes: Zuercher API endpoint not found for https://ravallicounty.gov/239/Adult-Detention-Center
+      (portal may not expose public API).
+  Richland:
+    county: Richland
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Roosevelt:
+    county: Roosevelt
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Roosevelt County Detention Center
+      url: null
+      phone: 406-653-6230
+      last_success_at: null
+      latest_error: Zuercher API endpoint not found for https://roosevelt-so-mt.zuercherportal.com
+        (portal may not expose public API).
+    last_contact_at: null
+    notes: Zuercher API endpoint not found for https://roosevelt-so-mt.zuercherportal.com
+      (portal may not expose public API).
+  Rosebud:
+    county: Rosebud
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Rosebud County Detention Center
+      url: null
+      phone: 406-346-2715
+      last_success_at: null
+      latest_error: Zuercher API endpoint not found for https://rosebud-so-mt.zuercherportal.com
+        (portal may not expose public API).
+    - type: rosebud_pdf
+      name: Rosebud Pdf
+      url: null
+      phone: null
+      last_success_at: null
+      latest_error: null
+    last_contact_at: null
+    notes: Zuercher API endpoint not found for https://rosebud-so-mt.zuercherportal.com
+      (portal may not expose public API).
+  Sanders:
+    county: Sanders
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Sanders County Detention Center
+      url: https://sanders-mt.publiclogs.com/
+      phone: 406-827-3584
+      last_success_at: '2026-05-21 08:35:05'
+      latest_error: null
+    last_contact_at: null
+    notes: ''
+  Sheridan:
+    county: Sheridan
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Silver Bow:
+    county: Silver Bow
+    state: MT
+    status: candidate
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Silver Bow County Detention Center
+      url: https://co.silverbow.mt.us/3274/Detention-Center
+      phone: 406-497-1120
+      last_success_at: null
+      latest_error: No automated county adapter has been added yet.
+    last_contact_at: null
+    notes: No automated adapter yet.
+  Stillwater:
+    county: Stillwater
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Stillwater County Detention Center
+      url: null
+      phone: 406-322-5326
+      last_success_at: null
+      latest_error: Zuercher API endpoint not found for https://stillwater-so-mt.zuercherportal.com
+        (portal may not expose public API).
+    last_contact_at: null
+    notes: Zuercher API endpoint not found for https://stillwater-so-mt.zuercherportal.com
+      (portal may not expose public API).
+  Sweet Grass:
+    county: Sweet Grass
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Teton:
+    county: Teton
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Toole:
+    county: Toole
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Treasure:
+    county: Treasure
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Valley:
+    county: Valley
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Valley County Detention Center
+      url: https://www.valleycountymt.gov/1288/Jail-Roster
+      phone: 406-228-9355
+      last_success_at: null
+      latest_error: Zuercher API endpoint not found for https://www.valleycountymt.gov/1288/Jail-Roster
+        (portal may not expose public API).
+    last_contact_at: null
+    notes: Zuercher API endpoint not found for https://www.valleycountymt.gov/1288/Jail-Roster
+      (portal may not expose public API).
+  Wheatland:
+    county: Wheatland
+    state: MT
+    status: inactive
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Wheatland County Detention Center
+      url: null
+      phone: 406-632-4311
+      last_success_at: null
+      latest_error: Zuercher API endpoint not found for https://wheatland-so-mt.zuercherportal.com
+        (portal may not expose public API).
+    last_contact_at: null
+    notes: Zuercher API endpoint not found for https://wheatland-so-mt.zuercherportal.com
+      (portal may not expose public API).
+  Wibaux:
+    county: Wibaux
+    state: MT
+    status: no_source
+    contacts: []
+    sources: []
+    last_contact_at: null
+    notes: No known source in jail_booking_sources.
+  Yellowstone:
+    county: Yellowstone
+    state: MT
+    status: active
+    contacts: []
+    sources:
+    - type: jail_roster
+      name: Yellowstone County Detention Center
+      url: https://www.yellowstonecountymt.gov/sheriff/detention/dcsearch.asp
+      phone: 406-256-2929
+      last_success_at: '2026-05-21 08:20:01'
+      latest_error: null
+    last_contact_at: null
+    notes: ''

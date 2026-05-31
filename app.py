@@ -46,6 +46,7 @@ from services.court.tracker import (
     court_case_detail,
     court_directory_context,
     court_hearing_feed_context,
+    criminal_cases_context,
     ensure_court_tracker_schema,
 )
 from db import connect_db, connect_page_views, get_db
@@ -72,7 +73,8 @@ from facebook_publisher import (
     save_facebook_settings,
 )
 from services.monetization.bondsman import register_bondsman_command_center
-from services.agents.dashboard import register_agent_dashboard
+from services.monetization.paywall import preview_allowed
+from services.agents.dashboard import register_agent_dashboard, build_agent_dashboard_payload
 
 try:
     import stripe
@@ -844,9 +846,22 @@ PATTERN_DEFINITIONS = {
     },
 }
 
-# Apply DB migrations at startup
+# Apply DB migrations at startup — retry on WAL-mode busy/snapshot contention
+import time as _time
 from init_db import migrate as _migrate
-_migrate()
+
+def _run_migrate_with_retry(attempts=8, base_delay=2.0):
+    for attempt in range(attempts):
+        try:
+            _migrate()
+            return
+        except Exception as _exc:
+            if attempt < attempts - 1 and 'locked' in str(_exc).lower():
+                _time.sleep(base_delay * (attempt + 1))
+            else:
+                raise
+
+_run_migrate_with_retry()
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'admin.admin_login'
@@ -1084,8 +1099,16 @@ def apply_security_headers(response):
     response.headers.setdefault('X-Content-Type-Options', 'nosniff')
     response.headers.setdefault('X-Frame-Options', config.X_FRAME_OPTIONS)
     response.headers.setdefault('Referrer-Policy', config.REFERRER_POLICY)
+    if getattr(config, 'PERMISSIONS_POLICY', ''):
+        response.headers.setdefault('Permissions-Policy', config.PERMISSIONS_POLICY)
     if config.CONTENT_SECURITY_POLICY:
         response.headers.setdefault('Content-Security-Policy', config.CONTENT_SECURITY_POLICY)
+    # Prefer setting HSTS at the edge proxy. This is a safe fallback when the
+    # app is behind TLS termination (X-Forwarded-Proto: https).
+    if getattr(config, 'STRICT_TRANSPORT_SECURITY', ''):
+        is_https = bool(request.is_secure or (request.headers.get('X-Forwarded-Proto', '') or '').lower() == 'https')
+        if is_https:
+            response.headers.setdefault('Strict-Transport-Security', config.STRICT_TRANSPORT_SECURITY)
     if request.path.startswith('/api/') and request.method in {'GET', 'HEAD', 'OPTIONS'}:
         allow_origin_raw = (getattr(config, 'API_CORS_ALLOW_ORIGIN', '') or '').strip()
         allowed_origins = [origin.strip() for origin in allow_origin_raw.split(',') if origin.strip()]
@@ -1236,6 +1259,16 @@ def _safe_next_url(raw_value, fallback='/'):
     if parsed.scheme or parsed.netloc:
         return fallback
     if not target.startswith('/'):
+        return fallback
+    # Prevent redirect loops: never send the user back to auth or admin pages
+    path_lower = parsed.path.lower()
+    if path_lower in ('/login', '/register', '/admin', '/admin/login'):
+        return fallback
+    # Prevent nested next parameters that cause recursive URL explosion
+    if 'next=' in (parsed.query or '').lower():
+        return fallback
+    # Prevent abuse from extremely long URLs
+    if len(target) > 1024:
         return fallback
     return target
 
@@ -3707,11 +3740,89 @@ def _donation_launch_snapshot():
     return snapshot
 
 
+def _apply_subscription_stripe_event(conn, event):
+    """Handle Stripe webhook events for reader subscriptions (Insider / Professional)."""
+    event_type = (event.get('type') or '').strip()
+    data_object = (event.get('data') or {}).get('object') or {}
+    metadata = data_object.get('metadata') or {}
+    plan = (metadata.get('plan') or '').strip().lower()
+    public_user_id = (metadata.get('public_user_id') or '').strip()
+    subscription_id = ''
+    customer_id = ''
+    status = ''
+
+    if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
+        subscription_id = (data_object.get('subscription') or '').strip()
+        customer_id = (data_object.get('customer') or '').strip()
+        if public_user_id.isdigit() and plan in {'insider', 'professional'}:
+            conn.execute(
+                '''
+                UPDATE public_users
+                SET is_subscribed = 1,
+                    subscriber_plan = ?,
+                    stripe_subscription_id = ?,
+                    subscription_status = 'active',
+                    subscription_activated_at = COALESCE(subscription_activated_at, datetime('now'))
+                WHERE id = ?
+                ''',
+                (plan, subscription_id, int(public_user_id)),
+            )
+            conn.execute(
+                '''
+                INSERT INTO subscription_events (user_id, stripe_event_id, event_type, payload_json)
+                VALUES (?, ?, ?, ?)
+                ''',
+                (int(public_user_id), event.get('id'), event_type, json.dumps(data_object)),
+            )
+    elif event_type == 'invoice.paid':
+        subscription_id = (data_object.get('subscription') or '').strip()
+        if subscription_id:
+            conn.execute(
+                '''
+                UPDATE public_users
+                SET subscription_status = 'active',
+                    subscription_activated_at = COALESCE(subscription_activated_at, datetime('now'))
+                WHERE stripe_subscription_id = ?
+                ''',
+                (subscription_id,),
+            )
+    elif event_type in {'customer.subscription.deleted', 'customer.subscription.updated'}:
+        subscription_id = (data_object.get('id') or '').strip()
+        status = (data_object.get('status') or '').strip().lower()
+        if subscription_id:
+            if status in {'active', 'trialing'}:
+                conn.execute(
+                    '''
+                    UPDATE public_users
+                    SET is_subscribed = 1,
+                        subscription_status = ?
+                    WHERE stripe_subscription_id = ?
+                    ''',
+                    (status, subscription_id),
+                )
+            else:
+                conn.execute(
+                    '''
+                    UPDATE public_users
+                    SET is_subscribed = 0,
+                        subscriber_plan = 'scout',
+                        stripe_subscription_id = '',
+                        subscription_status = ?,
+                        subscription_canceled_at = datetime('now')
+                    WHERE stripe_subscription_id = ?
+                    ''',
+                    (status or 'canceled', subscription_id),
+                )
+
+
 def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_hash='', event_referrer=''):
     event_type = (event.get('type') or '').strip()
     data_object = (event.get('data') or {}).get('object') or {}
     metadata = data_object.get('metadata') or {}
     if (metadata.get('flow') or '').strip() == 'bail_ad':
+        return
+    if (metadata.get('flow') or '').strip() == 'subscription':
+        _apply_subscription_stripe_event(conn, event)
         return
     if not event_type:
         return
@@ -6230,6 +6341,8 @@ def inject_public_nav():
     public_secondary_nav_items = [
         {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys', 'menu_label': 'Cases'},
         {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings', 'menu_label': 'Bookings'},
+        {'id': 'crime_atlas', 'href': '/crime-atlas', 'label': 'Crime Atlas', 'menu_label': 'Atlas'},
+        {'id': 'crime_data', 'href': '/crime-data', 'label': 'Crime Data', 'menu_label': 'Data'},
         {'id': 'support', 'href': '/support', 'label': 'Support'},
     ]
     if public_user and getattr(public_user, 'is_subscribed', False):
@@ -7071,11 +7184,29 @@ def _analytics_hub_context(conn, date_from='', date_to='', path_prefix=''):
         "SELECT COUNT(*) FROM pattern_clicks WHERE placement = 'homepage_pattern_promos' AND created_at >= date('now', '-7 days')"
     ).fetchone()[0]
 
+    # --- Signup source breakdown (30 days, unaffected by date filter) ---
+    signup_source_rows = conn.execute(
+        """
+        SELECT COALESCE(NULLIF(source,''),'(direct)') AS src, COUNT(*) AS cnt
+        FROM subscribe_events
+        WHERE event_type = 'subscribe_success'
+          AND created_at >= date('now', '-30 days')
+        GROUP BY src
+        ORDER BY cnt DESC
+        LIMIT 10
+        """
+    ).fetchall()
+    signup_total_30d = sum(r['cnt'] for r in signup_source_rows)
+
     return {
         'filters': {
             'date_from': date_from,
             'date_to': date_to,
             'path_prefix': path_prefix,
+        },
+        'signups': {
+            'total_30d': signup_total_30d,
+            'source_rows': [{'label': r['src'], 'count': r['cnt']} for r in signup_source_rows],
         },
         'traffic': {
             'total_page_views': total_page_views,
@@ -7228,10 +7359,12 @@ def _send_digest_to_active_subscribers(target_date, initiated_by):
                 continue
 
             unsubscribe_url = f"{BASE_URL}/unsubscribe?token={subscriber['token']}"
+            open_tracking_url = f"{BASE_URL}/email/open?t={subscriber['token']}&d={target_date}"
             html = build_morning_briefing_html(
                 subscriber_posts,
                 target_date,
                 unsubscribe_url=unsubscribe_url,
+                open_tracking_url=open_tracking_url,
             )
             try:
                 send_morning_briefing_email(subscriber['email'], preview['subject'], html)
@@ -7400,10 +7533,12 @@ def _retry_failed_digest_recipients(original_run_id, initiated_by):
                 continue
 
             unsubscribe_url = f"{BASE_URL}/unsubscribe?token={subscriber['token']}"
+            open_tracking_url = f"{BASE_URL}/email/open?t={subscriber['token']}&d={original_run['target_date']}"
             html = build_morning_briefing_html(
                 subscriber_posts,
                 original_run['target_date'],
                 unsubscribe_url=unsubscribe_url,
+                open_tracking_url=open_tracking_url,
             )
             try:
                 send_morning_briefing_email(recipient_email, original_run['subject'], html)
@@ -7814,6 +7949,48 @@ def legacy_public_meetings_redirect():
     return redirect(url_for('public_meetings_dashboard'), code=301)
 
 
+@app.route('/api/meetings/geojson')
+def meetings_geojson():
+    """GeoJSON of upcoming meetings grouped by location — used by the Leaflet map."""
+    import json as _json
+    conn = get_db()
+    ensure_public_meeting_schema(conn)
+    rows = conn.execute(
+        '''
+        SELECT ml.slug, ml.display_name, ml.lat, ml.lon, ml.county_name, ml.city_name,
+               COUNT(pm.id) AS meeting_count,
+               MIN(pm.meeting_date) AS next_date
+        FROM meeting_locations ml
+        JOIN meeting_sources ms ON ms.location_id = ml.id
+        JOIN public_meetings pm ON pm.source_id = ms.id
+        WHERE ml.lat IS NOT NULL AND ml.lon IS NOT NULL
+          AND pm.is_current = 1
+          AND pm.meeting_date >= date("now")
+        GROUP BY ml.id
+        ORDER BY ml.display_name
+        '''
+    ).fetchall()
+    conn.close()
+    features = []
+    for r in rows:
+        features.append({
+            'type': 'Feature',
+            'geometry': {'type': 'Point', 'coordinates': [r['lon'], r['lat']]},
+            'properties': {
+                'name': r['display_name'],
+                'county': r['county_name'] or '',
+                'city': r['city_name'] or '',
+                'meeting_count': r['meeting_count'],
+                'next_date': r['next_date'] or '',
+                'filter_url': f"/meetings?city={r['city_name']}" if r['city_name'] else f"/meetings?county={r['county_name']}",
+            },
+        })
+    return app.response_class(
+        _json.dumps({'type': 'FeatureCollection', 'features': features}),
+        mimetype='application/json',
+    )
+
+
 @app.route('/courts')
 def public_courts_directory():
     conn = get_db()
@@ -7873,6 +8050,34 @@ def public_court_hearings():
     )
 
 
+@app.route('/criminal-cases')
+def public_criminal_cases():
+    conn = get_db()
+    ensure_court_tracker_schema(conn)
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+    context = criminal_cases_context(
+        conn,
+        disposition=request.args.get('disposition', ''),
+        charges=request.args.get('charges', ''),
+        page=page,
+    )
+    conn.close()
+    return render_template(
+        'criminal_cases.html',
+        **context,
+        page_title='Montana Criminal Case Outcomes | Supreme Court Appeals',
+        meta_description='Track Montana Supreme Court criminal case outcomes — convictions upheld, reversed, and remanded across DUI, homicide, assault, and drug cases.',
+        canonical_url=f'{BASE_URL}/criminal-cases',
+        og_title='Montana Criminal Case Outcomes',
+        og_description='Montana Supreme Court criminal appeals — convictions upheld, reversed, and remanded.',
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
+
+
 @app.route('/court-case/<slug>')
 def public_court_case_detail(slug):
     conn = get_db()
@@ -7881,14 +8086,231 @@ def public_court_case_detail(slug):
     conn.close()
     if not case:
         return render_template('404.html'), 404
+
+    if case.get('is_criminal') and case.get('defendant_name'):
+        defendant = case['defendant_name']
+        charges = case.get('charges_text') or case.get('case_type') or 'criminal charges'
+        county = case.get('county') or 'Montana'
+        disposition = case.get('disposition') or ''
+        outcome_label = {
+            'affirmed': 'Conviction Upheld',
+            'reversed': 'Conviction Reversed',
+            'reversed_and_remanded': 'Reversed & Remanded',
+            'remanded': 'Remanded for Resentencing',
+        }.get(disposition, 'Criminal Case')
+        page_title = f"{defendant} — {charges} | {outcome_label} | Montana Blotter"
+        sentence_snippet = f" Sentenced: {case['sentence_text'][:80]}." if case.get('sentence_text') else ""
+        meta_description = (
+            f"{defendant} faced {charges} in {county} County, Montana. "
+            f"Appellate outcome: {outcome_label}.{sentence_snippet} "
+            f"Case {case['case_number']} — {case['court_name']}."
+        )[:160]
+    else:
+        page_title = f"{case['caption']} | Montana Court Tracker"
+        meta_description = f"{case['case_number']} in {case['court_name']} — hearings, filings, and public docket context."
+
     return render_template(
         'court_case_detail.html',
         case=case,
-        page_title=case['caption'],
-        meta_description=f"{case['case_number']} in {case['court_name']} with hearings, filings, and public docket context.",
+        page_title=page_title,
+        meta_description=meta_description,
         canonical_url=f"{BASE_URL}/court-case/{case['slug']}",
-        og_title=f"{case['caption']} | Montana Court Tracker",
-        og_description=f"{case['case_number']} in {case['court_name']} with hearings, filings, and public docket context.",
+        og_title=page_title,
+        og_description=meta_description,
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/people')
+def public_people_directory():
+    from services.persons.profiles import person_listing_context
+    conn = get_db()
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+    context = person_listing_context(
+        conn,
+        q=request.args.get('q', ''),
+        county=request.args.get('county', ''),
+        page=page,
+    )
+    conn.close()
+    return render_template(
+        'people_directory.html',
+        **context,
+        page_title='Montana Arrest Records — People',
+        meta_description=f'Search {context["total_bookings"]} Montana jail booking records by name. Find arrest history, charges, and court case outcomes.',
+        canonical_url=f'{BASE_URL}/people',
+        og_title='Montana Arrest Records — People Directory',
+        og_description='Search Montana jail booking records by name across all counties.',
+        active_nav='arrests',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/person/<name_slug>')
+def public_person_profile(name_slug):
+    from services.persons.profiles import person_profile_context
+    conn = get_db()
+    context = person_profile_context(conn, name_slug)
+    conn.close()
+    if not context:
+        return render_template('404.html'), 404
+    name = context['display_name']
+    counties_str = ', '.join(context['counties'])
+    return render_template(
+        'person_profile.html',
+        **context,
+        page_title=f'{name} — Montana Arrest Record',
+        meta_description=f'{name} has {context["booking_count"]} jail booking record{"s" if context["booking_count"] != 1 else ""} in Montana{(" (" + counties_str + ")") if counties_str else ""}.',
+        canonical_url=f'{BASE_URL}/person/{name_slug}',
+        og_title=f'{name} | Montana Arrest Record',
+        og_description=f'{context["booking_count"]} booking record{"s" if context["booking_count"] != 1 else ""} in Montana.',
+        active_nav='arrests',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/charges')
+def public_charges_index():
+    conn = get_db()
+    categories = conn.execute(
+        '''SELECT charge_category,
+               COUNT(*) AS incident_count,
+               MAX(date) AS latest_date
+           FROM records
+           WHERE charge_category IS NOT NULL AND charge_category != ''
+           GROUP BY charge_category
+           ORDER BY incident_count DESC'''
+    ).fetchall()
+    court_charges = conn.execute(
+        '''SELECT charges_text,
+               COUNT(*) AS case_count,
+               SUM(CASE WHEN disposition='affirmed' THEN 1 ELSE 0 END) AS affirmed,
+               SUM(CASE WHEN disposition LIKE 'reversed%' THEN 1 ELSE 0 END) AS reversed
+           FROM court_cases
+           WHERE is_criminal=1 AND charges_text IS NOT NULL AND charges_text != ''
+           GROUP BY charges_text ORDER BY case_count DESC'''
+    ).fetchall()
+    conn.close()
+    return render_template(
+        'charges_index.html',
+        categories=[dict(r) for r in categories],
+        court_charges=[dict(r) for r in court_charges],
+        page_title='Montana Criminal Charges — Arrest & Court Records by Charge Type',
+        meta_description='Browse Montana arrest records and court case outcomes organized by criminal charge type — DUI, drug offenses, violent crime, property crime, and more.',
+        canonical_url=f'{BASE_URL}/charges',
+        og_title='Montana Criminal Charges',
+        og_description='Browse Montana arrest records and court outcomes by charge type.',
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/charges/<charge_slug>')
+def public_charge_detail(charge_slug):
+    conn = get_db()
+    # Map slug back to charge_category
+    slug = (charge_slug or '').strip().lower().replace('-', '_')
+    label_map = {
+        'public_order': 'Public Order', 'traffic': 'Traffic', 'property': 'Property',
+        'welfare': 'Welfare', 'violent': 'Violent', 'drug': 'Drug', 'dui': 'DUI',
+        'domestic': 'Domestic', 'weapons': 'Weapons', 'other': 'Other',
+        'emergency': 'Emergency', 'criminal': 'Criminal',
+    }
+    label = label_map.get(slug, slug.replace('_', ' ').title())
+    incidents = conn.execute(
+        '''SELECT date, location, incident_type, county, summary
+           FROM records
+           WHERE lower(charge_category) = ?
+           ORDER BY date DESC LIMIT 50''',
+        (slug,),
+    ).fetchall()
+    # Court cases with matching charges_text
+    court_cases = conn.execute(
+        '''SELECT cc.slug, cc.case_number, cc.defendant_name, cc.charges_text,
+                  cc.disposition, cc.sentencing_judge, c.name AS court_name
+           FROM court_cases cc JOIN courts c ON c.id = cc.court_id
+           WHERE cc.is_criminal=1
+             AND lower(cc.charges_text) LIKE ?
+           ORDER BY cc.filed_date DESC NULLS LAST
+           LIMIT 20''',
+        (f'%{slug.replace("_", " ")}%',),
+    ).fetchall()
+    stats = conn.execute(
+        '''SELECT COUNT(*) AS total,
+               COUNT(DISTINCT county) AS county_count,
+               MAX(date) AS latest
+           FROM records WHERE lower(charge_category) = ?''',
+        (slug,),
+    ).fetchone()
+    conn.close()
+    return render_template(
+        'charge_detail.html',
+        charge_slug=charge_slug,
+        charge_label=label,
+        incidents=[dict(r) for r in incidents],
+        court_cases=[dict(r) for r in court_cases],
+        stats=dict(stats) if stats else {},
+        page_title=f'Montana {label} Charges — Arrests & Court Cases',
+        meta_description=f'Browse Montana {label.lower()} arrest records and court case outcomes by county.',
+        canonical_url=f'{BASE_URL}/charges/{charge_slug}',
+        og_title=f'Montana {label} Charges',
+        og_description=f'Montana {label.lower()} arrest records and court case outcomes.',
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/opinions')
+def public_opinions_index():
+    conn = get_db()
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
+    per_page = 30
+    outcome_filter = request.args.get('outcome', '').strip().lower()
+
+    sql = '''
+        SELECT DISTINCT
+            cc.slug, cc.case_number, cc.caption, cc.defendant_name,
+            cc.charges_text, cc.disposition, cc.sentencing_judge,
+            cc.filed_date, cc.is_criminal,
+            cf.filing_title, cf.filing_date, cf.source_url AS opinion_pdf,
+            c.name AS court_name
+        FROM court_filings cf
+        JOIN court_cases cc ON cc.id = cf.case_id
+        JOIN courts c ON c.id = cc.court_id
+        WHERE lower(cf.filing_title) LIKE '%opinion%'
+    '''
+    params: list = []
+    if outcome_filter:
+        sql += ' AND lower(cc.disposition) = ?'
+        params.append(outcome_filter)
+    sql += ' ORDER BY cf.filing_date DESC NULLS LAST'
+
+    all_rows = conn.execute(sql, params).fetchall()
+    total = len(all_rows)
+    offset = (page - 1) * per_page
+    opinions = [dict(r) for r in all_rows[offset: offset + per_page]]
+    conn.close()
+
+    return render_template(
+        'opinions_index.html',
+        opinions=opinions,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=max(1, (total + per_page - 1) // per_page),
+        outcome_filter=outcome_filter,
+        page_title='Montana Supreme Court Opinions — Criminal Cases',
+        meta_description='Browse published Montana Supreme Court opinions in criminal cases — DUI, homicide, assault, drug offenses. Rulings, reversals, and affirmations.',
+        canonical_url=f'{BASE_URL}/opinions',
+        og_title='Montana Supreme Court Opinions',
+        og_description='Published Montana Supreme Court opinions in criminal cases.',
         active_nav='courts',
         current_year=datetime.now().year,
     )
@@ -8071,6 +8493,10 @@ def _sitemap_static_urls():
         (f'{BASE_URL}/courts', None),
         (f'{BASE_URL}/court-hearings', None),
         (f'{BASE_URL}/court-search', None),
+        (f'{BASE_URL}/criminal-cases', None),
+        (f'{BASE_URL}/people', None),
+        (f'{BASE_URL}/charges', None),
+        (f'{BASE_URL}/opinions', None),
         (f'{BASE_URL}/counties', None),
         (f'{BASE_URL}/cities', None),
         (f'{BASE_URL}/patterns', None),
@@ -8181,7 +8607,9 @@ def sitemap_index():
         ('charges', _iso_lastmod(charges_lastmod_row['lastmod']) if charges_lastmod_row else None),
         ('license-sanctions', None),
         ('bookings', _iso_lastmod(booking_lastmod_row['lastmod']) if booking_lastmod_row else None),
+        ('images', _iso_lastmod(booking_lastmod_row['lastmod']) if booking_lastmod_row else None),
         ('sex-offenders', _iso_lastmod(so_lastmod_row['lastmod']) if so_lastmod_row else None),
+        ('criminal-cases', None),
     ]
     items = []
     for name, lastmod in sections:
@@ -8223,10 +8651,13 @@ def sitemap_locations():
 def sitemap_posts():
     conn = get_db()
     rows = conn.execute(
-        "SELECT id, created_at FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean' ORDER BY created_at DESC"
+        "SELECT id, seo_slug, created_at FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean' ORDER BY created_at DESC"
     ).fetchall()
     conn.close()
-    urls = [(f"{BASE_URL}/post/{row['id']}", _iso_lastmod(row['created_at'])) for row in rows]
+    urls = [
+        (f"{BASE_URL}/post/{row['seo_slug'] or row['id']}", _iso_lastmod(row['created_at']))
+        for row in rows
+    ]
     return _render_urlset(urls)
 
 
@@ -8240,6 +8671,7 @@ def sitemap_records():
         JOIN posts ON posts.blotter_id = records.blotter_id
         WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
         ORDER BY records.created_at DESC
+        LIMIT 50000
         """
     ).fetchall()
     conn.close()
@@ -8262,6 +8694,19 @@ def sitemap_bookings():
     conn.close()
     urls = [(f"{BASE_URL}/booking/{row['id']}", _iso_lastmod(row['updated_at'])) for row in rows]
     return _render_urlset(urls)
+
+
+@app.route('/sitemap-images.xml')
+def sitemap_images():
+    # jail_bookings does not store photo URLs; return empty sitemap until mugshot
+    # storage is implemented so the sitemap index entry stays valid.
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+        ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">'
+        '</urlset>'
+    )
+    return Response(xml, mimetype='application/xml')
 
 
 @app.route('/sitemap-case-journeys.xml')
@@ -8360,9 +8805,187 @@ def sitemap_sex_offenders():
     return _render_urlset(urls)
 
 
+@app.route('/sitemap-criminal-cases.xml')
+def sitemap_criminal_cases():
+    conn = get_db()
+    rows = conn.execute(
+        '''
+        SELECT slug, COALESCE(outcome_scraped_at, updated_at) AS lastmod
+        FROM court_cases
+        WHERE is_criminal = 1
+          AND slug IS NOT NULL
+          AND slug != ''
+        ORDER BY lastmod DESC
+        LIMIT 5000
+        '''
+    ).fetchall()
+    conn.close()
+    urls = [(f"{BASE_URL}/court-case/{row['slug']}", _iso_lastmod(row['lastmod'])) for row in rows]
+    urls.append((f"{BASE_URL}/criminal-cases", None))
+    return _render_urlset(urls)
+
+
+@app.route('/sex-offender-updates')
+def sex_offender_updates():
+    """Paginated list of registry changes — new registrations, address changes, removals."""
+    county_filter = request.args.get('county', '').strip().upper()
+    type_filter = request.args.get('type', '').strip()
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 50
+
+    conn = get_db()
+    counties = [r['address_county'] for r in conn.execute(
+        "SELECT DISTINCT address_county FROM sex_offenders WHERE address_county IS NOT NULL AND address_county != '' ORDER BY address_county"
+    ).fetchall()]
+    change_types = [r['change_type'] for r in conn.execute(
+        'SELECT DISTINCT change_type FROM sex_offender_changes ORDER BY change_type'
+    ).fetchall()]
+
+    where = []
+    params = []
+    if county_filter:
+        where.append('so.address_county = ?')
+        params.append(county_filter)
+    if type_filter:
+        where.append('soc.change_type = ?')
+        params.append(type_filter)
+    where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+
+    base_sql = f'''
+        FROM sex_offender_changes soc
+        JOIN sex_offenders so ON soc.offender_id = so.id
+        {where_sql}
+    '''
+    total = conn.execute(f'SELECT COUNT(*) {base_sql}', params).fetchone()[0]
+    rows = conn.execute(
+        f'''SELECT soc.change_type, soc.change_note, soc.created_at,
+                   so.full_name, so.offender_type, so.address_county
+            {base_sql}
+            ORDER BY soc.created_at DESC
+            LIMIT ? OFFSET ?''',
+        params + [per_page, (page - 1) * per_page],
+    ).fetchall()
+    conn.close()
+
+    pages = max(1, (total + per_page - 1) // per_page)
+    return render_template('sex_offender_updates.html',
+                           rows=rows, counties=counties, change_types=change_types,
+                           county_filter=county_filter, type_filter=type_filter,
+                           page=page, pages=pages, total=total,
+                           current_year=datetime.now().year)
+
+
+@app.route('/sex-offender-updates/<county_slug>')
+def sex_offender_county(county_slug):
+    """Per-county registrant listing with Leaflet map."""
+    county = county_slug.upper().replace('-', ' ')
+    conn = get_db()
+    offenders = conn.execute(
+        """SELECT full_name, offender_type, address_street, address_city,
+                  tier, risk_level, offense_description, lat, lon
+           FROM sex_offenders
+           WHERE status = 'active' AND UPPER(address_county) = ?
+           ORDER BY full_name""",
+        (county,),
+    ).fetchall()
+    cities = sorted({o['address_city'] for o in offenders if o['address_city']})
+    conn.close()
+    return render_template('sex_offender_county.html',
+                           county=county.title(), offenders=offenders, cities=cities,
+                           current_year=datetime.now().year)
+
+
+@app.route('/api/push/vapid-public-key')
+def push_vapid_public_key():
+    return jsonify({"publicKey": config.VAPID_PUBLIC_KEY})
+
+
+@app.route('/api/push/subscribe', methods=['POST'])
+def push_subscribe():
+    data = request.get_json(silent=True) or {}
+    endpoint = (data.get('endpoint') or '').strip()
+    p256dh = (data.get('p256dh') or '').strip()
+    auth = (data.get('auth') or '').strip()
+    county_filter = (data.get('county') or '').strip().lower()
+    if not endpoint or not p256dh or not auth:
+        return jsonify({"error": "endpoint, p256dh and auth are required"}), 400
+    conn = get_db()
+    try:
+        conn.execute(
+            """
+            INSERT INTO push_subscriptions (endpoint, p256dh, auth, county_filter, active)
+            VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(endpoint) DO UPDATE SET
+                p256dh = excluded.p256dh,
+                auth = excluded.auth,
+                county_filter = excluded.county_filter,
+                active = 1
+            """,
+            (endpoint, p256dh, auth, county_filter),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True}), 201
+
+
+@app.route('/api/push/unsubscribe', methods=['POST'])
+def push_unsubscribe():
+    data = request.get_json(silent=True) or {}
+    endpoint = (data.get('endpoint') or '').strip()
+    if not endpoint:
+        return jsonify({"error": "endpoint required"}), 400
+    conn = get_db()
+    try:
+        conn.execute("UPDATE push_subscriptions SET active = 0 WHERE endpoint = ?", (endpoint,))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route('/api/sex-offenders/geojson')
+def sex_offenders_geojson():
+    """GeoJSON endpoint for the county map — used by Leaflet."""
+    county = request.args.get('county', '').strip().upper().replace('-', ' ')
+    conn = get_db()
+    where = "WHERE status = 'active' AND lat IS NOT NULL AND lon IS NOT NULL"
+    params = []
+    if county:
+        where += ' AND UPPER(address_county) = ?'
+        params.append(county)
+    rows = conn.execute(
+        f'''SELECT full_name, offender_type, address_street, address_city,
+                   tier, risk_level, offense_description, lat, lon
+            FROM sex_offenders {where}''',
+        params,
+    ).fetchall()
+    conn.close()
+    features = []
+    for r in rows:
+        addr = ', '.join(filter(None, [r['address_street'], r['address_city'], 'MT']))
+        features.append({
+            'type': 'Feature',
+            'geometry': {'type': 'Point', 'coordinates': [r['lon'], r['lat']]},
+            'properties': {
+                'name': r['full_name'] or '—',
+                'address': addr,
+                'offender_type': r['offender_type'] or '—',
+                'tier': r['tier'] or '—',
+                'risk_level': r['risk_level'] or '—',
+                'offense': r['offense_description'] or '',
+            },
+        })
+    import json as _json
+    return app.response_class(
+        _json.dumps({'type': 'FeatureCollection', 'features': features}),
+        mimetype='application/json',
+    )
+
+
 @app.route('/arrests')
 def arrests():
-    """Dedicated arrest log — records where an arrest was made."""
+    """Arrest log — blotter records + live jail bookings combined."""
     county = request.args.get('county', '')
     search_query = request.args.get('q', '')
     page = max(1, request.args.get('page', 1, type=int))
@@ -8370,44 +8993,76 @@ def arrests():
 
     conn = get_db()
 
-    arrest_filter = """(
-        LOWER(COALESCE(records.details, '')) LIKE '%arrest%'
-        OR LOWER(COALESCE(records.incident_type, '')) LIKE '%arrest%'
-        OR LOWER(COALESCE(records.incident, '')) LIKE '%arrest%'
-    )"""
+    # Unified source: blotter records containing "arrest" + active/recent jail bookings
+    union_sql = """
+        SELECT
+            r.id,
+            r.date,
+            r.county,
+            LOWER(REPLACE(COALESCE(r.county, ''), ' ', '-')) AS county_slug,
+            COALESCE(r.incident_type, r.incident, 'Arrest') AS title,
+            COALESCE(r.details, '') AS details,
+            COALESCE(r.location, '') AS location,
+            'record' AS source_type,
+            r.id AS link_id,
+            r.created_at AS sort_key
+        FROM records r
+        WHERE (LOWER(COALESCE(r.details, ''))       LIKE '%arrest%'
+            OR LOWER(COALESCE(r.incident_type, '')) LIKE '%arrest%'
+            OR LOWER(COALESCE(r.incident, ''))      LIKE '%arrest%')
 
-    sql = f"""
-        SELECT records.*,
-               COALESCE(blotters.filename, '') AS filename
-        FROM records
-        LEFT JOIN blotters ON records.blotter_id = blotters.id
-        WHERE {arrest_filter}
+        UNION ALL
+
+        SELECT
+            b.id,
+            COALESCE(DATE(b.booking_at), DATE(b.first_seen_at)) AS date,
+            b.county_name AS county,
+            b.county_slug,
+            b.person_name AS title,
+            COALESCE(b.charges_summary, '') AS details,
+            b.facility_name AS location,
+            'booking' AS source_type,
+            b.id AS link_id,
+            b.first_seen_at AS sort_key
+        FROM jail_bookings b
+        WHERE b.is_current = 1
+           OR b.first_seen_at > datetime('now', '-30 days')
     """
+
+    where_clauses = []
     params = []
 
     if county:
-        sql += " AND records.county = ?"
+        where_clauses.append("county = ?")
         params.append(county)
     if search_query:
         st = f'%{search_query}%'
-        sql += " AND (records.incident_type LIKE ? OR records.details LIKE ? OR records.location LIKE ?)"
+        where_clauses.append("(title LIKE ? OR details LIKE ? OR location LIKE ?)")
         params.extend([st, st, st])
 
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
     total = conn.execute(
-        sql.replace("SELECT records.*,\n               COALESCE(blotters.filename, '') AS filename", "SELECT COUNT(*)"),
-        params).fetchone()[0]
+        f"SELECT COUNT(*) FROM ({union_sql}) {where_sql}", params
+    ).fetchone()[0]
     total_pages = max(1, (total + per_page - 1) // per_page)
 
-    sql += " ORDER BY records.created_at DESC LIMIT ? OFFSET ?"
-    params.extend([per_page, (page - 1) * per_page])
-    records = conn.execute(sql, params).fetchall()
+    rows = conn.execute(
+        f"SELECT * FROM ({union_sql}) {where_sql} ORDER BY sort_key DESC LIMIT ? OFFSET ?",
+        params + [per_page, (page - 1) * per_page]
+    ).fetchall()
 
-    counties = [r['county'] for r in conn.execute(
-        'SELECT DISTINCT county FROM records ORDER BY county').fetchall()]
+    counties = [r[0] for r in conn.execute("""
+        SELECT DISTINCT county FROM (
+            SELECT county FROM records
+            UNION
+            SELECT county_name AS county FROM jail_bookings
+        ) ORDER BY county
+    """).fetchall()]
 
     conn.close()
     return render_template('arrests.html',
-                           records=records, total=total,
+                           records=rows, total=total,
                            total_pages=total_pages, page=page,
                            counties=counties, county=county,
                            q=search_query,
@@ -8562,10 +9217,54 @@ def subscribe():
                                    success=True, email=email, updated=True,
                                    current_year=datetime.now().year)
 
-    conn.close()
+    subscriber_count = 0
+    try:
+        count_conn = get_db()
+        subscriber_count = count_conn.execute(
+            'SELECT COUNT(*) FROM subscribers WHERE active=1'
+        ).fetchone()[0]
+        count_conn.close()
+    except Exception:
+        pass
     return render_template('subscribe.html', counties=all_counties,
                            source=source,
+                           subscriber_count=subscriber_count,
                            current_year=datetime.now().year)
+
+
+_TRACKING_PIXEL = bytes([
+    0x47,0x49,0x46,0x38,0x39,0x61,0x01,0x00,0x01,0x00,0x80,0x00,0x00,
+    0xFF,0xFF,0xFF,0x00,0x00,0x00,0x21,0xF9,0x04,0x00,0x00,0x00,0x00,
+    0x00,0x2C,0x00,0x00,0x00,0x00,0x01,0x00,0x01,0x00,0x00,0x02,0x02,
+    0x44,0x01,0x00,0x3B,
+])
+
+
+@app.route('/email/open')
+def email_open_track():
+    """1×1 GIF open-tracking beacon embedded in digest emails."""
+    token = (request.args.get('t') or '').strip()[:128]
+    date_str = (request.args.get('d') or '').strip()[:20]
+    if token:
+        try:
+            conn = get_db()
+            row = conn.execute(
+                'SELECT id FROM subscribers WHERE token = ? AND active = 1', (token,)
+            ).fetchone()
+            conn.close()
+            if row:
+                _record_subscribe_event(
+                    'email_open',
+                    source=f'digest_{date_str}' if date_str else 'digest',
+                    page_path='/email/open',
+                )
+        except Exception:
+            pass
+    from flask import Response as _Response
+    resp = _Response(_TRACKING_PIXEL, mimetype='image/gif')
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    return resp
 
 
 @app.route('/unsubscribe')
@@ -8590,13 +9289,133 @@ def unsubscribe():
 
 
 # ==========================================
+# SEX OFFENDER PROXIMITY ALERTS
+# ==========================================
+
+@app.route('/sex-offender-alerts', methods=['GET', 'POST'])
+def sex_offender_alerts_signup():
+    """Community sign-up for proximity alerts from the MT DOJ sex/violent offender registry."""
+    import secrets as _secrets
+    from services.geo.zip_geocode import zip_to_latlon
+
+    recaptcha_site_key = config.RECAPTCHA_SITE_KEY if getattr(config, 'RECAPTCHA_ENABLED', False) else ''
+
+    if request.method == 'POST':
+        recaptcha_token = request.form.get('g-recaptcha-response', '')
+        if getattr(config, 'RECAPTCHA_ENABLED', False) and not verify_recaptcha(recaptcha_token, action='sex_offender_alert'):
+            return render_template('sex_offender_alerts.html',
+                                   error='Security verification failed. Please try again.',
+                                   recaptcha_site_key=recaptcha_site_key,
+                                   current_year=datetime.now().year)
+
+        email = request.form.get('email', '').strip().lower()
+        zip_code = request.form.get('zip_code', '').strip()
+        try:
+            radius = float(request.form.get('radius', '5'))
+            if radius not in (1, 3, 5, 10, 25):
+                radius = 5.0
+        except (ValueError, TypeError):
+            radius = 5.0
+
+        if not email or '@' not in email:
+            return render_template('sex_offender_alerts.html',
+                                   error='Please enter a valid email address.',
+                                   zip_code=zip_code,
+                                   recaptcha_site_key=recaptcha_site_key,
+                                   current_year=datetime.now().year)
+
+        if len(zip_code) != 5 or not zip_code.isdigit():
+            return render_template('sex_offender_alerts.html',
+                                   error='Please enter a valid 5-digit Montana zip code.',
+                                   email=email,
+                                   recaptcha_site_key=recaptcha_site_key,
+                                   current_year=datetime.now().year)
+
+        coords = zip_to_latlon(zip_code)
+        if coords is None:
+            return render_template('sex_offender_alerts.html',
+                                   error='That zip code was not found in Montana. Please check and try again.',
+                                   email=email, zip_code=zip_code,
+                                   recaptcha_site_key=recaptcha_site_key,
+                                   current_year=datetime.now().year)
+
+        lat, lon = coords
+        token = _secrets.token_urlsafe(32)
+        conn = get_db()
+        try:
+            existing = conn.execute(
+                'SELECT id FROM sex_offender_alert_subscriptions WHERE email = ? AND zip_code = ?',
+                (email, zip_code),
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    '''UPDATE sex_offender_alert_subscriptions
+                       SET lat=?, lon=?, radius_miles=?, is_active=1
+                       WHERE id=?''',
+                    (lat, lon, radius, existing['id']),
+                )
+                conn.commit()
+                conn.close()
+                return render_template('sex_offender_alerts.html', success=True, updated=True,
+                                       email=email, zip_code=zip_code, radius=int(radius),
+                                       recaptcha_site_key=recaptcha_site_key,
+                                       current_year=datetime.now().year)
+            conn.execute(
+                '''INSERT INTO sex_offender_alert_subscriptions
+                   (email, lat, lon, radius_miles, zip_code, unsubscribe_token, is_active)
+                   VALUES (?, ?, ?, ?, ?, ?, 1)''',
+                (email, lat, lon, radius, zip_code, token),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        _record_subscribe_event('subscribe_success', source='sex_offender_alerts',
+                                page_path=request.path, email=email)
+        return render_template('sex_offender_alerts.html', success=True,
+                               email=email, zip_code=zip_code, radius=int(radius),
+                               recaptcha_site_key=recaptcha_site_key,
+                               current_year=datetime.now().year)
+
+    return render_template('sex_offender_alerts.html',
+                           recaptcha_site_key=recaptcha_site_key,
+                           current_year=datetime.now().year)
+
+
+@app.route('/sex-offender-alerts/unsubscribe')
+def sex_offender_alerts_unsubscribe():
+    """Token-based unsubscribe from proximity alerts."""
+    token = request.args.get('token', '')
+    conn = get_db()
+    row = conn.execute(
+        'SELECT email, zip_code FROM sex_offender_alert_subscriptions WHERE unsubscribe_token = ?',
+        (token,),
+    ).fetchone()
+    if row:
+        conn.execute(
+            'UPDATE sex_offender_alert_subscriptions SET is_active = 0 WHERE unsubscribe_token = ?',
+            (token,),
+        )
+        conn.commit()
+        conn.close()
+        return render_template('sex_offender_alerts.html', unsubscribed=True,
+                               recaptcha_site_key='',
+                               current_year=datetime.now().year)
+    conn.close()
+    return render_template('sex_offender_alerts.html',
+                           error='Invalid or expired unsubscribe link.',
+                           recaptcha_site_key='',
+                           current_year=datetime.now().year)
+
+
+# ==========================================
 # COUNTY ALERTS & NAME WATCH
 # ==========================================
 
 @app.route('/alerts', methods=['GET', 'POST'])
 def alerts_signup():
     """County alert and Name Watch subscription page."""
-    from alert_dispatcher import subscribe_county_alert, subscribe_name_watch
+    from services.alerts.dispatcher import subscribe_county_alert, subscribe_name_watch
     conn = get_db()
     counties = sorted({
         r['county'] for r in conn.execute(
@@ -8650,7 +9469,7 @@ def alerts_signup():
 
 @app.route('/alerts/unsubscribe')
 def alerts_unsubscribe():
-    from alert_dispatcher import cancel_alert_subscription
+    from services.alerts.dispatcher import cancel_alert_subscription
     token = request.args.get('token', '')
     email = cancel_alert_subscription(token) if token else None
     return render_template(
@@ -8664,7 +9483,7 @@ def alerts_unsubscribe():
 
 @app.route('/alerts/name-watch/cancel')
 def name_watch_cancel():
-    from alert_dispatcher import cancel_name_watch
+    from services.alerts.dispatcher import cancel_name_watch
     token = request.args.get('token', '')
     email = cancel_name_watch(token) if token else None
     return render_template(
@@ -8674,6 +9493,19 @@ def name_watch_cancel():
         unsubscribed_email=email,
         current_year=datetime.now().year,
     )
+
+
+@app.route('/post/<slug>')
+def public_post_detail_by_slug(slug):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id FROM posts WHERE seo_slug = ? AND COALESCE(audit_status, 'pending') = 'clean' LIMIT 1",
+        (slug,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return render_template('404.html'), 404
+    return public_post_detail(row['id'])
 
 
 @app.route('/post/<int:post_id>')
@@ -8707,6 +9539,10 @@ def public_post_detail(post_id):
     if not post:
         conn.close()
         return render_template('404.html'), 404
+
+    if post['seo_slug'] and request.endpoint == 'public_post_detail':
+        conn.close()
+        return redirect(f"{BASE_URL}/post/{post['seo_slug']}", 301)
 
     records = conn.execute(
         '''
@@ -8783,6 +9619,7 @@ def public_record_detail(record_id):
                blotters.source_document_id,
                posts.id AS post_id,
                posts.title AS post_title,
+               posts.seo_slug AS post_seo_slug,
                posts.incident_date,
                source_documents.source_type,
                source_documents.source_sender,
@@ -8856,6 +9693,12 @@ def public_record_detail(record_id):
     public_sibling_records = [_public_record_dict(row) for row in sibling_records]
     conn.close()
 
+    paywall_allowed, paywall_counts = preview_allowed(resource_type='incident', resource_id=record_id)
+    paywall_blocked = not paywall_allowed
+
+    post_slug = record['post_seo_slug'] or record['post_id']
+    parent_post_url = f"{BASE_URL}/post/{post_slug}" if post_slug else None
+
     return render_template(
         'record_detail.html',
         record=public_record,
@@ -8866,6 +9709,10 @@ def public_record_detail(record_id):
         linked_case_journey=linked_case_journey,
         sibling_records=public_sibling_records,
         current_year=datetime.now().year,
+        paywall_blocked=paywall_blocked,
+        paywall_counts=paywall_counts,
+        parent_post_url=parent_post_url,
+        parent_post_title=record['post_title'],
     )
 
 
@@ -8998,7 +9845,14 @@ def _normalize_jail_booking_status(value):
     return normalized
 
 
+_jail_sources_synced = False
+
+
 def _sync_jail_booking_sources(conn):
+    global _jail_sources_synced
+    if _jail_sources_synced:
+        return
+    _jail_sources_synced = True
     for county_slug, meta in COUNTY_DIRECTORY.items():
         if not meta.get('has_online_roster'):
             conn.execute(
@@ -11336,6 +12190,43 @@ def city_page(slug):
 
 
 # ==========================================
+# PERSON AGGREGATION PAGES
+# ==========================================
+
+@app.route('/person/<name_slug>')
+def person_detail(name_slug):
+    conn = get_db()
+    bookings = conn.execute(
+        """
+        SELECT id, person_name, booking_number, booking_at, release_at,
+               charges, photo_url, county_slug, is_current,
+               first_seen_at, last_seen_at
+        FROM jail_bookings
+        WHERE name_slug = ?
+        ORDER BY COALESCE(booking_at, first_seen_at, created_at) DESC
+        LIMIT 50
+        """,
+        (name_slug,),
+    ).fetchall()
+    conn.close()
+    if not bookings:
+        return render_template('404.html'), 404
+    person_name = bookings[0]['person_name']
+    county_slug = _slugify_key(bookings[0]['county_slug'] or '')
+    canonical = f"{BASE_URL}/person/{name_slug}"
+    return render_template(
+        'person_detail.html',
+        person_name=person_name,
+        name_slug=name_slug,
+        bookings=bookings,
+        county_slug=county_slug,
+        canonical_url=canonical,
+        page_title=f"{person_name} — Montana Blotter Public Records",
+        meta_description=f"Public booking records for {person_name} in Montana. Data sourced from official jail rosters.",
+    )
+
+
+# ==========================================
 # PATTERN PAGES
 # ==========================================
 
@@ -11410,6 +12301,81 @@ def pattern_page(pattern_slug, county_slug=None):
         **context,
         current_year=datetime.now().year,
         og_image="https://montanablotter.com/static/icons/og-default.png",
+    )
+
+
+# ==========================================
+# DUI LEADERBOARD
+# ==========================================
+
+@app.route('/dui')
+def dui_leaderboard():
+    conn = get_db()
+    record_rows = conn.execute(
+        """
+        SELECT county, COUNT(*) AS c
+        FROM records
+        WHERE charge_category = 'dui'
+           OR LOWER(COALESCE(incident_type, incident, '')) LIKE '%dui%'
+           OR LOWER(COALESCE(incident_type, incident, '')) LIKE '%driving under%'
+        GROUP BY county
+        """
+    ).fetchall()
+
+    booking_rows = conn.execute(
+        """
+        SELECT jbs.county_name, jbs.county_slug, COUNT(*) AS c
+        FROM jail_bookings jb
+        JOIN jail_booking_sources jbs ON jb.source_id = jbs.id
+        WHERE LOWER(COALESCE(jb.charges_summary, '')) LIKE '%dui%'
+           OR LOWER(COALESCE(jb.charges_summary, '')) LIKE '%driving under%'
+        GROUP BY jbs.county_slug, jbs.county_name
+        """
+    ).fetchall()
+
+    recent_bookings = conn.execute(
+        """
+        SELECT jb.id, jb.person_name, jbs.county_name, jbs.county_slug,
+               jb.charges_summary, jb.booking_at
+        FROM jail_bookings jb
+        JOIN jail_booking_sources jbs ON jb.source_id = jbs.id
+        WHERE LOWER(COALESCE(jb.charges_summary, '')) LIKE '%dui%'
+           OR LOWER(COALESCE(jb.charges_summary, '')) LIKE '%driving under%'
+        ORDER BY jb.booking_at DESC
+        LIMIT 12
+        """
+    ).fetchall()
+    conn.close()
+
+    county_counts = {}
+    for row in record_rows:
+        name = (row['county'] or '').strip()
+        if name:
+            county_counts[name] = county_counts.get(name, 0) + row['c']
+    for row in booking_rows:
+        name = (row['county_name'] or '').strip()
+        if name:
+            county_counts[name] = county_counts.get(name, 0) + row['c']
+
+    leaderboard = sorted(
+        [
+            {'name': k, 'slug': _county_slug_for_name(k), 'count': v}
+            for k, v in county_counts.items() if k
+        ],
+        key=lambda x: -x['count'],
+    )
+    total = sum(x['count'] for x in leaderboard)
+
+    return render_template(
+        'dui_leaderboard.html',
+        leaderboard=leaderboard,
+        recent_bookings=recent_bookings,
+        total=total,
+        current_year=datetime.now().year,
+        canonical_url=f'{BASE_URL}/dui',
+        page_title='Montana DUI Leaderboard — County Rankings',
+        meta_description='Montana DUI arrests and bookings by county. See which counties lead in impaired driving enforcement and browse recent DUI jail booking records.',
+        og_image=f'{BASE_URL}/static/icons/og-default.png',
     )
 
 
@@ -11847,7 +12813,224 @@ register_public_salaries_blueprint(app, get_db=get_db)
 register_government_spending_blueprint(app, get_db=get_db)
 register_watchdog_blueprint(app)
 app.register_blueprint(recovery_ads_bp)
+from blueprints.admin_geocode import admin_geocode_bp
+app.register_blueprint(admin_geocode_bp)
 app.after_request(after_api_request)
+
+
+# ==========================================
+# FACEBOOK PUBLISHER ADMIN
+# ==========================================
+
+@app.route('/admin/facebook/connect')
+@login_required
+def admin_facebook_connect():
+    import secrets as _secrets
+    state = _secrets.token_urlsafe(16)
+    session['fb_oauth_state'] = state
+    app_id = getattr(config, 'FACEBOOK_APP_ID', '').strip()
+    graph_version = getattr(config, 'FACEBOOK_GRAPH_API_VERSION', 'v22.0')
+    redirect_uri = url_for('admin_facebook_callback', _external=True)
+    scope = 'pages_manage_posts,pages_read_engagement,pages_show_list'
+    oauth_url = (
+        f"https://www.facebook.com/{graph_version}/dialog/oauth"
+        f"?client_id={app_id}&redirect_uri={redirect_uri}"
+        f"&scope={scope}&state={state}"
+    )
+    return redirect(oauth_url)
+
+
+@app.route('/admin/facebook/callback')
+@login_required
+def admin_facebook_callback():
+    import requests as _req
+    error = request.args.get('error')
+    if error:
+        flash(f"Facebook login cancelled or denied: {error}")
+        return redirect(url_for('admin_facebook'))
+
+    state = request.args.get('state')
+    if state != session.pop('fb_oauth_state', None):
+        flash('Invalid OAuth state — possible CSRF. Please try again.')
+        return redirect(url_for('admin_facebook'))
+
+    code = request.args.get('code')
+    if not code:
+        flash('No code returned from Facebook.')
+        return redirect(url_for('admin_facebook'))
+
+    app_id = getattr(config, 'FACEBOOK_APP_ID', '').strip()
+    app_secret = getattr(config, 'FACEBOOK_APP_SECRET', '').strip()
+    graph_version = getattr(config, 'FACEBOOK_GRAPH_API_VERSION', 'v22.0')
+    redirect_uri = url_for('admin_facebook_callback', _external=True)
+
+    # Exchange code for short-lived user token
+    token_resp = _req.get(
+        f'https://graph.facebook.com/{graph_version}/oauth/access_token',
+        params={'client_id': app_id, 'client_secret': app_secret,
+                'redirect_uri': redirect_uri, 'code': code},
+        timeout=15,
+    )
+    token_data = token_resp.json()
+    short_token = token_data.get('access_token')
+    if not short_token:
+        flash(f"Failed to get user token: {token_data.get('error', {}).get('message', 'unknown')}")
+        return redirect(url_for('admin_facebook'))
+
+    # Exchange for long-lived user token (60-day)
+    ll_resp = _req.get(
+        f'https://graph.facebook.com/{graph_version}/oauth/access_token',
+        params={'grant_type': 'fb_exchange_token', 'client_id': app_id,
+                'client_secret': app_secret, 'fb_exchange_token': short_token},
+        timeout=15,
+    )
+    ll_data = ll_resp.json()
+    long_token = ll_data.get('access_token', short_token)
+
+    # Get pages this user manages
+    accounts_resp = _req.get(
+        f'https://graph.facebook.com/{graph_version}/me/accounts',
+        params={'access_token': long_token, 'fields': 'id,name,access_token'},
+        timeout=15,
+    )
+    accounts = accounts_resp.json().get('data', [])
+
+    if not accounts:
+        flash('No Facebook pages found for this account. Make sure you are an admin of the Montana Blotter page and approved all permissions.')
+        return redirect(url_for('admin_facebook'))
+
+    # Find Montana Blotter page by stored page_id, or fall back to first page
+    conn = get_db()
+    try:
+        stored_page_id = conn.execute(
+            "SELECT value FROM app_settings WHERE key='facebook_page_id'"
+        ).fetchone()
+        stored_page_id = (stored_page_id['value'] if stored_page_id else '').strip()
+
+        page = next((p for p in accounts if p['id'] == stored_page_id), accounts[0])
+        page_token = page.get('access_token', '')
+        page_id = page['id']
+        page_name = page.get('name', page_id)
+
+        save_facebook_settings({
+            'page_id': page_id,
+            'access_token': page_token,
+            'enabled': True,
+            'auto_enqueue_enabled': True,
+            'auto_publish_enabled': True,
+            'max_per_run': 3,
+            'base_url': 'https://montanablotter.com',
+        })
+        flash(f'Connected to Facebook page "{page_name}" (ID: {page_id}). Ready to publish!')
+    finally:
+        conn.close()
+
+    return redirect(url_for('admin_facebook'))
+
+
+@app.route('/admin/facebook', methods=['GET', 'POST'])
+@login_required
+def admin_facebook():
+    conn = get_db()
+    try:
+        if request.method == 'POST':
+            action = request.form.get('action', '')
+
+            if action == 'save_settings':
+                save_facebook_settings({
+                    'page_id': request.form.get('page_id', ''),
+                    'access_token': request.form.get('access_token', ''),
+                    'template': request.form.get('template', ''),
+                    'base_url': request.form.get('base_url', ''),
+                    'enabled': 'enabled' in request.form,
+                    'auto_enqueue_enabled': 'auto_enqueue_enabled' in request.form,
+                    'auto_publish_enabled': 'auto_publish_enabled' in request.form,
+                    'max_per_run': request.form.get('max_per_run', 3),
+                })
+                flash('Facebook settings saved.')
+
+            elif action == 'queue_post':
+                post_id = request.form.get('post_id')
+                if post_id:
+                    result = queue_post(
+                        post_id=int(post_id),
+                        content_type='blotter',
+                        enqueue_source='admin_manual',
+                        created_by_user_id=current_user.id,
+                    )
+                    if result.get('ok'):
+                        flash(f"Post #{post_id} queued (queue #{result.get('queue_id')}).")
+                    else:
+                        flash(f"Could not queue post: {result.get('error')}")
+
+            elif action == 'queue_recent':
+                limit = int(request.form.get('limit', 10) or 10)
+                result = queue_recent_posts(limit=limit, created_by_user_id=current_user.id)
+                flash(f"Queued {result['created']} new, requeued {result['requeued']}, skipped {result['skipped']}.")
+
+            elif action == 'run_publisher':
+                max_items = int(request.form.get('max_items', 3) or 3)
+                result = run_facebook_queue(max_items=max_items, manual_trigger=True)
+                flash(f"Publisher ran: posted {result.get('posted', 0)}, failed {result.get('failed', 0)}.")
+
+            elif action == 'publish_queue_item':
+                queue_id = request.form.get('queue_id')
+                if queue_id:
+                    result = publish_queue_item(int(queue_id))
+                    if result.get('ok'):
+                        flash(f"Posted to Facebook (FB ID: {result.get('facebook_post_id')}).")
+                    else:
+                        flash(f"Publish failed: {result.get('error')}")
+
+            elif action == 'retry_queue_item':
+                queue_id = request.form.get('queue_id')
+                if queue_id:
+                    conn.execute(
+                        "UPDATE facebook_post_queue SET status='queued', last_error=NULL, "
+                        "updated_at=datetime('now') WHERE id=? AND status IN ('failed','skipped')",
+                        (int(queue_id),),
+                    )
+                    conn.commit()
+                    flash(f'Queue item #{queue_id} reset to queued.')
+
+            return redirect(url_for('admin_facebook'))
+
+        settings = load_facebook_settings(conn)
+        token_preview = mask_token(settings.get('access_token', ''))
+
+        recent_posts = conn.execute(
+            """
+            SELECT p.id, p.title, p.county, p.incident_date,
+                   fpq.status AS queue_status
+            FROM posts p
+            LEFT JOIN facebook_post_queue fpq ON fpq.post_id = p.id
+            WHERE COALESCE(p.audit_status, 'pending') = 'clean'
+            ORDER BY p.incident_date DESC, p.created_at DESC
+            LIMIT 25
+            """
+        ).fetchall()
+
+        queue_rows = conn.execute(
+            """
+            SELECT fpq.id, fpq.post_id, fpq.status, fpq.attempts, fpq.max_attempts,
+                   fpq.facebook_post_id, fpq.last_error, fpq.created_at,
+                   p.title, p.county, p.incident_date
+            FROM facebook_post_queue fpq
+            LEFT JOIN posts p ON p.id = fpq.post_id
+            ORDER BY fpq.created_at DESC
+            LIMIT 50
+            """
+        ).fetchall()
+
+        return render_template(
+            'admin_facebook.html',
+            settings=settings,
+            token_preview=token_preview,
+            recent_posts=recent_posts,
+            queue_rows=queue_rows,
+        )
+    finally:
+        conn.close()
 
 
 @app.route('/admin/analytics')
@@ -11878,6 +13061,38 @@ def admin_visitors():
 # ERROR HANDLERS
 # ==========================================
 
+
+
+# ==========================================
+# HERMES WORKSPACE WEBSOCKET
+# ==========================================
+
+try:
+    from flask_sock import Sock as _Sock
+    import time as _time
+
+    _sock = _Sock(app)
+
+    @_sock.route('/ws/agents')
+    def ws_agents(ws):
+        import json as _json
+        conn = get_db()
+        try:
+            payload = build_agent_dashboard_payload(conn)
+        finally:
+            conn.close()
+        ws.send(_json.dumps({'type': 'snapshot', **payload}))
+        while True:
+            _time.sleep(10)
+            conn = get_db()
+            try:
+                payload = build_agent_dashboard_payload(conn)
+            finally:
+                conn.close()
+            ws.send(_json.dumps({'type': 'snapshot', **payload}))
+except ImportError:
+    pass
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template('404.html'), 404
@@ -11898,6 +13113,17 @@ def crime_map():
     return render_template('crime_map.html')
 
 
+@app.route('/crime-atlas')
+def crime_atlas():
+    return render_template('crime_atlas.html')
+
+
+@app.route('/crime-data')
+def crime_data():
+    from datetime import datetime
+    return render_template('crime_data.html', current_year=datetime.now().year)
+
+
 @app.route('/safety-scorecards')
 def safety_scorecards():
     return render_template('safety_scorecards.html')
@@ -11906,6 +13132,16 @@ def safety_scorecards():
 @app.route('/my-alerts')
 def my_alerts():
     return render_template('alert_profiles.html')
+
+
+@app.route('/pricing')
+def pricing_page():
+    keys = _stripe_keys()
+    return render_template(
+        'pricing.html',
+        stripe_publishable_key=keys['publishable_key'],
+        current_year=datetime.now().year,
+    )
 
 
 @app.errorhandler(500)

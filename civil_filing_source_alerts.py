@@ -84,12 +84,18 @@ def main() -> int:
         issues.append("no civil filing sources configured for adapter_type=icourtcase")
 
     grace_cutoff = now - timedelta(days=args.bootstrap_grace_days)
+
+    # Accumulate never-succeeded sources for deduplication before emitting alerts.
+    never_succeeded: list[tuple[str, str]] = []  # (source_key, last_error)
+
     for source in sources:
         if int(source["is_enabled"] or 0) != 1:
             checks.append(f"SKIP {source['source_key']}: disabled")
             continue
 
         last_success = parse_ts(source["last_success_at"])
+        last_error = (source["last_error"] or "").strip()
+
         if last_success is None:
             created_at = parse_ts(source["created_at"])
             if created_at and created_at >= grace_cutoff:
@@ -98,8 +104,10 @@ def main() -> int:
                     f"(created_at={source['created_at']})"
                 )
             else:
-                issues.append(f"{source['source_key']} has never succeeded")
-        elif last_success < stale_cutoff:
+                never_succeeded.append((source["source_key"], last_error))
+            continue
+
+        if last_success < stale_cutoff:
             issues.append(
                 f"{source['source_key']} stale last_success_at={source['last_success_at']} "
                 f"(>{args.max_stale_hours}h old)"
@@ -107,28 +115,43 @@ def main() -> int:
         else:
             checks.append(f"OK {source['source_key']}: last_success_at={source['last_success_at']}")
 
-        if source["last_error"].strip():
-            issues.append(f"{source['source_key']} last_error={source['last_error']}")
+        if last_error:
+            issues.append(f"{source['source_key']} last_error={last_error}")
 
-        if last_success is not None:
-            cur.execute(
-                """
-                SELECT COUNT(*)
-                FROM civil_filings
-                WHERE source_id = ?
-                  AND filing_date >= ?
-                """,
-                (source["id"], recent_cutoff),
+        cur.execute(
+            """
+            SELECT COUNT(*)
+            FROM civil_filings
+            WHERE source_id = ?
+              AND filing_date >= ?
+            """,
+            (source["id"], recent_cutoff),
+        )
+        recent_count = int(cur.fetchone()[0])
+        if recent_count < args.min_recent_records:
+            issues.append(
+                f"{source['source_key']} recent filings={recent_count} "
+                f"(required>={args.min_recent_records} since {recent_cutoff})"
             )
-            recent_count = int(cur.fetchone()[0])
-            if recent_count < args.min_recent_records:
-                issues.append(
-                    f"{source['source_key']} recent filings={recent_count} "
-                    f"(required>={args.min_recent_records} since {recent_cutoff})"
-                )
+        else:
+            checks.append(
+                f"OK {source['source_key']}: recent filings={recent_count} since {recent_cutoff}"
+            )
+
+    # Emit never-succeeded alerts — grouped when sources share the same error.
+    if never_succeeded:
+        error_groups: dict[str, list[str]] = {}
+        for key, err in never_succeeded:
+            error_groups.setdefault(err, []).append(key)
+
+        for err, keys in error_groups.items():
+            if len(keys) == 1:
+                detail = f" ({err})" if err else ""
+                issues.append(f"{keys[0]} has never succeeded{detail}")
             else:
-                checks.append(
-                    f"OK {source['source_key']}: recent filings={recent_count} since {recent_cutoff}"
+                detail = f": {err}" if err else " (no error recorded — check ingest log)"
+                issues.append(
+                    f"{len(keys)} icourtcase sources have never succeeded{detail}"
                 )
 
     for line in checks:

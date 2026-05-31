@@ -1,0 +1,102 @@
+<h2>Police Scanner Widget (Montana)</h2>
+<p class="subtitle">
+  Suggested stream: <strong>Ravalli County Sheriff / Hamilton Police / Fire / EMS</strong> (Broadcastify feed <code>30049</code>).
+  Choose where it should live on the homepage.
+  <br />
+  Note: mobile may collapse to a “Listen live” button to save space.
+</p>
+
+<div class="options">
+  <div class="option" data-choice="sidebar" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Right Sidebar (Sticky)</h3>
+      <p>Best for desktop; stays visible while scrolling the feed.</p>
+      <div class="mockup">
+        <div class="mockup-header">Homepage preview</div>
+        <div class="mockup-body">
+          <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start;">
+            <div style="border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;">
+              <div style="height:14px;width:55%;background:rgba(255,255,255,.16);border-radius:8px;margin-bottom:10px;"></div>
+              <div style="height:10px;width:85%;background:rgba(255,255,255,.10);border-radius:8px;margin-bottom:8px;"></div>
+              <div style="height:10px;width:70%;background:rgba(255,255,255,.10);border-radius:8px;margin-bottom:16px;"></div>
+              <div style="height:10px;width:92%;background:rgba(255,255,255,.08);border-radius:8px;margin-bottom:8px;"></div>
+              <div style="height:10px;width:88%;background:rgba(255,255,255,.08);border-radius:8px;margin-bottom:8px;"></div>
+              <div style="height:10px;width:84%;background:rgba(255,255,255,.08);border-radius:8px;"></div>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:12px;position:relative;">
+              <div style="font-weight:700;margin-bottom:6px;">Listen Live</div>
+              <div style="font-size:12px;opacity:.8;margin-bottom:10px;">Ravalli County Scanner</div>
+              <div style="height:88px;border-radius:10px;background:rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;font-size:12px;opacity:.8;">
+                Embedded player
+              </div>
+              <div style="margin-top:10px;height:10px;width:70%;background:rgba(255,255,255,.10);border-radius:8px;"></div>
+              <div style="margin-top:8px;height:10px;width:82%;background:rgba(255,255,255,.08);border-radius:8px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="banner" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Top Banner (Collapsible)</h3>
+      <p>Prominent, but takes vertical space; can default-collapsed.</p>
+      <div class="mockup">
+        <div class="mockup-header">Homepage preview</div>
+        <div class="mockup-body">
+          <div style="border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px;margin-bottom:12px;display:flex;gap:12px;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:700;">Listen Live: Ravalli County Scanner</div>
+              <div style="font-size:12px;opacity:.8;">Police / Fire / EMS</div>
+            </div>
+            <div style="min-width:180px;height:42px;border-radius:10px;background:rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;font-size:12px;opacity:.85;">
+              Player
+            </div>
+          </div>
+          <div style="border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;">
+            <div style="height:14px;width:55%;background:rgba(255,255,255,.16);border-radius:8px;margin-bottom:10px;"></div>
+            <div style="height:10px;width:85%;background:rgba(255,255,255,.10);border-radius:8px;margin-bottom:8px;"></div>
+            <div style="height:10px;width:70%;background:rgba(255,255,255,.10);border-radius:8px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="floating" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Floating Mini-Player</h3>
+      <p>Always available, minimal layout impact; can annoy some users.</p>
+      <div class="mockup">
+        <div class="mockup-header">Homepage preview</div>
+        <div class="mockup-body" style="position:relative;min-height:140px;">
+          <div style="border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px;">
+            <div style="height:14px;width:45%;background:rgba(255,255,255,.16);border-radius:8px;margin-bottom:10px;"></div>
+            <div style="height:10px;width:85%;background:rgba(255,255,255,.10);border-radius:8px;margin-bottom:8px;"></div>
+            <div style="height:10px;width:70%;background:rgba(255,255,255,.10);border-radius:8px;"></div>
+          </div>
+          <div style="position:absolute;right:10px;bottom:10px;width:220px;border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:10px;background:rgba(20,20,24,.75);backdrop-filter:blur(10px);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div style="font-weight:700;font-size:13px;">Listen Live</div>
+              <div style="font-size:12px;opacity:.8;">✕</div>
+            </div>
+            <div style="font-size:12px;opacity:.8;margin-top:2px;">Ravalli County</div>
+            <div style="margin-top:8px;height:36px;border-radius:10px;background:rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;font-size:12px;opacity:.85;">
+              Player
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr />
+<p class="subtitle">
+  Implementation note: we can embed via an <code>&lt;iframe&gt;</code> to <code>https://www.broadcastify.com/webPlayer/30049</code>,
+  or use a simple “Listen live” link if you prefer to avoid embeds.
+</p>

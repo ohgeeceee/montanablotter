@@ -1,0 +1,154 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Opinions</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl">
+            <p class="public-eyebrow" style="color:var(--public-steel);">Montana Supreme Court</p>
+            <h1 class="public-title mt-3 max-w-4xl">
+                Published
+                <span class="block" style="color:var(--public-red);">opinions</span>
+            </h1>
+            <p class="public-copy max-w-3xl">
+                {{ total }} Supreme Court opinion{{ 's' if total != 1 }} in criminal cases — DUI, homicide, assault, drug offenses, and more.
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="bg-slate-50 text-slate-900">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid lg:grid-cols-[minmax(0,1fr)_280px] gap-8">
+
+        <div class="space-y-6">
+
+            <form method="get" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="flex flex-wrap gap-3 items-end">
+                    <div>
+                        <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Outcome</label>
+                        <select name="outcome" class="mt-2 rounded-2xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-900">
+                            <option value="">All outcomes</option>
+                            <option value="affirmed" {% if outcome_filter == 'affirmed' %}selected{% endif %}>Conviction upheld</option>
+                            <option value="reversed_and_remanded" {% if outcome_filter == 'reversed_and_remanded' %}selected{% endif %}>Reversed &amp; Remanded</option>
+                            <option value="reversed" {% if outcome_filter == 'reversed' %}selected{% endif %}>Reversed</option>
+                            <option value="remanded" {% if outcome_filter == 'remanded' %}selected{% endif %}>Remanded</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" class="public-btn public-btn--primary px-5 py-2.5 text-sm">Filter</button>
+                        {% if outcome_filter %}
+                        <a href="/opinions" class="public-btn px-5 py-2.5 text-sm">Clear</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+
+            <p class="text-sm text-slate-500">{{ total }} opinion{{ 's' if total != 1 }}{% if outcome_filter %} filtered by outcome{% endif %}</p>
+
+            <div class="space-y-3">
+                {% for op in opinions %}
+                <a href="/court-case/{{ op.slug }}" class="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-300 hover:shadow transition-all">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            {% if op.charges_text %}
+                            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1" style="font-family:'IBM Plex Mono',monospace;">{{ op.charges_text }}</p>
+                            {% endif %}
+                            <p class="text-sm font-black text-slate-900">
+                                {% if op.defendant_name %}State of Montana v. {{ op.defendant_name }}
+                                {% elif op.caption %}{{ op.caption }}
+                                {% else %}{{ op.case_number }}{% endif %}
+                            </p>
+                            <p class="mt-1 text-xs text-slate-500">{{ op.case_number }} · {{ op.court_name }}</p>
+                            {% if op.filing_title %}
+                            <p class="mt-1.5 text-xs text-slate-600">{{ op.filing_title }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="text-right shrink-0 space-y-1.5">
+                            {% if op.filing_date %}
+                            <p class="text-[11px] font-black uppercase tracking-wide" style="font-family:'IBM Plex Mono',monospace; color:var(--public-red);">{{ op.filing_date[:10] }}</p>
+                            {% endif %}
+                            {% if op.disposition %}
+                                {% if op.disposition == 'affirmed' %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">Upheld</span>
+                                {% elif op.disposition == 'reversed_and_remanded' %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-orange-50 text-orange-700 border border-orange-200">Reversed &amp; Remanded</span>
+                                {% elif op.disposition == 'reversed' %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-red-50 text-red-700 border border-red-200">Reversed</span>
+                                {% elif op.disposition == 'remanded' %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-yellow-50 text-yellow-700 border border-yellow-200">Remanded</span>
+                                {% else %}
+                                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-slate-100 text-slate-500">Pending</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-slate-100 text-slate-500">Pending</span>
+                            {% endif %}
+                            {% if op.opinion_pdf %}
+                            <div>
+                                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold bg-slate-100 text-slate-600">PDF available</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% else %}
+                <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+                    No opinions indexed yet.
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if total_pages > 1 %}
+            <div class="mt-6 flex items-center justify-center gap-2">
+                {% if page > 1 %}
+                <a href="?page={{ page - 1 }}{% if outcome_filter %}&outcome={{ outcome_filter }}{% endif %}" class="public-btn px-5 py-2 text-sm">&larr; Prev</a>
+                {% endif %}
+                <span class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }}</span>
+                {% if page < total_pages %}
+                <a href="?page={{ page + 1 }}{% if outcome_filter %}&outcome={{ outcome_filter }}{% endif %}" class="public-btn px-5 py-2 text-sm">Next &rarr;</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </div>
+
+        <aside class="space-y-5">
+            <section class="public-sidebar-card p-5">
+                <h2 class="public-sidebar-card__eyebrow">Filter by outcome</h2>
+                <div class="mt-3 space-y-2">
+                    <a href="/opinions" class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {% if not outcome_filter %}bg-slate-100 font-bold text-slate-900{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                        <span>All outcomes</span>
+                    </a>
+                    <a href="/opinions?outcome=affirmed" class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {% if outcome_filter == 'affirmed' %}bg-emerald-50 font-bold text-emerald-800{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                        <span>Conviction upheld</span>
+                    </a>
+                    <a href="/opinions?outcome=reversed_and_remanded" class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {% if outcome_filter == 'reversed_and_remanded' %}bg-orange-50 font-bold text-orange-800{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                        <span>Reversed &amp; Remanded</span>
+                    </a>
+                    <a href="/opinions?outcome=reversed" class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {% if outcome_filter == 'reversed' %}bg-red-50 font-bold text-red-800{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                        <span>Reversed</span>
+                    </a>
+                    <a href="/opinions?outcome=remanded" class="flex items-center justify-between rounded-lg px-3 py-2 text-sm {% if outcome_filter == 'remanded' %}bg-yellow-50 font-bold text-yellow-800{% else %}text-slate-600 hover:bg-slate-50{% endif %}">
+                        <span>Remanded</span>
+                    </a>
+                </div>
+            </section>
+
+            <section class="public-sidebar-card p-5">
+                <h2 class="public-sidebar-card__eyebrow">Related</h2>
+                <div class="mt-3 space-y-2 text-sm">
+                    <a href="/criminal-cases" class="public-btn w-full block text-center py-2">All criminal cases</a>
+                    <a href="/people" class="public-btn w-full block text-center py-2">People directory</a>
+                    <a href="/charges" class="public-btn w-full block text-center py-2">Browse by charge</a>
+                </div>
+            </section>
+        </aside>
+
+    </div>
+</main>
+{% endblock %}

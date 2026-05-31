@@ -194,6 +194,8 @@ def _ensure_missing_person_columns(conn: sqlite3.Connection) -> None:
         ('photo_gallery_json', "TEXT DEFAULT '[]'"),
         ('official_last_updated', "TEXT DEFAULT ''"),
         ('official_last_checked', "TEXT DEFAULT ''"),
+        ('fb_missing_posted_at', "TEXT DEFAULT ''"),
+        ('fb_located_posted_at', "TEXT DEFAULT ''"),
     ]:
         if column_name not in existing_columns:
             conn.execute(f'ALTER TABLE missing_persons ADD COLUMN {column_name} {definition}')

@@ -1,0 +1,309 @@
+{
+  "generated_at": "2026-05-21T00:00:00Z",
+  "methodology": "HTTP probe of known URLs + Zuercher API validation + HTML structure analysis",
+  "summary": {
+    "total_counties": 56,
+    "with_working_jail_api": 2,
+    "with_working_jail_html": 13,
+    "with_broken_or_no_source": 41
+  },
+  "categories": {
+    "zuercher_api_working": [
+      {
+        "county": "Jefferson",
+        "slug": "jefferson",
+        "url": "https://jefferson-so-mt.zuercherportal.com/#/inmates",
+        "api_works": true,
+        "records_sample": 14,
+        "status": "scheduled"
+      },
+      {
+        "county": "Ravalli",
+        "slug": "ravalli",
+        "url": "https://ravalli-so-mt.zuercherportal.com/#/inmates",
+        "api_works": true,
+        "records_sample": 53,
+        "status": "scheduled"
+      }
+    ],
+    "zuercher_portal_no_api": [
+      {
+        "county": "Broadwater",
+        "slug": "broadwater",
+        "url": "https://broadwater-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but /api/portal/inmates/load returns 404. Needs Playwright DOM scrape or custom adapter."
+      },
+      {
+        "county": "Carbon",
+        "slug": "carbon",
+        "url": "https://carbon-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but API returns 404."
+      },
+      {
+        "county": "Gallatin",
+        "slug": "gallatin",
+        "url": "https://gallatin-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal in maintenance mode (HTML response)."
+      },
+      {
+        "county": "Madison",
+        "slug": "madison",
+        "url": "https://madison-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but API returns 404."
+      },
+      {
+        "county": "Meagher",
+        "slug": "meagher",
+        "url": "https://meagher-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but API returns 404."
+      },
+      {
+        "county": "Roosevelt",
+        "slug": "roosevelt",
+        "url": "https://roosevelt-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but API returns 404."
+      },
+      {
+        "county": "Rosebud",
+        "slug": "rosebud",
+        "url": "https://rosebud-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but API returns 404."
+      },
+      {
+        "county": "Stillwater",
+        "slug": "stillwater",
+        "url": "https://stillwater-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but API returns 404."
+      },
+      {
+        "county": "Valley",
+        "slug": "valley",
+        "url": "https://valley-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but API returns 404."
+      },
+      {
+        "county": "Wheatland",
+        "slug": "wheatland",
+        "url": "https://wheatland-so-mt.zuercherportal.com/#/inmates",
+        "api_works": false,
+        "note": "Portal loads but API returns 404."
+      }
+    ],
+    "html_roster_working": [
+      {
+        "county": "Beaverhead",
+        "slug": "beaverhead",
+        "url": "https://beaverheadcountymt.gov/departments/sheriff/",
+        "has_table": true,
+        "note": "Single table, needs custom parser"
+      },
+      {
+        "county": "Big Horn",
+        "slug": "big-horn",
+        "url": "https://www.bighorncountymt.gov/239/Detention",
+        "has_table": false,
+        "note": "Links to CrimeGraphics (bhcsd.crimegraphics.com) - Angular SPA, needs Playwright"
+      },
+      {
+        "county": "Carbon",
+        "slug": "carbon",
+        "url": "https://carbonmt.gov/sheriff/",
+        "has_table": false,
+        "note": "CivicPlus site, likely JS-rendered roster"
+      },
+      {
+        "county": "Cascade",
+        "slug": "cascade",
+        "url": "https://www.cascadecountymt.gov/314/Inmate-Roster",
+        "has_table": false,
+        "note": "SharePoint PDF embedded, existing PDF parser works"
+      },
+      {
+        "county": "Fergus",
+        "slug": "fergus",
+        "url": "https://fergusmt.gov/detention-center-roster",
+        "has_table": false,
+        "note": "CivicPlus site, JS-rendered"
+      },
+      {
+        "county": "Glacier",
+        "slug": "glacier",
+        "url": "https://glaciercountymt.gov/category/jail-roster/",
+        "has_table": false,
+        "note": "WordPress category page, may list posts with rosters"
+      },
+      {
+        "county": "Lewis and Clark",
+        "slug": "lewis-and-clark",
+        "url": "https://www.lccountymt.gov/Sheriff/Detention-Center",
+        "has_table": false,
+        "note": "Returns 403 from VPS, may need different IP/headers"
+      },
+      {
+        "county": "Mineral",
+        "slug": "mineral",
+        "url": "https://co.mineral.mt.us/departments/sheriff/",
+        "has_table": true,
+        "note": "Single table, needs custom parser"
+      },
+      {
+        "county": "Park",
+        "slug": "park",
+        "url": "https://www.parkcounty.org/Government-Departments/Sheriff-s-Office/Inmates-Housed/",
+        "has_table": false,
+        "note": "Returns 403 from VPS"
+      },
+      {
+        "county": "Phillips",
+        "slug": "phillips",
+        "url": "https://phillipscosheriff.com/inmates/",
+        "has_table": false,
+        "note": "WordPress page, possible JS roster"
+      },
+      {
+        "county": "Silver Bow",
+        "slug": "silver-bow",
+        "url": "https://co.silverbow.mt.us/3274/Detention-Center",
+        "has_table": true,
+        "note": "CivicPlus site, table is visitation schedule, not roster. Roster likely JS-rendered."
+      },
+      {
+        "county": "Valley",
+        "slug": "valley",
+        "url": "https://www.valleycountymt.gov/1288/Jail-Roster",
+        "has_table": false,
+        "note": "CivicPlus site, JS-rendered"
+      }
+    ],
+    "already_scheduled_adapters": [
+      {
+        "county": "Yellowstone",
+        "slug": "yellowstone",
+        "type": "ASP form solver",
+        "status": "working"
+      },
+      {
+        "county": "Missoula",
+        "slug": "missoula",
+        "type": "HTML table scraper",
+        "status": "working"
+      },
+      {
+        "county": "Flathead",
+        "slug": "flathead",
+        "type": "Custom HTML parser",
+        "status": "working"
+      },
+      {
+        "county": "Jefferson",
+        "slug": "jefferson",
+        "type": "Zuercher API",
+        "status": "working"
+      },
+      {
+        "county": "Sanders",
+        "slug": "sanders",
+        "type": "Custom PHP scraper",
+        "status": "working"
+      },
+      {
+        "county": "Ravalli",
+        "slug": "ravalli",
+        "type": "Zuercher API",
+        "status": "working"
+      }
+    ],
+    "police_blotter_sources": [
+      {
+        "agency": "Missoula City-County",
+        "type": "Daily Public Report HTML",
+        "status": "scheduled hourly"
+      },
+      {
+        "agency": "Whitefish PD",
+        "type": "PDF blotter",
+        "status": "scheduled every 6h"
+      },
+      {
+        "agency": "Bozeman PD",
+        "type": "ArcGIS calls + crime",
+        "status": "scheduled hourly/6h"
+      },
+      {
+        "agency": "Billings PD",
+        "type": "CrimeMapping",
+        "status": "scheduled twice daily"
+      },
+      {
+        "agency": "Great Falls PD",
+        "type": "CrimeMapping",
+        "status": "scheduled twice daily"
+      },
+      {
+        "agency": "Flathead Sheriff",
+        "type": "CrimeMapping",
+        "status": "scheduled twice daily"
+      },
+      {
+        "agency": "Hill County / Havre PD",
+        "type": "Email IMAP images",
+        "status": "scheduled every 15m"
+      },
+      {
+        "agency": "Cascade County / Great Falls",
+        "type": "Email IMAP",
+        "status": "scheduled every 15m"
+      }
+    ],
+    "no_public_source_found": [
+      "Blaine",
+      "Carter",
+      "Chouteau",
+      "Custer",
+      "Daniels",
+      "Deer Lodge",
+      "Fallon",
+      "Garfield",
+      "Golden Valley",
+      "Granite",
+      "Hill",
+      "Judith Basin",
+      "Lake",
+      "Liberty",
+      "Lincoln",
+      "McCone",
+      "Meagher",
+      "Musselshell",
+      "Petroleum",
+      "Pondera",
+      "Powder River",
+      "Powell",
+      "Prairie",
+      "Richland",
+      "Sheridan",
+      "Sweet Grass",
+      "Teton",
+      "Toole",
+      "Treasure",
+      "Wibaux"
+    ]
+  },
+  "recommendations": [
+    "Install Playwright browsers on VPS to enable SPA scraping for Zuercher and CrimeGraphics portals",
+    "Build generic Zuercher DOM scraper for counties with portals but no API",
+    "Fix Lewis and Clark and Park 403 errors (likely IP block, try residential proxy)",
+    "Investigate Glacier County WordPress posts for roster PDFs/links",
+    "Build custom parsers for Beaverhead and Mineral (simple HTML tables)",
+    "CrimeMapping integration is broken for 7 of 8 agencies - needs API key or parser fix",
+    "Bozeman ArcGIS returns 0 rows - endpoint may have changed"
+  ]
+}

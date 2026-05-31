@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Hermes Workspace | Montana Blotter{% endblock %}
+
+{% block body_class %}bg-gray-50 text-gray-900 font-sans{% endblock %}
+
+{% block extra_head %}
+<style>
+  .hw-panel {
+    background: #141210;
+    border: 1px solid #282420;
+    border-radius: 6px;
+  }
+  .hw-chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .hw-msg-user {
+    align-self: flex-end;
+    background: rgba(212,137,42,0.15);
+    border: 1px solid rgba(212,137,42,0.3);
+    color: #E8DFD0;
+    padding: 10px 14px;
+    border-radius: 10px 10px 2px 10px;
+    max-width: 80%;
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .hw-msg-assistant {
+    align-self: flex-start;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #C5BCAE;
+    padding: 10px 14px;
+    border-radius: 10px 10px 10px 2px;
+    max-width: 90%;
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .hw-msg-tool {
+    align-self: flex-start;
+    background: rgba(40,36,32,0.6);
+    border: 1px solid rgba(255,255,255,0.04);
+    color: #8A7F72;
+    padding: 8px 12px;
+    border-radius: 6px;
+    max-width: 90%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+  .hw-input {
+    background: #0D0C0B;
+    border: 1px solid #282420;
+    color: #E8DFD0;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  .hw-input:focus { border-color: #D4892A; }
+  .hw-btn {
+    background: #D4892A;
+    color: #0D0C0B;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .hw-btn:hover { opacity: 0.9; }
+  .hw-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .hw-btn-ghost {
+    background: transparent;
+    color: #8A7F72;
+    border: 1px solid #282420;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .hw-btn-ghost:hover { color: #E8DFD0; border-color: #D4892A; }
+  .hw-sidebar-header {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.55rem;
+    color: #D4892A;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 700;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #282420;
+    margin-bottom: 8px;
+  }
+  .hw-agent-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .hw-agent-row:hover { background: rgba(255,255,255,0.03); }
+  .hw-agent-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .hw-agent-dot.online { background: #4CAF50; box-shadow: 0 0 6px rgba(76,175,80,0.4); }
+  .hw-agent-dot.warning { background: #D4892A; box-shadow: 0 0 6px rgba(212,137,42,0.4); }
+  .hw-agent-dot.error { background: #C94A3A; box-shadow: 0 0 6px rgba(201,74,58,0.4); }
+  .hw-agent-dot.idle { background: #5C554C; }
+  .hw-feed-item {
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: #A69B8D;
+    border-left: 2px solid transparent;
+    transition: background 0.15s;
+  }
+  .hw-feed-item:hover { background: rgba(255,255,255,0.02); }
+  .hw-feed-item.info { border-left-color: #4A90D9; }
+  .hw-feed-item.success { border-left-color: #4CAF50; }
+  .hw-feed-item.warning { border-left-color: #D4892A; }
+  .hw-feed-item.error { border-left-color: #C94A3A; }
+  .hw-pending-box {
+    background: rgba(212,137,42,0.08);
+    border: 1px solid rgba(212,137,42,0.25);
+    border-radius: 6px;
+    padding: 12px;
+  }
+  @keyframes hw-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  .hw-scroll { overflow-y: auto; }
+  .hw-scroll::-webkit-scrollbar { width: 4px; }
+  .hw-scroll::-webkit-scrollbar-thumb { background: #282420; border-radius: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="hermes-workspace-root" style="padding: 16px; max-width: 1600px; margin: 0 auto;">
+  <div style="font-family:'IBM Plex Mono',monospace; font-size:0.55rem; color:#8A7F72; text-transform:uppercase; letter-spacing:0.18em; margin-bottom:12px;">
+    Hermes Workspace &mdash; Unified AI Console
+  </div>
+</div>
+
+<script id="hw-bootstrap" type="application/json">{{ bootstrap | safe }}</script>
+<script type="module" src="{{ url_for('static', filename='js/hermes-workspace.js') }}"></script>
+{% endblock %}

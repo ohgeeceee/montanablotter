@@ -3,6 +3,7 @@ PDF Parser for Montana Sheriff's Office Blotters
 Handles GCSO format and adaptable for other counties
 """
 
+import os
 import pdfplumber
 import re
 from datetime import datetime
@@ -181,6 +182,27 @@ class BlotterParser:
                 return adapter
         return PARSER_ADAPTERS[-1]
     
+    def _detect_county_from_filename(self) -> str | None:
+        """Infer county from filename patterns when text-based detection fails."""
+        name = os.path.basename(self.pdf_path).lower()
+        if re.search(r'whitehall|jeffco|jefferson.*cfs|cfs.*jefferson', name):
+            return "Jefferson"
+        if re.search(r'whitefish', name):
+            return "Flathead"
+        if re.search(r'havre|hill[_\-.]?co', name):
+            return "Hill"
+        if re.search(r'missoula', name):
+            return "Missoula"
+        if re.search(r'billings', name):
+            return "Yellowstone"
+        if re.search(r'great[_\-.]?falls|cascade|gfpd', name):
+            return "Cascade"
+        if re.search(r'gallatin|bozeman|gcso', name):
+            return "Gallatin"
+        if re.search(r'flathead|kalispell', name):
+            return "Flathead"
+        return None
+
     def _detect_county(self, text: str) -> str:
         """Extract county name from PDF header"""
         # Helena Police Department is in Lewis and Clark County
@@ -219,6 +241,11 @@ class BlotterParser:
                 # Reject pure numeric matches (e.g. "37" from "CFS 37-XXXX")
                 if candidate and not candidate.isdigit():
                     return candidate
+
+        # Filename-based fallback for PDFs where county isn't in the text body
+        filename_county = self._detect_county_from_filename()
+        if filename_county:
+            return filename_county
 
         return "Unknown"
     
