@@ -101,6 +101,46 @@ def _pipeline_jobs() -> list[dict]:
     return jobs
 
 
+def _alert_rollup(conn: sqlite3.Connection) -> dict:
+    try:
+        rollup = {
+            'ingestion': conn.execute(
+                "SELECT COUNT(*) FROM ingestion_source_alerts WHERE state = 'open'"
+            ).fetchone()[0],
+            'courts': conn.execute(
+                "SELECT COUNT(*) FROM court_source_alerts WHERE state = 'open'"
+            ).fetchone()[0],
+            'meetings': conn.execute(
+                "SELECT COUNT(*) FROM meeting_source_alerts WHERE state = 'open'"
+            ).fetchone()[0],
+        }
+        rollup['total'] = rollup['ingestion'] + rollup['courts'] + rollup['meetings']
+        return rollup
+    except sqlite3.Error:
+        return {'ingestion': 0, 'courts': 0, 'meetings': 0, 'total': 0}
+
+
+def _source_coverage_snapshot(conn: sqlite3.Connection) -> dict:
+    import app as _app_module
+
+    try:
+        coverage = _app_module._build_source_coverage_dashboard(conn)
+    except Exception:
+        return {'summary': {}, 'entries': []}
+    return {
+        'summary': coverage.get('summary') or {},
+        'entries': [
+            {
+                'agency': entry.get('agency') or '',
+                'category': entry.get('category') or '',
+                'freshness': entry.get('freshness') or '',
+                'freshness_tone': entry.get('freshness_tone') or 'slate',
+            }
+            for entry in (coverage.get('entries') or [])[:5]
+        ],
+    }
+
+
 def _stats() -> dict:
     try:
         conn = get_db()
