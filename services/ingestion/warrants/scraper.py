@@ -24,7 +24,13 @@ from urllib.parse import urljoin
 import pdfplumber
 import requests
 
+from services.ingestion.http_client import make_ingest_session, public_dns_fallback
 from services.ingestion.warrants.models import WarrantRecord
+
+try:
+    from services.ingestion.warrants.flathead import fetch_flathead_warrants
+except ImportError:  # pragma: no cover - optional during partial deploys
+    fetch_flathead_warrants = None  # type: ignore[assignment,misc]
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +62,8 @@ SOURCES: dict[str, dict[str, str]] = {
     },
     "flathead": {
         "county": "Flathead",
-        "url": "https://www.flatheadsheriff.org",
+        "url": "https://apps.flathead.mt.gov/warrants/warrants_list.php",
+        "adapter": "flathead",
     },
     "carbon": {
         "county": "Carbon",
@@ -312,15 +319,17 @@ def fetch_warrants_for_county(county_slug: str) -> list[WarrantRecord]:
         )
         return []
 
-    session = requests.Session()
-    session.headers.update({"User-Agent": USER_AGENT})
+    session = make_ingest_session(user_agent=USER_AGENT)
 
     county = source["county"]
     url = source["url"]
 
-    if county_slug == "rosebud":
-        return _fetch_rosebud(session)
-    return _fetch_generic_pdf(session, county, url)
+    with public_dns_fallback():
+        if county_slug == "rosebud":
+            return _fetch_rosebud(session)
+        if county_slug == "flathead" and fetch_flathead_warrants is not None:
+            return fetch_flathead_warrants(session)
+        return _fetch_generic_pdf(session, county, url)
 
 
 def upsert_warrants(
@@ -362,13 +371,15 @@ def upsert_warrants(
                 UPDATE warrants
                    SET charges_text = ?, bond_amount = ?, bond_type = ?,
                        issued_by = ?, status = ?, source_url = ?,
-                       scraped_at = ?, updated_at = ?
+                       scraped_at = ?, updated_at = ?,
+                       resolved_at = CASE WHEN ? = 'active' THEN '' ELSE resolved_at END
                  WHERE source_record_id = ?
                 """,
                 (
                     r.charges_text, r.bond_amount, r.bond_type,
-                    r.issued_by, r.status, r.source_url,
+                    r.issued_by, r.status or 'active', r.source_url,
                     run_ts, run_ts,
+                    r.status or 'active',
                     r.source_record_id,
                 ),
             )
@@ -376,3 +387,42 @@ def upsert_warrants(
 
     conn.commit()
     return new_count, updated_count
+
+
+def resolve_stale_warrants(
+    conn: sqlite3.Connection,
+    county: str,
+    active_source_ids: set[str],
+    run_ts: str,
+) -> int:
+    """Mark county warrants no longer on the sheriff list as resolved."""
+    cursor = conn.cursor()
+    rows = cursor.execute(
+        """
+        SELECT source_record_id
+        FROM warrants
+        WHERE county = ? AND status = 'active'
+        """,
+        (county,),
+    ).fetchall()
+    resolved = 0
+    for row in rows:
+        source_record_id = str(row['source_record_id'])
+        if source_record_id in active_source_ids:
+            continue
+        cursor.execute(
+            """
+            UPDATE warrants
+               SET status = 'resolved',
+                   resolved_at = CASE
+                       WHEN COALESCE(resolved_at, '') = '' THEN ?
+                       ELSE resolved_at
+                   END,
+                   updated_at = ?
+             WHERE source_record_id = ?
+            """,
+            (run_ts, run_ts, source_record_id),
+        )
+        resolved += 1
+    conn.commit()
+    return resolved

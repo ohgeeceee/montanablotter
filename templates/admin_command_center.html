@@ -110,7 +110,7 @@ a { color: inherit; text-decoration: none; }
 .sidebar.collapsed { width: 0; opacity: 0; pointer-events: none; }
 .sidebar::-webkit-scrollbar { width: 3px; }
 .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-.sidebar-inner { width: 240px; padding: 12px 0 24px; }
+.sidebar-inner { width: 240px; padding: 12px 0 24px; min-height: 100%; display: flex; flex-direction: column; }
 
 .sb-group-label {
   font-size: .58rem; font-weight: 800; letter-spacing: .22em;
@@ -152,6 +152,43 @@ a { color: inherit; text-decoration: none; }
 .stat-pill .val.g { color: var(--green); }
 .stat-pill .val.a { color: var(--amber); }
 .stat-pill .val.r { color: var(--red); }
+.topbar-admin-link {
+  font-size: .68rem; font-family: 'IBM Plex Mono', monospace; font-weight: 700;
+  color: var(--soft); border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 12px; white-space: nowrap; transition: color .15s, border-color .15s, background .15s;
+}
+.topbar-admin-link:hover { color: var(--amber); border-color: rgba(212,137,42,.35); background: rgba(212,137,42,.08); }
+.sb-footer { margin-top: auto; padding: 12px 16px 0; border-top: 1px solid var(--border); }
+.sb-footer .sb-link { color: var(--amber); font-weight: 700; }
+.ops-health-bar {
+  flex-shrink: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px; padding: 8px 14px; background: var(--nav); border-bottom: 1px solid var(--border);
+}
+@media (max-width: 1100px) {
+  .ops-health-bar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .ops-health-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.ops-tile {
+  display: block; background: var(--surf2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 10px; transition: background .15s, border-color .15s;
+}
+.ops-tile:hover { background: #243048; border-color: var(--bord2); }
+.ops-tile.is-alert { border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.08); }
+.ops-tile.is-ok { border-color: rgba(63,185,80,.25); }
+.ops-tile-lbl { font-size: .52rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.ops-tile-val { margin-top: 4px; font-size: 1.15rem; font-weight: 900; font-family: 'IBM Plex Mono', monospace; color: var(--text); line-height: 1; }
+.ops-tile-val.warn { color: var(--amber); }
+.ops-tile-val.bad { color: var(--red); }
+.ops-tile-val.good { color: var(--green); }
+.ops-coverage-list { flex-shrink: 0; display: flex; gap: 8px; padding: 0 14px 8px; overflow-x: auto; }
+.ops-coverage-list::-webkit-scrollbar { height: 0; }
+.ops-cov-chip {
+  flex-shrink: 0; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: 4px 10px; font-size: .62rem; color: var(--soft); white-space: nowrap;
+}
+.ops-cov-chip strong { color: var(--text); font-weight: 700; }
 
 /* ── Grid — house spans full top row ── */
 .cc-grid {
@@ -1240,6 +1277,7 @@ a { color: inherit; text-decoration: none; }
       <span style="color:var(--amber);margin-left:4px;">Command Center</span>
     </div>
     <div class="topbar-sep"></div>
+    <a href="/admin/dashboard" class="topbar-admin-link">All Admin Tools</a>
     <div id="topbar-spinner"></div>
     <div class="topbar-pill"><span class="lbl">Queue</span><span class="val" id="tp-queue">—</span></div>
     <div style="text-align:right;">
@@ -1254,50 +1292,25 @@ a { color: inherit; text-decoration: none; }
     <!-- ── Sidebar ── -->
     <nav class="sidebar" id="sidebar">
       <div class="sidebar-inner">
-        <div class="sb-group-label">Live</div>
+        <div class="sb-group-label">Live Ops</div>
         <a class="sb-link active" href="/admin/command-center">
           <i class="fa fa-satellite-dish"></i> Command Center
         </a>
         <a class="sb-link" href="/admin/dashboard">
-          <i class="fa fa-gauge"></i> Operations Dashboard
+          <i class="fa fa-gauge"></i> Operations Summary
         </a>
         <a class="sb-link" href="/admin/command-center/runbook">
           <i class="fa fa-book"></i> Agent Runbook
         </a>
 
-        <div class="sb-group-label">Operations</div>
-        <a class="sb-link" href="/admin/ingestion"><i class="fa fa-inbox"></i> Ingestion Jobs</a>
-        <a class="sb-link" href="/admin/blotters"><i class="fa fa-file-lines"></i> Blotters</a>
-        <a class="sb-link" href="/admin/upload"><i class="fa fa-upload"></i> Upload</a>
-        <a class="sb-link" href="/admin/operations/sources"><i class="fa fa-rss"></i> Sources</a>
-        <a class="sb-link" href="/admin/operations/redaction"><i class="fa fa-eraser"></i> Redaction</a>
-        <a class="sb-link" href="/admin/operations/jail-bookings"><i class="fa fa-gavel"></i> Jail Bookings</a>
-        <a class="sb-link" href="/admin/operations/missing-persons"><i class="fa fa-person-circle-question"></i> Missing Persons</a>
-        <a class="sb-link" href="/admin/operations/courts"><i class="fa fa-scale-balanced"></i> Courts</a>
-        <a class="sb-link" href="/admin/code-violations"><i class="fa fa-triangle-exclamation"></i> Code Violations</a>
-        <a class="sb-link" href="/admin/license-sanctions"><i class="fa fa-id-card"></i> License Sanctions</a>
+        <div class="sb-group-label">Needs Attention</div>
+        <a class="sb-link" href="/admin/ingestion" id="sb-alert-ingestion"><i class="fa fa-inbox"></i> Ingestion <span id="sb-count-ingestion"></span></a>
+        <a class="sb-link" href="/admin/operations/courts" id="sb-alert-courts"><i class="fa fa-scale-balanced"></i> Courts <span id="sb-count-courts"></span></a>
+        <a class="sb-link" href="/admin/operations/meetings" id="sb-alert-meetings"><i class="fa fa-calendar-days"></i> Meetings <span id="sb-count-meetings"></span></a>
 
-        <div class="sb-group-label">Publishing</div>
-        <a class="sb-link" href="/admin/blog"><i class="fa fa-pen-nib"></i> Blog Posts</a>
-        <a class="sb-link" href="/admin/blog/workflow"><i class="fa fa-sitemap"></i> Blog Workflow</a>
-        <a class="sb-link" href="/admin/facebook"><i class="fa-brands fa-facebook"></i> Facebook</a>
-        <a class="sb-link" href="/admin/content/seo"><i class="fa fa-magnifying-glass-chart"></i> SEO</a>
-        <a class="sb-link" href="/admin/emails"><i class="fa fa-envelope"></i> Emails</a>
-
-        <div class="sb-group-label">Business</div>
-        <a class="sb-link" href="/admin/bail-ads"><i class="fa fa-handshake"></i> Bail Ads</a>
-        <a class="sb-link" href="/admin/recovery-ads"><i class="fa fa-heart-pulse"></i> Recovery Ads</a>
-        <a class="sb-link" href="/admin/donations"><i class="fa fa-hand-holding-heart"></i> Donations</a>
-        <a class="sb-link" href="/admin/audience/subscribers"><i class="fa fa-users"></i> Subscribers</a>
-        <a class="sb-link" href="/admin/audience/email-ops"><i class="fa fa-paper-plane"></i> Email Ops</a>
-        <a class="sb-link" href="/admin/agency-contacts"><i class="fa fa-address-book"></i> Agency Contacts</a>
-
-        <div class="sb-group-label">System</div>
-        <a class="sb-link" href="/admin/ai"><i class="fa fa-robot"></i> AI Console</a>
-        <a class="sb-link" href="/admin/workspace"><i class="fa fa-terminal"></i> Workspace</a>
-        <a class="sb-link" href="/admin/security/users"><i class="fa fa-shield-halved"></i> Users &amp; Security</a>
-        <a class="sb-link" href="/admin/security/audit"><i class="fa fa-clipboard-list"></i> Audit Log</a>
-        <a class="sb-link" href="/admin/settings"><i class="fa fa-gear"></i> Settings</a>
+        <div class="sb-footer">
+          <a class="sb-link" href="/admin/dashboard"><i class="fa fa-th-large"></i> Browse All Admin Tools</a>
+        </div>
       </div>
     </nav>
 
@@ -1308,11 +1321,24 @@ a { color: inherit; text-decoration: none; }
       <div class="stats-strip">
         <div class="stat-pill"><span class="lbl">Records</span><span class="val" id="s-records">…</span></div>
         <div class="stat-pill"><span class="lbl">Blotters</span><span class="val" id="s-blotters">…</span></div>
+        <div class="stat-pill"><span class="lbl">Counties</span><span class="val" id="s-counties">…</span></div>
         <div class="stat-pill"><span class="lbl">Today</span><span class="val g" id="s-today">…</span></div>
         <div class="stat-pill"><span class="lbl">Queue</span><span class="val a" id="s-queue">…</span></div>
+        <div class="stat-pill"><span class="lbl">Open Alerts</span><span class="val" id="s-alerts">…</span></div>
         <div class="stat-pill"><span class="lbl">Failed 24h</span><span class="val" id="s-failed">…</span></div>
         <div class="stat-pill"><span class="lbl">Agents Active</span><span class="val g" id="s-agents">…</span></div>
       </div>
+
+      <div class="ops-health-bar" id="ops-health-bar">
+        <a class="ops-tile" href="/admin/ingestion" id="ops-ingestion"><div class="ops-tile-lbl">Ingestion Alerts</div><div class="ops-tile-val" id="ops-val-ingestion">—</div></a>
+        <a class="ops-tile" href="/admin/operations/courts" id="ops-courts"><div class="ops-tile-lbl">Court Sources</div><div class="ops-tile-val" id="ops-val-courts">—</div></a>
+        <a class="ops-tile" href="/admin/operations/meetings" id="ops-meetings"><div class="ops-tile-lbl">Meetings</div><div class="ops-tile-val" id="ops-val-meetings">—</div></a>
+        <div class="ops-tile is-ok" id="ops-total"><div class="ops-tile-lbl">Total Open</div><div class="ops-tile-val good" id="ops-val-total">—</div></div>
+        <div class="ops-tile"><div class="ops-tile-lbl">Live Sources</div><div class="ops-tile-val good" id="ops-val-live">—</div></div>
+        <div class="ops-tile"><div class="ops-tile-lbl">Covered</div><div class="ops-tile-val" id="ops-val-covered">—</div></div>
+        <div class="ops-tile"><div class="ops-tile-lbl">No Source</div><div class="ops-tile-val" id="ops-val-nosource">—</div></div>
+      </div>
+      <div class="ops-coverage-list" id="ops-coverage-list"></div>
 
       <!-- 3-Column Grid -->
       <div class="cc-grid">
@@ -1803,15 +1829,72 @@ a { color: inherit; text-decoration: none; }
     }
   }
 
+  /* ── Render ops health (alerts + coverage) ── */
+  function renderOpsHealth(stats) {
+    if (!stats) return;
+    const rollup = stats.alert_rollup || {};
+    const summary = (stats.source_coverage || {}).summary || {};
+    const entries = (stats.source_coverage || {}).entries || [];
+
+    function setTileVal(id, val, cls) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = String(val);
+      el.className = 'ops-tile-val' + (cls ? ' ' + cls : '');
+    }
+
+    const ing = rollup.ingestion || 0;
+    const courts = rollup.courts || 0;
+    const meetings = rollup.meetings || 0;
+    const total = rollup.total || 0;
+
+    setTileVal('ops-val-ingestion', ing, ing ? 'bad' : 'good');
+    setTileVal('ops-val-courts', courts, courts ? 'bad' : 'good');
+    setTileVal('ops-val-meetings', meetings, meetings ? 'bad' : 'good');
+    setTileVal('ops-val-total', total, total ? 'bad' : 'good');
+    setTileVal('ops-val-live', summary.live ?? '—', 'good');
+    setTileVal('ops-val-covered', summary.covered ?? '—', '');
+    setTileVal('ops-val-nosource', summary.no_source ?? '—', '');
+
+    ['ingestion','courts','meetings'].forEach(function(k) {
+      const count = rollup[k] || 0;
+      const badge = document.getElementById('sb-count-' + k);
+      if (badge) badge.textContent = count ? '(' + count + ')' : '';
+      const tile = document.getElementById('ops-' + k);
+      if (tile) tile.classList.toggle('is-alert', count > 0);
+    });
+    const totalTile = document.getElementById('ops-total');
+    if (totalTile) {
+      totalTile.classList.toggle('is-alert', total > 0);
+      totalTile.classList.toggle('is-ok', total === 0);
+    }
+
+    const list = document.getElementById('ops-coverage-list');
+    if (list) {
+      if (!entries.length) {
+        list.innerHTML = '<span class="ops-cov-chip">No coverage entries yet</span>';
+      } else {
+        list.innerHTML = entries.map(function(e) {
+          const fresh = e.freshness ? ' · ' + esc(e.freshness) : '';
+          return '<span class="ops-cov-chip"><strong>' + esc(e.agency) + '</strong>' + fresh + '</span>';
+        }).join('');
+      }
+    }
+  }
+
   /* ── Render stats ── */
   function renderStats(stats, system) {
     if (!stats) return;
     setStat('s-records',  (stats.total_records||0).toLocaleString());
     setStat('s-blotters', (stats.total_blotters||0).toLocaleString());
+    setStat('s-counties', (stats.total_counties||0).toLocaleString());
     setStat('s-today',    (stats.today_records||0).toLocaleString(), 'g');
     setStat('s-queue',    system ? (system.queue_depth??'—') : '—', 'a');
+    const alerts = (stats.alert_rollup || {}).total || 0;
+    setStat('s-alerts', alerts, alerts > 0 ? 'r' : 'g');
     const f = stats.failed_24h || 0;
     setStat('s-failed', f, f > 0 ? 'r' : 'g');
+    renderOpsHealth(stats);
   }
 
   /* ── Activity simulation ─────────────────────────────────

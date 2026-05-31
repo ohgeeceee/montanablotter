@@ -1,0 +1,105 @@
+{% extends "public_page_base.html" %}
+
+{% set active_nav = "wanted" %}
+
+{% block extra_head %}
+{% include "includes/wanted_posters_head.html" %}
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Active Warrants</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-950 via-red-950 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="max-w-4xl">
+            <div class="inline-flex items-center rounded-full bg-red-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-red-300">
+                Montana Active Warrant Database
+            </div>
+            <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Search active warrants posted by Montana sheriff offices.</h1>
+            <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                Browse WANTED posters from participating counties. Resolved records stay visible with a stamped overlay when someone is no longer listed by the sheriff.
+            </p>
+        </div>
+        <div class="mt-8 grid gap-4 sm:grid-cols-4">
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Active Records</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.active }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Resolved</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.resolved }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Counties Covered</p>
+                <p class="mt-2 text-3xl font-black">{{ summary.counties }}</p>
+            </div>
+            <div class="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-red-200">Last Synced</p>
+                <p class="mt-2 text-sm leading-6 text-red-50">{{ summary.latest_updated or 'Not synced yet' }}</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-10 sm:px-6">
+    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <form method="get" class="grid gap-4 lg:grid-cols-[1.2fr_0.6fr_0.6fr_0.6fr_auto]">
+            <div>
+                <label class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Search</label>
+                <input type="text" name="q" value="{{ q }}" placeholder="Name, county, city, or charge" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+            </div>
+            <div>
+                <label class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Status</label>
+                <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </div>
+            <div>
+                <label class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">County</label>
+                <select name="county" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    <option value="">All counties</option>
+                    {% for county_name in county_options %}
+                    <option value="{{ county_name }}" {% if county_filter == county_name %}selected{% endif %}>{{ county_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Sort</label>
+                <select name="sort" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                    <option value="name_asc" {% if sort_filter == 'name_asc' %}selected{% endif %}>Name A-Z</option>
+                    <option value="county_asc" {% if sort_filter == 'county_asc' %}selected{% endif %}>County</option>
+                    <option value="updated_desc" {% if sort_filter == 'updated_desc' %}selected{% endif %}>Recently updated</option>
+                    <option value="recently_resolved" {% if sort_filter == 'recently_resolved' %}selected{% endif %}>Recently resolved</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full rounded-xl bg-red-700 px-5 py-3 text-sm font-black text-white hover:bg-red-800">Search</button>
+            </div>
+        </form>
+    </div>
+
+    {% if rows %}
+    <div class="mt-6 wanted-poster-grid">
+        {% for record in rows %}
+        {% include "includes/wanted_poster_card.html" %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+        <p class="text-xl font-black text-slate-900">No warrant records match this search.</p>
+        <p class="mt-3 text-sm text-slate-600">Try clearing filters or browse the <a href="/warrants" class="font-semibold text-red-700 hover:underline">county warrant guides</a>.</p>
+    </div>
+    {% endif %}
+
+    <div class="mt-8 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950">
+        <strong>Public records notice:</strong> Warrant information is sourced from official county sheriff postings and may not reflect real-time court status.
+    </div>
+</div>
+{% endblock %}

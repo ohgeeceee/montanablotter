@@ -31,7 +31,13 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(__file__))
 
 import config
-from services.ingestion.warrants.scraper import SOURCES, fetch_warrants_for_county, upsert_warrants
+from services.ingestion.warrants.models import ensure_warrant_schema
+from services.ingestion.warrants.scraper import (
+    SOURCES,
+    fetch_warrants_for_county,
+    resolve_stale_warrants,
+    upsert_warrants,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -68,10 +74,13 @@ def _run_county(slug: str, dry_run: bool, run_ts: str) -> tuple[int, int]:
 
     conn = _get_conn()
     try:
+        ensure_warrant_schema(conn)
         new_count, updated_count = upsert_warrants(conn, records, run_ts)
+        active_ids = {r.source_record_id for r in records}
+        resolved_count = resolve_stale_warrants(conn, county, active_ids, run_ts)
         logger.info(
-            "%s: %d new, %d updated (total fetched: %d)",
-            county, new_count, updated_count, len(records),
+            "%s: %d new, %d updated, %d resolved (total fetched: %d)",
+            county, new_count, updated_count, resolved_count, len(records),
         )
         return new_count, updated_count
     finally:

@@ -62,6 +62,12 @@ from services.persons.missing import (
     missing_person_homepage_context,
     missing_person_public_context,
 )
+from services.persons.warrants_public import (
+    warrant_city_context,
+    warrant_detail_context,
+    warrant_homepage_context,
+    warrant_public_context,
+)
 from services.meetings.public import ensure_public_meeting_schema, meeting_admin_context
 from facebook_publisher import (
     load_facebook_settings,
@@ -6323,50 +6329,70 @@ def inject_public_nav():
         subscribe_variant = 'alerts' if (int(hashlib.sha256(seed.encode()).hexdigest(), 16) % 2) else 'subscribe'
     except Exception:
         subscribe_variant = 'subscribe'
-    subscribe_nav_label = 'Alerts' if subscribe_variant == 'alerts' else 'Subscribe'
+    subscribe_nav_label = 'Get Alerts' if subscribe_variant == 'alerts' else 'Subscribe'
     public_primary_nav_items = [
         {'id': 'home', 'href': home_href, 'label': 'Home'},
-        {'id': 'meetings', 'href': _public_meetings_href(), 'label': 'Meetings'},
-        {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
-        {'id': 'jail_rosters', 'href': '/detention', 'label': 'Detention', 'menu_label': 'Jails'},
-        {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds', 'menu_label': 'Bail'},
-        {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons', 'menu_label': 'Missing'},
-        {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
-        {'id': 'code_violations', 'href': '/code-violations', 'label': 'Code Violations', 'menu_label': 'Violations'},
-        {'id': 'license_sanctions', 'href': '/license-sanctions', 'label': 'License Sanctions', 'menu_label': 'Sanctions'},
-        {'id': 'sex_offender_updates', 'href': '/sex-offender-updates', 'label': 'Violent / Sexual Offender Updates', 'menu_label': 'Registry'},
+        {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
+        {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons'},
     ]
-    public_secondary_nav_items = [
-        {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Journeys', 'menu_label': 'Cases'},
-        {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings', 'menu_label': 'Bookings'},
-        {'id': 'crime_atlas', 'href': '/crime-atlas', 'label': 'Crime Atlas', 'menu_label': 'Atlas'},
-        {'id': 'crime_data', 'href': '/crime-data', 'label': 'Crime Data', 'menu_label': 'Data'},
-        {'id': 'support', 'href': '/support', 'label': 'Support'},
+    public_more_nav_groups = [
+        {
+            'title': 'Look up records',
+            'items': [
+                {'id': 'meetings', 'href': _public_meetings_href(), 'label': 'Public Meetings'},
+                {'id': 'jail_rosters', 'href': '/detention', 'label': 'Jail Rosters'},
+                {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings'},
+                {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds'},
+                {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Tracking'},
+            ],
+        },
+        {
+            'title': 'Maps & trends',
+            'items': [
+                {'id': 'crime_atlas', 'href': '/crime-atlas', 'label': 'Crime Map'},
+                {'id': 'crime_data', 'href': '/crime-data', 'label': 'Crime Data'},
+            ],
+        },
+        {
+            'title': 'Safety alerts',
+            'items': [
+                {'id': 'code_violations', 'href': '/code-violations', 'label': 'Code Violations'},
+                {'id': 'license_sanctions', 'href': '/license-sanctions', 'label': 'License Sanctions'},
+                {'id': 'sex_offender_updates', 'href': '/sex-offender-updates', 'label': 'Offender Alerts'},
+                {'id': 'wanted', 'href': '/wanted', 'label': 'Active Warrants'},
+            ],
+        },
+        {
+            'title': 'News & help',
+            'items': [
+                {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
+                {'id': 'support', 'href': '/support', 'label': 'Help & Support'},
+            ],
+        },
     ]
     if public_user and getattr(public_user, 'is_subscribed', False):
-        public_secondary_nav_items.append(
-            {'id': 'bondsman_command_center', 'href': '/bondsman/command-center', 'label': 'Command Center', 'menu_label': 'Command'}
+        public_more_nav_groups.append(
+            {
+                'title': 'Your account',
+                'items': [
+                    {
+                        'id': 'bondsman_portal',
+                        'href': '/bondsman/command-center',
+                        'label': 'Bondsman Portal',
+                    },
+                ],
+            }
         )
-    nav_items_by_id = {
-        item['id']: item
-        for item in [*public_primary_nav_items, *public_secondary_nav_items]
-    }
-    public_nav_menu_labels_by_href = {
-        item['href']: item.get('menu_label') or item['label']
-        for item in [*public_primary_nav_items, *public_secondary_nav_items]
-    }
-    public_nav_full_labels_by_href = {
-        item['href']: item['label']
-        for item in [*public_primary_nav_items, *public_secondary_nav_items]
-    }
-    mobile_legend_ids = ('bail_bonds', 'case_journeys', 'missing_persons')
-    public_mobile_short_label_legend = ' · '.join(
-        f"{nav_items_by_id[item_id]['menu_label']} = {nav_items_by_id[item_id]['label']}"
-        for item_id in mobile_legend_ids
-        if item_id in nav_items_by_id and nav_items_by_id[item_id].get('menu_label')
-    )
+    public_secondary_nav_items = []
+    all_public_nav_items = public_primary_nav_items + [
+        item for group in public_more_nav_groups for item in group['items']
+    ]
+    nav_items_by_id = {item['id']: item for item in all_public_nav_items}
+    public_nav_menu_labels_by_href = {item['href']: item['label'] for item in all_public_nav_items}
+    public_nav_full_labels_by_href = {item['href']: item['label'] for item in all_public_nav_items}
+    public_mobile_short_label_legend = ''
     public_action_labels = {
         'subscribe': subscribe_nav_label,
         'subscribe_full': 'Subscribe',
@@ -6383,12 +6409,13 @@ def inject_public_nav():
         {'href': '/courts', 'label': 'Courts'},
         {'href': '/case-journeys', 'label': 'Case Journeys'},
         {'href': '/missing-persons', 'label': 'Missing Persons'},
+        {'href': '/wanted', 'label': 'Active Warrants'},
         {'href': '/arrests', 'label': 'Arrests'},
         {'href': '/counties', 'label': 'Counties'},
         {'href': '/jail-rosters', 'label': 'Jail Rosters'},
         {'href': '/bail-bonds', 'label': 'Bail Bonds'},
         {'href': '/jail-bookings', 'label': 'New Bookings'},
-        {'href': '/bondsman/command-center', 'label': 'Command Center'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
+        {'href': '/bondsman/command-center', 'label': 'Bondsman Portal'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
         {'href': '/support', 'label': 'Support'},
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
         {'href': '/recovery-centers', 'label': 'Recovery Centers'},
@@ -6404,6 +6431,7 @@ def inject_public_nav():
     footer_featured_city_items = []
     return {
         'public_primary_nav_items': public_primary_nav_items,
+        'public_more_nav_groups': public_more_nav_groups,
         'public_secondary_nav_items': public_secondary_nav_items,
         'public_nav_menu_labels_by_href': public_nav_menu_labels_by_href,
         'public_nav_full_labels_by_href': public_nav_full_labels_by_href,
@@ -7795,6 +7823,7 @@ def index():
     featured_new_cities = []
     weekly_snapshot = _weekly_snapshot(conn)
     missing_persons_alert = missing_person_homepage_context(conn, limit=3)
+    wanted_spotlight = warrant_homepage_context(conn, limit=6)
     newsroom_context = _homepage_newsroom_context(
         conn,
         county=county,
@@ -7884,6 +7913,7 @@ def index():
         'sanctions': conn.execute("SELECT COUNT(*) FROM license_sanctions WHERE is_active = 1").fetchone()[0],
         'sex_offenders': conn.execute("SELECT COUNT(*) FROM sex_offenders WHERE status = 'active'").fetchone()[0],
         'missing_persons': conn.execute("SELECT COUNT(*) FROM missing_persons WHERE status = 'missing'").fetchone()[0],
+        'warrants_active': conn.execute("SELECT COUNT(*) FROM warrants WHERE status = 'active'").fetchone()[0],
         'blog': conn.execute("SELECT COUNT(*) FROM blog_posts WHERE published = 1").fetchone()[0],
     }
 
@@ -7909,6 +7939,7 @@ def index():
                            featured_new_cities=featured_new_cities,
                            weekly_snapshot=weekly_snapshot,
                            missing_persons_alert=missing_persons_alert,
+                           wanted_spotlight=wanted_spotlight,
                            leaderboard=leaderboard,
                            recent_court_events=recent_court_events,
                            recent_license_sanctions=recent_license_sanctions,
@@ -8398,6 +8429,57 @@ def missing_person_detail(slug):
         current_year=datetime.now().year,
     )
 
+
+
+
+@app.route('/wanted')
+def wanted_index():
+    conn = get_db()
+    try:
+        offset = max(int(request.args.get('offset') or 0), 0)
+    except (TypeError, ValueError):
+        offset = 0
+    context = warrant_public_context(
+        conn,
+        status_filter=request.args.get('status'),
+        q=request.args.get('q'),
+        county=request.args.get('county'),
+        sort=request.args.get('sort'),
+        offset=offset,
+    )
+    conn.close()
+    return render_template(
+        'wanted_index.html',
+        active_nav='wanted',
+        page_title='Montana Active Warrants',
+        meta_description='Search active warrants posted by Montana sheriff offices, with county filters and charge details.',
+        canonical_url=f'{BASE_URL}/wanted',
+        og_title='Montana Active Warrants',
+        og_description='Search active warrants from participating Montana counties.',
+        **context,
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/wanted/<slug>')
+def wanted_detail(slug):
+    conn = get_db()
+    context = warrant_detail_context(conn, slug)
+    conn.close()
+    if not context:
+        return render_template('404.html'), 404
+    record = context['record']
+    return render_template(
+        'wanted_detail.html',
+        active_nav='wanted',
+        page_title=f"{record['person_name']} — Active Warrant",
+        meta_description=f"Active warrant record for {record['person_name']} in {record['county']} County, Montana.",
+        canonical_url=f"{BASE_URL}{record['public_href']}",
+        og_title=f"{record['person_name']} | Montana Active Warrants",
+        og_description=record['charges_text'] or f"Active warrant in {record['county']} County, Montana.",
+        **context,
+        current_year=datetime.now().year,
+    )
 
 @app.route('/feed.xml')
 def rss_feed():
@@ -12157,6 +12239,7 @@ def city_page(slug):
     ).fetchone()
     last_report = last_row['incident_date'] if last_row else None
     bail_ad_placements = _bail_ad_public_placements(conn, county=city['county'])
+    wanted_city = warrant_city_context(conn, city['name'], city['county'])
 
     conn.close()
 
@@ -12179,6 +12262,7 @@ def city_page(slug):
         pattern_links=_pattern_links_for_county(city['county_slug']),
         linked_nearby=linked_nearby,
         bail_ad_placements=bail_ad_placements,
+        wanted_city=wanted_city,
         last_report=last_report,
         page_last_updated=last_report,
         page=page,
