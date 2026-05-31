@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime
 
 from flask import abort, jsonify, render_template, request
@@ -12,7 +13,7 @@ from utils.auth_constants import ADMIN_ACCESS_ROLES
 
 
 def _db():
-    return connect_db(timeout_seconds=0.75, busy_timeout_ms=750)
+    return connect_db()
 
 
 def _snapshot_payload() -> dict[str, object]:
@@ -37,14 +38,14 @@ def _is_local_heartbeat(request_headers) -> bool:
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_mission_control():
-    return render_template("admin_mission_control.html", snapshot=_snapshot_payload())
+    return redirect(url_for("admin.admin_command_center"))
 
 
 @admin_bp.route("/mission-control/runbook")
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_mission_control_runbook():
-    return render_template("admin_mission_control_runbook.html")
+    return redirect(url_for("admin.admin_command_center_runbook"))
 
 
 @admin_bp.route("/api/mission-control/snapshot")
@@ -76,6 +77,9 @@ def mission_control_heartbeat():
     conn = _db()
     try:
         upsert_agent_heartbeat(conn, payload)
+    except sqlite3.OperationalError as exc:
+        conn.close()
+        return jsonify({"ok": False, "error": str(exc)}), 503
     finally:
         conn.close()
     return jsonify({"ok": True}), 202
