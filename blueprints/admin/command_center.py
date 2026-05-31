@@ -113,14 +113,30 @@ def _stats() -> dict:
             "SELECT COUNT(*) FROM ingestion_jobs WHERE status='failed'"
             " AND started_at >= datetime('now','-1 day')"
         ).fetchone()[0]
+        total_counties = conn.execute(
+            'SELECT COUNT(DISTINCT county) FROM records'
+        ).fetchone()[0]
+        alert_rollup = _alert_rollup(conn)
+        source_coverage = _source_coverage_snapshot(conn)
         conn.close()
     except sqlite3.Error:
-        return {'total_records': 0, 'total_blotters': 0, 'today_records': 0, 'failed_24h': 0}
+        return {
+            'total_records': 0,
+            'total_blotters': 0,
+            'today_records': 0,
+            'failed_24h': 0,
+            'total_counties': 0,
+            'alert_rollup': {'ingestion': 0, 'courts': 0, 'meetings': 0, 'total': 0},
+            'source_coverage': {'summary': {}, 'entries': []},
+        }
     return {
         'total_records': total_records,
         'total_blotters': total_blotters,
         'today_records': today_records,
         'failed_24h': failed_24h,
+        'total_counties': total_counties,
+        'alert_rollup': alert_rollup,
+        'source_coverage': source_coverage,
     }
 
 
