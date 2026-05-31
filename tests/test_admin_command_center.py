@@ -1,16 +1,17 @@
-import sqlite3
 import os
+import sqlite3
 import tempfile
 import unittest
+from unittest import mock
 
 import app as app_module
 import config
 import init_db
 
 
-class AdminDashboardTests(unittest.TestCase):
+class AdminCommandCenterTests(unittest.TestCase):
     def setUp(self) -> None:
-        fd, self.db_path = tempfile.mkstemp(prefix='mb-admin-dashboard-', suffix='.db')
+        fd, self.db_path = tempfile.mkstemp(prefix='mb-admin-command-center-', suffix='.db')
         os.close(fd)
         self.previous_db_path = config.DB_PATH
         self.previous_init_db_path = init_db.DB_PATH
@@ -56,46 +57,73 @@ class AdminDashboardTests(unittest.TestCase):
             INSERT INTO users (username, password, email, role, is_active)
             VALUES (?, ?, ?, ?, ?)
             """,
-            ('dashboard-admin', 'not-used-in-tests', 'dashboard@example.com', 'ops', 1),
+            ('cc-admin', 'not-used-in-tests', 'cc@example.com', 'ops', 1),
         )
         conn.commit()
         conn.close()
         return int(cursor.lastrowid)
 
-    def _login_admin_session(self, client) -> None:
+    def _login(self, client) -> None:
         with client.session_transaction() as session:
             session['_user_id'] = str(self.admin_user_id)
             session['_fresh'] = True
             session['_csrf_token'] = 'test-csrf-token'
 
-    def test_admin_root_redirects_to_command_center(self) -> None:
+    def test_command_center_page_renders_slim_sidebar(self) -> None:
         client = app_module.app.test_client()
-        self._login_admin_session(client)
+        self._login(client)
 
-        response = client.get('/admin', follow_redirects=True)
+        response = client.get('/admin/command-center')
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Command Center', html)
+        self.assertIn('Live Ops', html)
+        self.assertIn('Browse All Admin Tools', html)
+        self.assertIn('All Admin Tools', html)
+        self.assertIn('ops-health-bar', html)
+        self.assertNotIn('Mission Control', html)
         self.assertNotIn('/admin/mission-control', html)
 
-    def test_admin_dashboard_renders_operations_summary(self) -> None:
+    def test_command_center_feed_includes_alerts_and_coverage(self) -> None:
         client = app_module.app.test_client()
-        self._login_admin_session(client)
+        self._login(client)
 
-        response = client.get('/admin/dashboard')
-        html = response.get_data(as_text=True)
+        with mock.patch(
+            'blueprints.admin.command_center.build_snapshot',
+            return_value={'agents': []},
+        ), mock.patch(
+            'blueprints.admin.command_center.recent_events',
+            return_value=[],
+        ), mock.patch(
+            'blueprints.admin.command_center._agent_snapshot',
+            return_value={'agents': {}},
+        ), mock.patch(
+            'blueprints.admin.command_center.system_snapshot',
+            return_value={'services': [], 'queues': [], 'alerts': []},
+        ), mock.patch(
+            'blueprints.admin.command_center._pipeline_jobs',
+            return_value=[],
+        ), mock.patch(
+            'blueprints.admin.command_center._stats',
+            return_value={
+                'total_records': 10,
+                'total_blotters': 2,
+                'today_records': 1,
+                'failed_24h': 0,
+                'total_counties': 3,
+                'alert_rollup': {'ingestion': 1, 'courts': 0, 'meetings': 2, 'total': 3},
+                'source_coverage': {
+                    'summary': {'live': 4, 'covered': 5, 'no_source': 1},
+                    'entries': [{'agency': 'Gallatin County', 'freshness': '2h ago'}],
+                },
+            },
+        ):
+            response = client.get('/admin/api/command-center/feed')
 
+        payload = response.get_json()
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Operations Summary', html)
-        self.assertIn('Recent source files', html)
-        self.assertIn('County record volume', html)
-        self.assertIn('/admin/ingestion', html)
-        self.assertIn('/admin/operations/sources', html)
-        self.assertIn('/admin/operations/redaction', html)
-        self.assertIn('/admin/audience/subscribers', html)
-        self.assertIn('/admin/analytics', html)
-        self.assertIn('Operations Shortcuts', html)
+        self.assertEqual(payload['stats']['alert_rollup']['total'], 3)
+        self.assertEqual(payload['stats']['source_coverage']['summary']['live'], 4)
 
 
 if __name__ == '__main__':

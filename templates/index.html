@@ -9,6 +9,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='homepage-newsroom.css') }}">
+{% include "includes/wanted_posters_head.html" %}
 <style>
 .hub-grid {
     display: grid;
@@ -421,6 +422,7 @@
                     <a href="/license-sanctions" class="hero-hub-pill"><strong>{{ hub_counts.sanctions }}</strong> Sanctions</a>
                     <a href="/sex-offender-updates" class="hero-hub-pill"><strong>{{ hub_counts.sex_offenders }}</strong> Registry</a>
                     <a href="/missing-persons" class="hero-hub-pill"><strong>{{ hub_counts.missing_persons }}</strong> Missing</a>
+                    <a href="/wanted" class="hero-hub-pill"><strong>{{ hub_counts.warrants_active }}</strong> Warrants</a>
                     <a href="/blog" class="hero-hub-pill"><strong>{{ hub_counts.blog }}</strong> Blog Posts</a>
                 </div>
             </div>
@@ -512,6 +514,26 @@
                         </div>
                     </div>
                 </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if wanted_spotlight and wanted_spotlight.rows %}
+        <section class="wanted-spotlight" aria-label="Active and resolved warrant posters">
+            <div class="wanted-spotlight__header">
+                <span class="wanted-spotlight__badge">
+                    <i class="fas fa-gavel"></i>
+                    Active Warrants
+                    <span class="wanted-spotlight__count">{{ hub_counts.warrants_active }}</span>
+                </span>
+                <a href="/wanted" class="wanted-spotlight__cta">
+                    View all warrants <i class="fas fa-arrow-right text-[10px]"></i>
+                </a>
+            </div>
+            <div class="wanted-spotlight__grid">
+                {% for record in wanted_spotlight.rows %}
+                {% include "includes/wanted_poster_card.html" %}
                 {% endfor %}
             </div>
         </section>
@@ -635,19 +657,23 @@
                         <div class="hub-card__icon hub-card__icon--warrants"><i class="fas fa-bolt"></i></div>
                         <span class="hub-card__name">Warrants</span>
                     </div>
+                    <span class="hub-card__count">{{ hub_counts.warrants_active }}</span>
                 </div>
                 <div class="hub-card__list">
+                    {% for record in (wanted_spotlight.rows[:3] if wanted_spotlight else []) %}
+                    <a href="{{ record.public_href }}" class="hub-card__item">
+                        <strong>{{ record.person_name }}</strong>
+                        <span>{{ record.county }} County{% if record.charges_text %} · {{ record.charges_text[:60] }}{% if record.charges_text|length > 60 %}…{% endif %}{% endif %}</span>
+                    </a>
+                    {% else %}
                     <div class="hub-card__item">
-                        <strong>Montana County Warrant Lists</strong>
-                        <span>Active warrant listings by county with direct sheriff and court links statewide.</span>
+                        <strong>Montana Active Warrant Database</strong>
+                        <span>Search sheriff-posted warrant lists by county and charge statewide.</span>
                     </div>
-                    <div class="hub-card__item">
-                        <strong>How to Search Warrants</strong>
-                        <span>Step-by-step guide for finding active Montana warrants through official sources.</span>
-                    </div>
+                    {% endfor %}
                 </div>
                 <div class="hub-card__footer">
-                    <a href="/warrants">View warrant hub <i class="fas fa-arrow-right text-[10px]"></i></a>
+                    <a href="/wanted">View active warrants <i class="fas fa-arrow-right text-[10px]"></i></a>
                 </div>
             </article>
         </section>

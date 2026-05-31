@@ -44,12 +44,19 @@ def ensure_warrant_schema(conn: sqlite3.Connection) -> None:
             bond_type        TEXT    NOT NULL DEFAULT '',
             status           TEXT    NOT NULL DEFAULT 'active',
             source_url       TEXT    NOT NULL DEFAULT '',
+            resolved_at      TEXT    NOT NULL DEFAULT '',
             scraped_at       TEXT    NOT NULL,
             first_seen_at    TEXT    NOT NULL,
             updated_at       TEXT    NOT NULL
         )
         """
     )
+    try:
+        cursor.execute(
+            "ALTER TABLE warrants ADD COLUMN resolved_at TEXT NOT NULL DEFAULT ''"
+        )
+    except sqlite3.OperationalError:
+        pass
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_warrants_county_status "
         "ON warrants(county, status, updated_at)"

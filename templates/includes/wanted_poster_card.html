@@ -1,0 +1,38 @@
+<a href="{{ record.public_href }}" class="wanted-poster-card{% if compact %} wanted-poster-card--compact{% endif %}{% if not record.is_active %} wanted-poster-card--resolved{% endif %}">
+    <div class="wanted-poster-card__banner">
+        <span class="wanted-poster-card__banner-text">WANTED</span>
+        <span class="wanted-poster-card__banner-loc">{{ record.location_label }}</span>
+    </div>
+    <div class="wanted-poster-card__body">
+        <div class="wanted-poster-card__media">
+            <div class="wanted-poster-card__placeholder" aria-hidden="true">
+                <i class="fas fa-user"></i>
+                <span>No photo</span>
+            </div>
+            {% if not record.is_active %}
+            <div class="wanted-poster-card__stamp" aria-label="Resolved">RESOLVED</div>
+            {% endif %}
+        </div>
+        <div class="wanted-poster-card__info">
+            <h3 class="wanted-poster-card__name">{{ record.person_name }}</h3>
+            <div class="wanted-poster-card__details">
+                {% if record.charges_text %}
+                <span class="wanted-poster-card__detail"><strong>Charge</strong> {{ record.charges_text[:120] }}{% if record.charges_text|length > 120 %}…{% endif %}</span>
+                {% endif %}
+                {% if record.bond_amount %}
+                <span class="wanted-poster-card__detail"><strong>Bond</strong> {{ record.bond_amount }}{% if record.bond_type %} ({{ record.bond_type }}){% endif %}</span>
+                {% endif %}
+                {% if record.issue_date %}
+                <span class="wanted-poster-card__detail"><strong>Issued</strong> {{ record.issue_date_label }}</span>
+                {% endif %}
+                {% if not record.is_active and record.resolved_at_label != 'Not provided' %}
+                <span class="wanted-poster-card__detail"><strong>Resolved</strong> {{ record.resolved_at_label }}</span>
+                {% endif %}
+            </div>
+            <span class="wanted-poster-card__action">
+                {% if record.is_active %}View warrant{% else %}View record{% endif %}
+                <i class="fas fa-arrow-right"></i>
+            </span>
+        </div>
+    </div>
+</a>

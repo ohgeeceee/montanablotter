@@ -10,6 +10,7 @@
 {% set active_nav = "cities" %}
 
 {% block extra_head %}
+{% include "includes/wanted_posters_head.html" %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -159,6 +160,22 @@
         <main class="public-main-stack">
 
             {{ render_bail_banner(bail_ad_placements.banner, 'city_banner') }}
+
+            {% if wanted_city and wanted_city.rows %}
+            <section class="wanted-city-section" aria-label="{{ city.name }} warrant posters">
+                <div class="wanted-city-section__header">
+                    <h2 class="wanted-city-section__title">{{ city.name }} WANTED</h2>
+                    <a href="/wanted?county={{ city.county | urlencode }}" class="wanted-city-section__link">
+                        View all {{ city.county }} warrants
+                    </a>
+                </div>
+                <div class="wanted-poster-grid">
+                    {% for record in wanted_city.rows %}
+                    {% include "includes/wanted_poster_card.html" %}
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
 
             {% if posts %}
             <div class="public-panel-row">
