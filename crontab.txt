@@ -8,3 +8,7 @@ BASH_ENV=/root/montanablotter/.env
 
 # Web server healthcheck — keep only the lightweight liveness probe.
 */3 * * * * /root/montanablotter/scripts/ops/healthcheck_restart.sh
+
+# Disposition watcher — link new jail bookings to court cases + detect outcome
+# changes for existing links. Every 15 min. Logs to logs/disposition_watcher.log.
+*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/disposition_watcher.py >> /root/montanablotter/logs/disposition_watcher.log 2>&1
