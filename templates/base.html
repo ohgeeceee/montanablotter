@@ -101,7 +101,7 @@
                         <span class="anav-group-label">Data</span>
                         <a href="/admin" class="anav-link {% if admin_path == '/admin' %}is-active{% endif %}">Dashboard</a>
                         <a href="/admin/ingestion" class="anav-link {% if admin_path.startswith('/admin/ingestion') or admin_path.startswith('/admin/upload') or admin_path.startswith('/admin/blotters') or admin_path.startswith('/admin/blotter/') %}is-active{% endif %}">Ingestion</a>
-                        <a href="/admin/operations/sources" class="anav-link {% if admin_path.startswith('/admin/operations/sources') or admin_path.startswith('/admin/operations/courts') or admin_path.startswith('/admin/operations/jail-bookings') or admin_path.startswith('/admin/operations/meetings') or admin_path.startswith('/admin/operations/missing-persons') %}is-active{% endif %}">Sources</a>
+                        <a href="/admin/operations/sources" class="anav-link {% if admin_path.startswith('/admin/operations/sources') or admin_path.startswith('/admin/operations/courts') or admin_path.startswith('/admin/operations/jail-bookings') or admin_path.startswith('/admin/operations/meetings') or admin_path.startswith('/admin/operations/missing-persons') or admin_path.startswith('/admin/operations/warrants') %}is-active{% endif %}">Sources</a>
                         <a href="/admin/operations/redaction" class="anav-link {% if admin_path.startswith('/admin/operations/redaction') or admin_path.startswith('/admin/post/') %}is-active{% endif %}">Review</a>
                     </div>
                     <div class="anav-group">

@@ -1,0 +1,220 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "PII & Privacy Transparency" %}
+{% set meta_description = "What personally identifiable information Montana Blotter scans for, what it catches, and what gets redacted before publication." %}
+{% set canonical_url = "https://montanablotter.com/transparency" %}
+{% set og_title = "PII & Privacy Transparency | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}transparency-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "PII & Privacy Transparency",
+  "url": "https://montanablotter.com/transparency",
+  "description": "Aggregate PII audit statistics and redaction policy for Montana Blotter."
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>PII &amp; Privacy Transparency</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Transparency</p>
+                <h1 class="public-title public-title--medium">What we scan for, what we catch, what we redact.</h1>
+                <p class="public-copy">
+                    Before any post is published, it is run through an automated PII auditor that scans for personal identifiers and redactions, then it is reviewed by an editor. This page shows the aggregate picture.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Promise</p>
+                    <h2 class="public-card__title">Personal data does not appear on Montana Blotter.</h2>
+                    <p class="public-card__text">
+                        SSNs, DOBs, driver-license numbers, phone numbers labeled as personal, and residential street addresses are detected and redacted before publication. If something slips through, the <a href="/corrections">corrections log</a> is the place we make it right.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Audit Dashboard</span>
+                    <span class="public-pill">{% if last_audited_at %}Updated {{ last_audited_at[:10] }}{% else %}Live stats{% endif %}</span>
+                </div>
+                <h2 class="public-detail-title">How clean is the public post corpus?</h2>
+                <p class="public-detail-subtitle">
+                    Counts come from the <code>posts</code> table. <em>Flagged</em> means a post that had at least one PII span detected during audit; redacted spans do not appear in the public text.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+
+                <div class="public-stat-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:2rem;">
+                    <div class="public-card">
+                        <div class="public-card__body" style="text-align:center;">
+                            <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;color:#475569;">Posts Audited</div>
+                            <div style="font-size:2.4rem;font-weight:700;line-height:1.1;margin-top:0.4rem;">{{ total_audited }}</div>
+                        </div>
+                    </div>
+                    <div class="public-card">
+                        <div class="public-card__body" style="text-align:center;">
+                            <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;color:#475569;">Clean</div>
+                            <div style="font-size:2.4rem;font-weight:700;line-height:1.1;margin-top:0.4rem;color:#166534;">{{ status_counts.get('clean', 0) }}</div>
+                        </div>
+                    </div>
+                    <div class="public-card">
+                        <div class="public-card__body" style="text-align:center;">
+                            <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;color:#475569;">Manual Review</div>
+                            <div style="font-size:2.4rem;font-weight:700;line-height:1.1;margin-top:0.4rem;color:#b45309;">{{ status_counts.get('manual_review', 0) }}</div>
+                        </div>
+                    </div>
+                    <div class="public-card">
+                        <div class="public-card__body" style="text-align:center;">
+                            <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;color:#475569;">Pending</div>
+                            <div style="font-size:2.4rem;font-weight:700;line-height:1.1;margin-top:0.4rem;color:#64748b;">{{ status_counts.get('pending', 0) }}</div>
+                        </div>
+                    </div>
+                    <div class="public-card">
+                        <div class="public-card__body" style="text-align:center;">
+                            <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;color:#475569;">% With Flags</div>
+                            <div style="font-size:2.4rem;font-weight:700;line-height:1.1;margin-top:0.4rem;">{{ flagged_share }}%</div>
+                            <div style="font-size:0.8rem;color:#475569;margin-top:0.25rem;">{{ total_with_flags }} flagged posts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="public-policy-heading" style="margin-top:2rem;">PII types detected</h3>
+                {% if pii_type_rows %}
+                <table class="public-table" style="width:100%;border-collapse:collapse;margin-top:0.5rem;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--public-border);text-align:left;">
+                            <th style="padding:0.6rem 0.4rem;">Type</th>
+                            <th style="padding:0.6rem 0.4rem;text-align:right;">Detections</th>
+                            <th style="padding:0.6rem 0.4rem;">Why we redact it</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for r in pii_type_rows %}
+                        <tr style="border-bottom:1px solid var(--public-border);">
+                            <td style="padding:0.6rem 0.4rem;"><code>{{ r.pii_type }}</code></td>
+                            <td style="padding:0.6rem 0.4rem;text-align:right;font-weight:600;">{{ r.count }}</td>
+                            <td style="padding:0.6rem 0.4rem;color:#475569;font-size:0.95rem;">{{ r.description }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="color:#475569;margin-top:0.5rem;">No PII spans detected across audited posts. This is the goal — and the signal that the auditor is doing its job.</p>
+                {% endif %}
+
+                <h3 class="public-policy-heading" style="margin-top:2rem;">Severity breakdown</h3>
+                <p style="color:#475569;font-size:0.95rem;margin-top:0.25rem;">
+                    <strong style="color:#991b1b;">High</strong> = direct identifier (SSN, MT DL). Stops publication automatically.
+                    <strong style="color:#b45309;">Medium</strong> = contextual identifier (residential address, personal phone). Redacted and editor-reviewed.
+                    <strong style="color:#475569;">Low</strong> = contextual date or label (DOB, age). Reviewed before publication.
+                </p>
+                {% if severity_counts %}
+                <div style="display:flex;gap:1.25rem;margin-top:0.75rem;flex-wrap:wrap;">
+                    {% for s, n in severity_counts.items() %}
+                    <div style="padding:0.4rem 0.8rem;border-radius:6px;background:#f1f5f9;font-size:0.9rem;">
+                        <strong>{{ s.title() }}</strong>: {{ n }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+            </div>
+        </article>
+
+        <article class="public-detail-frame" id="how-it-works">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill">How It Works</span>
+                </div>
+                <h2 class="public-detail-title">What runs before a post goes public.</h2>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-policy-stack">
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">1. Regex scan</h3>
+                        <p class="public-policy-copy">
+                            Every post draft is scanned against a list of pattern detectors — SSN shape, MT DL format, US phone, residential street address with a personal-context label, and labeled DOBs. The detectors are deliberately conservative: a street address without a residential context word (apartment, residence, home, trailer) is allowed because it is typically the public incident location.
+                        </p>
+                    </section>
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">2. Claude review</h3>
+                        <p class="public-policy-copy">
+                            When the API is available, the post is also passed to a second-pass model that flags contextual PII the regex misses — for example, an indirect reference to "her boyfriend's truck, which is usually parked at 412 Spruce" — and returns a clean rewrite. The clean version is the one that publishes.
+                        </p>
+                    </section>
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">3. Editor sign-off</h3>
+                        <p class="public-policy-copy">
+                            Posts flagged as <code>manual_review</code> are not published until an editor reviews them. A <code>clean</code> post is published automatically. A <code>pending</code> post has not yet been audited.
+                        </p>
+                    </section>
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">4. The corrections log</h3>
+                        <p class="public-policy-copy">
+                            If something slips through, we log the fix in the <a class="public-policy-inline-link" href="/corrections">public corrections log</a>. Editorial framing changes, factual errors, and PII redactions after the fact are all visible there.
+                        </p>
+                    </section>
+                </div>
+            </div>
+        </article>
+
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Why this page exists</p>
+                <h3 class="public-card__title">Trust is built on visible numbers.</h3>
+                <p class="public-card__text">
+                    A PII auditor that runs silently is one we can claim exists but cannot prove. By showing the totals, the breakdown by type, and the severity split, we make the work auditable.
+                </p>
+            </div>
+        </section>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Related Pages</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="/corrections" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Corrections</div>
+                        <div class="public-rail-link__title">Public Corrections Log</div>
+                        <div class="public-rail-link__copy">Every material change to a published post, on the record.</div>
+                    </a>
+                    <a href="/standards" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Standards</div>
+                        <div class="public-rail-link__title">Sourcing Standards</div>
+                        <div class="public-rail-link__copy">How the public source rule and provenance labeling work.</div>
+                    </a>
+                    <a href="/terms-of-use" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Legal</div>
+                        <div class="public-rail-link__title">Terms of Use</div>
+                        <div class="public-rail-link__copy">Service rules, disclaimer scope, and operating limits.</div>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}

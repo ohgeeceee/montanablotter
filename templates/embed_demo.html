@@ -1,0 +1,153 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Embeddable Blotter Widget" %}
+{% set meta_description = "Drop a single script tag on your city, town, or civic site to show recent public-safety calls for a Montana county." %}
+{% set canonical_url = "https://montanablotter.com/embed" %}
+{% set og_title = "Embeddable Blotter Widget | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}embed-demo-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Embeddable Blotter Widget",
+  "url": "https://montanablotter.com/embed"
+}
+</script>
+<style>
+.mt-blotter-embed {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  max-width: 460px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #18181b;
+}
+.mt-blotter-embed[data-mt-theme="dark"] {
+  background: #18181b; color: #fafafa; border-color: #27272a;
+}
+.mt-blotter-embed__head {
+  font-size: 0.95rem; margin-bottom: 0.5rem; padding-bottom: 0.4rem; border-bottom: 1px solid #e4e4e7;
+}
+.mt-blotter-embed__head a { color: #2563eb; text-decoration: none; font-size: 0.85rem; }
+.mt-blotter-embed__list { display: flex; flex-direction: column; gap: 0.4rem; }
+.mt-blotter-embed__list[data-state="loading"] { color: #71717a; font-style: italic; }
+.mt-blotter-embed__item { display: flex; gap: 0.5rem; align-items: baseline; }
+.mt-blotter-embed__item time { color: #71717a; font-variant-numeric: tabular-nums; min-width: 5.5em; font-size: 0.85rem; }
+.mt-blotter-embed__item span { font-weight: 500; }
+.mt-blotter-embed__item small { color: #71717a; font-size: 0.85rem; }
+.mt-blotter-embed__foot { margin-top: 0.6rem; padding-top: 0.4rem; border-top: 1px solid #e4e4e7; font-size: 0.8rem; }
+.mt-blotter-embed__foot a { color: #71717a; text-decoration: none; }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Embeddable Widget</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">For Local Sites</p>
+                <h1 class="public-title public-title--medium">Drop a script tag. Get a blotter.</h1>
+                <p class="public-copy">
+                    City, town, chamber, civic group, or local news sites can show recent public-safety calls for a single county with one line of HTML. No signup, no API key, no iframe.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Live Example</p>
+                    <div class="mt-blotter-embed" id="mt-blotter-embed-gallatin" data-mt-theme="light">
+                      <div class="mt-blotter-embed__head"><strong>Gallatin County Blotter</strong> &middot; <a href="https://montanablotter.com/county/Gallatin">more &rarr;</a></div>
+                      <div class="mt-blotter-embed__list" data-state="loading">Loading&hellip;</div>
+                      <div class="mt-blotter-embed__foot"><a href="https://montanablotter.com">Montana Blotter</a></div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Embed</span>
+                    <span class="public-pill">No signup</span>
+                </div>
+                <h2 class="public-detail-title">The shortest possible integration.</h2>
+                <p class="public-detail-subtitle">
+                    The script auto-injects into your page, fetches the latest records, and renders them in a small, self-contained block. It is dependency-free and respects the host site's typography by using the system font stack.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <h3 class="public-policy-heading">1. Add the script</h3>
+                <p class="public-policy-copy">Paste this anywhere on the page where the widget should appear:</p>
+                <pre style="background:#0f172a;color:#f1f5f9;padding:1rem 1.25rem;border-radius:8px;overflow-x:auto;font-size:0.85rem;line-height:1.5;"><code>&lt;script src="https://montanablotter.com/embed/blotter.js?county=Gallatin&amp;limit=8"&gt;&lt;/script&gt;</code></pre>
+
+                <h3 class="public-policy-heading" style="margin-top:1.5rem;">2. Configure</h3>
+                <table class="public-table" style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--public-border);text-align:left;">
+                            <th style="padding:0.5rem 0.4rem;">Param</th>
+                            <th style="padding:0.5rem 0.4rem;">Default</th>
+                            <th style="padding:0.5rem 0.4rem;">What it does</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--public-border);"><td style="padding:0.5rem 0.4rem;"><code>county</code></td><td style="padding:0.5rem 0.4rem;">Gallatin</td><td style="padding:0.5rem 0.4rem;">Which county to show records for.</td></tr>
+                        <tr style="border-bottom:1px solid var(--public-border);"><td style="padding:0.5rem 0.4rem;"><code>limit</code></td><td style="padding:0.5rem 0.4rem;">8</td><td style="padding:0.5rem 0.4rem;">Number of records. Max 25.</td></tr>
+                        <tr style="border-bottom:1px solid var(--public-border);"><td style="padding:0.5rem 0.4rem;"><code>title</code></td><td style="padding:0.5rem 0.4rem;">County Blotter</td><td style="padding:0.5rem 0.4rem;">Custom header text.</td></tr>
+                        <tr style="border-bottom:1px solid var(--public-border);"><td style="padding:0.5rem 0.4rem;"><code>theme</code></td><td style="padding:0.5rem 0.4rem;">light</td><td style="padding:0.5rem 0.4rem;">"light" or "dark".</td></tr>
+                        <tr><td style="padding:0.5rem 0.4rem;"><code>target</code></td><td style="padding:0.5rem 0.4rem;">auto</td><td style="padding:0.5rem 0.4rem;">Render into this DOM id instead of injecting a new block.</td></tr>
+                    </tbody>
+                </table>
+
+                <h3 class="public-policy-heading" style="margin-top:1.5rem;">3. What you can and can't do</h3>
+                <ul class="public-policy-list">
+                    <li>Free for any non-commercial Montana civic, government, or local-news site.</li>
+                    <li>Attribution link back to Montana Blotter must remain visible.</li>
+                    <li>No PII is exposed — officer names, residential addresses, and personal phone numbers are stripped server-side.</li>
+                    <li>For commercial or bulk use, see the <a class="public-policy-inline-link" href="/data-api">B2B data API</a> (coming soon).</li>
+                </ul>
+            </div>
+        </article>
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Counties Available</p>
+                <h3 class="public-card__title">20 counties with public records indexed.</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem;">
+                    {% for c in counties %}
+                    <a href="/embed?county={{ c }}" style="display:inline-block;padding:0.25rem 0.6rem;background:#f1f5f9;border-radius:999px;font-size:0.85rem;text-decoration:none;color:#0f172a;">{{ c }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Technical</p>
+                <p class="public-card__text" style="margin-top:0.5rem;">
+                    The widget loads from <code>/embed/blotter.js</code>, fetches JSON from <code>/api/embed/blotter.json</code>, and renders inline. Both endpoints are CORS-enabled and cache for 5 minutes. No cookies, no tracking, no third-party scripts.
+                </p>
+            </div>
+        </section>
+    </aside>
+</div>
+
+<script src="/embed/blotter.js?county=Gallatin&limit=8" id="mt-blotter-embed-gallatin"></script>
+{% endblock %}

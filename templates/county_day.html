@@ -1,0 +1,166 @@
+{% extends "public_page_base.html" %}
+{% from "includes/bail_ad_units.html" import render_bail_banner, render_bail_panel, render_bail_tracking_script %}
+
+{% set active_nav = "counties" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": {{ page_title|tojson }},
+  "description": {{ meta_description|tojson }},
+  "url": {{ canonical_url|tojson }},
+  "publisher": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  },
+  "datePublished": {{ dt_iso|tojson }},
+  "dateModified": {{ dt_iso|tojson }}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Montana Blotter", "item": "https://montanablotter.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Counties", "item": "https://montanablotter.com/counties"},
+    {"@type": "ListItem", "position": 3, "name": "{{ county.name }} County", "item": "https://montanablotter.com/county/{{ county.slug }}"},
+    {"@type": "ListItem", "position": 4, "name": {{ pretty_date|tojson }}, "item": {{ canonical_url|tojson }}}
+  ]
+}
+</script>
+{% if records %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Police activity in {{ county.name }} County on {{ pretty_date }}",
+  "itemListElement": [
+    {% for rec in records[:20] %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "name": {{ (rec.incident_label or 'Incident')|tojson }},
+      "url": "https://montanablotter.com/record/{{ rec.id }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="county-day-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/counties">Counties</a>
+    <span class="sep">›</span>
+    <a href="/county/{{ county.slug }}">{{ county.name }} County</a>
+    <span class="sep">›</span>
+    <span class="current">{{ pretty_date }}</span>
+  </nav>
+
+  <header class="county-day-header">
+    <p class="eyebrow">Police blotter · {{ county.name }} County, MT</p>
+    <h1>{{ county.name }} County Police Activity for {{ pretty_date }}</h1>
+    <p class="lead">
+      {% if record_count %}
+        {{ record_count }} incident{{ '' if record_count == 1 else 's' }} reported on {{ pretty_date }}
+        across {{ county.name }} County.
+      {% else %}
+        No blotter entries on file for {{ pretty_date }}.
+      {% endif %}
+      Total county coverage to date: <strong>{{ '{:,}'.format(total_for_county) }}</strong> incidents.
+    </p>
+  </header>
+
+  {% if bail_ad_placements %}
+    {{ render_bail_banner(bail_ad_placements) }}
+  {% endif %}
+
+  {% if incident_breakdown %}
+  <section class="incident-breakdown" aria-label="Incident breakdown for the day">
+    <h2>Incidents by type</h2>
+    <ul class="chip-list">
+      {% for row in incident_breakdown %}
+        <li>
+          <span class="chip-label">{{ row.label }}</span>
+          <span class="chip-count">{{ row.n }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if posts_for_day %}
+  <section class="day-posts" aria-label="Related news for this date">
+    <h2>Stories from {{ pretty_date }}</h2>
+    <ul class="post-list">
+      {% for p in posts_for_day %}
+        <li>
+          <a href="/post/{{ p.id }}{% if p.seo_slug %}-{{ p.seo_slug }}{% endif %}">
+            {{ p.title or 'Daily activity report' }}
+          </a>
+          {% if p.summary %}<p class="summary">{{ p.summary[:200] }}{% if p.summary|length > 200 %}…{% endif %}</p>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if records %}
+  <section class="day-records" aria-label="All incidents on this date">
+    <h2>All incidents — {{ pretty_date }}</h2>
+    <table class="records-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Type</th>
+          <th>Location</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+        <tr>
+          <td class="time">{{ rec.time or '—' }}</td>
+          <td class="type">{{ rec.incident_label }}</td>
+          <td class="location">{{ rec.location or '—' }}</td>
+          <td class="details">
+            {% if rec.details %}{{ rec.details[:300] }}{% if rec.details|length > 300 %}…{% endif %}{% else %}—{% endif %}
+            {% if rec.cfs_number %}<span class="cfs">CFS# {{ rec.cfs_number }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  <section class="day-nav" aria-label="Related links">
+    <a class="btn-secondary" href="/county/{{ county.slug }}">← Back to {{ county.name }} County hub</a>
+    <a class="btn-secondary" href="/arrests?county={{ county.name|urlencode }}">Browse all {{ county.name }} arrests →</a>
+  </section>
+
+  <section class="faq-block" aria-label="Frequently asked questions">
+    <h2>About this blotter</h2>
+    <details>
+      <summary>Where does this data come from?</summary>
+      <p>Montana Blotter aggregates publicly-released law enforcement records from {{ county.name }} agencies. The data shown here is sourced from official blotter releases, jail rosters, and verified partner feeds. Records are screened for PII before publication.</p>
+    </details>
+    <details>
+      <summary>How current is this page?</summary>
+      <p>This page reflects the {{ pretty_date }} blotter as published. For real-time arrest information, see the <a href="/arrests?county={{ county.name|urlencode }}">arrests page</a> or the county jail roster.</p>
+    </details>
+    <details>
+      <summary>How do I report a correction?</summary>
+      <p>Email corrections@montanablotter.com with the date, county, and a link to the record. Verified corrections are logged publicly on our <a href="/corrections">corrections page</a>.</p>
+    </details>
+  </section>
+</div>
+{% endblock %}

@@ -180,6 +180,36 @@ class PublicApiTests(unittest.TestCase):
         self.assertEqual(detail["body"], "Body")
         self.assertEqual(draft_response.status_code, 404)
 
+    def test_subscribe_event_is_recorded_without_blocking_request_path(self) -> None:
+        client = app_module.app.test_client()
+
+        response = client.post(
+            "/api/subscribe-event",
+            json={
+                "event_type": "cta_click",
+                "source": "homepage_banner",
+                "page_path": "/",
+            },
+        )
+
+        self.assertEqual(response.status_code, 204)
+
+        conn = app_module.get_db()
+        row = conn.execute(
+            """
+            SELECT event_type, source, page_path
+            FROM subscribe_events
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        conn.close()
+
+        self.assertIsNotNone(row)
+        self.assertEqual(row["event_type"], "cta_click")
+        self.assertEqual(row["source"], "homepage_banner")
+        self.assertEqual(row["page_path"], "/")
+
 
 if __name__ == "__main__":
     unittest.main()

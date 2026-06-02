@@ -1,0 +1,176 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Submit a Tip" %}
+{% set meta_description = "Submit a tip about a blotter record, warrant status, missing person, or other Montana public-safety matter. Anonymous or with contact info." %}
+{% set canonical_url = "https://montanablotter.com/submit-a-tip" %}
+{% set og_title = "Submit a Tip | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}submit-tip-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Submit a Tip",
+  "url": "https://montanablotter.com/submit-a-tip"
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Submit a Tip</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Public Safety</p>
+                <h1 class="public-title public-title--medium">Submit a tip.</h1>
+                <p class="public-copy">
+                    See something wrong on Montana Blotter, or have an update on a public-safety matter we cover? Use this form. Tips go to the editorial team for review — this is not a 911 or emergency line.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Important</p>
+                    <h2 class="public-card__title">For emergencies, call 911.</h2>
+                    <p class="public-card__text">
+                        This form is for record corrections, source updates, missing-person sightings, and other non-urgent public-safety information. It is reviewed during business hours.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div style="margin-bottom:1.5rem;">
+            {% for cat, msg in messages %}
+              <div style="padding:0.75rem 1rem;border-radius:6px;background:{% if cat == 'error' %}#fee2e2;color:#991b1b;{% else %}#dcfce7;color:#166534;{% endif %}">
+                {{ msg }}
+              </div>
+            {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Tip Form</span>
+                    <span class="public-pill">Anonymous OK</span>
+                </div>
+                <h2 class="public-detail-title">Tell us what's going on.</h2>
+                <p class="public-detail-subtitle">
+                    The more specific you are, the faster we can verify and act. Reference a record, warrant, or post by ID if you can.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <form method="post" action="/submit-a-tip" style="display:flex;flex-direction:column;gap:1rem;max-width:640px;">
+                    <div>
+                        <label for="category" style="display:block;font-weight:600;margin-bottom:0.25rem;">Category *</label>
+                        <select id="category" name="category" required style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--public-border);border-radius:6px;font-size:1rem;">
+                            {% for value, label in categories %}
+                            <option value="{{ value }}" {% if form_data.category == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="subject" style="display:block;font-weight:600;margin-bottom:0.25rem;">Subject *</label>
+                        <input type="text" id="subject" name="subject" required minlength="4" maxlength="160"
+                               value="{{ form_data.subject or '' }}"
+                               placeholder="One-line summary"
+                               style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--public-border);border-radius:6px;font-size:1rem;">
+                    </div>
+                    <div>
+                        <label for="body" style="display:block;font-weight:600;margin-bottom:0.25rem;">Details *</label>
+                        <textarea id="body" name="body" required minlength="20" maxlength="4000" rows="6"
+                                  placeholder="What did you see, hear, or notice? Include dates, times, locations, and the specific record or post URL if applicable."
+                                  style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--public-border);border-radius:6px;font-size:1rem;">{{ form_data.body or '' }}</textarea>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div>
+                            <label for="name" style="display:block;font-weight:600;margin-bottom:0.25rem;">Your name (optional)</label>
+                            <input type="text" id="name" name="name" maxlength="120"
+                                   value="{{ form_data.name or '' }}"
+                                   style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--public-border);border-radius:6px;font-size:1rem;">
+                        </div>
+                        <div>
+                            <label for="email" style="display:block;font-weight:600;margin-bottom:0.25rem;">Email (required if not anonymous)</label>
+                            <input type="email" id="email" name="email" maxlength="160"
+                                   value="{{ form_data.email or '' }}"
+                                   style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--public-border);border-radius:6px;font-size:1rem;">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="phone" style="display:block;font-weight:600;margin-bottom:0.25rem;">Phone (optional)</label>
+                        <input type="tel" id="phone" name="phone" maxlength="40"
+                               value="{{ form_data.phone or '' }}"
+                               style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--public-border);border-radius:6px;font-size:1rem;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div>
+                            <label for="related_record_id" style="display:block;font-weight:600;margin-bottom:0.25rem;">Record ID (if applicable)</label>
+                            <input type="text" id="related_record_id" name="related_record_id" maxlength="20" pattern="[0-9]*"
+                                   value="{{ form_data.related_record_id or '' }}"
+                                   style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--public-border);border-radius:6px;font-size:1rem;">
+                        </div>
+                        <div>
+                            <label for="related_warrant_id" style="display:block;font-weight:600;margin-bottom:0.25rem;">Warrant ID (if applicable)</label>
+                            <input type="text" id="related_warrant_id" name="related_warrant_id" maxlength="20" pattern="[0-9]*"
+                                   value="{{ form_data.related_warrant_id or '' }}"
+                                   style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--public-border);border-radius:6px;font-size:1rem;">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                            <input type="checkbox" name="is_anonymous" {% if form_data.is_anonymous %}checked{% endif %}>
+                            <span>Submit anonymously (no name or email kept on file)</span>
+                        </label>
+                    </div>
+                    <div>
+                        <button type="submit"
+                                style="background:#0f172a;color:#fff;padding:0.7rem 1.4rem;border:none;border-radius:6px;font-size:1rem;font-weight:600;cursor:pointer;">
+                            Submit tip
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </article>
+
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">What happens next</p>
+                <ul class="public-policy-list" style="font-size:0.9rem;">
+                    <li>The tip is queued in our editorial review system.</li>
+                    <li>If you provided an email and it's not anonymous, we may follow up with clarifying questions.</li>
+                    <li>Most tips are reviewed within two business days. Complex or legal issues may take longer.</li>
+                    <li>If your tip is urgent, contact the relevant agency directly (sheriff, police, court clerk).</li>
+                </ul>
+            </div>
+        </section>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Privacy</p>
+                <p class="public-card__text" style="font-size:0.9rem;">
+                    Your IP address and user agent are stored with the tip to prevent spam and abuse. If you check "submit anonymously," we do not require your name or email, but the technical metadata is still kept.
+                </p>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}

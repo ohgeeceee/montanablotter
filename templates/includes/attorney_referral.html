@@ -1,0 +1,33 @@
+{# Attorney referral widget — shows on warrant/case pages when attorneys
+   are available for the current county. Caller passes `attorneys` in
+   template context. #}
+{% if attorneys %}
+<section class="mt-10 rounded-3xl border-2 border-emerald-200 bg-emerald-50 p-6 sm:p-8">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-800">Need a lawyer?</p>
+            <h2 class="mt-1 text-xl font-black text-slate-900">Montana defense attorneys in {{ county or 'your area' }} County</h2>
+        </div>
+        <a href="/attorneys" class="inline-flex items-center justify-center rounded-xl border-2 border-emerald-700 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
+            All attorneys &rarr;
+        </a>
+    </div>
+    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+        {% for a in attorneys %}
+        <div class="rounded-2xl bg-white p-5 shadow-sm">
+            <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ a.firm or 'Independent' }}</p>
+            <h3 class="mt-1 text-lg font-black text-slate-900">{{ a.name }}</h3>
+            {% if a.blurb %}<p class="mt-2 text-sm text-slate-600">{{ a.blurb }}</p>{% endif %}
+            {% if a.practice_areas %}<p class="mt-2 text-xs text-slate-500"><strong>Practice:</strong> {{ a.practice_areas }}</p>{% endif %}
+            <div class="mt-3 flex flex-wrap gap-3 text-sm">
+                {% if a.phone %}<a href="tel:{{ a.phone }}" class="font-semibold text-emerald-700 hover:underline">📞 {{ a.phone }}</a>{% endif %}
+                {% if a.website %}<a href="{{ a.website }}" target="_blank" rel="noopener" class="font-semibold text-emerald-700 hover:underline">Website →</a>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="mt-5 text-[11px] leading-5 text-slate-600">
+        <strong>Disclaimer:</strong> Montana Blotter does not provide legal advice and does not endorse any specific attorney. Listings are opt-in and self-reported; verify Montana State Bar admission before retaining counsel. If you cannot afford an attorney, contact the <a href="https://courts.mt.gov" target="_blank" rel="noopener" class="underline">Montana Office of Public Defender</a>.
+    </p>
+</section>
+{% endif %}

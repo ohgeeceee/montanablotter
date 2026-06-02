@@ -204,28 +204,8 @@
             </div>
         </section>
 
-    {# ── Bottom-of-post subscribe CTA ── #}
-    <section class="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-slate-50 p-6 sm:p-8">
-        <div class="flex flex-col sm:flex-row sm:items-center gap-5">
-            <div class="flex-1">
-                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600">You just read the {{ post.county }} County blotter</p>
-                <h2 class="mt-2 text-xl font-black text-slate-900">Get it every morning — free</h2>
-                <p class="mt-1 text-sm text-slate-600">One email at 7am MT. No spam. Unsubscribe anytime.</p>
-            </div>
-            <form method="POST" action="/subscribe" class="flex flex-col sm:flex-row gap-2 flex-shrink-0 subscribe-form-track" data-subscribe-source="post_bottom_cta">
-                <input type="hidden" name="source" value="post_bottom_cta">
-                <input type="email" name="email" required placeholder="you@example.com"
-                       class="rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-60">
-                <button type="submit"
-                        class="subscribe-cta-track inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-white hover:bg-blue-700 transition"
-                        data-subscribe-source="post_bottom_cta">
-                    <i class="fas fa-envelope text-[11px]"></i>Subscribe Free
-                </button>
-            </form>
-        </div>
-    </section>
 
-    {# ── Inline alert opt-in ── #}
+{# ── Inline alert opt-in ── #}
     {% if post.county and post.county not in ('Unknown', '') %}
     <section class="public-form-card">
         <div class="public-form-card__body">

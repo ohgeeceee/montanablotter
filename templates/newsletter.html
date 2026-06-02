@@ -1,0 +1,173 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/">Home</a>
+<span class="public-breadcrumb__sep">/</span>
+<span class="text-slate-900 font-semibold">Daily Digest</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl">
+            <p class="public-eyebrow" style="color:var(--public-steel);">Free Daily Email Digest</p>
+            <h1 class="public-title mt-3 max-w-4xl">
+                Montana's public-safety news,
+                <span class="block" style="color:var(--public-red);">summarized at 7am MT</span>
+            </h1>
+            <p class="public-copy max-w-3xl">
+                Every morning we summarize the overnight police blotters, court rulings, warrant
+                updates, and missing-person alerts — PII-screened, county-filtered, and ready to scan
+                with your coffee.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3 text-xs font-semibold text-slate-700">
+                {% if sub_count and sub_count > 10 %}
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ sub_count|int }} Montana readers</div>
+                {% endif %}
+                {% if post_count and post_count > 0 %}
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ post_count|int }} PII-screened posts</div>
+                {% endif %}
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">Free. No paywall.</div>
+            </div>
+            <div class="mt-7 flex flex-wrap gap-3">
+                <a href="#subscribe" class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-slate-700">
+                    Subscribe free →
+                </a>
+                <a href="/blog" class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-white">
+                    Read past issues
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="bg-slate-50 text-slate-900">
+
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <div class="grid gap-4 md:grid-cols-3">
+            <div class="public-card">
+                <div class="public-card__body">
+                    <div class="public-card__eyebrow">Daily</div>
+                    <h3 class="public-card__title">Overnight blotter digest</h3>
+                    <p class="public-card__text">
+                        AI-summarized incidents from every Montana county we cover, scrubbed of
+                        addresses, phone numbers, and SSNs before they hit your inbox.
+                    </p>
+                </div>
+            </div>
+            <div class="public-card">
+                <div class="public-card__body">
+                    <div class="public-card__eyebrow">Weekly</div>
+                    <h3 class="public-card__title">Top calls &amp; trends</h3>
+                    <p class="public-card__text">
+                        A Sunday-night roundup of the week's most-read incidents, charge trends,
+                        and notable court outcomes — pulled from real call data, not speculation.
+                    </p>
+                </div>
+            </div>
+            <div class="public-card">
+                <div class="public-card__body">
+                    <div class="public-card__eyebrow">Alerts</div>
+                    <h3 class="public-card__title">Warrant &amp; missing-person alerts</h3>
+                    <p class="public-card__text">
+                        New statewide warrants and missing-person bulletins surface in the digest
+                        the morning they're added — before the slower local news cycle.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% if samples %}
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <div class="flex items-end justify-between flex-wrap gap-2 mb-4">
+            <h2 class="text-2xl font-black text-slate-900">What the digest looks like</h2>
+            <a class="text-sm text-blue-700 hover:underline" href="/blog">All posts →</a>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+            {% for s in samples %}
+            <a href="/p/{{ s.seo_slug or s.id }}" class="public-card public-card--lift block">
+                <div class="public-card__body">
+                    <div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                        {% if s.county %}<span>{{ s.county }} County</span>{% endif %}
+                        {% if s.agency_type %}<span>· {{ s.agency_type }}</span>{% endif %}
+                        {% if s.created_at %}<span>· {{ s.created_at[:10] }}</span>{% endif %}
+                    </div>
+                    <h3 class="mt-2 text-lg font-black text-slate-900 leading-snug">{{ s.title[:140] }}{% if s.title|length > 140 %}…{% endif %}</h3>
+                    {% if s.meta_description %}
+                    <p class="mt-2 text-sm text-slate-600 line-clamp-3">{{ s.meta_description }}</p>
+                    {% elif s.summary %}
+                    <p class="mt-2 text-sm text-slate-600 line-clamp-3">{{ s.summary[:200] }}{% if s.summary|length > 200 %}…{% endif %}</p>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-8" id="subscribe">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+            <div class="grid gap-6 md:grid-cols-[1.1fr,1fr] md:items-center">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900">Pick your counties, get the digest</h2>
+                    <p class="mt-2 text-sm text-slate-600">
+                        Subscribe with one email. Skip counties you don't care about, or leave it
+                        blank for the full statewide digest. Unsubscribe any time via the link in
+                        every email.
+                    </p>
+                    {% if top_counties %}
+                    <p class="mt-3 text-xs text-slate-500">
+                        Most-subscribed counties:
+                        {% for c in top_counties[:12] %}
+                        <span class="inline-block rounded-full bg-slate-100 px-2 py-0.5 mr-1 mt-1">{{ c }}</span>
+                        {% endfor %}
+                    </p>
+                    {% endif %}
+                </div>
+                <form method="post" action="/subscribe" class="space-y-3">
+                    <input type="hidden" name="source" value="newsletter_landing">
+                    <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Email address</label>
+                    <input type="email" name="email" required placeholder="you@example.com"
+                           class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                    <button type="submit"
+                            class="w-full inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-slate-700">
+                        Subscribe — it's free
+                    </button>
+                    <p class="text-[11px] text-slate-500">
+                        By subscribing you agree to our
+                        <a class="underline hover:text-slate-700" href="/terms-of-use">Terms</a> and
+                        <a class="underline hover:text-slate-700" href="/privacy">Privacy Policy</a>.
+                    </p>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <h2 class="text-2xl font-black text-slate-900 mb-4">How we keep it clean</h2>
+        <div class="grid gap-4 md:grid-cols-3">
+            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+                <div class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Step 1</div>
+                <h3 class="mt-1 font-black text-slate-900">Ingest</h3>
+                <p class="mt-1 text-sm text-slate-600">PDFs and text blotters from county agencies land in our queue every morning.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+                <div class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Step 2</div>
+                <h3 class="mt-1 font-black text-slate-900">Audit &amp; rewrite</h3>
+                <p class="mt-1 text-sm text-slate-600">PII detection scrubs SSNs, DLs, addresses, and phone numbers. Claude rewrites the rest.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+                <div class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Step 3</div>
+                <h3 class="mt-1 font-black text-slate-900">Publish</h3>
+                <p class="mt-1 text-sm text-slate-600">Only audit-clean posts go to the digest. You can see every redacted field on our
+                    <a class="text-blue-700 underline" href="/transparency">PII transparency page</a>.</p>
+            </div>
+        </div>
+    </section>
+
+</main>
+{% endblock %}

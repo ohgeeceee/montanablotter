@@ -1,16 +1,24 @@
 {% extends "public_page_base.html" %}
 
+{% set DISPOSITION_META = {
+    'affirmed': ('Conviction upheld', 'bg-emerald-50 text-emerald-700 border-emerald-200'),
+    'convicted': ('Convicted', 'bg-emerald-50 text-emerald-700 border-emerald-200'),
+    'guilty_plea': ('Guilty plea', 'bg-emerald-50 text-emerald-700 border-emerald-200'),
+    'no_contest': ('No contest', 'bg-amber-50 text-amber-700 border-amber-200'),
+    'deferred': ('Deferred sentence', 'bg-amber-50 text-amber-700 border-amber-200'),
+    'dismissed': ('Dismissed', 'bg-sky-50 text-sky-700 border-sky-200'),
+    'acquitted': ('Acquitted', 'bg-sky-50 text-sky-700 border-sky-200'),
+    'reversed': ('Reversed', 'bg-red-50 text-red-700 border-red-200'),
+    'reversed_and_remanded': ('Reversed & Remanded', 'bg-orange-50 text-orange-700 border-orange-200'),
+    'remanded': ('Remanded', 'bg-yellow-50 text-yellow-700 border-yellow-200'),
+} %}
+
 {% macro disposition_badge(d) %}
-{% if d == 'affirmed' %}
-<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">Upheld</span>
-{% elif d == 'reversed_and_remanded' %}
-<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-orange-50 text-orange-700 border border-orange-200">Reversed &amp; Remanded</span>
-{% elif d == 'reversed' %}
-<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-red-50 text-red-700 border border-red-200">Reversed</span>
-{% elif d == 'remanded' %}
-<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-yellow-50 text-yellow-700 border border-yellow-200">Remanded</span>
+{% set meta = DISPOSITION_META.get(d) %}
+{% if meta %}
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide border {{ meta[1] }}">{{ meta[0] }}</span>
 {% else %}
-<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-slate-100 text-slate-500 border border-slate-200">Pending</span>
+<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide bg-slate-100 text-slate-500 border border-slate-200">{% if d %}{{ d | replace('_', ' ') | title }}{% else %}Pending{% endif %}</span>
 {% endif %}
 {% endmacro %}
 
@@ -60,10 +68,11 @@
                     <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Outcome</label>
                     <select name="disposition" class="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
                         <option value="">All outcomes</option>
-                        <option value="affirmed" {% if selected_disposition == 'affirmed' %}selected{% endif %}>Conviction upheld</option>
-                        <option value="reversed" {% if selected_disposition == 'reversed' %}selected{% endif %}>Reversed</option>
-                        <option value="reversed_and_remanded" {% if selected_disposition == 'reversed_and_remanded' %}selected{% endif %}>Reversed &amp; Remanded</option>
-                        <option value="remanded" {% if selected_disposition == 'remanded' %}selected{% endif %}>Remanded</option>
+                        {% for opt in disposition_options %}
+                        {% set d = opt.disposition %}
+                        {% set label = DISPOSITION_META.get(d, (d|replace('_',' ')|title, ''))[0] %}
+                        <option value="{{ d }}" {% if selected_disposition == d %}selected{% endif %}>{{ label }} ({{ opt.n }})</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div>
