@@ -151,6 +151,13 @@
   width: 72px;
 }
 
+.wanted-poster-card__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
 .wanted-poster-card__placeholder {
   display: flex;
   flex-direction: column;

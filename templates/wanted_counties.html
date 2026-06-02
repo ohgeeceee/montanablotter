@@ -1,0 +1,85 @@
+{% extends "public_page_base.html" %}
+
+{% set active_nav = "wanted" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/wanted" class="hover:text-slate-700">Active Warrants</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">All Counties</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-950 via-red-950 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="max-w-4xl">
+            <div class="inline-flex items-center rounded-full bg-red-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-red-300">
+                Montana Warrant Database &middot; All 56 Counties
+            </div>
+            <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Montana Warrant Search by County</h1>
+            <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                Browse active warrant records for all 56 Montana counties. {{ total_with_data }} counties currently have live data from official sheriff sources.
+            </p>
+        </div>
+        <div class="mt-8 grid gap-4 sm:grid-cols-3">
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Counties Covered</p>
+                <p class="mt-2 text-3xl font-black">56</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">With Live Data</p>
+                <p class="mt-2 text-3xl font-black">{{ total_with_data }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Updated</p>
+                <p class="mt-2 text-xl font-black">Daily</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-10 sm:px-6">
+
+    <div class="mb-6 flex items-center justify-between">
+        <h2 class="text-xl font-black text-slate-900">All 56 Montana Counties</h2>
+        <a href="/wanted" class="text-xs font-bold text-red-600 hover:text-red-700 uppercase tracking-wide">
+            <i class="fas fa-list mr-1"></i> Full Statewide List
+        </a>
+    </div>
+
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {% for county in counties %}
+        <a href="/wanted/county/{{ county.slug }}"
+           class="group flex items-center justify-between rounded-2xl border px-4 py-3.5 transition-all hover:shadow-md
+                  {% if county.active > 0 %}border-red-200 bg-red-50 hover:border-red-300{% else %}border-slate-200 bg-white hover:border-slate-300{% endif %}">
+            <div>
+                <p class="font-black text-slate-900 group-hover:text-red-700 transition-colors">{{ county.name }} County</p>
+                {% if county.active > 0 %}
+                <p class="mt-0.5 text-[11px] font-bold text-red-600">{{ county.active }} active warrant{{ 's' if county.active != 1 else '' }}</p>
+                {% else %}
+                <p class="mt-0.5 text-[11px] text-slate-400">No active records</p>
+                {% endif %}
+            </div>
+            <i class="fas fa-chevron-right text-xs {% if county.active > 0 %}text-red-400{% else %}text-slate-300{% endif %}"></i>
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 class="text-base font-black text-slate-900 mb-2">Data Coverage</h3>
+        <p class="text-sm text-slate-600 leading-6">
+            Montana Blotter monitors all 56 counties daily. Not all counties publish public warrant lists &mdash;
+            those that do are highlighted above. Records are sourced directly from official county sheriff offices
+            and justice courts.
+        </p>
+        <div class="mt-4">
+            <a href="/wanted" class="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-black text-white hover:bg-slate-700">
+                <i class="fas fa-search"></i> Search All Warrants
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

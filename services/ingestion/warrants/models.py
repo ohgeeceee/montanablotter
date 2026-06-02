@@ -23,6 +23,7 @@ class WarrantRecord:
     bond_type: str = ""
     status: str = "active"
     source_url: str = ""
+    mugshot_url: str = ""  # official sheriff booking/warrant photo when published
 
 
 def ensure_warrant_schema(conn: sqlite3.Connection) -> None:
@@ -57,6 +58,15 @@ def ensure_warrant_schema(conn: sqlite3.Connection) -> None:
         )
     except sqlite3.OperationalError:
         pass
+    for col, definition in (
+        ("mugshot_url", "TEXT NOT NULL DEFAULT ''"),
+        ("photo_url", "TEXT NOT NULL DEFAULT ''"),
+        ("social_profile_url", "TEXT NOT NULL DEFAULT ''"),
+    ):
+        try:
+            cursor.execute(f"ALTER TABLE warrants ADD COLUMN {col} {definition}")
+        except sqlite3.OperationalError:
+            pass
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_warrants_county_status "
         "ON warrants(county, status, updated_at)"

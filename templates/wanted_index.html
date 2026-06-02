@@ -91,6 +91,38 @@
         {% include "includes/wanted_poster_card.html" %}
         {% endfor %}
     </div>
+
+    {% if not warrant_access %}
+    <!-- Paywall soft gate shown below the 5 preview records -->
+    <div class="relative mt-0">
+        <div class="pointer-events-none absolute -top-32 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-white" aria-hidden="true"></div>
+        <div class="group rounded-3xl border-2 border-red-200 bg-white px-6 py-10 shadow-xl text-center cursor-pointer" onclick="location.href='/wanted/subscribe'">
+            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                <i class="fas fa-lock text-2xl text-red-600"></i>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900">
+                <a href="/wanted/subscribe" class="hover:text-red-700 transition-colors">{{ summary.active - rows|length }} more active warrants</a>
+            </h2>
+            <p class="mt-2 text-sm text-slate-500 max-w-sm mx-auto">
+                You&rsquo;re seeing 5 of {{ summary.active }} active records. <a href="/wanted/subscribe" class="text-red-600 font-semibold hover:underline">Subscribe for full access</a> &mdash; updated daily from all 56 Montana counties.
+            </p>
+            <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div class="rounded-2xl bg-red-50 border border-red-100 px-6 py-4 text-center min-w-[160px]">
+                    <p class="text-3xl font-black text-red-700">$1</p>
+                    <p class="text-xs text-red-500 font-bold">first 7 days</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">then $7/month</p>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <a href="/wanted/subscribe" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-8 py-3.5 text-sm font-black text-white hover:bg-red-700 transition-colors group-hover:bg-red-700">
+                        <i class="fas fa-unlock"></i> Unlock Full Access
+                    </a>
+                    <p class="text-[11px] text-slate-400 text-center">Cancel anytime &bull; Secure checkout via Stripe</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% else %}
     <div class="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
         <p class="text-xl font-black text-slate-900">No warrant records match this search.</p>
@@ -100,6 +132,16 @@
 
     <div class="mt-8 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-950">
         <strong>Public records notice:</strong> Warrant information is sourced from official county sheriff postings and may not reflect real-time court status.
+    </div>
+
+    <div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm leading-6 text-emerald-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <strong>Are you, a family member, or attorney watching a specific warrant?</strong>
+            Get a free one-time email when it is marked as cleared or resolved.
+        </div>
+        <a href="/wanted/notify-when-cleared" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 transition-colors flex-shrink-0">
+            <i class="fas fa-bell"></i> Notify me when cleared
+        </a>
     </div>
 </div>
 {% endblock %}

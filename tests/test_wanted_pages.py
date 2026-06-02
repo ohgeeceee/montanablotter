@@ -95,6 +95,18 @@ class WantedPagesTestCase(unittest.TestCase):
         self.assertIn("Jane Doe", body)
         self.assertIn("WANTED", body)
 
+    def test_wanted_index_renders_photo_when_present(self):
+        self.conn.execute(
+            "UPDATE warrants SET mugshot_url = ? WHERE source_record_id = ?",
+            ("https://example.com/mugshot.jpg", "test-warrant:jane-doe"),
+        )
+        self.conn.commit()
+        resp = self.client.get("/wanted?q=Jane")
+        body = resp.get_data(as_text=True)
+        self.assertIn("wanted-poster-card__photo", body)
+        self.assertIn("https://example.com/mugshot.jpg", body)
+        self.assertNotIn("No photo", body)
+
     def test_wanted_detail_renders_record(self):
         slug = warrant_slug("test-warrant:jane-doe")
         resp = self.client.get(f"/wanted/{slug}")
@@ -102,6 +114,26 @@ class WantedPagesTestCase(unittest.TestCase):
         body = resp.get_data(as_text=True)
         self.assertIn("Jane Doe", body)
         self.assertIn("CRIMINAL CONTEMPT", body)
+
+    def test_wanted_detail_renders_staff_photo_override(self):
+        self.conn.execute(
+            """
+            UPDATE warrants
+               SET mugshot_url = ?, photo_url = ?
+             WHERE source_record_id = ?
+            """,
+            (
+                "https://example.com/official.jpg",
+                "https://example.com/staff.jpg",
+                "test-warrant:jane-doe",
+            ),
+        )
+        self.conn.commit()
+        slug = warrant_slug("test-warrant:jane-doe")
+        resp = self.client.get(f"/wanted/{slug}")
+        body = resp.get_data(as_text=True)
+        self.assertIn("https://example.com/staff.jpg", body)
+        self.assertIn("Staff-approved photo", body)
 
     def test_resolved_warrant_shows_stamp_on_index(self):
         self.conn.execute(

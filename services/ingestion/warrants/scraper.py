@@ -1,15 +1,19 @@
 """
 Montana warrant list scraper.
 
-Fetches publicly posted warrant PDFs from county sheriff office websites
-and normalizes them into WarrantRecord objects for storage in the warrants table.
+Fetches publicly posted warrant lists from county sheriff offices, Zuercher
+portals, municipal courts, and PDF bulletins — normalizing them into
+WarrantRecord objects for storage in the warrants table.
 
-Source adapters:
-- rosebud: rosebudcountymt.gov/sheriff  (known WordPress PDF pattern)
-- All other counties: generic PDF finder (scans sheriff page for warrant PDFs)
+Source registry: services/ingestion/warrants/source_registry.py (56 counties
++ major city PD / municipal court sources).
 
-Adding a new county: append an entry to SOURCES and restart — the generic
-adapter handles any sheriff site that links warrant PDFs from its main page.
+Adapters:
+- flathead: HTML A–Z list
+- lewis-clark: OpenCities Justice Court `<li>` list
+- rosebud + generic: sheriff-page warrant PDF finder
+- zuercher: Zuercher portal #/warrants API (jail-hold supplement on failure)
+- billings / great-falls / municipal-table: HTML table municipal lists
 """
 
 from __future__ import annotations
@@ -25,63 +29,56 @@ import pdfplumber
 import requests
 
 from services.ingestion.http_client import make_ingest_session, public_dns_fallback
+from services.ingestion.warrants.html_table import parse_warrant_table_page
 from services.ingestion.warrants.models import WarrantRecord
+from services.ingestion.warrants.source_registry import SOURCES
+
+try:
+    from services.ingestion.warrants.billings import fetch_billings_warrants
+except ImportError:  # pragma: no cover - optional during partial deploys
+    fetch_billings_warrants = None  # type: ignore[assignment,misc]
 
 try:
     from services.ingestion.warrants.flathead import fetch_flathead_warrants
 except ImportError:  # pragma: no cover - optional during partial deploys
     fetch_flathead_warrants = None  # type: ignore[assignment,misc]
 
+try:
+    from services.ingestion.warrants.great_falls import fetch_great_falls_warrants
+except ImportError:  # pragma: no cover - optional during partial deploys
+    fetch_great_falls_warrants = None  # type: ignore[assignment,misc]
+
+try:
+    from services.ingestion.warrants.lewis_clark import fetch_lewis_clark_warrants
+except ImportError:  # pragma: no cover - optional during partial deploys
+    fetch_lewis_clark_warrants = None  # type: ignore[assignment,misc]
+
+try:
+    from services.ingestion.warrants.zuercher import fetch_zuercher_warrants
+except ImportError:  # pragma: no cover - optional during partial deploys
+    fetch_zuercher_warrants = None  # type: ignore[assignment,misc]
+
+try:
+    from services.ingestion.warrants.helena import fetch_helena_warrants
+except ImportError:  # pragma: no cover - optional during partial deploys
+    fetch_helena_warrants = None  # type: ignore[assignment,misc]
+
+try:
+    from services.ingestion.warrants.sheridan import fetch_sheridan_warrants
+except ImportError:  # pragma: no cover - optional during partial deploys
+    fetch_sheridan_warrants = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)"
 
-# Registry of known warrant-publishing county sheriff sources.
-# Keyed by slug (used with --county flag). Any entry without a custom adapter
-# uses the generic PDF finder, which scans the URL for warrant PDF links.
-SOURCES: dict[str, dict[str, str]] = {
-    "rosebud": {
-        "county": "Rosebud",
-        "url": "https://www.rosebudcountymt.gov/sheriff",
-    },
-    "cascade": {
-        "county": "Cascade",
-        "url": "https://www.cascadecountymt.gov/313/Sheriffs-Office",
-    },
-    "custer": {
-        "county": "Custer",
-        "url": "https://www.custercountymt.gov/departments/sheriff",
-    },
-    "dawson": {
-        "county": "Dawson",
-        "url": "https://www.dawsoncountymt.gov/sheriff",
-    },
-    "lewis-and-clark": {
-        "county": "Lewis and Clark",
-        "url": "https://www.lcso.mt.gov",
-    },
-    "flathead": {
-        "county": "Flathead",
-        "url": "https://apps.flathead.mt.gov/warrants/warrants_list.php",
-        "adapter": "flathead",
-    },
-    "carbon": {
-        "county": "Carbon",
-        "url": "https://www.carboncountymt.gov/government/sheriff",
-    },
-    "powder-river": {
-        "county": "Powder River",
-        "url": "https://www.powderrivercountymt.gov/departments/sheriff",
-    },
-    "prairie": {
-        "county": "Prairie",
-        "url": "https://www.prairiecountymt.gov/sheriff",
-    },
-    "valley": {
-        "county": "Valley",
-        "url": "https://www.valleycountymt.gov/county-officials/sheriff/",
-    },
-}
+_MUNICIPAL_INFO_MARKERS = (
+    "please contact the court",
+    "please call the municipal court",
+    "montana public access portal",
+    "court public access portal",
+    "jccrimclerks@yellowstonecountymt.gov",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +278,29 @@ def _fetch_rosebud(session: requests.Session) -> list[WarrantRecord]:
     return records
 
 
+def _fetch_municipal_table(
+    session: requests.Session, source: dict[str, str], slug: str
+) -> list[WarrantRecord]:
+    """Generic municipal court HTML table adapter."""
+    url = source["url"]
+    try:
+        resp = session.get(url, timeout=60)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        logger.warning("Failed to fetch municipal warrant page %s: %s", url, exc)
+        return []
+
+    return parse_warrant_table_page(
+        resp.text,
+        county=source["county"],
+        city=source.get("city", ""),
+        source_url=url,
+        source_prefix=f"{slug}-warrant",
+        issued_by=source.get("issued_by", ""),
+        info_only_markers=_MUNICIPAL_INFO_MARKERS,
+    )
+
+
 def _fetch_generic_pdf(
     session: requests.Session, county: str, url: str
 ) -> list[WarrantRecord]:
@@ -324,11 +344,27 @@ def fetch_warrants_for_county(county_slug: str) -> list[WarrantRecord]:
     county = source["county"]
     url = source["url"]
 
+    adapter = source.get("adapter", "generic")
+
     with public_dns_fallback():
+        if adapter == "flathead" and fetch_flathead_warrants is not None:
+            return fetch_flathead_warrants(session)
+        if adapter == "billings" and fetch_billings_warrants is not None:
+            return fetch_billings_warrants(session)
+        if adapter == "great-falls" and fetch_great_falls_warrants is not None:
+            return fetch_great_falls_warrants(session)
+        if adapter == "lewis-clark" and fetch_lewis_clark_warrants is not None:
+            return fetch_lewis_clark_warrants(session)
+        if adapter == "zuercher" and fetch_zuercher_warrants is not None:
+            return fetch_zuercher_warrants(session, url, county=county)
+        if adapter == "helena" and fetch_helena_warrants is not None:
+            return fetch_helena_warrants(session)
+        if adapter == "sheridan" and fetch_sheridan_warrants is not None:
+            return fetch_sheridan_warrants(session)
+        if adapter == "municipal-table":
+            return _fetch_municipal_table(session, source, county_slug)
         if county_slug == "rosebud":
             return _fetch_rosebud(session)
-        if county_slug == "flathead" and fetch_flathead_warrants is not None:
-            return fetch_flathead_warrants(session)
         return _fetch_generic_pdf(session, county, url)
 
 
@@ -352,37 +388,64 @@ def upsert_warrants(
             INSERT OR IGNORE INTO warrants (
                 source_record_id, county, city, person_name, dob,
                 warrant_type, charges_text, issued_by, issue_date,
-                bond_amount, bond_type, status, source_url,
+                bond_amount, bond_type, status, source_url, mugshot_url,
                 scraped_at, first_seen_at, updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 r.source_record_id, r.county, r.city, r.person_name, r.dob,
                 r.warrant_type, r.charges_text, r.issued_by, r.issue_date,
                 r.bond_amount, r.bond_type, r.status, r.source_url,
+                getattr(r, "mugshot_url", "") or "",
                 run_ts, run_ts, run_ts,
             ),
         )
         if cursor.rowcount:
             new_count += 1
         else:
-            cursor.execute(
-                """
-                UPDATE warrants
-                   SET charges_text = ?, bond_amount = ?, bond_type = ?,
-                       issued_by = ?, status = ?, source_url = ?,
-                       scraped_at = ?, updated_at = ?,
-                       resolved_at = CASE WHEN ? = 'active' THEN '' ELSE resolved_at END
-                 WHERE source_record_id = ?
-                """,
-                (
-                    r.charges_text, r.bond_amount, r.bond_type,
-                    r.issued_by, r.status or 'active', r.source_url,
-                    run_ts, run_ts,
-                    r.status or 'active',
-                    r.source_record_id,
-                ),
-            )
+            mugshot_url = getattr(r, "mugshot_url", "") or ""
+            if mugshot_url:
+                cursor.execute(
+                    """
+                    UPDATE warrants
+                       SET charges_text = ?, bond_amount = ?, bond_type = ?,
+                           issued_by = ?, status = ?, source_url = ?,
+                           city = CASE WHEN ? != '' THEN ? ELSE city END,
+                           mugshot_url = ?,
+                           scraped_at = ?, updated_at = ?,
+                           resolved_at = CASE WHEN ? = 'active' THEN '' ELSE resolved_at END
+                     WHERE source_record_id = ?
+                    """,
+                    (
+                        r.charges_text, r.bond_amount, r.bond_type,
+                        r.issued_by, r.status or 'active', r.source_url,
+                        r.city, r.city,
+                        mugshot_url,
+                        run_ts, run_ts,
+                        r.status or 'active',
+                        r.source_record_id,
+                    ),
+                )
+            else:
+                cursor.execute(
+                    """
+                    UPDATE warrants
+                       SET charges_text = ?, bond_amount = ?, bond_type = ?,
+                           issued_by = ?, status = ?, source_url = ?,
+                           city = CASE WHEN ? != '' THEN ? ELSE city END,
+                           scraped_at = ?, updated_at = ?,
+                           resolved_at = CASE WHEN ? = 'active' THEN '' ELSE resolved_at END
+                     WHERE source_record_id = ?
+                    """,
+                    (
+                        r.charges_text, r.bond_amount, r.bond_type,
+                        r.issued_by, r.status or 'active', r.source_url,
+                        r.city, r.city,
+                        run_ts, run_ts,
+                        r.status or 'active',
+                        r.source_record_id,
+                    ),
+                )
             updated_count += 1
 
     conn.commit()

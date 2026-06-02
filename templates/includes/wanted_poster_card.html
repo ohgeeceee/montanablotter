@@ -5,10 +5,14 @@
     </div>
     <div class="wanted-poster-card__body">
         <div class="wanted-poster-card__media">
+            {% if record.has_photo %}
+            <img src="{{ record.display_photo_url }}" alt="{{ record.person_name }}" class="wanted-poster-card__photo" loading="lazy">
+            {% else %}
             <div class="wanted-poster-card__placeholder" aria-hidden="true">
                 <i class="fas fa-user"></i>
                 <span>No photo</span>
             </div>
+            {% endif %}
             {% if not record.is_active %}
             <div class="wanted-poster-card__stamp" aria-label="Resolved">RESOLVED</div>
             {% endif %}

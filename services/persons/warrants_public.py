@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from services.ingestion.warrants.models import ensure_warrant_schema
+from services.ingestion.warrants.source_registry import SOURCES
 
 STATUS_ACTIVE = 'active'
 STATUS_RESOLVED = 'resolved'
@@ -68,12 +69,20 @@ def _decorate_warrant_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
         'bond_type': row['bond_type'] or '',
         'status': status,
         'source_url': row['source_url'] or '',
+        'mugshot_url': _row_value(row, 'mugshot_url'),
+        'photo_url': _row_value(row, 'photo_url'),
+        'social_profile_url': _row_value(row, 'social_profile_url'),
         'updated_at': _row_value(row, 'updated_at'),
         'first_seen_at': _row_value(row, 'first_seen_at'),
         'resolved_at': _row_value(row, 'resolved_at'),
     }
     item['is_active'] = status == STATUS_ACTIVE
-    item['status_label'] = 'Active Warrant' if item['is_active'] else 'Resolved'
+    if item['warrant_type'] == 'jail-hold-warrant':
+        item['status_label'] = (
+            'Jail Hold (Warrant Charge)' if item['is_active'] else 'Resolved'
+        )
+    else:
+        item['status_label'] = 'Active Warrant' if item['is_active'] else 'Resolved'
     item['updated_at_label'] = _display_datetime(item['updated_at'])
     item['resolved_at_label'] = _display_datetime(item['resolved_at'])
     item['issue_date_label'] = _display_datetime(item['issue_date']) if item['issue_date'] else 'Not provided'
@@ -81,6 +90,13 @@ def _decorate_warrant_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     item['location_label'] = ', '.join(
         part for part in [item['city'], f"{item['county']} County"] if part
     ) or f"{item['county']} County"
+    item['display_photo_url'] = item['photo_url'] or item['mugshot_url']
+    item['has_photo'] = bool(item['display_photo_url'])
+    item['photo_source_label'] = (
+        'Staff-approved photo'
+        if item['photo_url']
+        else ('Official sheriff photo' if item['mugshot_url'] else '')
+    )
     return item
 
 
@@ -405,4 +421,81 @@ def warrant_city_context(
         'total_active': int(active_count or 0),
         'city_name': city_term,
         'county_name': county_term,
+    }
+
+
+# ---------------------------------------------------------------------------
+# County-level warrant page
+# ---------------------------------------------------------------------------
+
+def _slug_to_county_name(slug: str) -> str | None:
+    """Map a URL slug like 'lewis-and-clark' to the DB county name 'Lewis and Clark'."""
+    source = SOURCES.get(slug)
+    return source.get('county') if source else None
+
+
+def warrant_county_context(
+    conn: sqlite3.Connection,
+    county_slug: str,
+    *,
+    limit: int = 100,
+) -> dict[str, Any] | None:
+    """Build context for a county-level wanted page.
+
+    Returns None if the slug is completely unknown. Returns a context dict
+    with warrant rows (possibly empty) plus source metadata even when no
+    records exist — so the template can still render a useful page.
+    """
+    ensure_warrant_schema(conn)
+    slug = _single_line(county_slug, max_len=60).lower()
+    if not slug:
+        return None
+
+    county_name = _slug_to_county_name(slug)
+    if not county_name:
+        return None
+
+    source = SOURCES.get(slug, {})
+    source_url = source.get('url', '')
+    has_live_source = bool(source_url)
+
+    active_rows = _fetch_warrant_rows(
+        conn,
+        status=STATUS_ACTIVE,
+        county=county_name,
+        sort='name_asc',
+        limit=limit,
+    )
+    resolved_rows = _fetch_warrant_rows(
+        conn,
+        status=STATUS_RESOLVED,
+        county=county_name,
+        sort='recently_resolved',
+        limit=12,
+    )
+
+    active_count = conn.execute(
+        "SELECT COUNT(*) AS total FROM warrants WHERE county = ? AND status = 'active'",
+        (county_name,),
+    ).fetchone()['total']
+    resolved_count = conn.execute(
+        "SELECT COUNT(*) AS total FROM warrants WHERE county = ? AND status = 'resolved'",
+        (county_name,),
+    ).fetchone()['total']
+    latest_updated = conn.execute(
+        "SELECT MAX(updated_at) AS latest FROM warrants WHERE county = ? AND status = 'active'",
+        (county_name,),
+    ).fetchone()['latest']
+
+    return {
+        'county_slug': slug,
+        'county_name': county_name,
+        'source_url': source_url,
+        'has_live_source': has_live_source,
+        'active_rows': [_decorate_warrant_row(r) for r in active_rows],
+        'resolved_rows': [_decorate_warrant_row(r) for r in resolved_rows],
+        'active_count': int(active_count or 0),
+        'resolved_count': int(resolved_count or 0),
+        'latest_updated': latest_updated or '',
+        'latest_updated_label': _display_datetime(latest_updated) if latest_updated else '',
     }

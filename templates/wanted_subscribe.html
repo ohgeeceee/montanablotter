@@ -1,0 +1,114 @@
+{% extends "public_page_base.html" %}
+
+{% set active_nav = "wanted" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/wanted" class="hover:text-slate-700">Active Warrants</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Subscribe</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-14 sm:px-6">
+
+    <div class="text-center mb-10">
+        <div class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-red-700 mb-4">
+            Montana Active Warrants
+        </div>
+        <h1 class="text-4xl font-black tracking-tight text-slate-900">Full Warrant Access</h1>
+        <p class="mt-3 text-base text-slate-500 leading-7">Search and browse the full Montana active warrant database &mdash; updated daily from 56 counties.</p>
+    </div>
+
+    <!-- Pricing card -->
+    <div class="rounded-3xl border-2 border-red-200 bg-white shadow-xl overflow-hidden mb-8">
+        <div class="bg-gradient-to-br from-red-600 to-red-800 px-8 py-6 text-white text-center">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-red-200">Limited Offer</p>
+            <div class="mt-2 flex items-end justify-center gap-2">
+                <span class="text-6xl font-black">$1</span>
+                <span class="mb-3 text-lg text-red-200">first week</span>
+            </div>
+            <p class="text-sm text-red-100">then $7/month &mdash; cancel anytime</p>
+        </div>
+        <div class="px-8 py-6">
+            <ul class="space-y-3 mb-6">
+                <li class="flex items-center gap-3 text-sm text-slate-700">
+                    <i class="fas fa-check-circle text-red-500 w-4"></i>
+                    Full access to all active Montana warrant records
+                </li>
+                <li class="flex items-center gap-3 text-sm text-slate-700">
+                    <i class="fas fa-check-circle text-red-500 w-4"></i>
+                    Search by name, county, charge, or city
+                </li>
+                <li class="flex items-center gap-3 text-sm text-slate-700">
+                    <i class="fas fa-check-circle text-red-500 w-4"></i>
+                    Individual warrant detail pages with full charge info
+                </li>
+                <li class="flex items-center gap-3 text-sm text-slate-700">
+                    <i class="fas fa-check-circle text-red-500 w-4"></i>
+                    All 56 Montana county warrant pages
+                </li>
+                <li class="flex items-center gap-3 text-sm text-slate-700">
+                    <i class="fas fa-check-circle text-red-500 w-4"></i>
+                    Daily updates from official sheriff sources
+                </li>
+                <li class="flex items-center gap-3 text-sm text-slate-700">
+                    <i class="fas fa-check-circle text-red-500 w-4"></i>
+                    Resolved warrant history
+                </li>
+            </ul>
+
+            {% if checkout_error %}
+            <div class="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                <i class="fas fa-exclamation-triangle mr-2"></i>{{ checkout_error }}
+            </div>
+            {% endif %}
+
+            {% if already_subscribed %}
+            <div class="rounded-xl bg-green-50 border border-green-200 px-5 py-4 mb-4 text-sm text-green-800">
+                <p class="font-bold mb-1"><i class="fas fa-check-circle mr-2 text-green-600"></i>You already have active access</p>
+                <p class="text-green-700">Your warrant access subscription is active. Head to the warrant database to start searching.</p>
+            </div>
+            <a href="/wanted"
+               class="block w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
+                Browse Active Warrants
+            </a>
+            {% elif is_logged_in %}
+            <form method="POST" action="/checkout/warrant-access">
+                <button type="submit"
+                        class="w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors">
+                    Start 7-Day Trial &mdash; $1
+                </button>
+            </form>
+            <p class="mt-3 text-center text-[11px] text-slate-400">
+                Secure checkout via Stripe &bull; Cancel anytime before trial ends &bull; No hidden fees
+            </p>
+            {% else %}
+            <div class="rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 mb-4 text-sm text-amber-800">
+                <p class="font-bold mb-1"><i class="fas fa-lock mr-2"></i>Account required to subscribe</p>
+                <p class="text-amber-700">Create a free account (takes 30 seconds), then come back here to start your trial.</p>
+            </div>
+            <a href="/register?next=/wanted/subscribe"
+               class="block w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
+                Create Account &amp; Subscribe &mdash; $1
+            </a>
+            <p class="mt-3 text-center text-[11px] text-slate-400">
+                Free account &bull; Secure checkout via Stripe &bull; Cancel anytime
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 text-center text-sm text-slate-500">
+        Already have an account?
+        <a href="/login?next=/wanted/subscribe" class="font-bold text-slate-700 hover:text-slate-900 underline">Sign in to subscribe</a>
+    </div>
+
+    <div class="mt-8 text-center">
+        <a href="/wanted" class="text-sm text-slate-400 hover:text-slate-600">
+            &larr; Back to warrant list
+        </a>
+    </div>
+
+</div>
+{% endblock %}
