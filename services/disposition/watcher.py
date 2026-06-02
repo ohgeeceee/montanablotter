@@ -221,9 +221,120 @@ def mark_notified(conn: sqlite3.Connection, link_ids: list[int]) -> int:
     return cur.rowcount
 
 
+def notify_admin_of_new_outcomes(
+    conn: sqlite3.Connection,
+    *,
+    limit: int = 50,
+    mark_after_send: bool = True,
+) -> dict[str, Any]:
+    """
+    Email the admin a digest of pending outcome notifications and (on success)
+    stamp notified_admin_at on the listed links so they don't re-fire next run.
+
+    Returns a stats dict: {sent, recipients, links_in_email, total_pending, error}.
+    The email is best-effort — if SMTP isn't configured or the send raises, the
+    links are NOT marked notified, so the next cron run will retry and the admin
+    dashboard at /admin/case-watch still surfaces them.
+    """
+    pending = find_pending_notifications(conn, limit=max(limit, 1))
+    if not pending:
+        return {'sent': False, 'recipients': 0, 'links_in_email': 0,
+                'total_pending': 0, 'error': None}
+
+    # Lazy import: avoids a hard dep on services.alerts.legacy at module load.
+    from services.alerts.legacy import collect_alert_recipients, send_plaintext_email
+
+    recipients = collect_alert_recipients(conn)
+    if not recipients:
+        log.info('notify_admin_of_new_outcomes: no recipients configured, skipping send')
+        return {'sent': False, 'recipients': 0, 'links_in_email': len(pending),
+                'total_pending': len(pending), 'error': 'no_recipients'}
+
+    total_pending = conn.execute(
+        'SELECT COUNT(*) AS n FROM booking_case_links '
+        'WHERE has_outcome = 1 AND notified_admin_at IS NULL'
+    ).fetchone()['n']
+
+    subject = (
+        f'Montana Blotter: {len(pending)} new court outcome'
+        f'{"s" if len(pending) != 1 else ""} for tracked arrests'
+    )
+
+    lines = [
+        f'{len(pending)} newly-observed court outcome(s) for jail bookings '
+        f'previously linked by the disposition watcher.',
+        '',
+    ]
+    for r in pending:
+        person = (r.get('person_name') or 'Unknown').strip()
+        case = r.get('case_number') or '—'
+        county = r.get('county_name') or '—'
+        disposition = (r.get('disposition') or '').strip()
+        sentence = (r.get('sentence_text') or '').strip()
+        sentence_date = (r.get('sentence_date') or '').strip()[:10]
+        judge = (r.get('sentencing_judge') or '').strip()
+        outcome_bits = []
+        if disposition:
+            outcome_bits.append(disposition)
+        if sentence:
+            outcome_bits.append(sentence)
+        if sentence_date:
+            outcome_bits.append(f'sentenced {sentence_date}')
+        if judge:
+            outcome_bits.append(f'by {judge}')
+        outcome_line = '; '.join(outcome_bits) or '(no outcome details yet)'
+
+        lines.append(f'• {person} ({county}) — {case}')
+        lines.append(f'   {outcome_line}')
+
+    if total_pending > len(pending):
+        lines.append('')
+        lines.append(
+            f'...and {total_pending - len(pending)} more pending. '
+            f'See /admin/case-watch for the full list.'
+        )
+
+    lines.extend([
+        '',
+        'Review & dismiss: /admin/case-watch?pending=1',
+        '',
+        '— Montana Blotter disposition watcher',
+    ])
+    body = '\n'.join(lines)
+
+    try:
+        ok = send_plaintext_email(recipients, subject, body)
+    except Exception as e:  # noqa: BLE001
+        log.warning('notify_admin_of_new_outcomes: send failed: %s', e)
+        return {'sent': False, 'recipients': len(recipients),
+                'links_in_email': len(pending), 'total_pending': total_pending,
+                'error': str(e)}
+
+    if not ok:
+        return {'sent': False, 'recipients': len(recipients),
+                'links_in_email': len(pending), 'total_pending': total_pending,
+                'error': 'smtp_not_configured'}
+
+    if mark_after_send:
+        link_ids = [int(r['id']) for r in pending]
+        marked = mark_notified(conn, link_ids)
+        log.info('notify_admin_of_new_outcomes: sent to %d recipient(s), marked %d links',
+                 len(recipients), marked)
+    else:
+        marked = 0
+
+    return {'sent': True, 'recipients': len(recipients),
+            'links_in_email': len(pending), 'total_pending': total_pending,
+            'marked': marked, 'error': None}
+
+
 def run_all(conn: sqlite3.Connection) -> dict[str, Any]:
     """Run both watchers in sequence and return combined stats."""
+    link_stats = link_recent_bookings(conn)
+    refresh_stats = refresh_outcome_data(conn)
+    notify_stats = notify_admin_of_new_outcomes(conn)
     return {
-        'link': link_recent_bookings(conn),
-        'refresh': refresh_outcome_data(conn),
+        'link': link_stats,
+        'refresh': refresh_stats,
+        'notify': notify_stats,
     }
