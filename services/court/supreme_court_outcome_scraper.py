@@ -176,6 +176,7 @@ def run_supreme_court_outcome_backfill(
             "UPDATE court_sources SET last_success_at=datetime('now'), last_error=NULL, updated_at=datetime('now') WHERE id=?",
             (source_id,),
         )
+        conn.commit()
         return _build_result(source_id, updated=0, skipped=0, errors=0, total=0)
 
     updated = criminal = skipped = errors = 0
@@ -252,9 +253,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _build_parser().parse_args()
-    conn = sqlite3.connect(config.DB_PATH, timeout=float(getattr(config, 'DB_TIMEOUT_SECONDS', 30)))
+    # Use a longer timeout than the default 30s — this job runs alongside gunicorn workers
+    # and other nightly scrapers that can hold write locks for short bursts.
+    db_timeout = max(120.0, float(getattr(config, 'DB_TIMEOUT_SECONDS', 30)))
+    conn = sqlite3.connect(config.DB_PATH, timeout=db_timeout)
     conn.row_factory = sqlite3.Row
     _configure_sqlite(conn)
+    conn.execute(f'PRAGMA busy_timeout = {int(db_timeout * 1000)}')
     try:
         result = run_supreme_court_outcome_backfill(conn, batch=args.batch, dry_run=args.dry_run)
     finally:

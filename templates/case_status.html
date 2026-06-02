@@ -1,0 +1,159 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Case Status Lookup</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl">
+            <p class="public-eyebrow" style="color:var(--public-steel);">Free Public Lookup</p>
+            <h1 class="public-title mt-3 max-w-4xl">
+                Check a Montana
+                <span class="block" style="color:var(--public-red);">court case status</span>
+            </h1>
+            <p class="public-copy max-w-3xl">
+                Type a case number and we'll show the public snapshot — case type, court, filed date, parties,
+                and, for criminal appellate cases, the outcome. No login, no paywall.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-3 text-xs font-semibold text-slate-700">
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">Free, no login</div>
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ hourly_limit }} lookups / hour per IP</div>
+                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">All Montana courts in one place</div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="bg-slate-50 text-slate-900">
+    <section class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+        <form method="post" action="/case-status"
+              class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="grid gap-4 md:grid-cols-[minmax(0,2fr),1fr,auto] md:items-end">
+                <div>
+                    <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Case number</label>
+                    <input name="q" value="{{ q }}" required minlength="2" maxlength="120"
+                           placeholder="e.g. DV-32-2023-0000055-NE or DA 25-0409"
+                           class="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                </div>
+                <div>
+                    <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">County (optional)</label>
+                    <select name="county" class="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+                        <option value="">All counties</option>
+                        {% for c in counties %}
+                        <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-white">Look up</button>
+                </div>
+            </div>
+            {% if error %}
+            <p class="mt-3 text-sm text-red-700">{{ error }}</p>
+            {% endif %}
+            {% if rate_limited %}
+            <p class="mt-3 text-sm text-red-700">
+                You hit the {{ hourly_limit }}/hour free limit. Take a break or
+                <a class="underline" href="/subscribe">subscribe</a> for unlimited lookups.
+            </p>
+            {% endif %}
+        </form>
+
+        {% if results is defined and results is not none %}
+        <div class="mt-6 rounded-3xl border border-slate-200 bg-white overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+                {% if results|length == 0 %}
+                No matching cases.
+                {% else %}
+                {{ results|length }} match{% if results|length != 1 %}es{% endif %} for &ldquo;{{ q }}&rdquo;
+                {% endif %}
+            </div>
+            {% if results %}
+            <ul class="divide-y divide-slate-100">
+                {% for r in results %}
+                <li class="px-5 py-4">
+                    <div class="flex flex-wrap items-baseline gap-3">
+                        <a href="/court-case/{{ r.court_slug }}/{{ r.id }}"
+                           class="font-black text-slate-900 hover:underline">{{ r.case_number }}</a>
+                        {% if r.status %}
+                        <span class="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider
+                                     {% if r.status == 'completed' or r.status == 'closed' %}bg-emerald-100 text-emerald-800
+                                     {% elif r.status == 'open' or r.status == 'scheduled' %}bg-amber-100 text-amber-800
+                                     {% else %}bg-slate-100 text-slate-700{% endif %}">
+                            {{ r.status }}
+                        </span>
+                        {% endif %}
+                        {% if r.case_type %}
+                        <span class="text-xs text-slate-500">{{ r.case_type }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="mt-1 text-sm text-slate-700 line-clamp-2">
+                        {{ r.caption[:240] }}{% if r.caption|length > 240 %}…{% endif %}
+                    </div>
+
+                    <div class="mt-1 text-xs text-slate-500">
+                        <strong>{{ r.court_name }}</strong>
+                        {% if r.county %} — {{ r.county }} County{% endif %}
+                        {% if r.original_case_number %}
+                        <span class="ml-2 text-slate-400">orig. {{ r.original_case_number }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if r.is_criminal and r.defendant_name %}
+                    <div class="mt-3 rounded-xl border border-red-100 bg-red-50/60 p-3 text-sm">
+                        <div class="text-[10px] font-black uppercase tracking-wider text-red-800">Criminal case</div>
+                        <div class="mt-1 text-slate-800">
+                            <strong>{{ r.defendant_name }}</strong>
+                            {% if r.charges_text %}— {{ r.charges_text[:160] }}{% if r.charges_text|length > 160 %}…{% endif %}{% endif %}
+                        </div>
+                        {% if r.plea or r.disposition %}
+                        <div class="mt-1 text-xs text-slate-700">
+                            {% if r.plea %}<span class="font-semibold">Plea:</span> {{ r.plea }}.{% endif %}
+                            {% if r.disposition %} <span class="font-semibold">Outcome:</span> {{ r.disposition|replace('_', ' ') }}.{% endif %}
+                        </div>
+                        {% endif %}
+                        {% if r.sentence_text %}
+                        <div class="mt-1 text-xs text-slate-700">
+                            <span class="font-semibold">Sentence:</span> {{ r.sentence_text[:200] }}{% if r.sentence_text|length > 200 %}…{% endif %}
+                            {% if r.sentence_date %}<span class="text-slate-500"> ({{ r.sentence_date[:10] }})</span>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% if r.sentencing_judge %}
+                        <div class="mt-1 text-xs text-slate-500">Judge: {{ r.sentencing_judge }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if r.filed_date or r.last_seen_at %}
+                    <div class="mt-2 text-[11px] text-slate-400">
+                        {% if r.filed_date %}Filed {{ r.filed_date[:10] }}{% endif %}
+                        {% if r.last_seen_at and r.last_seen_at != r.filed_date %} · Last seen {{ r.last_seen_at[:10] }}{% endif %}
+                    </div>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
+            <h2 class="text-base font-black">How this works</h2>
+            <ul class="mt-2 list-disc pl-5 space-y-1">
+                <li>We match against the public Montana Supreme Court and District Court dockets we track.</li>
+                <li>If a case isn't listed here, we may not have scraped it yet. Try the
+                    <a class="text-blue-700 underline" href="/courts">full court directory</a> for upcoming hearings.</li>
+                <li>Criminal case details only appear for cases with a publicly available appellate opinion.</li>
+                <li>Spotted an error? <a class="text-blue-700 underline" href="/submit-a-tip">Submit a tip</a> and we'll review.</li>
+            </ul>
+        </div>
+    </section>
+</main>
+{% endblock %}
