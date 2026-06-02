@@ -51,6 +51,7 @@ from services.court.tracker import (
     criminal_cases_context,
     ensure_court_tracker_schema,
 )
+from services.disposition.lookup import lookup_disposition
 from db import connect_db, connect_page_views, get_db
 from core.dedupe import incident_key_set
 from services.publishing.morning_briefing import (
@@ -3916,6 +3917,143 @@ def _apply_warrant_access_stripe_event(conn, event):
                 )
 
 
+def _apply_disposition_api_stripe_event(conn, event):
+    """Handle Stripe webhook events for disposition_api subscriptions.
+
+    On checkout.session.completed: provision a new api_data_tokens row with
+    tier='disposition' for the public_user, log the plaintext token in
+    api_token_deliveries for email follow-up, and (best-effort) email it.
+
+    On invoice.paid: refresh the token's is_active flag and rate limit.
+
+    On customer.subscription.deleted/updated (non-active): deactivate the token.
+    """
+    event_type = (event.get('type') or '').strip()
+    data_object = (event.get('data') or {}).get('object') or {}
+    metadata = data_object.get('metadata') or {}
+
+    public_user_id = (
+        (data_object.get('client_reference_id') or '')
+        or (metadata.get('public_user_id') or '')
+    ).strip()
+    customer_email = ''
+    customer_details = data_object.get('customer_details') or {}
+    if customer_details:
+        customer_email = (customer_details.get('email') or '').strip().lower()
+    if not customer_email:
+        # Subscription objects carry customer email
+        customer_email = (data_object.get('customer_email') or '').strip().lower()
+
+    if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
+        subscription_id = (data_object.get('subscription') or '').strip()
+        # Resolve user
+        user_row = None
+        if public_user_id.isdigit():
+            user_row = conn.execute(
+                'SELECT id, email FROM public_users WHERE id = ?',
+                (int(public_user_id),),
+            ).fetchone()
+        if not user_row and customer_email:
+            user_row = conn.execute(
+                'SELECT id, email FROM public_users WHERE LOWER(TRIM(email)) = ?',
+                (customer_email,),
+            ).fetchone()
+        if not user_row:
+            app.logger.warning('disposition_api webhook: no public_user matched for subscription=%s', subscription_id)
+            return
+
+        # If we already have an active disposition token for this subscription, refresh
+        # its last_used_at so we don't issue duplicates.
+        existing = None
+        if subscription_id:
+            existing = conn.execute(
+                'SELECT id FROM api_data_tokens WHERE label = ? AND is_active = 1',
+                (f'disposition:{subscription_id}',),
+            ).fetchone()
+        if existing:
+            app.logger.info('disposition_api webhook: token already issued for subscription=%s', subscription_id)
+            return
+
+        plaintext = _new_api_token()
+        token_hash = _hash_api_token(plaintext)
+        token_prefix = plaintext[:12]  # 'mb_live_xxxx' — safe to display
+        cur = conn.execute(
+            '''
+            INSERT INTO api_data_tokens
+                (user_id, label, token_hash, token_prefix, tier,
+                 rate_limit_per_minute, is_active)
+            VALUES (?, ?, ?, ?, 'disposition', 30, 1)
+            ''',
+            (user_row['id'], f'disposition:{subscription_id}' if subscription_id else 'disposition',
+             token_hash, token_prefix),
+        )
+        token_id = cur.lastrowid
+        # Log the plaintext in the delivery table for email follow-up
+        conn.execute(
+            '''
+            INSERT INTO api_token_deliveries
+                (token_id, plaintext_token, public_user_id, email)
+            VALUES (?, ?, ?, ?)
+            ''',
+            (token_id, plaintext, user_row['id'], user_row['email']),
+        )
+        conn.commit()
+        app.logger.info(
+            'disposition_api webhook: provisioned token id=%s prefix=%s for user=%s subscription=%s',
+            token_id, token_prefix, user_row['id'], subscription_id,
+        )
+        # Best-effort email send
+        try:
+            from services.publishing.morning_briefing import send_email as _send_email
+            _send_email(
+                user_row['email'],
+                'Your Montana Blotter Disposition API token',
+                (
+                    f'<p>Thanks for subscribing to the Montana Blotter Disposition API.</p>'
+                    f'<p>Your API token is:</p>'
+                    f'<pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem;border-radius:6px;">{plaintext}</pre>'
+                    f'<p>Pass it as <code>Authorization: Bearer &lt;token&gt;</code>. '
+                    f'You get 500 lookups/day and full watchlist access. Cancel anytime from your billing receipt.</p>'
+                    f'<p>Docs: <a href="https://montanablotter.com/disposition-api">/disposition-api</a></p>'
+                ),
+            )
+            conn.execute(
+                'UPDATE api_token_deliveries SET email_sent_at = datetime("now") WHERE token_id = ?',
+                (token_id,),
+            )
+            conn.commit()
+        except Exception as e:  # noqa: BLE001
+            app.logger.exception('disposition_api webhook: email send failed for token id=%s: %s', token_id, e)
+            try:
+                conn.execute(
+                    'UPDATE api_token_deliveries SET email_error = ? WHERE token_id = ?',
+                    (str(e)[:500], token_id),
+                )
+                conn.commit()
+            except Exception:
+                pass
+    elif event_type == 'invoice.paid':
+        # Renewals — leave the token active (idempotent)
+        app.logger.info('disposition_api webhook: invoice.paid (no-op for active tokens)')
+    elif event_type in {'customer.subscription.deleted', 'customer.subscription.updated'}:
+        subscription_id = (data_object.get('id') or '').strip()
+        status = (data_object.get('status') or '').strip().lower()
+        if subscription_id and status not in {'active', 'trialing'}:
+            conn.execute(
+                '''
+                UPDATE api_data_tokens
+                SET is_active = 0
+                WHERE label = ? AND tier = 'disposition'
+                ''',
+                (f'disposition:{subscription_id}',),
+            )
+            conn.commit()
+            app.logger.info(
+                'disposition_api webhook: deactivated tokens for subscription=%s status=%s',
+                subscription_id, status,
+            )
+
+
 def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_hash='', event_referrer=''):
     event_type = (event.get('type') or '').strip()
     data_object = (event.get('data') or {}).get('object') or {}
@@ -3927,6 +4065,9 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
         return
     if (metadata.get('flow') or '').strip() == 'warrant_access':
         _apply_warrant_access_stripe_event(conn, event)
+        return
+    if (metadata.get('flow') or '').strip() == 'disposition_api':
+        _apply_disposition_api_stripe_event(conn, event)
         return
     if not event_type:
         return
@@ -14934,6 +15075,169 @@ def _api_v1_summary():
     return jsonify(out)
 
 
+# ---------------------------------------------------------------------------
+# /api/v1/disposition/lookup — person → court outcome + jail booking cross-lookup
+# ---------------------------------------------------------------------------
+def _api_v1_disposition_lookup():
+    """Arrest → court disposition lookup. Returns matching court cases + related bookings.
+
+    Accepts both GET (query string) and POST (JSON body). Auth via Bearer token
+    (api_data_tokens, same as the /api/v1/data/* siblings).
+
+    Query params (GET) / JSON body (POST):
+      name:           Person name in any format ('Brian Laird', 'Laird, Brian',
+                      'Laird, Brian Q'). Required if case_number omitted.
+      county:         Optional county filter (narrows both court and bookings).
+      case_number:    Optional exact case number (e.g. 'DA 17-0348').
+      include_bookings: '1'/'0' or true/false. Default true. Skip the jail-booking
+                      cross-link for a faster response.
+      limit:          Max cases per person. Default 25, max 100.
+
+    Response: JSON with query echo, match_count, matches[], data_as_of, warnings[].
+    """
+    token, err = _check_api_token()
+    if err:
+        return err
+
+    if request.method == 'POST':
+        body = request.get_json(silent=True) or {}
+        name = (body.get('name') or '').strip()[:200]
+        county = (body.get('county') or '').strip()[:60]
+        case_number = (body.get('case_number') or '').strip()[:60]
+        ib_raw = body.get('include_bookings', True)
+        include_bookings = ib_raw if isinstance(ib_raw, bool) else str(ib_raw).lower() not in ('0', 'false', 'no')
+        try:
+            limit = int(body.get('limit', 25))
+        except (TypeError, ValueError):
+            limit = 25
+    else:
+        name = (request.args.get('name') or '').strip()[:200]
+        county = (request.args.get('county') or '').strip()[:60]
+        case_number = (request.args.get('case_number') or '').strip()[:60]
+        include_bookings = (request.args.get('include_bookings', '1').lower() not in ('0', 'false', 'no'))
+        try:
+            limit = int(request.args.get('limit', 25))
+        except (TypeError, ValueError):
+            limit = 25
+
+    if not name and not case_number:
+        return jsonify({
+            'error': 'missing_input',
+            'message': 'Provide at least a name or case_number query parameter.',
+        }), 400
+
+    conn = get_db()
+    try:
+        result = lookup_disposition(
+            conn,
+            name=name or None,
+            county=county or None,
+            case_number=case_number or None,
+            include_bookings=include_bookings,
+            limit=limit,
+        )
+    finally:
+        conn.close()
+
+    # Enrich response with the caller's tier so they can confirm which plan answered.
+    result['tier'] = token['tier'] if token else None
+    return jsonify(result)
+
+
+# ---------------------------------------------------------------------------
+# Disposition API — Stripe checkout + webhook handling
+# $19/month subscription, creates an api_data_tokens row with tier='disposition'.
+# Marketing page is at /disposition-api. Auth: same as warrant checkout
+# (must be a logged-in public_user).
+# ---------------------------------------------------------------------------
+_DISPOSITION_API_PRICE_ID = getattr(config, 'STRIPE_DISPOSITION_API_PRICE_ID', None) or ''
+_DISPOSITION_PAYMENT_LINK = getattr(
+    config, 'STRIPE_DISPOSITION_PAYMENT_LINK', ''
+) or 'https://buy.stripe.com/test_DISPOSITION_API_PLACEHOLDER'
+
+
+@app.route('/api/v1/disposition/checkout', methods=['POST'])
+def disposition_api_checkout():
+    """Start a Stripe Checkout Session for the Disposition API subscription.
+
+    Requires login (mirrors warrant_access). On success the user is redirected
+    to Stripe; the webhook handler (_apply_disposition_api_stripe_event) creates
+    the api_data_tokens row and emails the token.
+    """
+    public_user_id = session.get('public_user_id')
+    if not public_user_id:
+        flash('Please log in or create an account to subscribe.', 'info')
+        return redirect('/login?next=/disposition-api')
+    email = None
+    try:
+        conn = get_db()
+        row = conn.execute(
+            'SELECT email FROM public_users WHERE id = ?', (int(public_user_id),)
+        ).fetchone()
+        conn.close()
+        if row:
+            email = row['email'] or None
+    except Exception:
+        app.logger.exception('disposition-api checkout: DB error fetching user %s', public_user_id)
+
+    base_url = (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
+
+    if _DISPOSITION_API_PRICE_ID:
+        # Programmatic Checkout Session path
+        try:
+            keys = config.STRIPE_SECRET_KEY if hasattr(config, 'STRIPE_SECRET_KEY') else None
+            if not keys:
+                raise RuntimeError('STRIPE_SECRET_KEY not configured')
+            import stripe
+            stripe.api_key = keys
+            session = stripe.checkout.Session.create(
+                mode='subscription',
+                client_reference_id=str(public_user_id),
+                customer_email=email or None,
+                line_items=[{'price': _DISPOSITION_API_PRICE_ID, 'quantity': 1}],
+                success_url=f"{base_url}/checkout/disposition-api/success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{base_url}/disposition-api?canceled=1",
+                subscription_data={
+                    'metadata': {
+                        'flow': 'disposition_api',
+                        'public_user_id': str(public_user_id),
+                    },
+                },
+                metadata={
+                    'flow': 'disposition_api',
+                    'public_user_id': str(public_user_id),
+                },
+            )
+            url = session.url
+            if url:
+                app.logger.info('disposition-api checkout: created session for user %s', public_user_id)
+                return redirect(url)
+        except Exception:
+            app.logger.exception('disposition-api checkout: session create failed, falling back')
+
+    # Fall back to Payment Link if configured, else 503
+    if _DISPOSITION_PAYMENT_LINK and 'PLACEHOLDER' not in _DISPOSITION_PAYMENT_LINK:
+        from urllib.parse import urlencode
+        params = {'client_reference_id': str(public_user_id)}
+        if email:
+            params['prefilled_email'] = email
+        return redirect(f"{_DISPOSITION_PAYMENT_LINK}?{urlencode(params)}")
+
+    return jsonify({
+        'error': 'payments_not_configured',
+        'message': 'Disposition API billing is not yet active. Email data@montanablotter.com for early access.',
+    }), 503
+
+
+@app.route('/checkout/disposition-api/success')
+def disposition_api_checkout_success():
+    return render_template(
+        'checkout_disposition_success.html',
+        current_year=datetime.now().year,
+        page_title='Disposition API — Subscribed',
+    )
+
+
 # Public marketing page for the B2B API
 @app.route('/data-api')
 def data_api_landing():
@@ -14941,6 +15245,16 @@ def data_api_landing():
         'data_api.html',
         current_year=datetime.now().year,
         canonical_url=f'{BASE_URL}/data-api',
+    )
+
+
+# Public marketing page for the Arrest → Court Disposition API
+@app.route('/disposition-api')
+def disposition_api_landing():
+    return render_template(
+        'disposition_api.html',
+        current_year=datetime.now().year,
+        canonical_url=f'{BASE_URL}/disposition-api',
     )
 
 
@@ -15125,6 +15439,7 @@ app.add_url_rule('/api/v1/data/warrants', view_func=_api_v1_warrants, methods=['
 app.add_url_rule('/api/v1/data/jail-bookings', view_func=_api_v1_jail_bookings, methods=['GET'])
 app.add_url_rule('/api/v1/data/posts', view_func=_api_v1_posts, methods=['GET'])
 app.add_url_rule('/api/v1/data/summary', view_func=_api_v1_summary, methods=['GET'])
+app.add_url_rule('/api/v1/disposition/lookup', view_func=_api_v1_disposition_lookup, methods=['GET', 'POST'])
 
 
 @app.errorhandler(500)

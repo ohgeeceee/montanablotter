@@ -1719,6 +1719,123 @@ def migrate():
         'ON court_cases(is_criminal, outcome_scraped_at, status)'
     )
 
+    # Disposition API lookup keys (added 2026-06-02)
+    # Pre-compute last name, first name, and slug for fast person → court_case joins.
+    # court_cases.defendant_name is in "First [Middle] Last" format; we split on first space.
+    for col, definition in [
+        ('defendant_slug', 'TEXT'),
+        ('defendant_last', 'TEXT'),
+        ('defendant_first', 'TEXT'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE court_cases ADD COLUMN {col} {definition}')
+            print(f'✅ Added court_cases.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    # Backfill: idempotent UPDATE gated on NULL so re-runs are safe.
+    # Only rows with a non-empty defendant_name are touched.
+    # SQL: extract first word as first name. (Last name is fixed in Python below
+    # because the reverse-trick SQL for "last word" is unreadable and the cost of
+    # 276 Python iterations is negligible.)
+    cursor.execute('''
+        UPDATE court_cases
+        SET defendant_first = LOWER(
+                CASE WHEN instr(TRIM(defendant_name), ' ') > 0
+                     THEN substr(TRIM(defendant_name), 1, instr(TRIM(defendant_name), ' ') - 1)
+                     ELSE ''
+                END
+            )
+        WHERE defendant_name IS NOT NULL
+          AND TRIM(defendant_name) != ''
+          AND defendant_first IS NULL
+    ''')
+    # Python pass: extract the actual last word (true surname) so it matches
+    # the normalize_name() semantic used by the lookup service. Runs every
+    # migrate() call — 276 rows is negligible and the earlier SQL pass can
+    # leave a stale "everything after first space" value on rows that pre-date
+    # the Python correction.
+    cursor.execute('''
+        SELECT id, defendant_name FROM court_cases
+        WHERE defendant_name IS NOT NULL AND TRIM(defendant_name) != ''
+    ''')
+    _backfill_rows = cursor.fetchall()
+    for _bid, _bname in _backfill_rows:
+        _parts = _bname.strip().split()
+        if not _parts:
+            continue
+        _bfirst = _parts[0].lower()
+        _blast = _parts[-1].lower()
+        cursor.execute(
+            'UPDATE court_cases SET defendant_first = ?, defendant_last = ? WHERE id = ?',
+            (_bfirst, _blast, _bid),
+        )
+    cursor.execute('''
+        UPDATE court_cases
+        SET defendant_slug = LOWER(
+                REPLACE(REPLACE(REPLACE(REPLACE(TRIM(defendant_name), ' ', '-'), '.', ''), "'", ''), ',', '')
+            )
+        WHERE defendant_name IS NOT NULL
+          AND TRIM(defendant_name) != ''
+          AND defendant_slug IS NULL
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_court_cases_defendant_slug '
+        'ON court_cases(defendant_slug)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_court_cases_defendant_last_first '
+        'ON court_cases(defendant_last, defendant_first)'
+    )
+    print('✅ court_cases defendant_slug/last/first backfilled + indexed')
+
+    # Disposition watcher: links jail_bookings to court_cases (added 2026-06-02)
+    # Stores the relationship + how we found it + outcome snapshot for change detection.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS booking_case_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_id INTEGER NOT NULL,
+            court_case_id INTEGER NOT NULL,
+            match_type TEXT NOT NULL,
+            confidence REAL NOT NULL,
+            linked_at TEXT DEFAULT (datetime('now')),
+            last_checked_at TEXT,
+            last_outcome_snapshot TEXT,
+            has_outcome INTEGER NOT NULL DEFAULT 0,
+            notified_admin_at TEXT,
+            UNIQUE (booking_id, court_case_id),
+            FOREIGN KEY (booking_id) REFERENCES jail_bookings(id) ON DELETE CASCADE,
+            FOREIGN KEY (court_case_id) REFERENCES court_cases(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_bcl_booking ON booking_case_links(booking_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_bcl_case ON booking_case_links(court_case_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_bcl_linked_at ON booking_case_links(linked_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_bcl_outcome_pending ON booking_case_links(has_outcome, last_checked_at)')
+    print('✅ booking_case_links schema ensured')
+
+    # 2026-06-02: Disposition API token-delivery log. When the Stripe webhook
+    # provisions a new disposition_api subscription, it writes the plaintext
+    # token here so a follow-up email can be sent (and the row stays for audit
+    # even if the email fails). We never store plaintext in api_data_tokens —
+    # that table only holds SHA-256 hashes.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS api_token_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token_id INTEGER NOT NULL,
+            plaintext_token TEXT NOT NULL,
+            public_user_id INTEGER,
+            email TEXT,
+            email_sent_at TEXT,
+            email_error TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (token_id) REFERENCES api_data_tokens(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_atd_token ON api_token_deliveries(token_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_atd_unsent ON api_token_deliveries(email_sent_at)')
+    print('✅ api_token_deliveries schema ensured')
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS push_subscriptions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
