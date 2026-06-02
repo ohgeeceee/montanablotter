@@ -60,6 +60,12 @@ def _generate_token() -> str:
 def _normalize_email(email: str) -> str:
     return (email or "").strip().lower()
 
+
+def _checkout_redirect_url(checkout_session) -> str:
+    if isinstance(checkout_session, dict):
+        return (checkout_session.get("url") or "").strip()
+    return (getattr(checkout_session, "url", "") or "").strip()
+
 def _ensure_watchdog_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
@@ -206,7 +212,17 @@ def watchdog_subscribe():
                                active_nav="watchdog",
                                current_year=datetime.now().year)
 
-    return redirect(session.url)
+    checkout_url = _checkout_redirect_url(session)
+    if not checkout_url:
+        return render_template("watchdog_landing.html",
+                               error="Unable to start checkout right now. Please try again.",
+                               price_display="24.99",
+                               nonprofit_price_display="12.49",
+                               stripe_ready=True,
+                               active_nav="watchdog",
+                               current_year=datetime.now().year)
+
+    return redirect(checkout_url)
 
 
 # ---------------------------------------------------------------------------

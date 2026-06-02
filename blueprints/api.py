@@ -11,6 +11,11 @@ from flask import Blueprint, abort, current_app, jsonify, render_template, reque
 from werkzeug.utils import secure_filename
 
 from db import get_db
+from blueprints.payments import (
+    build_donation_checkout_payload,
+    create_donation_checkout_session,
+    persist_donation_checkout,
+)
 from services.api.auth import require_api_key, validate_request
 
 
@@ -990,110 +995,16 @@ def donate_create_checkout_session():
     if payload is None:
         payload = request.form.to_dict() if request.form else {}
 
-    mode = (payload.get('mode') or 'one_time').strip().lower()
-    if mode not in {'one_time', 'monthly'}:
-        return jsonify({'error': 'Invalid donation mode'}), 400
+    parsed = build_donation_checkout_payload(payload)
+    if 'error' in parsed:
+        return jsonify({'error': parsed['error']}), parsed['status']
 
     try:
-        amount_cents = int(payload.get('amount_cents'))
-    except (TypeError, ValueError):
-        return jsonify({'error': 'Invalid donation amount'}), 400
-
-    min_cents = m._donation_min_cents()
-    max_cents = m._donation_max_cents()
-    if amount_cents < min_cents or amount_cents > max_cents:
-        return jsonify({'error': 'Donation amount out of allowed range'}), 400
-
-    public_user = m._get_public_user()
-    source = (payload.get('source') or 'donate_page').strip()[:80]
-    donor_name = (payload.get('name') or '').strip()[:120]
-    email = (payload.get('email') or '').strip().lower()
-    if not donor_name and public_user:
-        donor_name = (public_user.display_name or '').strip()[:120]
-    if not email and public_user:
-        email = (public_user.email or '').strip().lower()
-    if email and '@' not in email:
-        email = ''
-
-    currency = m._donation_currency()
-    stripe_keys = m._stripe_keys()
-    stripe.api_key = stripe_keys['secret_key']
-
-    line_item = {
-        'price_data': {
-            'currency': currency,
-            'product_data': {'name': 'Montana Blotter Donation'},
-            'unit_amount': amount_cents,
-        },
-        'quantity': 1,
-    }
-    if mode == 'monthly':
-        line_item['price_data']['recurring'] = {'interval': 'month'}
-
-    checkout_params = {
-        'mode': 'subscription' if mode == 'monthly' else 'payment',
-        'line_items': [line_item],
-        'success_url': f'{m.BASE_URL}/donate/success?session_id={{CHECKOUT_SESSION_ID}}',
-        'cancel_url': f'{m.BASE_URL}/donate/cancel',
-        'billing_address_collection': 'auto',
-        'allow_promotion_codes': True,
-        'metadata': {
-            'source': source,
-            'mode': mode,
-            'amount_cents': str(amount_cents),
-            'donor_name': donor_name,
-            'public_user_id': str(public_user.id) if public_user else '',
-            'feature_gate': 'bondsman_command_center' if m._is_bondsman_subscription_source(source) else '',
-        },
-    }
-    if email:
-        checkout_params['customer_email'] = email
-
-    try:
-        checkout_session = stripe.checkout.Session.create(**checkout_params)
+        checkout_session = create_donation_checkout_session(parsed)
     except Exception:
         return jsonify({'error': 'Unable to start secure checkout'}), 502
 
-    try:
-        conn = get_db()
-        conn.execute(
-            '''
-            INSERT INTO donations (
-                provider, mode, status, amount_cents, currency, email_hash, donor_name,
-                source, provider_session_id, provider_payment_intent_id, provider_subscription_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(provider_session_id) DO UPDATE SET
-                mode = excluded.mode,
-                status = excluded.status,
-                amount_cents = excluded.amount_cents,
-                currency = excluded.currency,
-                email_hash = excluded.email_hash,
-                donor_name = excluded.donor_name,
-                source = excluded.source,
-                provider_payment_intent_id = excluded.provider_payment_intent_id,
-                provider_subscription_id = excluded.provider_subscription_id,
-                updated_at = datetime('now')
-            ''',
-            (
-                'stripe',
-                mode,
-                'pending',
-                amount_cents,
-                currency,
-                m._donation_email_hash(email),
-                donor_name,
-                source,
-                checkout_session.get('id'),
-                checkout_session.get('payment_intent'),
-                checkout_session.get('subscription'),
-            ),
-        )
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-
-    m._record_donation_event('checkout_start', source=source, page_path='/donate', amount_cents=amount_cents)
+    persist_donation_checkout(parsed, checkout_session)
     return jsonify({
         'checkout_url': checkout_session.get('url'),
         'session_id': checkout_session.get('id'),

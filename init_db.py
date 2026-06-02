@@ -1753,6 +1753,211 @@ def migrate():
         'ON social_posts_log(platform, created_at)'
     )
 
+    # 2026-06-02: Public corrections log — tracks every published correction to
+    # a post for transparency. Each row is one correction event.
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS post_corrections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            field_name TEXT NOT NULL,
+            old_value TEXT,
+            new_value TEXT,
+            reason TEXT NOT NULL,
+            corrected_by TEXT,
+            is_public INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_corrections_post ON post_corrections(post_id, created_at)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_corrections_created ON post_corrections(created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_corrections_public ON post_corrections(is_public, created_at)')
+
+    # 2026-06-02: Warrant cleared notification requests — public opt-in by
+    # name+DOB (or warrant id) so an email can be sent when a warrant is
+    # resolved. No public listing; counts are admin-visible.
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS warrant_clear_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            warrant_id INTEGER,
+            person_name TEXT NOT NULL,
+            dob TEXT,
+            county TEXT,
+            email TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            notified_at TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            ip_address TEXT,
+            notes TEXT,
+            FOREIGN KEY (warrant_id) REFERENCES warrants(id) ON DELETE SET NULL
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_wcr_status ON warrant_clear_requests(status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_wcr_warrant ON warrant_clear_requests(warrant_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_wcr_person ON warrant_clear_requests(person_name, dob)')
+
+    # 2026-06-02: B2B data API tokens. Each token grants access to the
+    # /api/v1/data/* endpoints at a given tier with a per-minute rate cap.
+    # Tokens are stored as SHA-256 hashes; the plaintext is only shown once
+    # at creation time.
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS api_data_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            label TEXT NOT NULL,
+            token_hash TEXT NOT NULL UNIQUE,
+            token_prefix TEXT NOT NULL,
+            tier TEXT NOT NULL DEFAULT 'standard',
+            rate_limit_per_minute INTEGER NOT NULL DEFAULT 60,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            last_used_at TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            expires_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_adt_token_hash ON api_data_tokens(token_hash)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_adt_user ON api_data_tokens(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_adt_active ON api_data_tokens(is_active, tier)')
+
+    # Per-token rate limit counter (in-memory cache would also work; SQLite
+    # keeps it durable across gunicorn worker restarts).
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS api_data_token_hits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token_id INTEGER NOT NULL,
+            hit_minute TEXT NOT NULL,
+            hit_count INTEGER NOT NULL DEFAULT 0,
+            UNIQUE (token_id, hit_minute),
+            FOREIGN KEY (token_id) REFERENCES api_data_tokens(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_adth_token_minute ON api_data_token_hits(token_id, hit_minute)')
+
+    # 2026-06-02: Attorney referral directory — public-facing widget on
+    # warrant/case pages that lists licensed Montana defense attorneys by
+    # county. Each entry is opt-in; we do not auto-pull data from anywhere.
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS attorney_referrals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            county TEXT NOT NULL,
+            name TEXT NOT NULL,
+            firm TEXT,
+            phone TEXT,
+            email TEXT,
+            website TEXT,
+            practice_areas TEXT,
+            blurb TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 100,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ar_county ON attorney_referrals(county, is_active, sort_order)')
+
+    # 2026-06-02: Public tip submissions — anonymous or named tips from
+    # site visitors about records, warrants, missing persons, or other
+    # public-safety matters. Routed to admin review queue.
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS public_tips (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL DEFAULT 'other',
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            submitter_name TEXT,
+            submitter_email TEXT,
+            submitter_phone TEXT,
+            is_anonymous INTEGER NOT NULL DEFAULT 0,
+            related_record_id INTEGER,
+            related_warrant_id INTEGER,
+            related_post_id INTEGER,
+            status TEXT NOT NULL DEFAULT 'new',
+            assigned_to INTEGER,
+            ip_address TEXT,
+            user_agent TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            notes TEXT
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_pt_status ON public_tips(status, created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_pt_category ON public_tips(category, created_at DESC)')
+
+    # 2026-06-02: Social share log — tracks every auto-share or manual share
+    # to Facebook / Reddit / X / etc. so the editorial team can audit what
+    # was posted where, when, and whether the platform accepted it.
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS social_share_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            platform TEXT NOT NULL,
+            target_url TEXT,
+            post_url TEXT,
+            status TEXT NOT NULL DEFAULT 'queued',
+            response_code INTEGER,
+            response_body TEXT,
+            triggered_by TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            completed_at TEXT,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ssl_post ON social_share_log(post_id, created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ssl_platform ON social_share_log(platform, status)')
+
+    # case_status_searches — analytics + per-IP rate limit for /case-status free lookup
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS case_status_searches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip_address TEXT NOT NULL,
+            query_text TEXT NOT NULL,
+            county TEXT,
+            results_count INTEGER DEFAULT 0,
+            user_agent TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_css_ip_time ON case_status_searches(ip_address, created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_css_time ON case_status_searches(created_at DESC)')
+
+    # sponsored_digests — paid sponsorship of a county's digest emails.
+    # When a county has an active sponsor, the digest email opens with a
+    # "Presented by ..." block linking to sponsor_url.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sponsored_digests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            county TEXT NOT NULL,
+            sponsor_name TEXT NOT NULL,
+            sponsor_pitch TEXT,
+            sponsor_url TEXT,
+            contact_email TEXT,
+            monthly_rate_cents INTEGER DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            starts_on TEXT,
+            expires_on TEXT,
+            notes TEXT,
+            created_by_user_id INTEGER,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+        ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_sd_county_active ON sponsored_digests(county, is_active)')
+    cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_sd_one_active_per_county ON sponsored_digests(county) WHERE is_active = 1')
+
     conn.commit()
     conn.close()
     print("✅ Migration complete")

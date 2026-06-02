@@ -173,6 +173,7 @@ def public_register():
                 counties=counties,
                 next_url=next_url,
                 form_values=form_values,
+                recaptcha_site_key=config.RECAPTCHA_SITE_KEY if config.RECAPTCHA_ENABLED else '',
                 page_title='Create Account',
                 meta_description='Create a Montana Blotter account to comment and manage email subscription preferences.',
                 canonical_url=f'{m.BASE_URL}/register',
@@ -246,6 +247,7 @@ def public_register():
         counties=counties,
         next_url=next_url,
         form_values=form_values,
+        recaptcha_site_key=config.RECAPTCHA_SITE_KEY if config.RECAPTCHA_ENABLED else '',
         page_title='Create Account',
         meta_description='Create a Montana Blotter account to comment and manage email subscription preferences.',
         canonical_url=f'{m.BASE_URL}/register',
@@ -518,10 +520,13 @@ def public_account():
     conn.close()
     g.public_user = refreshed_user
 
+    has_warrant_access = (refreshed_user.subscriber_plan == 'warrant_access' and refreshed_user.is_subscribed)
+
     return render_template(
         'public_account.html',
         account_user=refreshed_user,
         counties=counties,
+        has_warrant_access=has_warrant_access,
         page_title='Account',
         meta_description='Review your Montana Blotter account and subscriber access status.',
         canonical_url=f'{m.BASE_URL}/account',

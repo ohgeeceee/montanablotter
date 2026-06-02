@@ -23,15 +23,20 @@ from db import connect_page_views, get_db
 # ---------------------------------------------------------------------------
 PLAN_HIERARCHY = {
     'scout': 0,
+    'warrant_access': 1,
     'insider': 1,
     'professional': 2,
 }
 
 PLAN_LABELS = {
     'scout': 'Scout',
+    'warrant_access': 'Warrant Access',
     'insider': 'Insider',
     'professional': 'Professional',
 }
+
+# Plans that unlock warrant pages (warrant_access is a separate paid add-on)
+WARRANT_PLANS = {'warrant_access'}
 
 PREVIEW_LIMITS = {
     'day': 3,
@@ -142,6 +147,14 @@ def plan_has_access(user_plan: str, min_plan: str) -> bool:
 
 def user_has_access(min_plan: str = 'insider') -> bool:
     return plan_has_access(get_user_plan(), min_plan)
+
+
+def user_has_warrant_access() -> bool:
+    """Return True if the current user has an active warrant-access subscription."""
+    if current_user.is_authenticated:
+        return True
+    plan = get_user_plan()
+    return plan in WARRANT_PLANS
 
 
 # ---------------------------------------------------------------------------
