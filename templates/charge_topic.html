@@ -1,0 +1,118 @@
+{% extends "public_page_base.html" %}
+{% from "includes/bail_ad_units.html" import render_bail_banner, render_bail_panel %}
+
+{% set active_nav = "charges" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": {{ page_title|tojson }},
+  "description": {{ meta_description|tojson }},
+  "url": {{ canonical_url|tojson }},
+  "publisher": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="charge-topic-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <a href="/charge/">Charges</a>
+    <span class="sep">›</span>
+    <span class="current">{{ topic.label }}</span>
+  </nav>
+
+  <header class="page-header">
+    <p class="eyebrow">Charge topic · {{ topic.label }}</p>
+    <h1>{{ topic.long_label }} in Montana</h1>
+    <p class="lead">
+      <strong>{{ '{:,}'.format(total) }}</strong>
+      {{ 'incident' if total == 1 else 'incidents' }} on file
+      {% if county_filter %}in <strong>{{ county_filter }}</strong> County{% else %}across Montana{% endif %}.
+      {% if not county_filter and total_pages > 1 %}
+        Page {{ page }} of {{ total_pages }}.
+      {% endif %}
+    </p>
+    {% if county_filter %}
+      <p><a class="btn-secondary" href="/charge/{{ topic.slug }}/">← View statewide</a></p>
+    {% endif %}
+  </header>
+
+  {% if by_county and not county_filter %}
+  <section class="by-county" aria-label="County breakdown">
+    <h2>Top counties for {{ topic.label|lower }} reports</h2>
+    <ul class="chip-list">
+      {% for row in by_county %}
+        <li>
+          <a href="/charge/{{ topic.slug }}/?county={{ row.county|urlencode }}">
+            <span class="chip-label">{{ row.county }} County</span>
+            <span class="chip-count">{{ '{:,}'.format(row.n) }}</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="records" aria-label="Recent incidents">
+    <h2>Recent {{ topic.label|lower }} reports</h2>
+    {% if records %}
+      <table class="records-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>County</th>
+            <th>Location</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in records %}
+          <tr>
+            <td class="date">{{ rec.date }}</td>
+            <td class="time">{{ rec.time or '—' }}</td>
+            <td class="county">{{ rec.county }}</td>
+            <td class="location">{{ rec.location or '—' }}</td>
+            <td class="type">{{ rec.incident_label }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if total_pages > 1 %}
+      <nav class="pagination" aria-label="Pagination">
+        {% if page > 1 %}
+          <a class="btn-secondary" href="/charge/{{ topic.slug }}/?page={{ page - 1 }}{% if county_filter %}&county={{ county_filter|urlencode }}{% endif %}">← Previous</a>
+        {% endif %}
+        <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+        {% if page < total_pages %}
+          <a class="btn-secondary" href="/charge/{{ topic.slug }}/?page={{ page + 1 }}{% if county_filter %}&county={{ county_filter|urlencode }}{% endif %}">Next →</a>
+        {% endif %}
+      </nav>
+      {% endif %}
+    {% else %}
+      <p>No incidents on file for this topic{% if county_filter %} in {{ county_filter }} County{% endif %}.</p>
+    {% endif %}
+  </section>
+
+  <section class="related-links">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/charge/">All charge topics</a></li>
+      {% for slug, county_name in [('gallatin', 'Gallatin'), ('missoula', 'Missoula'), ('flathead', 'Flathead')] %}
+        <li><a href="/county/{{ slug }}">{{ county_name }} County blotter</a></li>
+      {% endfor %}
+      <li><a href="/arrests">Browse all arrests</a></li>
+    </ul>
+  </section>
+</div>
+{% endblock %}

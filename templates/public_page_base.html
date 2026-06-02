@@ -27,7 +27,9 @@
     <meta name="twitter:image" content="{{ og_image or 'https://montanablotter.com/static/icons/og-default.png' }}">
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
     {% include "includes/google_analytics.html" %}
+    {% if not request.args.get('noads') %}
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9126743762075114" crossorigin="anonymous"></script>
+    {% endif %}
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#f7f4ee">
     <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
@@ -116,7 +118,7 @@
     }
     </script>
     {% block extra_head %}{% endblock %}
-    {% if recaptcha_site_key %}
+    {% if recaptcha_site_key and not request.args.get('noads') %}
     <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
     {% endif %}
 </head>
@@ -125,97 +127,7 @@
 
     {% block pre_header %}{% endblock %}
 
-    <header class="public-shell-header">
-        <div class="public-topband">
-            <div class="public-topband__inner max-w-7xl mx-auto px-4 sm:px-6">
-                <p class="public-shell-note">Statewide Public Records Access</p>
-                <p class="public-shell-note public-shell-note--accent">Montana County, City, Jail, Warrant, and Court Lookup</p>
-            </div>
-        </div>
-        <div class="public-shell-core max-w-7xl mx-auto px-4 sm:px-6">
-            <a href="/" class="public-brand">
-                <div class="public-brand__mark">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <div>
-                    <div class="public-brand__title">The Montana Blotter</div>
-                    <div class="public-brand__tag">Montana Public Records Directory</div>
-                </div>
-            </a>
-            <nav class="public-nav hidden md:flex">
-                {% for item in public_primary_nav_items %}
-                {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
-                <a href="{{ item.href }}" class="public-nav-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_primary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
-                {% if not loop.last %}
-                <span class="public-nav-divider">//</span>
-                {% endif %}
-                {% endfor %}
-                <a href="/subscribe" class="public-nav-link public-nav-link--cta" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
-                {% if public_user %}
-                <div class="public-user-chip" id="user-chip-wrap" style="margin-left:8px;">
-                    <button class="public-user-chip__btn" id="user-chip-btn" aria-haspopup="true" aria-expanded="false" type="button">
-                        <span class="public-user-avatar">{{ public_user.display_name[:1].upper() }}</span>
-                        <span class="public-user-chip__name">{{ public_user.display_name }}</span>
-                        <svg class="public-user-chip__caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <div class="public-user-dropdown" id="user-dropdown" hidden>
-                        <a href="/account" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">My Account</a>
-                        <a href="/account#digest" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">Digest Settings</a>
-                        <a href="/account#password-settings" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">Change Password</a>
-                        <a href="/logout?next={{ request.full_path | urlencode }}" class="public-user-dropdown__item public-user-dropdown__item--danger" data-nav-track="1" data-nav-location="user_dropdown">{{ public_action_labels.sign_out }}</a>
-                    </div>
-                </div>
-                {% else %}
-                <a href="/login?next={{ request.full_path | urlencode }}" class="public-nav-link" style="margin-left:8px;" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
-                <a href="/register?next={{ request.full_path | urlencode }}" class="public-nav-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
-                {% endif %}
-            </nav>
-            <button id="pub-mobile-btn" class="public-mobile-toggle md:hidden" aria-label="Open menu">
-                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="0" y1="4" x2="18" y2="4"/><line x1="0" y1="9" x2="18" y2="9"/><line x1="0" y1="14" x2="18" y2="14"/></svg>
-            </button>
-        </div>
-        {% if public_secondary_nav_items %}
-        <div class="public-secondary-nav hidden md:block">
-            <div class="public-secondary-nav__inner max-w-7xl mx-auto px-4 sm:px-6">
-                {% for item in public_secondary_nav_items %}
-                {% set is_active = active_nav == item.id %}
-                <a href="{{ item.href }}" class="public-secondary-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="header_secondary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
-                {% if not loop.last %}
-                <span class="public-nav-divider">&gt;&gt;</span>
-                {% endif %}
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-        <div id="pub-mobile-menu" class="public-mobile-menu hidden md:hidden">
-            <p class="public-mobile-label public-mobile-label--accent">Main</p>
-            {% if public_mobile_short_label_legend %}
-            <p class="public-mobile-label" style="text-transform:none; letter-spacing:0; opacity:0.82;">{{ public_mobile_short_label_legend }}</p>
-            {% endif %}
-            <button id="pub-mobile-label-toggle" type="button" class="public-mobile-link" data-label-toggle="1" data-target-menu="pub-mobile-menu">Show Full Labels</button>
-            {% for item in public_primary_nav_items %}
-            {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
-            <a href="{{ item.href }}" class="public-mobile-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="mobile_main" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
-            {% endfor %}
-            <a href="/subscribe" class="public-mobile-link active" title="{{ public_action_labels.subscribe_full }}" aria-label="{{ public_action_labels.subscribe_full }}" data-nav-track="1" data-nav-location="mobile_main" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
-            {% if public_user %}
-            <p class="public-mobile-label">{{ public_action_labels.account }}</p>
-            <a href="/account" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_user.display_name }}</a>
-            <a href="/logout?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.sign_out }}</a>
-            {% else %}
-            <p class="public-mobile-label">{{ public_action_labels.account }}</p>
-            <a href="/login?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.sign_in }}</a>
-            <a href="/register?next={{ request.full_path | urlencode }}" class="public-mobile-link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.join }}</a>
-            {% endif %}
-            {% if public_secondary_nav_items %}
-            <p class="public-mobile-label">Explore</p>
-            {% for item in public_secondary_nav_items %}
-            {% set is_active = active_nav == item.id %}
-            <a href="{{ item.href }}" class="public-mobile-link {% if is_active %}active{% endif %}" title="{{ item.label }}" aria-label="{{ item.label }}" data-nav-track="1" data-nav-location="mobile_secondary" data-short-label="{{ item.menu_label or item.label }}" data-full-label="{{ item.label }}">{{ item.menu_label or item.label }}</a>
-            {% endfor %}
-            {% endif %}
-        </div>
-    </header>
+    {% include "includes/public_nav_header.html" %}
 
     <div class="public-breadcrumb-bar">
         <div class="public-breadcrumb max-w-7xl mx-auto px-4 sm:px-6">
@@ -224,6 +136,7 @@
         </div>
     </div>
 
+    {% if not request.args.get('noads') %}
     <div class="public-ad-slot max-w-7xl mx-auto px-4 sm:px-6 pt-4">
         <ins class="adsbygoogle"
              style="display:block"
@@ -235,6 +148,7 @@
              (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
     </div>
+    {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -248,93 +162,13 @@
     {% endif %}
     {% endwith %}
 
-    {% set _cta_exclude = (
-        request.path.startswith('/admin')
-        or request.path.startswith('/subscribe')
-        or request.path.startswith('/donate')
-        or request.path.startswith('/login')
-        or request.path.startswith('/register')
-        or request.path.startswith('/support')
-        or request.path.startswith('/terms')
-        or request.path.startswith('/privacy')
-        or request.path.startswith('/advertise')
-        or request.path.startswith('/api/')
-        or request.path.startswith('/uploads/')
-        or request.path.startswith('/static/')
-        or request.path.startswith('/checkout')
-        or request.path.startswith('/plans')
-        or request.path.startswith('/email/')
-    ) %}
-    {% set show_conversion_cta = not _cta_exclude %}
-    {% set show_donation_popup = (
-        donations_enabled|default(true)
-        and not request.path.startswith('/donate')
-        and request.path != '/subscribe'
-        and request.path != '/support'
-    ) %}
-
     {% block hero %}{% endblock %}
-
-    {% if show_conversion_cta %}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
-        {% set source_tag = 'inline_' ~ request.path.strip('/').replace('/', '_') %}
-        {% include "includes/subscribe_conversion_block.html" %}
-    </div>
-
-    <aside id="scroll-subscribe-prompt" class="public-scroll-prompt hidden fixed right-4 bottom-4 z-40 p-4">
-        <button type="button" id="scroll-subscribe-close" class="public-scroll-prompt__close absolute top-2 right-2">
-            <i class="fas fa-times text-xs"></i>
-        </button>
-        <p class="public-eyebrow">Still Following?</p>
-        <h3 class="mt-2 text-base font-black text-slate-900">Get Daily Montana Blotter Alerts</h3>
-        <p class="mt-1 text-xs text-slate-600">Free morning email. No spam. Unsubscribe anytime.</p>
-        <a href="/subscribe?source=scroll_prompt"
-           class="subscribe-cta-track public-btn public-btn--primary mt-3 inline-flex w-full"
-           data-subscribe-source="scroll_prompt">
-            Open Signup
-        </a>
-    </aside>
-
-    <div class="public-mobile-subscribe-bar md:hidden fixed left-0 right-0 z-40" style="bottom:56px;">
-        <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
-            <div>
-                <p class="public-eyebrow">Daily Alerts</p>
-                <p class="text-xs text-slate-600">Free, no spam</p>
-            </div>
-            <a href="/subscribe?source=mobile_sticky"
-               class="subscribe-cta-track public-btn public-btn--primary inline-flex"
-               data-subscribe-source="mobile_sticky">
-                Subscribe
-            </a>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if show_donation_popup %}
-    <aside id="donate-popup" class="public-donate-popup hidden fixed left-4 bottom-4 z-40 p-4" role="dialog" aria-label="Support Montana Blotter">
-        <button type="button" id="donate-popup-close" class="public-donate-popup__close absolute top-2 right-2" aria-label="Dismiss donation popup">
-            <i class="fas fa-times text-xs"></i>
-        </button>
-        <p class="public-eyebrow">Reader Support</p>
-        <h3 class="mt-2 text-base font-black text-slate-900">Help Keep Montana Blotter Free</h3>
-        <p class="mt-1 text-xs text-slate-600">A small donation helps fund daily updates, archives, and statewide public records access.</p>
-        <div class="public-donate-popup__actions">
-            <a href="/donate?source=popup_prompt"
-               class="public-btn public-btn--secondary inline-flex"
-               data-donate-source="popup_prompt">
-                Donate Now
-            </a>
-            <button type="button" id="donate-popup-dismiss" class="public-donate-popup__dismiss">
-                Not Now
-            </button>
-        </div>
-    </aside>
-    {% endif %}
 
     <div class="pb-16 md:pb-0">
     {% block content %}{% endblock %}
     </div>
 
+    {% if not request.args.get('noads') %}
     <div class="public-ad-slot max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <!-- Main -->
         <ins class="adsbygoogle"
@@ -347,6 +181,7 @@
              (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
     </div>
+    {% endif %}
 
     <footer class="public-footer">
         <div class="public-footer__grid max-w-7xl mx-auto px-6">
@@ -459,7 +294,36 @@
         var menuBtn = document.getElementById('pub-mobile-btn');
         var menu = document.getElementById('pub-mobile-menu');
         if (menuBtn && menu) {
-            menuBtn.addEventListener('click', function(){ menu.classList.toggle('hidden'); });
+            menuBtn.addEventListener('click', function(){
+                var isHidden = menu.classList.toggle('hidden');
+                menuBtn.setAttribute('aria-expanded', String(!isHidden));
+            });
+        }
+
+        var moreBtn = document.getElementById('public-nav-more-btn');
+        var morePanel = document.getElementById('public-nav-more-panel');
+        if (moreBtn && morePanel) {
+            moreBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var isOpen = morePanel.hidden;
+                morePanel.hidden = !isOpen;
+                moreBtn.setAttribute('aria-expanded', String(isOpen));
+                moreBtn.classList.toggle('active', isOpen);
+            });
+            document.addEventListener('click', function(e) {
+                if (morePanel.hidden) return;
+                if (e.target.closest('#public-nav-more')) return;
+                morePanel.hidden = true;
+                moreBtn.setAttribute('aria-expanded', 'false');
+                moreBtn.classList.remove('active');
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !morePanel.hidden) {
+                    morePanel.hidden = true;
+                    moreBtn.setAttribute('aria-expanded', 'false');
+                    moreBtn.classList.remove('active');
+                }
+            });
         }
 
         var chipBtn = document.getElementById('user-chip-btn');
@@ -515,107 +379,11 @@
             });
         });
 
-        var prompt = document.getElementById('scroll-subscribe-prompt');
-        var promptClose = document.getElementById('scroll-subscribe-close');
-        var promptStorageKey = 'montanablotter:subscribe-prompt:closed';
-        var mobileSubscribeBar = document.querySelector('.subscribe-cta-track[data-subscribe-source="mobile_sticky"]');
-        if (mobileSubscribeBar && window.matchMedia && window.matchMedia('(max-width: 767px)').matches) {
-            document.body.style.paddingBottom = '74px';
-        }
-        if (prompt && window.matchMedia && window.matchMedia('(min-width: 768px)').matches) {
-            var closed = false;
-            try {
-                closed = sessionStorage.getItem(promptStorageKey) === '1';
-            } catch (e) {}
-
-            if (!closed) {
-                var shown = false;
-                var onScroll = function () {
-                    if (shown) return;
-                    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-                    if (maxScroll < 600) return;
-                    var ratio = window.scrollY / maxScroll;
-                    if (ratio >= 0.55) {
-                        prompt.classList.remove('hidden');
-                        shown = true;
-                    }
-                };
-                window.addEventListener('scroll', onScroll, {passive: true});
-                onScroll();
-            }
-            if (promptClose) {
-                promptClose.addEventListener('click', function () {
-                    prompt.classList.add('hidden');
-                    try {
-                        sessionStorage.setItem(promptStorageKey, '1');
-                    } catch (e) {}
-                });
-            }
-        }
-
         // Adsense sometimes reserves large empty space on desktop when an ad is unfilled.
         // Collapse those slots so the page doesn't show a giant gap under the header.
         setTimeout(collapseUnfilledAds, 1500);
         setTimeout(collapseUnfilledAds, 6000);
 
-        var donatePopup = document.getElementById('donate-popup');
-        var donatePopupClose = document.getElementById('donate-popup-close');
-        var donatePopupDismiss = document.getElementById('donate-popup-dismiss');
-        if (donatePopup) {
-            var donatePopupCooldownMs = 7 * 24 * 60 * 60 * 1000;
-            var donatePopupStorageKey = 'montanablotter:donate-popup:dismissed-at';
-            var donatePopupShown = false;
-            var donatePopupSuppressed = false;
-
-            if (window.matchMedia && window.matchMedia('(max-width: 767px)').matches) {
-                donatePopup.style.bottom = mobileSubscribeBar ? '132px' : '68px';
-            }
-
-            try {
-                var dismissedAtRaw = localStorage.getItem(donatePopupStorageKey);
-                var dismissedAt = dismissedAtRaw ? parseInt(dismissedAtRaw, 10) : 0;
-                if (dismissedAt && !Number.isNaN(dismissedAt)) {
-                    donatePopupSuppressed = (Date.now() - dismissedAt) < donatePopupCooldownMs;
-                }
-            } catch (e) {}
-
-            var dismissDonatePopup = function () {
-                donatePopup.classList.add('hidden');
-                try {
-                    localStorage.setItem(donatePopupStorageKey, String(Date.now()));
-                } catch (e) {}
-            };
-
-            var showDonatePopup = function () {
-                if (donatePopupShown || donatePopupSuppressed) return;
-                donatePopup.classList.remove('hidden');
-                donatePopupShown = true;
-                sendDonateEvent('donate_view', 'popup_prompt');
-            };
-
-            if (!donatePopupSuppressed) {
-                var donatePopupTimer = window.setTimeout(showDonatePopup, 14000);
-                var onDonateScroll = function () {
-                    if (donatePopupShown) return;
-                    var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-                    if (maxScroll < 500) return;
-                    if ((window.scrollY / maxScroll) >= 0.38) {
-                        window.clearTimeout(donatePopupTimer);
-                        showDonatePopup();
-                        window.removeEventListener('scroll', onDonateScroll);
-                    }
-                };
-                window.addEventListener('scroll', onDonateScroll, {passive: true});
-                onDonateScroll();
-            }
-
-            [donatePopupClose, donatePopupDismiss].forEach(function (button) {
-                if (!button) return;
-                button.addEventListener('click', function () {
-                    dismissDonatePopup();
-                });
-            });
-        }
     })();
     </script>
     {% block extra_scripts %}{% endblock %}

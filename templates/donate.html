@@ -75,52 +75,58 @@
                 </div>
                 {% endif %}
 
-                <div style="margin-top:1.5rem;">
-                    <label class="public-form-label">Frequency</label>
-                    <div class="public-choice-row" role="tablist" aria-label="Donation frequency" style="margin-top:0.7rem;">
-                        <button type="button" id="freq-once" class="public-choice-toggle is-active">One-Time</button>
-                        <button type="button" id="freq-monthly" class="public-choice-toggle">Monthly</button>
-                    </div>
-                </div>
+                <form id="donate-checkout-form" action="/donate/checkout" method="POST">
+                    <input type="hidden" name="mode" id="donate-mode" value="{{ 'monthly' if donation_campaign and donation_campaign.key == 'bondsman_command_center' else 'one_time' }}">
+                    <input type="hidden" name="amount_cents" id="donate-amount-cents" value="{{ suggested_amounts_cents[0] if suggested_amounts_cents else donation_min_cents }}">
+                    <input type="hidden" name="source" value="{{ donate_source }}">
 
-                <div style="margin-top:1.5rem;">
-                    <label class="public-form-label">Amount</label>
-                    <div id="amount-grid" class="public-amount-grid" style="margin-top:0.7rem;"></div>
-                    <div style="margin-top:1rem;">
-                        <label for="custom-amount" class="public-form-label">Custom Amount (USD)</label>
-                        <input id="custom-amount" type="number" min="{{ (donation_min_cents / 100)|int }}" max="{{ (donation_max_cents / 100)|int }}" step="1"
-                               class="public-form-input"
-                               placeholder="Enter amount in dollars">
-                        <p class="public-card__text">Minimum ${{ '%.2f'|format(donation_min_cents / 100) }}, maximum ${{ '%.2f'|format(donation_max_cents / 100) }}.</p>
+                    <div style="margin-top:1.5rem;">
+                        <label class="public-form-label">Frequency</label>
+                        <div class="public-choice-row" role="tablist" aria-label="Donation frequency" style="margin-top:0.7rem;">
+                            <button type="button" id="freq-once" class="public-choice-toggle is-active">One-Time</button>
+                            <button type="button" id="freq-monthly" class="public-choice-toggle">Monthly</button>
+                        </div>
                     </div>
-                </div>
 
-                <div class="public-form-grid" style="margin-top:1.5rem; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">
-                    <div>
-                        <label for="donor-name" class="public-form-label">Name Optional</label>
-                        <input id="donor-name" type="text"
-                               value="{{ public_user.display_name if public_user else '' }}"
-                               class="public-form-input"
-                               placeholder="Jane Doe">
+                    <div style="margin-top:1.5rem;">
+                        <label class="public-form-label">Amount</label>
+                        <div id="amount-grid" class="public-amount-grid" style="margin-top:0.7rem;"></div>
+                        <div style="margin-top:1rem;">
+                            <label for="custom-amount" class="public-form-label">Custom Amount (USD)</label>
+                            <input id="custom-amount" type="number" min="{{ (donation_min_cents / 100)|int }}" max="{{ (donation_max_cents / 100)|int }}" step="1"
+                                   class="public-form-input"
+                                   placeholder="Enter amount in dollars">
+                            <p class="public-card__text">Minimum ${{ '%.2f'|format(donation_min_cents / 100) }}, maximum ${{ '%.2f'|format(donation_max_cents / 100) }}.</p>
+                        </div>
                     </div>
-                    <div>
-                        <label for="donor-email" class="public-form-label">Email Optional</label>
-                        <input id="donor-email" type="email"
-                               value="{{ public_user.email if public_user else '' }}"
-                               class="public-form-input"
-                               placeholder="you@example.com">
-                    </div>
-                </div>
 
-                <div style="margin-top:1.6rem;">
-                    <button id="donate-submit" type="button"
-                            class="public-btn public-btn--primary"
-                            style="width:100%;"
-                            {% if not donations_enabled or not stripe_ready %}disabled{% endif %}>
-                        Continue to Secure Checkout
-                    </button>
-                    <p id="donate-error" class="public-note public-note--error hidden" style="margin-top:1rem;"></p>
-                </div>
+                    <div class="public-form-grid" style="margin-top:1.5rem; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">
+                        <div>
+                            <label for="donor-name" class="public-form-label">Name Optional</label>
+                            <input id="donor-name" name="name" type="text"
+                                   value="{{ public_user.display_name if public_user else '' }}"
+                                   class="public-form-input"
+                                   placeholder="Jane Doe">
+                        </div>
+                        <div>
+                            <label for="donor-email" class="public-form-label">Email Optional</label>
+                            <input id="donor-email" name="email" type="email"
+                                   value="{{ public_user.email if public_user else '' }}"
+                                   class="public-form-input"
+                                   placeholder="you@example.com">
+                        </div>
+                    </div>
+
+                    <div style="margin-top:1.6rem;">
+                        <button id="donate-submit" type="submit"
+                                class="public-btn public-btn--primary"
+                                style="width:100%;"
+                                {% if not donations_enabled or not stripe_ready %}disabled{% endif %}>
+                            Continue to Secure Checkout
+                        </button>
+                        <p id="donate-error" class="public-note public-note--error hidden" style="margin-top:1rem;"></p>
+                    </div>
+                </form>
 
                 <p class="public-card__text" style="margin-top:1rem;">
                     By donating, you agree to our
@@ -182,6 +188,9 @@
     var customAmountInput = document.getElementById('custom-amount');
     var onceBtn = document.getElementById('freq-once');
     var monthlyBtn = document.getElementById('freq-monthly');
+    var checkoutForm = document.getElementById('donate-checkout-form');
+    var hiddenModeInput = document.getElementById('donate-mode');
+    var hiddenAmountInput = document.getElementById('donate-amount-cents');
     var submitBtn = document.getElementById('donate-submit');
     var errorEl = document.getElementById('donate-error');
     var donorNameInput = document.getElementById('donor-name');
@@ -189,6 +198,7 @@
 
     function setMode(mode) {
         selectedMode = mode;
+        hiddenModeInput.value = mode;
         var onceActive = mode === 'one_time';
         onceBtn.className = onceActive ? 'public-choice-toggle is-active' : 'public-choice-toggle';
         monthlyBtn.className = !onceActive ? 'public-choice-toggle is-active' : 'public-choice-toggle';
@@ -196,6 +206,7 @@
 
     function setSelectedAmount(cents) {
         selectedAmountCents = cents;
+        hiddenAmountInput.value = String(cents);
         var buttons = amountGrid.querySelectorAll('button[data-amount]');
         buttons.forEach(function (button) {
             var active = Number(button.getAttribute('data-amount')) === cents;
@@ -264,43 +275,17 @@
         setSelectedAmount(cents);
     });
 
-    submitBtn.addEventListener('click', async function () {
+    checkoutForm.addEventListener('submit', function (event) {
         showError('');
         if (!selectedAmountCents || selectedAmountCents < minCents || selectedAmountCents > maxCents) {
+            event.preventDefault();
             showError('Please choose a valid donation amount.');
             return;
         }
 
+        sendDonateEvent('checkout_start', selectedAmountCents);
         submitBtn.disabled = true;
         submitBtn.textContent = 'Preparing Secure Checkout...';
-
-        try {
-            var response = await fetch('/api/donate/create-checkout-session', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    mode: selectedMode,
-                    amount_cents: selectedAmountCents,
-                    source: donateSource || 'donate_page',
-                    name: donorNameInput.value || '',
-                    email: donorEmailInput.value || ''
-                })
-            });
-            var data = await response.json().catch(function () { return {}; });
-            if (!response.ok || !data.checkout_url) {
-                showError(data.error || 'Unable to start checkout right now. Please try again.');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Continue to Secure Checkout';
-                return;
-            }
-
-            sendDonateEvent('checkout_start', selectedAmountCents);
-            window.location.href = data.checkout_url;
-        } catch (err) {
-            showError('Unable to start checkout right now. Please try again.');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Continue to Secure Checkout';
-        }
     });
 })();
 </script>

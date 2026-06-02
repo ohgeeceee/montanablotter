@@ -1,0 +1,187 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "B2B Data API" %}
+{% set meta_description = "Bulk access to Montana Blotter public records, warrants, jail bookings, and posts. Token-gated REST API for researchers, journalists, and civic integrators." %}
+{% set canonical_url = "https://montanablotter.com/data-api" %}
+{% set og_title = "Montana Blotter Data API" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}data-api-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Montana Blotter Data API",
+  "url": "https://montanablotter.com/data-api",
+  "description": "Bulk public-records data API for Montana."
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Data API</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">For Researchers, Journalists, Integrators</p>
+                <h1 class="public-title public-title--medium">Bulk public-records data, with provenance.</h1>
+                <p class="public-copy">
+                    Same data you see on the public site, exposed as a token-gated REST API. Every record carries its source URL so the chain of custody is intact.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Quick Start</p>
+                    <h2 class="public-card__title">curl + a token.</h2>
+                    <p class="public-card__text">
+                        <code>curl -H "Authorization: Bearer YOUR_TOKEN" \<br>
+                        https://montanablotter.com/api/v1/data/summary</code>
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">v1</span>
+                    <span class="public-pill">Token-gated</span>
+                </div>
+                <h2 class="public-detail-title">Endpoints</h2>
+            </div>
+            <div class="public-detail-frame__body">
+
+                <h3 class="public-policy-heading">GET /api/v1/data/records</h3>
+                <p class="public-policy-copy">Paginated police blotter records.</p>
+                <pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem 1rem;border-radius:6px;overflow-x:auto;font-size:0.85rem;"><code>curl -H "Authorization: Bearer $TOKEN" \
+  "https://montanablotter.com/api/v1/data/records?county=Gallatin&amp;since=2026-01-01&amp;limit=100&amp;page=1"</code></pre>
+                <p class="public-policy-copy" style="margin-top:0.5rem;">Query params: <code>county</code>, <code>since</code> (YYYY-MM-DD), <code>until</code>, <code>limit</code> (max 500), <code>page</code>.</p>
+
+                <h3 class="public-policy-heading" style="margin-top:1.5rem;">GET /api/v1/data/warrants</h3>
+                <p class="public-policy-copy">Active and historical warrants. By default returns <code>active</code>; pass <code>status=cleared</code> for resolved records.</p>
+                <pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem 1rem;border-radius:6px;overflow-x:auto;font-size:0.85rem;"><code>curl -H "Authorization: Bearer $TOKEN" \
+  "https://montanablotter.com/api/v1/data/warrants?county=Yellowstone&amp;limit=50"</code></pre>
+
+                <h3 class="public-policy-heading" style="margin-top:1.5rem;">GET /api/v1/data/jail-bookings</h3>
+                <p class="public-policy-copy">Jail bookings with charges and bond amounts. <code>since</code> accepts YYYY-MM-DD.</p>
+                <pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem 1rem;border-radius:6px;overflow-x:auto;font-size:0.85rem;"><code>curl -H "Authorization: Bearer $TOKEN" \
+  "https://montanablotter.com/api/v1/data/jail-bookings?since=2026-05-01&amp;limit=200"</code></pre>
+
+                <h3 class="public-policy-heading" style="margin-top:1.5rem;">GET /api/v1/data/posts</h3>
+                <p class="public-policy-copy">Published editorial posts (summaries, digests, blotter articles). Includes SEO metadata.</p>
+                <pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem 1rem;border-radius:6px;overflow-x:auto;font-size:0.85rem;"><code>curl -H "Authorization: Bearer $TOKEN" \
+  "https://montanablotter.com/api/v1/data/posts?county=Missoula&amp;page=1"</code></pre>
+
+                <h3 class="public-policy-heading" style="margin-top:1.5rem;">GET /api/v1/data/summary</h3>
+                <p class="public-policy-copy">Aggregate counts: total records, active vs. cleared warrants, bookings in the last 30 days, published posts, and a per-county record breakdown.</p>
+                <pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem 1rem;border-radius:6px;overflow-x:auto;font-size:0.85rem;"><code>curl -H "Authorization: Bearer $TOKEN" \
+  "https://montanablotter.com/api/v1/data/summary"</code></pre>
+
+            </div>
+        </article>
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <h2 class="public-detail-title">Tiers &amp; rate limits</h2>
+            </div>
+            <div class="public-detail-frame__body">
+                <table class="public-table" style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--public-border);text-align:left;">
+                            <th style="padding:0.5rem 0.4rem;">Tier</th>
+                            <th style="padding:0.5rem 0.4rem;">Rate limit</th>
+                            <th style="padding:0.5rem 0.4rem;">Typical use</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--public-border);">
+                            <td style="padding:0.5rem 0.4rem;"><code>standard</code></td>
+                            <td style="padding:0.5rem 0.4rem;">60 req/min</td>
+                            <td style="padding:0.5rem 0.4rem;">Researchers, single-developer use, journalists running ad-hoc analyses.</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--public-border);">
+                            <td style="padding:0.5rem 0.4rem;"><code>pro</code></td>
+                            <td style="padding:0.5rem 0.4rem;">300 req/min</td>
+                            <td style="padding:0.5rem 0.4rem;">Newsroom dashboards, civic-tech integrations, periodic bulk syncs.</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:0.5rem 0.4rem;"><code>enterprise</code></td>
+                            <td style="padding:0.5rem 0.4rem;">Custom</td>
+                            <td style="padding:0.5rem 0.4rem;">Continuous data pipelines, multi-org sharing, custom S3/GCS drops.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <h2 class="public-detail-title">Get a token</h2>
+            </div>
+            <div class="public-detail-frame__body">
+                <p class="public-policy-copy">
+                    Tokens are issued by admin. Email <a class="public-policy-inline-link" href="mailto:data@montanablotter.com?subject=Data%20API%20token%20request">data@montanablotter.com</a> with:
+                </p>
+                <ul class="public-policy-list">
+                    <li>Your name and organization (academic, newsroom, civic-tech, commercial).</li>
+                    <li>A one-sentence description of what you'll use the data for.</li>
+                    <li>Preferred tier and whether you need a non-expiring token.</li>
+                </ul>
+                <p class="public-policy-copy" style="margin-top:1rem;">
+                    Free <code>standard</code> tokens are issued to journalists, academic researchers, and government offices. Commercial use and resold data feeds require a paid <code>pro</code> or <code>enterprise</code> plan.
+                </p>
+            </div>
+        </article>
+
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Response shape</p>
+                <h3 class="public-card__title">Same envelope across endpoints.</h3>
+                <pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem;border-radius:6px;overflow-x:auto;font-size:0.8rem;margin-top:0.5rem;"><code>{
+  "tier": "standard",
+  "page": 1,
+  "per_page": 100,
+  "total": 13878,
+  "count": 100,
+  "records": [...]
+}</code></pre>
+            </div>
+        </section>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Errors</p>
+                <ul class="public-policy-list" style="font-size:0.9rem;">
+                    <li><code>401</code> missing or invalid bearer token.</li>
+                    <li><code>429</code> rate limit exceeded — wait a minute and retry.</li>
+                    <li><code>500</code> upstream SQLite issue — retry with backoff.</li>
+                </ul>
+            </div>
+        </section>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">CORS</p>
+                <p class="public-card__text" style="font-size:0.9rem;margin-top:0.5rem;">
+                    All v1 endpoints return <code>Access-Control-Allow-Origin: *</code>. You can call them from browser code if your token is safe to expose — for browser apps, prefer a server-side proxy.
+                </p>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}

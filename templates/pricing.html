@@ -55,11 +55,11 @@
                 <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Crime map detail popups</li>
                 <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Deeper search filters</li>
             </ul>
-            <form action="/checkout/subscription" method="POST" class="space-y-2">
-                <input type="hidden" name="plan" value="insider">
-                <input type="hidden" name="interval" value="monthly">
-                <button type="submit" class="public-btn public-btn--primary w-full">Subscribe Monthly</button>
-            </form>
+            <a href="{{ monthly_subscription_link }}"
+               class="public-btn public-btn--primary w-full block text-center"
+               rel="noopener noreferrer">
+                Subscribe Monthly
+            </a>
             <form action="/checkout/subscription" method="POST" class="mt-2">
                 <input type="hidden" name="plan" value="insider">
                 <input type="hidden" name="interval" value="yearly">
@@ -83,11 +83,11 @@
                 <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>API access</li>
                 <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Priority alerts</li>
             </ul>
-            <form action="/checkout/subscription" method="POST" class="space-y-2">
-                <input type="hidden" name="plan" value="professional">
-                <input type="hidden" name="interval" value="monthly">
-                <button type="submit" class="public-btn public-btn--primary w-full">Subscribe Monthly</button>
-            </form>
+            <a href="{{ monthly_subscription_link }}"
+               class="public-btn public-btn--primary w-full block text-center"
+               rel="noopener noreferrer">
+                Subscribe Monthly
+            </a>
             <form action="/checkout/subscription" method="POST" class="mt-2">
                 <input type="hidden" name="plan" value="professional">
                 <input type="hidden" name="interval" value="yearly">

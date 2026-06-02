@@ -1,0 +1,52 @@
+{% extends "public_page_base.html" %}
+
+{% set active_nav = "charges" %}
+
+{% block content %}
+<div class="charge-index-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span class="sep">›</span>
+    <span class="current">Charge topics</span>
+  </nav>
+
+  <header class="page-header">
+    <p class="eyebrow">Browse by charge</p>
+    <h1>Montana Police Blotter by Charge Type</h1>
+    <p class="lead">
+      Searchable record of incidents across Montana organized by charge category.
+      Each page lists the most recent reports first, with a county breakdown and
+      public-record details.
+    </p>
+  </header>
+
+  <section class="topic-grid" aria-label="Available charge topics">
+    <ul class="topic-cards">
+      {% for t in topic_stats %}
+        <li class="topic-card">
+          <a href="/charge/{{ t.slug }}/">
+            <h2>{{ t.label }}</h2>
+            <p class="long-label">{{ t.long_label }}</p>
+            <p class="count">
+              <strong>{{ '{:,}'.format(t.count) }}</strong>
+              {{ 'incident' if t.count == 1 else 'incidents' }} on record
+            </p>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="related-links">
+    <h2>Browse by county instead</h2>
+    <ul class="county-quicklist">
+      {% for slug, county in [
+        ('gallatin', 'Gallatin'), ('missoula', 'Missoula'), ('flathead', 'Flathead'),
+        ('yellowstone', 'Yellowstone'), ('cascade', 'Cascade'), ('lewis-and-clark', 'Lewis and Clark')
+      ] %}
+        <li><a href="/county/{{ slug }}">{{ county }} County</a></li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

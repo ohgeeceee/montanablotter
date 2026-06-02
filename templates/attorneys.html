@@ -1,0 +1,127 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana Defense Attorney Directory" %}
+{% set meta_description = "Licensed Montana criminal defense attorneys by county. Free public directory — opt-in listings only." %}
+{% set canonical_url = "https://montanablotter.com/attorneys" %}
+{% set og_title = "Montana Defense Attorney Directory" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}attorneys-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Montana Defense Attorney Directory",
+  "url": "https://montanablotter.com/attorneys"
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Attorneys</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Public Directory</p>
+                <h1 class="public-title public-title--medium">Montana defense attorneys by county.</h1>
+                <p class="public-copy">
+                    A free, opt-in directory of Montana-licensed criminal defense attorneys. Every attorney listed has confirmed they accept cases in the counties shown. This is not legal advice and not an endorsement — it's a starting point.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">By the numbers</p>
+                    <div style="display:flex;gap:1.25rem;margin-top:0.5rem;">
+                        <div>
+                            <div style="font-size:1.8rem;font-weight:700;line-height:1;">{{ total_attorneys }}</div>
+                            <div style="font-size:0.85rem;color:#475569;">attorneys</div>
+                        </div>
+                        <div>
+                            <div style="font-size:1.8rem;font-weight:700;line-height:1;">{{ total_counties }}</div>
+                            <div style="font-size:0.85rem;color:#475569;">counties</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+
+        {% if by_county %}
+            {% for county, attorneys in by_county.items() %}
+            <article class="public-detail-frame">
+                <div class="public-detail-frame__header">
+                    <h2 class="public-detail-title">{{ county }} County</h2>
+                    <p class="public-detail-subtitle">{{ attorneys|length }} attorney{{ '' if attorneys|length == 1 else 's' }} listed</p>
+                </div>
+                <div class="public-detail-frame__body">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
+                    {% for a in attorneys %}
+                        <div class="public-card">
+                            <div class="public-card__body">
+                                <p class="public-card__eyebrow" style="margin-bottom:0.25rem;">{{ a.firm or 'Independent' }}</p>
+                                <h3 class="public-card__title" style="font-size:1.15rem;">{{ a.name }}</h3>
+                                {% if a.blurb %}
+                                <p style="font-size:0.9rem;color:#475569;margin:0.4rem 0;">{{ a.blurb }}</p>
+                                {% endif %}
+                                {% if a.practice_areas %}
+                                <p style="font-size:0.8rem;color:#64748b;margin:0.4rem 0;">
+                                    <strong>Practice:</strong> {{ a.practice_areas }}
+                                </p>
+                                {% endif %}
+                                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;font-size:0.85rem;">
+                                    {% if a.phone %}<a href="tel:{{ a.phone }}" style="color:#2563eb;text-decoration:none;">📞 {{ a.phone }}</a>{% endif %}
+                                    {% if a.website %}<a href="{{ a.website }}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none;">Website →</a>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        {% else %}
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__body">
+                <p class="public-policy-copy">
+                    The directory is currently empty. If you are a licensed Montana defense attorney and would like to be listed, email <a class="public-policy-inline-link" href="mailto:attorneys@montanablotter.com">attorneys@montanablotter.com</a> with your name, firm, counties served, and a short blurb.
+                </p>
+            </div>
+        </article>
+        {% endif %}
+
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">For attorneys</p>
+                <h3 class="public-card__title">Get listed in 24 hours.</h3>
+                <p class="public-card__text" style="font-size:0.9rem;">
+                    Listings are free. We verify Montana State Bar admission for each entry. To be added, email your bar number, counties served, and a one-sentence blurb to <a href="mailto:attorneys@montanablotter.com" style="color:#2563eb;">attorneys@montanablotter.com</a>.
+                </p>
+            </div>
+        </section>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Disclaimer</p>
+                <p class="public-card__text" style="font-size:0.9rem;">
+                    Montana Blotter does not provide legal advice and does not endorse any specific attorney. Listings are opt-in and self-reported. Choosing an attorney is a personal decision; the Montana State Bar's lawyer referral service is also a resource: <a href="https://www.montanabar.org" target="_blank" rel="noopener" style="color:#2563eb;">montanabar.org</a>.
+                </p>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}
