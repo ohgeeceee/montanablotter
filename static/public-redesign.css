@@ -61,11 +61,12 @@ body.public-app a {
   transition: color 160ms ease, background 160ms ease, border-color 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 
-.public-shell-header,
-.public-masthead {
+body > .public-shell-header,
+body > .public-masthead {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 9999;
+  isolation: isolate;
   background: rgba(251, 250, 247, 0.9);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--public-border);
@@ -2069,6 +2070,7 @@ body.public-app--home #live-bar {
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   z-index: 200;
+  isolation: isolate;
   overflow: hidden;
 }
 
