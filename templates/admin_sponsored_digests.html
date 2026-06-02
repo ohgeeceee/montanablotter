@@ -1,0 +1,123 @@
+{% extends "admin.html" %}
+{% block title %}Sponsored County Digests{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <h1 class="text-2xl font-bold">Sponsored County Digests</h1>
+    <p class="text-sm text-slate-500 mt-1">
+        One active sponsor per county. The sponsor's name + URL is prepended to that county's
+        daily morning briefing and weekly roundup until you deactivate it.
+    </p>
+</div>
+
+<div class="rounded-2xl border border-slate-200 bg-white overflow-hidden mb-6">
+    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+        Add a sponsorship
+    </div>
+    <form method="post" action="/admin/sponsored-digests/add" class="p-4 grid gap-3 md:grid-cols-2">
+        <div>
+            <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">County</label>
+            <select name="county" required class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                <option value="">— pick a county —</option>
+                {% for c in counties %}
+                <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Sponsor name</label>
+            <input name="sponsor_name" required maxlength="120" placeholder="e.g. Gallatin County Bail Bonds"
+                   class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div class="md:col-span-2">
+            <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Sponsor pitch (1 sentence)</label>
+            <input name="sponsor_pitch" maxlength="400" placeholder="Call Bob first. 24/7 service in Bozeman."
+                   class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+            <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Sponsor URL</label>
+            <input name="sponsor_url" maxlength="400" placeholder="https://example.com"
+                   class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+            <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Contact email</label>
+            <input name="contact_email" type="email" maxlength="160" placeholder="billing@example.com"
+                   class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+            <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Monthly rate (USD)</label>
+            <input name="monthly_rate" type="number" step="0.01" min="0" value="0"
+                   class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+            <div>
+                <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Starts</label>
+                <input name="starts_on" type="date"
+                       class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Expires</label>
+                <input name="expires_on" type="date"
+                       class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
+            </div>
+        </div>
+        <div class="md:col-span-2">
+            <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Internal notes</label>
+            <textarea name="notes" rows="2" maxlength="600"
+                      class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"></textarea>
+        </div>
+        <div class="md:col-span-2">
+            <button type="submit" class="rounded bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700">
+                Add sponsorship
+            </button>
+            <p class="text-[11px] text-slate-500 mt-2">
+                Adding a new sponsorship for a county automatically deactivates the previous one.
+            </p>
+        </div>
+    </form>
+</div>
+
+<div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-left">
+                <th class="px-3 py-2 font-bold">County</th>
+                <th class="px-3 py-2 font-bold">Sponsor</th>
+                <th class="px-3 py-2 font-bold">URL</th>
+                <th class="px-3 py-2 font-bold">Rate</th>
+                <th class="px-3 py-2 font-bold">Window</th>
+                <th class="px-3 py-2 font-bold">Status</th>
+                <th class="px-3 py-2 font-bold"></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+            <tr class="border-b border-slate-100">
+                <td class="px-3 py-2 font-bold">{{ r.county }}</td>
+                <td class="px-3 py-2">{{ r.sponsor_name }}</td>
+                <td class="px-3 py-2 text-xs">
+                    {% if r.sponsor_url %}<a class="text-blue-700 hover:underline" href="{{ r.sponsor_url }}" target="_blank" rel="noopener">view</a>{% else %}—{% endif %}
+                </td>
+                <td class="px-3 py-2 text-slate-700">${{ '%.2f' % (r.monthly_rate_cents / 100) }}<span class="text-slate-400">/mo</span></td>
+                <td class="px-3 py-2 text-xs text-slate-600">
+                    {{ r.starts_on or '—' }} → {{ r.expires_on or 'open' }}
+                </td>
+                <td class="px-3 py-2">
+                    {% if r.is_active %}<span class="text-emerald-700 font-bold">active</span>
+                    {% else %}<span class="text-slate-500">inactive</span>{% endif %}
+                </td>
+                <td class="px-3 py-2 text-right">
+                    <form method="post" action="/admin/sponsored-digests/{{ r.id }}/toggle" class="inline">
+                        <button type="submit" class="rounded bg-slate-100 px-2 py-1 text-xs hover:bg-slate-200">
+                            {% if r.is_active %}Deactivate{% else %}Activate{% endif %}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="7" class="px-3 py-8 text-center text-slate-500">No sponsorships yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

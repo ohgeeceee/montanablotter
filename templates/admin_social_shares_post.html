@@ -1,0 +1,45 @@
+{% extends "admin.html" %}
+{% block title %}Shares for post #{{ post.id if post else '?' }}{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <h1 class="text-2xl font-bold">Shares for post #{{ post.id if post else '?' }}</h1>
+    {% if post %}<p class="text-sm text-slate-500 mt-1"><strong>{{ post.title }}</strong> {% if post.seo_slug %}(/{{ post.seo_slug }}){% endif %}</p>{% endif %}
+    <p class="mt-2"><a class="text-blue-700 hover:underline text-sm" href="/admin/social-shares">← Back to all shares</a></p>
+</div>
+
+<div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-left">
+                <th class="px-3 py-2 font-bold">When</th>
+                <th class="px-3 py-2 font-bold">Platform</th>
+                <th class="px-3 py-2 font-bold">Status</th>
+                <th class="px-3 py-2 font-bold">Code</th>
+                <th class="px-3 py-2 font-bold">Triggered by</th>
+                <th class="px-3 py-2 font-bold">Result URL</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+            <tr class="border-b border-slate-100">
+                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ r.created_at[:19] }}</td>
+                <td class="px-3 py-2">{{ r.platform }}</td>
+                <td class="px-3 py-2">
+                    {% if r.status == 'success' %}<span class="text-emerald-700 font-bold">✓</span>
+                    {% elif r.status == 'failed' %}<span class="text-red-700 font-bold">✗</span>
+                    {% endif %} {{ r.status }}
+                </td>
+                <td class="px-3 py-2">{{ r.response_code or '—' }}</td>
+                <td class="px-3 py-2 text-xs">{{ r.triggered_by or '—' }}</td>
+                <td class="px-3 py-2 text-xs">
+                    {% if r.post_url %}<a href="{{ r.post_url }}" target="_blank" rel="noopener" class="text-blue-700 hover:underline">view</a>{% else %}—{% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="px-3 py-8 text-center text-slate-500">No share attempts for this post yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
