@@ -15190,7 +15190,7 @@ def disposition_api_checkout():
                 raise RuntimeError('STRIPE_SECRET_KEY not configured')
             import stripe
             stripe.api_key = keys
-            session = stripe.checkout.Session.create(
+            checkout_session = stripe.checkout.Session.create(
                 mode='subscription',
                 client_reference_id=str(public_user_id),
                 customer_email=email or None,
@@ -15208,7 +15208,7 @@ def disposition_api_checkout():
                     'public_user_id': str(public_user_id),
                 },
             )
-            url = session.url
+            url = checkout_session.url
             if url:
                 app.logger.info('disposition-api checkout: created session for user %s', public_user_id)
                 return redirect(url)
