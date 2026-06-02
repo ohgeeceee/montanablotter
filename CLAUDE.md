@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Last Updated:** 2026-05-29
+**Last Updated:** 2026-06-02
 
 ## Essential Commands
 
@@ -28,7 +28,8 @@ source /root/montanablotter/venv/bin/activate
 `app.py` is the monolithic Flask entrypoint (~12,763 lines). It imports and registers blueprints from `blueprints/` for modular route groups:
 - `blueprints/api/` — REST API with token auth
 - `blueprints/auth/` — Login/logout, MFA
-- `blueprints/payments/` — Stripe integration for donations
+- `blueprints/payments/` — Stripe integration for donations and subscriptions (insider/professional plans)
+- `blueprints/alerts.py` — Alert subscription routes
 - `blueprints/detention/` — Jail bookings and arrestee tracking
 - `blueprints/code_violations/` — Code violation records
 - `blueprints/license_sanctions/` — License/sanction records
@@ -76,7 +77,8 @@ All background jobs run via `job_runner.py`, which wraps any command with loggin
 - `services/alerts/` — email digests, bail bonds alerts, incident notifications, missing person watches, ingestion health alerts
 
 **Monetization & operations:**
-- `services/monetization/` — recovery center ads, bail ad orders/creatives/slots, bondsman command center, paywall preview tracking
+- `services/monetization/paywall.py` — plan hierarchy and gating. Plans: `scout` (free) → `warrant_access` / `insider` (level 1) → `professional` (level 2). **`WARRANT_PLANS = {'warrant_access'}` — insider and professional do NOT get warrant page access; it is a separate paid add-on only.** Use `user_has_warrant_access()` to gate `/wanted`. Free users get 3 detail views/day, 5/week via `preview_allowed()`.
+- `services/monetization/` — recovery center ads, bail ad orders/creatives/slots, bondsman command center
 - `services/agents/` — mission control, daily planner, event bus, heartbeat, OpenClaw fleet management
 - `services/meetings/` — public meeting tracking and alerts
 - `services/geo/` — geocoding and mapping
@@ -139,6 +141,14 @@ for col, col_type in [('new_column', 'TEXT'), ...]:
 - `services/agents/mission_control.py` — OpenClaw agent orchestration
 
 **Graceful degradation:** If Claude API is unavailable, `services/blotter/auditor.py` falls back to regex-only mode. Newsroom agents queue tasks for retry.
+
+### Warrant Access Stripe Flow
+The warrant access subscription ($1/7-day trial → $7/month) uses a Stripe Payment Link, **not** the normal checkout session flow. Because Payment Links don't embed `flow: warrant_access` metadata automatically, `_apply_stripe_event` in `app.py` has three fallbacks (in order):
+1. `checkout.session.completed` with numeric `client_reference_id` + subscription → routes to `_apply_warrant_access_stripe_event()`
+2. `invoice.paid` / `subscription.updated/deleted` where the subscription ID matches a `warrant_access` user in DB → routes correctly
+3. General subscription fallback uses CASE guard so it never overwrites `warrant_access` plan with `bondsman_pro`
+
+The subscription/cancel logic lives in `_apply_warrant_access_stripe_event()` in `app.py` (not in `blueprints/payments.py`). The Payment Link constant is in `blueprints/payments.py`: `_WARRANT_PAYMENT_LINK`.
 
 ### Autonomous Agents
 **OpenClaw fleet** (deprecated, being replaced):
