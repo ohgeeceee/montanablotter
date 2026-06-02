@@ -1,0 +1,160 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/">Home</a>
+<span class="public-breadcrumb__sep">/</span>
+<a href="/courts">Courts</a>
+<span class="public-breadcrumb__sep">/</span>
+<span class="text-slate-900 font-semibold">Data Sources</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl">
+            <p class="public-eyebrow" style="color:var(--public-steel);">Transparency</p>
+            <h1 class="public-title mt-3 max-w-4xl">
+                Where our court data
+                <span class="block" style="color:var(--public-red);">comes from</span>
+            </h1>
+            <p class="public-copy max-w-3xl">
+                Every Montana court case on this site is mirrored from a public source.
+                This page lists those sources, when each one last synced, and which
+                are currently blocked or paused. The same data is shown to our
+                editors — we don't hide sync gaps from readers.
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="bg-slate-50 text-slate-900">
+
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <div class="grid gap-4 md:grid-cols-3">
+            <div class="public-card">
+                <div class="public-card__body">
+                    <div class="public-card__eyebrow">{{ working | length }} working</div>
+                    <h3 class="public-card__title">Synced within 14 days</h3>
+                    <p class="public-card__text">
+                        Sources currently producing fresh case data. These power
+                        the public court pages and case search.
+                    </p>
+                </div>
+            </div>
+            <div class="public-card">
+                <div class="public-card__body">
+                    <div class="public-card__eyebrow">{{ stale | length }} stale</div>
+                    <h3 class="public-card__title">Over 14 days since success</h3>
+                    <p class="public-card__text">
+                        Sources we can still connect to, but that haven't returned
+                        new data recently. Usually a slow upstream portal, not a block.
+                    </p>
+                </div>
+            </div>
+            <div class="public-card">
+                <div class="public-card__body">
+                    <div class="public-card__eyebrow">{{ blocked | length }} blocked or paused</div>
+                    <h3 class="public-card__title">Disclosed gaps</h3>
+                    <p class="public-card__text">
+                        Sources we cannot currently reach (IP block, upstream
+                        outage, or paused on purpose). Listed with the reason.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <h2 class="text-2xl font-black text-slate-900">All sources</h2>
+        <p class="mt-2 text-sm text-slate-600">
+            Sorted by status (active first), then by name. Click the source URL
+            to view the upstream portal directly.
+        </p>
+
+        <div class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200 text-left">
+                        <th class="px-3 py-2 font-bold">Source</th>
+                        <th class="px-3 py-2 font-bold">Provider</th>
+                        <th class="px-3 py-2 font-bold text-right">Courts</th>
+                        <th class="px-3 py-2 font-bold text-right">Cases</th>
+                        <th class="px-3 py-2 font-bold">Last success</th>
+                        <th class="px-3 py-2 font-bold">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in sources %}
+                    <tr class="border-b border-slate-100 align-top">
+                        <td class="px-3 py-2">
+                            <div class="font-bold text-slate-900">{{ s.name }}</div>
+                            <div class="text-xs text-slate-500 mt-1">
+                                {% if s.source_url %}
+                                <a class="text-blue-700 hover:underline" href="{{ s.source_url }}" target="_blank" rel="noopener">view upstream</a>
+                                {% else %}—{% endif %}
+                            </div>
+                        </td>
+                        <td class="px-3 py-2 text-xs text-slate-600">{{ s.provider_type or '—' }}</td>
+                        <td class="px-3 py-2 text-right text-slate-700">{{ s.court_count }}</td>
+                        <td class="px-3 py-2 text-right text-slate-700">{{ s.case_count }}</td>
+                        <td class="px-3 py-2 text-xs text-slate-600">
+                            {% if s.last_success_at %}
+                                {{ s.last_success_at[:10] }}
+                                {% if s.days_since_success is not none %}
+                                <span class="text-slate-400">· {{ s.days_since_success }}d ago</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-slate-400">never</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-3 py-2">
+                            {% if s.is_blocked %}
+                                <span class="inline-flex items-center rounded-full bg-rose-50 border border-rose-200 text-rose-800 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">Blocked</span>
+                            {% elif s.status == 'paused' %}
+                                <span class="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">Paused</span>
+                            {% elif s.days_since_success is none %}
+                                <span class="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">No data</span>
+                            {% elif s.days_since_success > 14 %}
+                                <span class="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">Stale</span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">Working</span>
+                            {% endif %}
+                            {% if s.last_error %}
+                            <div class="text-[10px] text-rose-700 mt-1 max-w-xs break-words" title="{{ s.last_error }}">{{ s.last_error[:120] }}{% if s.last_error|length > 120 %}…{% endif %}</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6" class="px-3 py-8 text-center text-slate-500">No court sources registered yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <h2 class="text-2xl font-black text-slate-900">Known gaps</h2>
+        <p class="mt-2 text-sm text-slate-600">
+            We're publishing this list so the limits of our court data are
+            visible. If a source is on the blocked list, the case search,
+            hearing feed, and /courts page reflect that gap — they don't
+            quietly fall back to empty.
+        </p>
+        <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+            <p class="font-bold">District Court criminal outcomes</p>
+            <p class="mt-1 text-amber-800">
+                The Montana District Court public portal currently rejects
+                automated connections from datacenter IPs. Trial-level plea,
+                disposition, and sentence data is therefore not flowing into
+                /criminal-cases. We're working with the public-records office
+                on a documented allowlist path. In the meantime, criminal
+                outcomes on this site are appellate-only.
+            </p>
+        </div>
+    </section>
+
+</main>
+{% endblock %}
