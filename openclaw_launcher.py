@@ -182,8 +182,18 @@ def main() -> int:
     parser.add_argument("--discord", action="store_true", default=True, help="Forward output to Discord channel")
     args = parser.parse_args()
 
-    # Prevent concurrent runs of the same agent — each agent type gets its own lock file.
-    # If a previous run is still alive, exit silently rather than pile up in memory.
+    # Only one OpenClaw agent at a time (cron stagger can overlap on long runs).
+    _global_lock_fh = open("/tmp/openclaw_global.lock", "w")
+    try:
+        fcntl.flock(_global_lock_fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print(
+            "[openclaw_launcher] another OpenClaw agent is already running, skipping this run.",
+            file=sys.stderr,
+        )
+        return 0
+
+    # Prevent concurrent runs of the same agent type.
     _lock_fh = open(f"/tmp/openclaw_agent_{args.agent}.lock", "w")
     try:
         fcntl.flock(_lock_fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
