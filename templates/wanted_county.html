@@ -1,0 +1,153 @@
+{% extends "public_page_base.html" %}
+
+{% set active_nav = "wanted" %}
+
+{% block extra_head %}
+{% include "includes/wanted_posters_head.html" %}
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/wanted" class="hover:text-slate-700">Active Warrants</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">{{ county_name }} County</span>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-950 via-red-950 to-slate-900 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="max-w-4xl">
+            <div class="inline-flex items-center rounded-full bg-red-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-red-300">
+                {{ county_name }} County &middot; Montana Warrant Database
+            </div>
+            <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">{{ county_name }} County Active Warrants</h1>
+            <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                {% if active_count %}
+                    {{ active_count }} active warrant record{{ 's' if active_count != 1 else '' }} posted by {{ county_name }} County, Montana. Updated daily from the official sheriff source.
+                {% elif has_live_source %}
+                    {{ county_name }} County warrant lookup. We monitor the official source daily &mdash; no public warrant list has been found yet.
+                {% else %}
+                    {{ county_name }} County does not currently publish a public warrant list. Browse the statewide list or check back later.
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="mt-8 grid gap-4 sm:grid-cols-4">
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Active Records</p>
+                <p class="mt-2 text-3xl font-black">{{ active_count }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Resolved</p>
+                <p class="mt-2 text-3xl font-black">{{ resolved_count }}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">County</p>
+                <p class="mt-2 text-xl font-black">{{ county_name }}</p>
+            </div>
+            {% if latest_updated %}
+            <div class="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-red-200">Last Synced</p>
+                <p class="mt-2 text-sm leading-6 text-red-50">{{ latest_updated_label }}</p>
+            </div>
+            {% elif has_live_source %}
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Official Source</p>
+                <a href="{{ source_url }}" target="_blank" rel="noopener" class="mt-2 block text-xs leading-5 text-blue-300 underline hover:text-blue-200 break-all">{{ county_name }} Sheriff</a>
+            </div>
+            {% else %}
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Status</p>
+                <p class="mt-2 text-xs leading-5 text-slate-300">No public list available</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-10 sm:px-6">
+
+    {% if active_rows %}
+    <div class="mb-10">
+        <div class="mb-6 flex items-center justify-between">
+            <h2 class="text-xl font-black text-slate-900">Active Warrants &mdash; {{ county_name }} County</h2>
+            <a href="/wanted?county={{ county_name }}&status=active" class="text-xs font-bold text-red-600 hover:text-red-700 uppercase tracking-wide">Filter on statewide list &rarr;</a>
+        </div>
+        <div class="wanted-posters-grid">
+            {% for record in active_rows %}
+            {% set compact = true %}
+            {% include "includes/wanted_poster_card.html" %}
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="mb-10 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+            <i class="fas fa-search text-2xl text-slate-400"></i>
+        </div>
+        <h2 class="text-lg font-black text-slate-900">No Active Warrants Listed</h2>
+        <p class="mt-2 text-sm text-slate-500 max-w-md mx-auto">
+            {% if has_live_source %}
+                {{ county_name }} County is monitored daily. No public warrant records have been found at the official source.
+                <a href="{{ source_url }}" target="_blank" rel="noopener" class="text-red-600 hover:underline">Check the {{ county_name }} County Sheriff&rsquo;s Office directly.</a>
+            {% else %}
+                {{ county_name }} County does not currently publish a public warrant list online. You can search the statewide database below.
+            {% endif %}
+        </p>
+        <div class="mt-6">
+            <a href="/wanted" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-black text-white hover:bg-red-700">
+                <i class="fas fa-list"></i> Browse Statewide Warrant List
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if resolved_rows %}
+    <div class="mb-10">
+        <h2 class="mb-6 text-xl font-black text-slate-900">Recently Resolved &mdash; {{ county_name }} County</h2>
+        <div class="wanted-posters-grid">
+            {% for record in resolved_rows %}
+            {% set compact = true %}
+            {% include "includes/wanted_poster_card.html" %}
+            {% endfor %}
+        </div>
+        {% if resolved_count > resolved_rows|length %}
+        <div class="mt-6 text-center">
+            <a href="/wanted?county={{ county_name }}&status=resolved" class="text-sm font-bold text-slate-600 hover:text-slate-900 underline">
+                View all {{ resolved_count }} resolved records &rarr;
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 class="text-base font-black text-slate-900 mb-3">About This Data</h3>
+        <p class="text-sm text-slate-600 leading-6">
+            Warrant records for {{ county_name }} County are scraped daily from publicly posted sheriff and court sources.
+            Records are shown as-is from the official source and may not reflect all outstanding warrants.
+            This is not a comprehensive legal database.
+            {% if has_live_source %}
+            For the authoritative list, visit the
+            <a href="{{ source_url }}" target="_blank" rel="noopener" class="text-red-600 hover:underline">{{ county_name }} County official source</a>.
+            {% endif %}
+        </p>
+        <div class="mt-4 flex flex-wrap gap-3">
+            <a href="/wanted" class="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-black text-white hover:bg-slate-700">
+                <i class="fas fa-list"></i> All Montana Warrants
+            </a>
+            <a href="/wanted?county={{ county_name }}&status=all" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50">
+                <i class="fas fa-filter"></i> All {{ county_name }} Records
+            </a>
+            {% if has_live_source %}
+            <a href="{{ source_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50">
+                <i class="fas fa-external-link-alt"></i> Official Sheriff Source
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

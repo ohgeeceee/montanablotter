@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6 space-y-6">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border
+            {% if category == 'error' %}
+                bg-rose-50 border-rose-200 text-rose-700
+            {% elif category == 'warning' %}
+                bg-amber-50 border-amber-200 text-amber-800
+            {% else %}
+                bg-emerald-50 border-emerald-200 text-emerald-700
+            {% endif %}
+        ">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-red-600">Operations</p>
+            <h1 class="mt-2 text-3xl font-black text-slate-900">Warrant Photos</h1>
+            <p class="mt-2 text-sm text-slate-600 max-w-3xl">
+                Official sheriff mugshots sync automatically for Flathead County. Use Facebook search only as a manual lookup —
+                paste an approved public image URL after you verify it. Montana Blotter does not scrape Facebook profiles.
+            </p>
+        </div>
+        <a href="/wanted" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50">
+            View public /wanted
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Total records</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ stats.total }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Active</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ stats.active }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Official mugshots</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ stats.official_photos }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Staff photos</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ stats.staff_photos }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Any photo shown</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ stats.any_photo }}</p>
+        </article>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
+        <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+            <form method="get" class="grid gap-3 sm:grid-cols-4">
+                <input type="text" name="q" value="{{ q }}" placeholder="Name, charge, city" class="sm:col-span-2 rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                <select name="county" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    <option value="">All counties</option>
+                    {% for county_name in counties %}
+                    <option value="{{ county_name }}" {% if county_filter == county_name %}selected{% endif %}>{{ county_name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="photo" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    <option value="">All photos</option>
+                    <option value="with_photo" {% if photo_filter == 'with_photo' %}selected{% endif %}>Has photo</option>
+                    <option value="missing_photo" {% if photo_filter == 'missing_photo' %}selected{% endif %}>Missing photo</option>
+                </select>
+                <button type="submit" class="sm:col-span-4 rounded-xl bg-slate-900 text-white px-4 py-3 text-sm font-black">Filter</button>
+            </form>
+
+            <div class="mt-6 divide-y divide-slate-100">
+                {% for row in rows %}
+                <div class="py-4 flex items-start gap-4">
+                    <div class="w-14 h-[4.5rem] rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                        {% if row.has_photo %}
+                        <img src="{{ row.display_photo_url }}" alt="" class="w-full h-full object-cover">
+                        {% else %}
+                        <div class="w-full h-full flex items-center justify-center text-slate-300 text-xs">None</div>
+                        {% endif %}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="font-black text-slate-900">{{ row.person_name }}</p>
+                        <p class="text-xs text-slate-500 mt-1">{{ row.county }} · {{ row.city or 'Location unknown' }}</p>
+                        <p class="text-xs text-slate-600 mt-1 line-clamp-2">{{ row.charges_text }}</p>
+                    </div>
+                    <a href="/admin/operations/warrants?edit={{ row.id }}" class="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-50">Edit</a>
+                </div>
+                {% else %}
+                <p class="py-8 text-sm text-slate-500">No warrant records match this filter.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+            {% if editing_warrant %}
+            <h2 class="text-lg font-black text-slate-900">Photo helper — {{ editing_warrant.person_name }}</h2>
+            <p class="text-sm text-slate-500 mt-1">County: {{ editing_warrant.county }} · <a href="{{ editing_warrant.public_href }}" class="text-red-700 underline" target="_blank" rel="noopener">Public page</a></p>
+
+            {% if editing_warrant.mugshot_url %}
+            <div class="mt-4 rounded-xl border border-slate-200 p-3">
+                <p class="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Official sheriff mugshot</p>
+                <img src="{{ editing_warrant.mugshot_url }}" alt="" class="mt-3 w-full max-w-xs rounded-lg border border-slate-200">
+            </div>
+            {% endif %}
+
+            <div class="mt-4 flex flex-wrap gap-2">
+                <a href="{{ editing_warrant.facebook_search_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white px-4 py-3 text-xs font-black uppercase tracking-[0.12em]">
+                    Search Facebook (manual)
+                </a>
+                {% if editing_warrant.source_url %}
+                <a href="{{ editing_warrant.source_url }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-50">
+                    Sheriff source
+                </a>
+                {% endif %}
+            </div>
+
+            <p class="mt-4 text-xs leading-5 text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                Do not automate Facebook login or bulk-download profile photos. Only save URLs you manually verified are public and appropriate for identification on a WANTED poster.
+            </p>
+
+            <form method="post" action="/admin/operations/warrants/save" class="mt-5 space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="warrant_id" value="{{ editing_warrant.id }}">
+                <label class="block text-sm text-slate-700">
+                    <span class="font-semibold">Approved photo URL</span>
+                    <span class="block text-xs text-slate-500 mt-1">Direct image URL (https://…). Overrides official mugshot on /wanted.</span>
+                    <input type="url" name="photo_url" value="{{ editing_warrant.photo_url }}" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </label>
+                <label class="block text-sm text-slate-700">
+                    <span class="font-semibold">Facebook profile or public post URL</span>
+                    <span class="block text-xs text-slate-500 mt-1">Reference link for staff only — not scraped or embedded automatically.</span>
+                    <input type="url" name="social_profile_url" value="{{ editing_warrant.social_profile_url }}" placeholder="https://www.facebook.com/..." class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                </label>
+                <div class="flex flex-wrap gap-2">
+                    <button type="submit" class="rounded-xl bg-red-700 hover:bg-red-800 text-white px-4 py-3 text-sm font-black">Save</button>
+                    {% if editing_warrant.photo_url or editing_warrant.social_profile_url %}
+                    <button type="submit" formaction="/admin/operations/warrants/{{ editing_warrant.id }}/clear-photo" formmethod="post" class="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700" onclick="return confirm('Clear staff photo and social link?');">
+                        Clear staff fields
+                    </button>
+                    {% endif %}
+                </div>
+            </form>
+            {% else %}
+            <h2 class="text-lg font-black text-slate-900">Select a warrant</h2>
+            <p class="text-sm text-slate-500 mt-2">Choose <strong>Edit</strong> on a record to open the Facebook search helper and save an approved photo URL.</p>
+            <p class="mt-4 text-sm text-slate-600">Re-run <code class="text-xs bg-slate-100 px-1 py-0.5 rounded">warrant_ingest.py --county flathead</code> to refresh official Flathead mugshots after sheriff updates.</p>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

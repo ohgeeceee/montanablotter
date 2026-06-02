@@ -28,6 +28,10 @@ _HTML_LINK_RE = re.compile(
     r'<a[^>]+class="warrant-link"[^>]+href="warrants_view\.php\?line=(\d+)[^"]*"[^>]*>(.*?)</a>',
     re.DOTALL | re.IGNORECASE,
 )
+_MUGSHOT_RE = re.compile(
+    r"image_thumb_script\.php\?f=([A-Za-z0-9]+)",
+    re.IGNORECASE,
+)
 
 
 class _TextExtractor(HTMLParser):
@@ -51,6 +55,17 @@ class _TextExtractor(HTMLParser):
         text = html.unescape("".join(self._parts))
         text = text.replace("\xa0", " ")
         return re.sub(r"\s+", " ", text).strip()
+
+
+def flathead_mugshot_url_from_html(fragment: str) -> str:
+    """Return absolute Flathead sheriff mugshot URL when the list entry includes a photo."""
+    match = _MUGSHOT_RE.search(fragment or "")
+    if not match:
+        return ""
+    file_id = match.group(1).strip()
+    if not file_id:
+        return ""
+    return f"{FLATHEAD_BASE_URL}image_thumb_script.php?f={file_id}"
 
 
 def _text_from_html(fragment: str) -> str:
@@ -115,9 +130,18 @@ def parse_flathead_warrant_page(html: str, *, source_url: str = FLATHEAD_LIST_UR
     records: list[WarrantRecord] = []
     seen: set[str] = set()
 
+    mugshot_by_line: dict[str, str] = {}
+    if _HTML_LINK_RE.search(html):
+        for link_match in _HTML_LINK_RE.finditer(html):
+            line_id, inner = link_match.groups()
+            thumb = flathead_mugshot_url_from_html(inner)
+            if thumb:
+                mugshot_by_line[line_id.strip()] = thumb
+
     for match in _ENTRY_RE.finditer(parser_input):
         raw_name, _age, location, charge, line_id = match.groups()
-        source_record_id = f"flathead-warrant:{line_id.strip()}"
+        line_key = line_id.strip()
+        source_record_id = f"flathead-warrant:{line_key}"
         if source_record_id in seen:
             continue
         seen.add(source_record_id)
@@ -136,7 +160,8 @@ def parse_flathead_warrant_page(html: str, *, source_url: str = FLATHEAD_LIST_UR
                 charges_text=" ".join(charge.strip().split()),
                 issued_by="Flathead County Sheriff's Office",
                 issue_date="",
-                source_url=f"{FLATHEAD_BASE_URL}warrants_view.php?line={line_id.strip()}",
+                source_url=f"{FLATHEAD_BASE_URL}warrants_view.php?line={line_key}",
+                mugshot_url=mugshot_by_line.get(line_key, ""),
             )
         )
 

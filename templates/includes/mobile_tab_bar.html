@@ -37,7 +37,7 @@
 <!-- ═══════════════════════════════════════ MORE DRAWER ═══ -->
 <dialog id="mb-more-drawer" class="public-mobile-drawer">
   <div class="public-mobile-drawer__header">
-    <span class="public-mobile-drawer__label">{{ public_action_labels.more }}</span>
+    <span class="public-mobile-drawer__label">Browse Montana Blotter</span>
     <button onclick="document.getElementById('mb-more-drawer').close()" class="public-mobile-drawer__close" aria-label="Close more menu">&#x2715;</button>
   </div>
   <div class="public-mobile-drawer__body" style="padding-top:0.35rem; padding-bottom:4.5rem;">
@@ -53,23 +53,15 @@
     <a href="/register" class="public-mobile-drawer__item" data-nav-track="1" data-nav-location="mobile_drawer">{{ public_action_labels.join }}</a>
     <div style="border-top:1px solid var(--public-border); margin:6px 0;"></div>
     {% endif %}
-    {% if public_mobile_short_label_legend %}
-    <p class="public-mobile-label" style="text-transform:none; letter-spacing:0; opacity:0.82; margin:0 1rem 0.5rem;">{{ public_mobile_short_label_legend }}</p>
-    {% endif %}
-    <button id="drawer-mobile-label-toggle" type="button" class="public-mobile-drawer__item public-mobile-drawer__item--muted" data-label-toggle="1" data-target-menu="mb-more-drawer">Show Full Labels</button>
-    {% set more_items = [
-      ('/courts',        public_nav_menu_labels_by_href.get('/courts', 'Courts'), public_nav_full_labels_by_href.get('/courts', 'Courts')),
-      ('/meetings',      public_nav_menu_labels_by_href.get('/meetings', 'Meetings'), public_nav_full_labels_by_href.get('/meetings', 'Meetings')),
-      ('/detention',     public_nav_menu_labels_by_href.get('/detention', 'Jails'), public_nav_full_labels_by_href.get('/detention', 'Detention')),
-      ('/bail-bonds',    public_nav_menu_labels_by_href.get('/bail-bonds', 'Bail'), public_nav_full_labels_by_href.get('/bail-bonds', 'Bail Bonds')),
-      ('/case-journeys', public_nav_menu_labels_by_href.get('/case-journeys', 'Cases'), public_nav_full_labels_by_href.get('/case-journeys', 'Case Journeys')),
-      ('/missing-persons', public_nav_menu_labels_by_href.get('/missing-persons', 'Missing'), public_nav_full_labels_by_href.get('/missing-persons', 'Missing Persons')),
-      ('/subscribe',     public_action_labels.subscribe, public_action_labels.subscribe_full),
-      ('/support',       public_nav_menu_labels_by_href.get('/support', 'Support'), public_nav_full_labels_by_href.get('/support', 'Support')),
-    ] %}
-    {% for href, label, full_label in more_items %}
-    <a href="{{ href }}" class="public-mobile-drawer__item" title="{{ full_label }}" aria-label="{{ full_label }}" data-nav-track="1" data-nav-location="mobile_drawer" data-short-label="{{ label }}" data-full-label="{{ full_label }}">{{ label }}</a>
+    {% for group in public_more_nav_groups %}
+    <p class="public-mobile-label">{{ group.title }}</p>
+    {% for item in group['items'] %}
+    <a href="{{ item.href }}" class="public-mobile-drawer__item" data-nav-track="1" data-nav-location="mobile_drawer" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
     {% endfor %}
+    {% endfor %}
+
+    <p class="public-mobile-label">Stay updated</p>
+    <a href="/subscribe" class="public-mobile-drawer__item" data-nav-track="1" data-nav-location="mobile_drawer" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
 
   </div>
 </dialog>
@@ -87,32 +79,6 @@
 
 /* Shared mobile menu label toggle + nav click analytics */
 (function () {
-  var storageKey = 'montanablotter:nav:show-full-labels';
-  function labelMode() {
-    try { return localStorage.getItem(storageKey) === '1'; } catch (e) { return false; }
-  }
-  function setLabelMode(full) {
-    try { localStorage.setItem(storageKey, full ? '1' : '0'); } catch (e) {}
-  }
-  function applyLabels() {
-    var full = labelMode();
-    document.querySelectorAll('#pub-mobile-menu [data-short-label][data-full-label], #mobile-menu [data-short-label][data-full-label], #mb-more-drawer [data-short-label][data-full-label]').forEach(function (el) {
-      el.textContent = full ? el.getAttribute('data-full-label') : el.getAttribute('data-short-label');
-    });
-    var toggleText = full ? 'Show Short Labels' : 'Show Full Labels';
-    ['pub-mobile-label-toggle', 'home-mobile-label-toggle', 'drawer-mobile-label-toggle'].forEach(function (id) {
-      var btn = document.getElementById(id);
-      if (btn) btn.textContent = toggleText;
-    });
-  }
-  document.querySelectorAll('[data-label-toggle="1"]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      setLabelMode(!labelMode());
-      applyLabels();
-    });
-  });
-  applyLabels();
-
   function sendNavClick(source, targetPath) {
     try {
       var payload = JSON.stringify({
