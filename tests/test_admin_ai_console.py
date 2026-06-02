@@ -1,3 +1,4 @@
+import importlib
 import os
 import sqlite3
 import tempfile
@@ -154,20 +155,34 @@ class AdminAIConsoleTests(unittest.TestCase):
         self.assertIn('Confirm Draft Action', html)
         self.assertIn('create_blog_draft', html)
         with client.session_transaction() as session:
-            self.assertEqual(session['admin_ai_pending_action']['tool_name'], 'create_blog_draft')
+            # Session stores the token; the full action lives in
+            # admin_ai_pending_actions table and is looked up via that token.
+            token = session['admin_ai_pending_action']
+            self.assertEqual(token, 'pending-token')
 
     def test_admin_ai_confirm_executes_matching_pending_action_once(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
+        # Session stores the token; the full action lives in the
+        # admin_ai_pending_actions DB table.
         with client.session_transaction() as session:
-            session['admin_ai_pending_action'] = {
+            session['admin_ai_pending_action'] = 'pending-token'
+
+        # Seed the matching pending action in the DB so validate_pending_action
+        # can find it.
+        admin_ai = importlib.import_module('admin_ai')
+        admin_ai.save_pending_action(
+            self.admin_user_id,
+            {
                 'token': 'pending-token',
                 'tool_name': 'create_blog_draft',
                 'summary': 'Create a draft',
                 'arguments': {'title': 'Draft title', 'body': 'Draft body'},
                 'created_at': int(time.time()),
-            }
+            },
+            db_path=self.db_path,
+        )
 
         with mock.patch('blueprints.admin.ai_console.execute_pending_admin_ai_action') as mocked_execute:
             mocked_execute.return_value = {'message': 'Draft created', 'target_id': 42}
@@ -231,33 +246,42 @@ class AdminAIConsoleTests(unittest.TestCase):
 
     def test_run_admin_ai_query_returns_pending_action_for_write_intent(self) -> None:
         import admin_ai
+        import anthropic
 
-        class FakeToolCall:
-            id = 'tool-1'
-            function = type('Fn', (), {
-                'name': 'create_blog_draft',
-                'arguments': '{"title":"AI Draft Title","summary":"AI Draft Summary","body":"AI Draft Body"}',
-            })()
+        # Build a real Anthropic-style response with a tool_use block.
+        # The code does isinstance(b, _anthropic.types.ToolUseBlock), so
+        # we must use the real type — a duck-typed stub won't pass.
+        text_block = anthropic.types.TextBlock(type='text', text='I can prepare that draft.')
+        tool_use_block = anthropic.types.ToolUseBlock(
+            type='tool_use',
+            id='tool-1',
+            name='create_blog_draft',
+            input={
+                'title': 'AI Draft Title',
+                'summary': 'AI Draft Summary',
+                'body': 'AI Draft Body',
+            },
+        )
 
-        class FakeMessage:
-            content = 'I can prepare that draft.'
-            tool_calls = [FakeToolCall()]
-
-            def model_dump(self):
-                return {'role': 'assistant', 'content': self.content}
-
-        fake_response = type('Resp', (), {
-            'choices': [type('Choice', (), {'message': FakeMessage()})()]
-        })()
+        class FakeResponse:
+            stop_reason = 'tool_use'
+            content = [text_block, tool_use_block]
 
         mocked_client = mock.Mock()
-        mocked_client.chat.completions.create.return_value = fake_response
+        mocked_client.messages.create.return_value = FakeResponse()
 
-        with mock.patch('admin_ai.create_kimi_client', return_value=mocked_client):
-            result = admin_ai.run_admin_ai_query('Draft a blog post', db_path=self.db_path)
+        with mock.patch(
+            'admin_ai.create_claude_client', return_value=mocked_client
+        ):
+            result = admin_ai.run_admin_ai_query(
+                'Draft a blog post', db_path=self.db_path
+            )
 
+        self.assertIsNotNone(result['pending_action'])
         self.assertEqual(result['pending_action']['tool_name'], 'create_blog_draft')
-        self.assertEqual(result['pending_action']['arguments']['title'], 'AI Draft Title')
+        self.assertEqual(
+            result['pending_action']['arguments']['title'], 'AI Draft Title'
+        )
 
 
 if __name__ == '__main__':

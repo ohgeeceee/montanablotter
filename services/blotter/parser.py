@@ -184,6 +184,8 @@ class BlotterParser:
     
     def _detect_county_from_filename(self) -> str | None:
         """Infer county from filename patterns when text-based detection fails."""
+        if not self.pdf_path:
+            return None
         name = os.path.basename(self.pdf_path).lower()
         if re.search(r'whitehall|jeffco|jefferson.*cfs|cfs.*jefferson', name):
             return "Jefferson"

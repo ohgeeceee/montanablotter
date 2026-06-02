@@ -33,6 +33,20 @@ class WantedPagesTestCase(unittest.TestCase):
         self._original_get_db = app.view_functions["wanted_index"].__globals__["get_db"]
         app.view_functions["wanted_index"].__globals__["get_db"] = lambda: self.conn
         app.view_functions["wanted_detail"].__globals__["get_db"] = lambda: self.conn
+        # Bypass the warrant paywall: the test exercises the public detail
+        # page, not the gating logic (covered separately in test_paywall.py).
+        self._original_paywall = app.view_functions["wanted_detail"].__globals__.get(
+            "user_has_warrant_access"
+        )
+        app.view_functions["wanted_detail"].__globals__["user_has_warrant_access"] = lambda: True
+        # The detail route also calls _pick_attorneys_for_county which uses
+        # the production DB — mock it to return an empty list so the test
+        # doesn't depend on attorney_referrals seed data.
+        from unittest.mock import patch
+        self._attorneys_patch = patch(
+            "app._pick_attorneys_for_county", return_value=[]
+        )
+        self._attorneys_patch.start()
 
     def _insert_warrant(self, **kwargs):
         defaults = {
@@ -84,6 +98,7 @@ class WantedPagesTestCase(unittest.TestCase):
         self.conn.commit()
 
     def tearDown(self):
+        self._attorneys_patch.stop()
         app.view_functions["wanted_index"].__globals__["get_db"] = self._original_get_db
         app.view_functions["wanted_detail"].__globals__["get_db"] = self._original_get_db
         self.conn.close()
