@@ -131,6 +131,12 @@ def _recovery_ad_checkout_ready() -> bool:
     return bool(_stripe and secret and pub)
 
 
+def _checkout_redirect_url(checkout_session) -> str:
+    if isinstance(checkout_session, dict):
+        return (checkout_session.get('url') or '').strip()
+    return (getattr(checkout_session, 'url', '') or '').strip()
+
+
 # ---------------------------------------------------------------------------
 # Stripe event handler (called from blueprints/payments.py webhook)
 # ---------------------------------------------------------------------------
@@ -439,7 +445,10 @@ def advertise_recovery_checkout():
                 checkout_session = None
 
             if checkout_session:
-                return redirect(checkout_session.url, code=303)
+                checkout_url = _checkout_redirect_url(checkout_session)
+                if checkout_url:
+                    return redirect(checkout_url, code=303)
+                errors.append('Unable to start secure checkout. Please try again.')
 
     return render_template(
         'advertise_recovery_checkout.html',

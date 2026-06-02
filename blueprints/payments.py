@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import secrets
 import sqlite3
 from datetime import datetime
 
 import stripe
-from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
+
+log = logging.getLogger(__name__)
 
 import config
 from db import get_db
+
+# Warrant Access subscription — created 2026-05-31
+_WARRANT_MONTHLY_PRICE_ID = 'price_1Td9jmGL8T8btZcu5OXZzr9g'
+_WARRANT_TRIAL_FEE_PRICE_ID = 'price_1Td9jmGL8T8btZcumpWLuzLf'
+_WARRANT_PAYMENT_LINK = 'https://buy.stripe.com/dRm9AT0IY2FS9rI1e58EM02'
 
 
 payments_bp = Blueprint('payments', __name__)
@@ -25,6 +33,155 @@ def register_payments_blueprint(app):
 def _app():
     import app as _app_module
     return _app_module
+
+
+def _warrant_access_price_ids():
+    """Return the active Stripe price IDs for warrant access."""
+    return {
+        'trial_fee': (os.getenv('MB_WARRANT_TRIAL_FEE_PRICE_ID', _WARRANT_TRIAL_FEE_PRICE_ID) or '').strip(),
+        'monthly': (os.getenv('MB_WARRANT_MONTHLY_PRICE_ID', _WARRANT_MONTHLY_PRICE_ID) or '').strip(),
+    }
+
+
+def build_donation_checkout_payload(payload):
+    m = _app()
+
+    mode = (payload.get('mode') or 'one_time').strip().lower()
+    if mode not in {'one_time', 'monthly'}:
+        return {'error': 'Invalid donation mode', 'status': 400}
+
+    try:
+        amount_cents = int(payload.get('amount_cents'))
+    except (TypeError, ValueError):
+        return {'error': 'Invalid donation amount', 'status': 400}
+
+    min_cents = m._donation_min_cents()
+    max_cents = m._donation_max_cents()
+    if amount_cents < min_cents or amount_cents > max_cents:
+        return {'error': 'Donation amount out of allowed range', 'status': 400}
+
+    public_user = m._get_public_user()
+    source = (payload.get('source') or 'donate_page').strip()[:80]
+    donor_name = (payload.get('name') or '').strip()[:120]
+    email = (payload.get('email') or '').strip().lower()
+    if not donor_name and public_user:
+        donor_name = (public_user.display_name or '').strip()[:120]
+    if not email and public_user:
+        email = (public_user.email or '').strip().lower()
+    if email and '@' not in email:
+        email = ''
+
+    return {
+        'mode': mode,
+        'amount_cents': amount_cents,
+        'source': source,
+        'donor_name': donor_name,
+        'email': email,
+        'currency': m._donation_currency(),
+        'public_user_id': str(public_user.id) if public_user else '',
+        'feature_gate': 'bondsman_command_center' if m._is_bondsman_subscription_source(source) else '',
+    }
+
+
+def create_donation_checkout_session(parsed_payload):
+    m = _app()
+    stripe_keys = m._stripe_keys()
+    stripe.api_key = stripe_keys['secret_key']
+
+    line_item = {
+        'price_data': {
+            'currency': parsed_payload['currency'],
+            'product_data': {'name': 'Montana Blotter Donation'},
+            'unit_amount': parsed_payload['amount_cents'],
+        },
+        'quantity': 1,
+    }
+    if parsed_payload['mode'] == 'monthly':
+        line_item['price_data']['recurring'] = {'interval': 'month'}
+
+    checkout_params = {
+        'mode': 'subscription' if parsed_payload['mode'] == 'monthly' else 'payment',
+        'line_items': [line_item],
+        'success_url': f'{m.BASE_URL}/donate/success?session_id={{CHECKOUT_SESSION_ID}}',
+        'cancel_url': f'{m.BASE_URL}/donate/cancel',
+        'billing_address_collection': 'auto',
+        'allow_promotion_codes': True,
+        'metadata': {
+            'source': parsed_payload['source'],
+            'mode': parsed_payload['mode'],
+            'amount_cents': str(parsed_payload['amount_cents']),
+            'donor_name': parsed_payload['donor_name'],
+            'public_user_id': parsed_payload['public_user_id'],
+            'feature_gate': parsed_payload['feature_gate'],
+        },
+    }
+    if parsed_payload['email']:
+        checkout_params['customer_email'] = parsed_payload['email']
+
+    return stripe.checkout.Session.create(**checkout_params)
+
+
+def persist_donation_checkout(parsed_payload, checkout_session):
+    m = _app()
+    checkout_session_id = _checkout_value(checkout_session, 'id')
+    checkout_payment_intent = _checkout_value(checkout_session, 'payment_intent')
+    checkout_subscription = _checkout_value(checkout_session, 'subscription')
+
+    try:
+        conn = get_db()
+        conn.execute(
+            '''
+            INSERT INTO donations (
+                provider, mode, status, amount_cents, currency, email_hash, donor_name,
+                source, provider_session_id, provider_payment_intent_id, provider_subscription_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(provider_session_id) DO UPDATE SET
+                mode = excluded.mode,
+                status = excluded.status,
+                amount_cents = excluded.amount_cents,
+                currency = excluded.currency,
+                email_hash = excluded.email_hash,
+                donor_name = excluded.donor_name,
+                source = excluded.source,
+                provider_payment_intent_id = excluded.provider_payment_intent_id,
+                provider_subscription_id = excluded.provider_subscription_id,
+                updated_at = datetime('now')
+            ''',
+            (
+                'stripe',
+                parsed_payload['mode'],
+                'pending',
+                parsed_payload['amount_cents'],
+                parsed_payload['currency'],
+                m._donation_email_hash(parsed_payload['email']),
+                parsed_payload['donor_name'],
+                parsed_payload['source'],
+                checkout_session_id,
+                checkout_payment_intent,
+                checkout_subscription,
+            ),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+    m._record_donation_event(
+        'checkout_start',
+        source=parsed_payload['source'],
+        page_path='/donate',
+        amount_cents=parsed_payload['amount_cents'],
+    )
+
+
+def _checkout_value(checkout_session, key, default=''):
+    if isinstance(checkout_session, dict):
+        return checkout_session.get(key, default)
+    return getattr(checkout_session, key, default)
+
+
+def _checkout_redirect_url(checkout_session):
+    return (_checkout_value(checkout_session, 'url', '') or '').strip()
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +209,40 @@ def donate():
         active_nav='donate',
         current_year=datetime.now().year,
     )
+
+
+@payments_bp.route('/donate/checkout', methods=['POST'])
+def donate_checkout():
+    m = _app()
+    if not m._donations_enabled():
+        flash('Donations are currently unavailable.', 'error')
+        return redirect(url_for('.donate', source='donate_page'))
+    if not m._stripe_ready_for_checkout():
+        flash('Payment provider is not configured yet.', 'error')
+        return redirect(url_for('.donate', source='donate_page'))
+
+    payload = request.get_json(silent=True)
+    if payload is None:
+        payload = request.form.to_dict() if request.form else {}
+
+    parsed = build_donation_checkout_payload(payload)
+    if 'error' in parsed:
+        flash(parsed['error'], 'error')
+        return redirect(url_for('.donate', source=payload.get('source') or 'donate_page'))
+
+    try:
+        checkout_session = create_donation_checkout_session(parsed)
+    except Exception:
+        flash('Unable to start secure checkout right now. Please try again.', 'error')
+        return redirect(url_for('.donate', source=parsed['source']))
+
+    checkout_url = _checkout_value(checkout_session, 'url', '')
+    if not checkout_url:
+        flash('Unable to start secure checkout right now. Please try again.', 'error')
+        return redirect(url_for('.donate', source=parsed['source']))
+
+    persist_donation_checkout(parsed, checkout_session)
+    return redirect(checkout_url)
 
 
 @payments_bp.route('/donate/success')
@@ -121,9 +312,16 @@ def stripe_webhook():
     keys = m._stripe_keys()
     stripe.api_key = keys['secret_key']
 
-    try:
-        event = stripe.Webhook.construct_event(payload, signature, keys['webhook_secret'])
-    except Exception:
+    # Try primary secret first, then warrant-specific secret
+    warrant_secret = (getattr(config, 'STRIPE_WARRANT_WEBHOOK_SECRET', '') or '').strip()
+    event = None
+    for secret in filter(None, [keys['webhook_secret'], warrant_secret]):
+        try:
+            event = stripe.Webhook.construct_event(payload, signature, secret)
+            break
+        except Exception:
+            continue
+    if event is None:
         return ('', 400)
 
     event_id = (event.get('id') or '').strip()
@@ -754,7 +952,10 @@ def checkout_subscription():
     except Exception as exc:
         return render_template('pricing.html', checkout_error=f'Unable to start checkout: {exc}'), 503
 
-    return redirect(checkout_session.url)
+    checkout_url = _checkout_redirect_url(checkout_session)
+    if not checkout_url:
+        return render_template('pricing.html', checkout_error='Unable to start checkout right now.'), 503
+    return redirect(checkout_url)
 
 
 @payments_bp.route('/checkout/subscription/success')
@@ -774,6 +975,112 @@ def checkout_subscription_cancel():
         'checkout_subscription_cancel.html',
         active_nav='pricing',
         current_year=datetime.now().year,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Warrant Access checkout — $1 for 7-day trial, then $7/month
+# ---------------------------------------------------------------------------
+
+@payments_bp.route('/checkout/warrant-access', methods=['POST'])
+def checkout_warrant_access():
+    from urllib.parse import urlencode
+    m = _app()
+    public_user_id = session.get('public_user_id')
+    log.info('warrant-access checkout: public_user_id=%s', public_user_id)
+    if not public_user_id:
+        log.warning('warrant-access checkout: no session — redirecting to login')
+        flash('Please log in or create an account to start your trial.', 'info')
+        return redirect('/login?next=/wanted/subscribe')
+    email = None
+    try:
+        conn = get_db()
+        row = conn.execute('SELECT email FROM public_users WHERE id = ?', (int(public_user_id),)).fetchone()
+        conn.close()
+        if row:
+            email = row['email'] or None
+    except Exception:
+        log.exception('warrant-access checkout: DB error fetching user %s', public_user_id)
+
+    keys = m._stripe_keys()
+    base_url = (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
+    stripe.api_key = keys['secret_key']
+    price_ids = _warrant_access_price_ids()
+
+    try:
+        if not price_ids['trial_fee'] or not price_ids['monthly']:
+            raise RuntimeError('Warrant access Stripe price IDs are not configured')
+        checkout_session = stripe.checkout.Session.create(
+            mode='subscription',
+            client_reference_id=str(public_user_id),
+            customer_email=email or None,
+            line_items=[
+                {
+                    'price': price_ids['trial_fee'],
+                    'quantity': 1,
+                },
+                {
+                    'price': price_ids['monthly'],
+                    'quantity': 1,
+                },
+            ],
+            success_url=f"{base_url}/checkout/warrant-access/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base_url}/wanted/subscribe?canceled=1",
+            subscription_data={
+                'trial_period_days': 7,
+                'metadata': {
+                    'flow': 'warrant_access',
+                    'public_user_id': str(public_user_id),
+                },
+            },
+            metadata={
+                'flow': 'warrant_access',
+                'public_user_id': str(public_user_id),
+            },
+        )
+        checkout_url = _checkout_redirect_url(checkout_session)
+        if checkout_url:
+            log.info('warrant-access checkout: created Stripe Checkout Session for user %s', public_user_id)
+            return redirect(checkout_url)
+        raise RuntimeError('Stripe checkout session did not return a URL')
+    except Exception:
+        # Keep the existing Payment Link path as a fallback if Checkout Session
+        # creation is unavailable in this environment.
+        params = {'client_reference_id': str(public_user_id)}
+        if email:
+            params['prefilled_email'] = email
+        dest = f"{_WARRANT_PAYMENT_LINK}?{urlencode(params)}"
+        log.exception('warrant-access checkout: falling back to payment link for user %s', public_user_id)
+        return redirect(dest)
+
+
+@payments_bp.route('/checkout/warrant-access/success')
+def checkout_warrant_access_success():
+    return render_template(
+        'checkout_warrant_success.html',
+        active_nav='wanted',
+        page_title='Warrant Access Activated',
+        current_year=datetime.now().year,
+    )
+
+
+@payments_bp.route('/wanted/subscribe')
+def wanted_subscribe():
+    from services.monetization.paywall import user_has_warrant_access
+    public_user_id = session.get('public_user_id')
+    is_logged_in = bool(public_user_id)
+    already_subscribed = is_logged_in and user_has_warrant_access()
+    next_url = request.args.get('next', '/wanted/subscribe')
+    return render_template(
+        'wanted_subscribe.html',
+        active_nav='wanted',
+        page_title='Subscribe — Montana Active Warrants',
+        meta_description='Get full access to Montana active warrant records for $1 trial week, then $7/month.',
+        canonical_url=f'{_app().BASE_URL}/wanted/subscribe',
+        current_year=datetime.now().year,
+        is_logged_in=is_logged_in,
+        already_subscribed=already_subscribed,
+        next_url=next_url,
     )
 
 

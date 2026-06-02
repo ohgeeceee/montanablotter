@@ -11,6 +11,7 @@ import io
 import hmac
 import secrets
 import smtplib
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -18,6 +19,7 @@ from collections import defaultdict
 from functools import wraps
 from html import escape
 from html.parser import HTMLParser
+from queue import Full, Queue
 from email.mime.text import MIMEText
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
@@ -64,6 +66,7 @@ from services.persons.missing import (
 )
 from services.persons.warrants_public import (
     warrant_city_context,
+    warrant_county_context,
     warrant_detail_context,
     warrant_homepage_context,
     warrant_public_context,
@@ -79,7 +82,7 @@ from facebook_publisher import (
     save_facebook_settings,
 )
 from services.monetization.bondsman import register_bondsman_command_center
-from services.monetization.paywall import preview_allowed
+from services.monetization.paywall import preview_allowed, user_has_warrant_access
 from services.agents.dashboard import register_agent_dashboard, build_agent_dashboard_payload
 
 try:
@@ -852,22 +855,16 @@ PATTERN_DEFINITIONS = {
     },
 }
 
-# Apply DB migrations at startup — retry on WAL-mode busy/snapshot contention
-import time as _time
-from init_db import migrate as _migrate
+# Database migrations are handled by maintenance and test setup.
+# Running them during web startup can block gunicorn worker boot on SQLite
+# lock contention and surface as a 502 behind nginx.
+if os.getenv('MB_RUN_STARTUP_MIGRATIONS', '').strip().lower() in {'1', 'true', 'yes', 'on'}:
+    from init_db import migrate as _migrate
 
-def _run_migrate_with_retry(attempts=8, base_delay=2.0):
-    for attempt in range(attempts):
-        try:
-            _migrate()
-            return
-        except Exception as _exc:
-            if attempt < attempts - 1 and 'locked' in str(_exc).lower():
-                _time.sleep(base_delay * (attempt + 1))
-            else:
-                raise
-
-_run_migrate_with_retry()
+    try:
+        _migrate()
+    except Exception as exc:
+        print(f"⚠️ Startup migration failed: {exc}", flush=True)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'admin.admin_login'
@@ -1258,23 +1255,27 @@ def verify_recaptcha(token: str, action: str = '') -> bool:
 
 
 def _safe_next_url(raw_value, fallback='/'):
+    from urllib.parse import unquote
     target = (raw_value or '').strip()
     if not target:
+        return fallback
+    # Reject excessively long values before any parsing
+    if len(target) > 300:
         return fallback
     parsed = urlparse(target)
     if parsed.scheme or parsed.netloc:
         return fallback
     if not target.startswith('/'):
         return fallback
-    # Prevent redirect loops: never send the user back to auth or admin pages
-    path_lower = parsed.path.lower()
+    # Never send users back to auth or admin pages
+    path_lower = parsed.path.lower().rstrip('/')
     if path_lower in ('/login', '/register', '/admin', '/admin/login'):
         return fallback
-    # Prevent nested next parameters that cause recursive URL explosion
-    if 'next=' in (parsed.query or '').lower():
-        return fallback
-    # Prevent abuse from extremely long URLs
-    if len(target) > 1024:
+    # Reject nested next= — check raw and two rounds of URL-decoding so
+    # bots recycling next%3D or next%253D chains are also caught
+    raw_query = (parsed.query or '').lower()
+    decoded_query = unquote(unquote(raw_query))
+    if 'next=' in raw_query or 'next=' in decoded_query:
         return fallback
     return target
 
@@ -1807,6 +1808,13 @@ def _stripe_ready_for_checkout():
 def _stripe_ready_for_webhooks():
     keys = _stripe_keys()
     return bool(stripe and keys['secret_key'] and keys['webhook_secret'])
+
+
+def _monthly_subscription_link():
+    return (
+        (getattr(config, 'STRIPE_MONTHLY_SUBSCRIPTION_LINK', '') or '').strip()
+        or 'https://buy.stripe.com/14A4gzajyeoAcDU4qh8EM03'
+    )
 
 
 def _donation_email_hash(email):
@@ -3821,6 +3829,93 @@ def _apply_subscription_stripe_event(conn, event):
                 )
 
 
+def _apply_warrant_access_stripe_event(conn, event):
+    """Handle Stripe webhook events for warrant_access subscriptions."""
+    event_type = (event.get('type') or '').strip()
+    data_object = (event.get('data') or {}).get('object') or {}
+    metadata = data_object.get('metadata') or {}
+
+    # Payment Links send client_reference_id; programmatic checkout sends metadata.public_user_id
+    public_user_id = (
+        (data_object.get('client_reference_id') or '')
+        or (metadata.get('public_user_id') or '')
+    ).strip()
+
+    # Fallback: match by customer email when no user ID is present
+    customer_email = ''
+    customer_details = data_object.get('customer_details') or {}
+    if customer_details:
+        customer_email = (customer_details.get('email') or '').strip().lower()
+
+    if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
+        subscription_id = (data_object.get('subscription') or '').strip()
+        if public_user_id.isdigit():
+            conn.execute(
+                '''
+                UPDATE public_users
+                SET is_subscribed = 1,
+                    subscriber_plan = 'warrant_access',
+                    stripe_subscription_id = ?,
+                    subscription_status = 'trialing',
+                    subscription_activated_at = COALESCE(subscription_activated_at, datetime('now'))
+                WHERE id = ?
+                ''',
+                (subscription_id, int(public_user_id)),
+            )
+        elif customer_email:
+            # Logged-out purchase — match or create by email
+            conn.execute(
+                '''
+                UPDATE public_users
+                SET is_subscribed = 1,
+                    subscriber_plan = 'warrant_access',
+                    stripe_subscription_id = ?,
+                    subscription_status = 'trialing',
+                    subscription_activated_at = COALESCE(subscription_activated_at, datetime('now'))
+                WHERE LOWER(TRIM(email)) = ?
+                ''',
+                (subscription_id, customer_email),
+            )
+    elif event_type == 'invoice.paid':
+        subscription_id = (data_object.get('subscription') or '').strip()
+        if subscription_id:
+            conn.execute(
+                '''
+                UPDATE public_users
+                SET subscription_status = 'active',
+                    subscriber_plan = 'warrant_access'
+                WHERE stripe_subscription_id = ? AND subscriber_plan = 'warrant_access'
+                ''',
+                (subscription_id,),
+            )
+    elif event_type in {'customer.subscription.deleted', 'customer.subscription.updated'}:
+        subscription_id = (data_object.get('id') or '').strip()
+        status = (data_object.get('status') or '').strip().lower()
+        if subscription_id:
+            if status in {'active', 'trialing'}:
+                conn.execute(
+                    '''
+                    UPDATE public_users
+                    SET is_subscribed = 1, subscription_status = ?
+                    WHERE stripe_subscription_id = ? AND subscriber_plan = 'warrant_access'
+                    ''',
+                    (status, subscription_id),
+                )
+            else:
+                conn.execute(
+                    '''
+                    UPDATE public_users
+                    SET is_subscribed = 0,
+                        subscriber_plan = 'scout',
+                        stripe_subscription_id = '',
+                        subscription_status = ?,
+                        subscription_canceled_at = datetime('now')
+                    WHERE stripe_subscription_id = ? AND subscriber_plan = 'warrant_access'
+                    ''',
+                    (status or 'canceled', subscription_id),
+                )
+
+
 def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_hash='', event_referrer=''):
     event_type = (event.get('type') or '').strip()
     data_object = (event.get('data') or {}).get('object') or {}
@@ -3830,8 +3925,39 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
     if (metadata.get('flow') or '').strip() == 'subscription':
         _apply_subscription_stripe_event(conn, event)
         return
+    if (metadata.get('flow') or '').strip() == 'warrant_access':
+        _apply_warrant_access_stripe_event(conn, event)
+        return
     if not event_type:
         return
+
+    # Fallback: detect Payment Link warrant-access checkouts that have no 'flow' metadata.
+    # Stripe Payment Links don't auto-include custom metadata on checkout sessions unless
+    # explicitly configured in the dashboard.  Payment Links pass the user ID via
+    # client_reference_id; programmatic subscription checkouts use metadata.public_user_id
+    # instead, so a numeric client_reference_id + non-empty subscription field uniquely
+    # identifies this flow.
+    if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
+        _cr = (data_object.get('client_reference_id') or '').strip()
+        if _cr.isdigit() and (data_object.get('subscription') or '').strip():
+            _apply_warrant_access_stripe_event(conn, event)
+            return
+
+    # Fallback: route subscription/invoice lifecycle events for existing warrant_access users
+    # when those events lack flow metadata (subscription objects don't carry checkout metadata).
+    if event_type in {'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid'}:
+        _sub_id = (data_object.get('subscription') or data_object.get('id') or '').strip()
+        if _sub_id:
+            try:
+                _warrant_row = conn.execute(
+                    "SELECT id FROM public_users WHERE stripe_subscription_id = ? AND subscriber_plan = 'warrant_access'",
+                    (_sub_id,),
+                ).fetchone()
+                if _warrant_row:
+                    _apply_warrant_access_stripe_event(conn, event)
+                    return
+            except Exception:
+                pass
 
     if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.expired', 'checkout.session.async_payment_failed'}:
         session_id = (data_object.get('id') or '').strip()
@@ -3978,7 +4104,10 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
                     '''
                     UPDATE public_users
                     SET is_subscribed = 1,
-                        subscriber_plan = 'bondsman_pro',
+                        subscriber_plan = CASE
+                            WHEN subscriber_plan IN ('warrant_access', 'insider', 'professional') THEN subscriber_plan
+                            ELSE 'bondsman_pro'
+                        END,
                         subscription_status = ?,
                         subscription_activated_at = COALESCE(subscription_activated_at, datetime('now'))
                     WHERE stripe_subscription_id = ?
@@ -5490,6 +5619,8 @@ def _homepage_most_viewed_pages(conn, limit=5):
         '/detention': ('Detention Hub', 'County detention lookup', 'Lookup'),
         '/warrants': ('Warrant Resources', 'Court and county warrant access', 'Lookup'),
         '/courts': ('Montana Court Tracker', 'Hearings and public case pages', 'Courts'),
+        '/case-status': ('Case Status Lookup', 'Free public case status search', 'Courts'),
+        '/newsletter': ('Daily Digest Newsletter', 'Free daily email digest', 'Subscribe'),
     }
 
     viewed_pages = []
@@ -6407,6 +6538,8 @@ def inject_public_nav():
         {'href': home_href, 'label': 'Home'},
         {'href': _public_meetings_href(), 'label': 'Meetings'},
         {'href': '/courts', 'label': 'Courts'},
+        {'href': '/case-status', 'label': 'Case Status Lookup'},
+        {'href': '/court-sources', 'label': 'Court Data Sources'},
         {'href': '/case-journeys', 'label': 'Case Journeys'},
         {'href': '/missing-persons', 'label': 'Missing Persons'},
         {'href': '/wanted', 'label': 'Active Warrants'},
@@ -6418,13 +6551,16 @@ def inject_public_nav():
         {'href': '/bondsman/command-center', 'label': 'Bondsman Portal'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
         {'href': '/support', 'label': 'Support'},
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
+        {'href': '/sponsored-digest', 'label': 'Sponsor a Digest'},
         {'href': '/recovery-centers', 'label': 'Recovery Centers'},
         {'href': '/code-violations', 'label': 'Code Violations'},
         {'href': '/license-sanctions', 'label': 'License Sanctions'},
         {'href': '/sex-offender-updates', 'label': 'Violent / Sexual Offender Updates'},
         {'href': '/subscribe', 'label': 'Subscribe'},
+        {'href': '/newsletter', 'label': 'Daily Digest'},
         {'href': '#modal-standards', 'label': 'Standards'},
         {'href': '#modal-corrections', 'label': 'Corrections'},
+        {'href': '/transparency', 'label': 'PII Transparency'},
         {'href': '/terms-of-use', 'label': 'Terms'},
         {'href': '/privacy', 'label': 'Privacy'},
     ]
@@ -6580,6 +6716,29 @@ def _record_subscribe_event(event_type, source='', page_path='', email=''):
     if email:
         email_hash = hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]
 
+    event = {
+        'event_type': event_type,
+        'source': safe_source,
+        'page_path': safe_path,
+        'ip_hash': ip_hash,
+        'referrer': referrer,
+        'email_hash': email_hash,
+    }
+
+    if has_request_context() and getattr(current_app, 'testing', False):
+        _write_subscribe_event(event)
+        return
+
+    _enqueue_subscribe_event(event)
+
+
+_SUBSCRIBE_EVENT_QUEUE: Queue[dict[str, str]] = Queue(maxsize=2048)
+_SUBSCRIBE_EVENT_WRITER_STARTED = False
+_SUBSCRIBE_EVENT_WRITER_LOCK = threading.Lock()
+
+
+def _write_subscribe_event(event: dict[str, str]) -> None:
+    conn = None
     try:
         conn = get_db()
         conn.execute(
@@ -6588,11 +6747,56 @@ def _record_subscribe_event(event_type, source='', page_path='', email=''):
                 event_type, source, page_path, ip_hash, referrer, email_hash
             ) VALUES (?, ?, ?, ?, ?, ?)
             ''',
-            (event_type, safe_source, safe_path, ip_hash, referrer, email_hash),
+            (
+                event['event_type'],
+                event['source'],
+                event['page_path'],
+                event['ip_hash'],
+                event['referrer'],
+                event['email_hash'],
+            ),
         )
         conn.commit()
-        conn.close()
     except Exception:
+        pass
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _subscribe_event_writer() -> None:
+    while True:
+        event = _SUBSCRIBE_EVENT_QUEUE.get()
+        try:
+            _write_subscribe_event(event)
+        finally:
+            _SUBSCRIBE_EVENT_QUEUE.task_done()
+
+
+def _ensure_subscribe_event_writer() -> None:
+    global _SUBSCRIBE_EVENT_WRITER_STARTED
+    if _SUBSCRIBE_EVENT_WRITER_STARTED:
+        return
+    with _SUBSCRIBE_EVENT_WRITER_LOCK:
+        if _SUBSCRIBE_EVENT_WRITER_STARTED:
+            return
+        threading.Thread(
+            target=_subscribe_event_writer,
+            name='subscribe-event-writer',
+            daemon=True,
+        ).start()
+        _SUBSCRIBE_EVENT_WRITER_STARTED = True
+
+
+def _enqueue_subscribe_event(event: dict[str, str]) -> None:
+    _ensure_subscribe_event_writer()
+    try:
+        _SUBSCRIBE_EVENT_QUEUE.put_nowait(event)
+    except Full:
+        # Analytics should never block the request path.
         pass
 
 
@@ -7672,6 +7876,12 @@ def _record_donation_event(event_type, source='', page_path='', amount_cents=Non
 # PUBLIC ROUTES (No Login Required)
 # ==========================================
 
+
+@app.route('/healthz')
+def healthz():
+    """Cheap liveness probe for nginx/systemd health checks."""
+    return jsonify(status='ok')
+
 @app.route('/')
 def index():
     """Public homepage — daily activity reports with calendar filter"""
@@ -8109,6 +8319,224 @@ def public_criminal_cases():
     )
 
 
+# ---------------------------------------------------------------------------
+# /case-status — free public case status lookup
+# Anyone can search by case number to see a public snapshot of the case
+# (status, court, filed date, parties, and — for criminal appellate cases —
+# the outcome). Rate-limited per IP to prevent scraping.
+# ---------------------------------------------------------------------------
+_CASE_STATUS_HOURLY_LIMIT = 30  # free lookups per IP per hour
+
+
+def _case_status_rate_limited(conn, ip: str) -> bool:
+    """Returns True if the IP has exceeded the per-hour free lookup cap."""
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS n FROM case_status_searches
+        WHERE ip_address = ? AND created_at >= datetime('now', '-1 hour')
+        """,
+        (ip,),
+    ).fetchone()
+    return bool(row and row['n'] >= _CASE_STATUS_HOURLY_LIMIT)
+
+
+def _case_status_log_search(conn, ip: str, query: str, county: str, results: int) -> None:
+    conn.execute(
+        """
+        INSERT INTO case_status_searches
+          (ip_address, query_text, county, results_count, user_agent)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (ip, (query or '')[:200], (county or '')[:80] or None, int(results or 0),
+         (request.headers.get('User-Agent') or '')[:500]),
+    )
+    conn.commit()
+
+
+@app.route('/case-status', methods=['GET', 'POST'])
+def case_status_lookup():
+    ensure_court_tracker_schema(get_db())
+    conn = get_db()
+    ip = _client_ip() if has_request_context() else '0.0.0.0'
+
+    results: list = []
+    error: str | None = None
+    q = ''
+    county = ''
+    rate_limited = False
+
+    if request.method == 'POST':
+        if _case_status_rate_limited(conn, ip):
+            rate_limited = True
+        else:
+            q = (request.form.get('q') or '').strip()[:120]
+            county = (request.form.get('county') or '').strip()[:60]
+            if len(q) < 2:
+                error = 'Enter at least 2 characters of a case number.'
+            else:
+                pattern = f'%{q}%'
+                where = [
+                    '(cc.case_number LIKE ? OR cc.original_case_number LIKE ? OR cc.caption LIKE ?)'
+                ]
+                params: list = [pattern, pattern, pattern]
+                if county:
+                    where.append('c.county = ?'); params.append(county)
+                where_sql = 'WHERE ' + ' AND '.join(where)
+                rows = conn.execute(
+                    f'''
+                    SELECT cc.id, cc.case_number, cc.original_case_number, cc.caption,
+                           cc.status, cc.case_type, cc.filed_date, cc.last_seen_at,
+                           cc.is_criminal, cc.defendant_name, cc.charges_text,
+                           cc.plea, cc.disposition, cc.sentence_text, cc.sentence_date,
+                           cc.sentencing_judge,
+                           c.name AS court_name, c.court_type, c.county, c.slug AS court_slug
+                    FROM court_cases cc
+                    JOIN courts c ON c.id = cc.court_id
+                    {where_sql}
+                    ORDER BY
+                        CASE WHEN cc.case_number = ? THEN 0
+                             WHEN cc.case_number LIKE ? THEN 1
+                             ELSE 2 END,
+                        cc.filed_date DESC
+                    LIMIT 12
+                    ''',
+                    params + [q, f'{q}%'],
+                ).fetchall()
+                results = [dict(r) for r in rows]
+                _case_status_log_search(conn, ip, q, county, len(results))
+
+    # County list for the dropdown
+    counties = [
+        r['county'] for r in conn.execute(
+            "SELECT DISTINCT county FROM courts WHERE county IS NOT NULL AND county != '' "
+            "ORDER BY county"
+        ).fetchall()
+    ]
+    conn.close()
+
+    return render_template(
+        'case_status.html',
+        results=results,
+        error=error,
+        q=q,
+        county=county,
+        counties=counties,
+        rate_limited=rate_limited,
+        hourly_limit=_CASE_STATUS_HOURLY_LIMIT,
+        page_title='Case Status Lookup | Montana Court Tracker',
+        meta_description=(
+            'Free public lookup for Montana court cases. Search by case number to see status, '
+            'court, filed date, parties, and — for criminal appellate cases — the outcome.'
+        ),
+        canonical_url=f'{BASE_URL}/case-status',
+        og_title='Case Status Lookup | Montana Court Tracker',
+        og_description=(
+            'Search Montana court cases by case number for free. Public status, court, '
+            'filed date, parties, and criminal appellate outcomes.'
+        ),
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
+
+
+# ---------------------------------------------------------------------------
+# /court-sources — public transparency page listing every court data source
+# we ingest from, when it last synced, and where it's currently blocked.
+# This is the public counterpart to admin_sources.html — readers can see
+# the *exact* same data state the editors see, so an IP block or stale
+# sync is disclosed rather than hidden.
+# ---------------------------------------------------------------------------
+@app.route('/court-sources')
+def public_court_sources():
+    conn = get_db()
+    ensure_court_tracker_schema(conn)
+
+    source_rows = conn.execute(
+        '''
+        SELECT id, slug, name, provider_type, source_url, status,
+               last_scraped_at, last_success_at, last_error,
+               created_at, updated_at
+        FROM court_sources
+        ORDER BY
+            CASE status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END,
+            name ASC
+        '''
+    ).fetchall()
+    sources = [dict(r) for r in source_rows]
+
+    # Court counts per source
+    court_counts = {}
+    for r in conn.execute(
+        'SELECT source_id, COUNT(*) AS n FROM courts '
+        'WHERE source_id IS NOT NULL GROUP BY source_id'
+    ).fetchall():
+        court_counts[int(r['source_id'])] = int(r['n'])
+
+    # Case counts per source (joins through courts)
+    case_counts = {}
+    for r in conn.execute(
+        'SELECT c.source_id, COUNT(*) AS n FROM court_cases cc '
+        'JOIN courts c ON c.id = cc.court_id '
+        'WHERE c.source_id IS NOT NULL GROUP BY c.source_id'
+    ).fetchall():
+        case_counts[int(r['source_id'])] = int(r['n'])
+
+    # Treat "stale" as >7 days since last success
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    for s in sources:
+        s['court_count'] = court_counts.get(int(s['id']), 0)
+        s['case_count'] = case_counts.get(int(s['id']), 0)
+        last_success = s.get('last_success_at') or ''
+        if last_success:
+            try:
+                last_dt = datetime.strptime(last_success[:19], '%Y-%m-%d %H:%M:%S')
+                s['days_since_success'] = (now - last_dt).days
+            except ValueError:
+                s['days_since_success'] = None
+        else:
+            s['days_since_success'] = None
+        s['is_blocked'] = bool(
+            s.get('last_error') and (
+                'block' in (s.get('last_error') or '').lower()
+                or '522' in (s.get('last_error') or '')
+                or 'connection reset' in (s.get('last_error') or '').lower()
+                or 'forbidden' in (s.get('last_error') or '').lower()
+            )
+        )
+
+    working = [s for s in sources if s['status'] == 'active' and not s.get('is_blocked') and (s.get('days_since_success') or 999) <= 14]
+    blocked = [s for s in sources if s.get('is_blocked') or s.get('status') == 'paused']
+    stale = [
+        s for s in sources
+        if s not in working and s not in blocked
+        and s.get('days_since_success') is not None
+        and s['days_since_success'] > 14
+    ]
+    conn.close()
+
+    return render_template(
+        'court_sources.html',
+        sources=sources,
+        working=working,
+        blocked=blocked,
+        stale=stale,
+        page_title='Court Data Sources | Montana Court Tracker',
+        meta_description=(
+            'Where Montana Blotter pulls court data from, when each source last '
+            'synced, and which sources are currently blocked or paused.'
+        ),
+        canonical_url=f'{BASE_URL}/court-sources',
+        og_title='Court Data Sources',
+        og_description=(
+            'Public transparency page listing every court data source we ingest '
+            'from, with sync status and any active blocks.'
+        ),
+        active_nav='courts',
+        current_year=datetime.now().year,
+    )
+
+
 @app.route('/court-case/<slug>')
 def public_court_case_detail(slug):
     conn = get_db()
@@ -8434,6 +8862,7 @@ def missing_person_detail(slug):
 
 @app.route('/wanted')
 def wanted_index():
+    has_access = user_has_warrant_access()
     conn = get_db()
     try:
         offset = max(int(request.args.get('offset') or 0), 0)
@@ -8446,6 +8875,7 @@ def wanted_index():
         county=request.args.get('county'),
         sort=request.args.get('sort'),
         offset=offset,
+        limit=5 if not has_access else 50,
     )
     conn.close()
     return render_template(
@@ -8456,6 +8886,7 @@ def wanted_index():
         canonical_url=f'{BASE_URL}/wanted',
         og_title='Montana Active Warrants',
         og_description='Search active warrants from participating Montana counties.',
+        warrant_access=has_access,
         **context,
         current_year=datetime.now().year,
     )
@@ -8463,12 +8894,15 @@ def wanted_index():
 
 @app.route('/wanted/<slug>')
 def wanted_detail(slug):
+    if not user_has_warrant_access():
+        return redirect(f'/wanted/subscribe?next=/wanted/{slug}')
     conn = get_db()
     context = warrant_detail_context(conn, slug)
     conn.close()
     if not context:
         return render_template('404.html'), 404
     record = context['record']
+    attorneys = _pick_attorneys_for_county(record['county'], limit=1)
     return render_template(
         'wanted_detail.html',
         active_nav='wanted',
@@ -8477,9 +8911,228 @@ def wanted_detail(slug):
         canonical_url=f"{BASE_URL}{record['public_href']}",
         og_title=f"{record['person_name']} | Montana Active Warrants",
         og_description=record['charges_text'] or f"Active warrant in {record['county']} County, Montana.",
+        attorneys=attorneys,
         **context,
         current_year=datetime.now().year,
     )
+
+
+@app.route('/wanted/counties')
+def wanted_counties():
+    from services.ingestion.warrants.source_registry import COUNTY_SOURCES
+    conn = get_db()
+    counts = {
+        row['county']: row['cnt']
+        for row in conn.execute(
+            "SELECT county, COUNT(*) AS cnt FROM warrants WHERE status='active' GROUP BY county"
+        ).fetchall()
+    }
+    conn.close()
+    counties = [
+        {
+            'slug': slug,
+            'name': info['county'],
+            'active': counts.get(info['county'], 0),
+            'has_source': bool(info.get('url')),
+        }
+        for slug, info in sorted(COUNTY_SOURCES.items(), key=lambda x: x[1]['county'])
+    ]
+    return render_template(
+        'wanted_counties.html',
+        active_nav='wanted',
+        page_title='Montana Warrant Search by County — All 56 Counties',
+        meta_description='Browse active warrants by Montana county. Direct links to all 56 county warrant pages, updated daily.',
+        canonical_url=f'{BASE_URL}/wanted/counties',
+        og_title='Montana Warrant Search by County',
+        og_description='Active warrant records organized by county for all 56 Montana counties.',
+        counties=counties,
+        total_with_data=sum(1 for c in counties if c['active'] > 0),
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/wanted/county/<slug>')
+def wanted_county(slug):
+    conn = get_db()
+    context = warrant_county_context(conn, slug)
+    conn.close()
+    if not context:
+        return render_template('404.html'), 404
+    county_name = context['county_name']
+    active_count = context['active_count']
+    title = f"{county_name} County Active Warrants — Montana"
+    meta = (
+        f"{active_count} active warrant{'s' if active_count != 1 else ''} posted by {county_name} County, Montana. "
+        f"Browse the official warrant list updated daily."
+    ) if active_count else (
+        f"{county_name} County, Montana warrant lookup. Check active warrants and public safety records."
+    )
+    return render_template(
+        'wanted_county.html',
+        active_nav='wanted',
+        page_title=title,
+        meta_description=meta[:160],
+        canonical_url=f"{BASE_URL}/wanted/county/{slug}",
+        og_title=title,
+        og_description=meta[:200],
+        **context,
+        current_year=datetime.now().year,
+    )
+
+
+def _send_warrant_clear_notifications(warrant_id: int):
+    """Background helper: when a warrant is resolved, email all pending
+    warrant_clear_requests that match by warrant_id or (person_name + dob).
+
+    Returns the number of emails queued. Safe to call from any code path
+    that flips a warrant to 'cleared'/'resolved' — wraps its own conn.
+    """
+    if not warrant_id:
+        return 0
+    conn = get_db()
+    warrant = conn.execute(
+        'SELECT id, person_name, dob, county, status FROM warrants WHERE id = ?',
+        (warrant_id,),
+    ).fetchone()
+    if not warrant or warrant['status'] not in ('cleared', 'resolved'):
+        conn.close()
+        return 0
+
+    pending = conn.execute(
+        '''
+        SELECT id, email, person_name, warrant_id
+        FROM warrant_clear_requests
+        WHERE status = 'pending'
+          AND (warrant_id = ? OR (person_name = ? AND dob = ? AND dob != ''))
+        ''',
+        (warrant_id, warrant['person_name'], warrant['dob'] or ''),
+    ).fetchall()
+    if not pending:
+        conn.close()
+        return 0
+
+    queued = 0
+    for req in pending:
+        try:
+            from services.publishing.morning_briefing import send_email
+            send_email(
+                req['email'],
+                f"Warrant cleared: {warrant['person_name']} ({warrant['county']} County)",
+                (
+                    f"<p>Montana Blotter warrant-clear notification</p>"
+                    f"<p>The warrant for <strong>{warrant['person_name']}</strong> in "
+                    f"<strong>{warrant['county']} County</strong> has been marked as "
+                    f"<strong>{warrant['status']}</strong> on our records.</p>"
+                    f"<p>Verify directly: "
+                    f"<a href=\"{BASE_URL}/wanted\">{BASE_URL}/wanted</a></p>"
+                    f"<p><small>You are receiving this because you submitted a "
+                    f"warrant-clear request. This is a one-time notification; no "
+                    f"further email will be sent.</small></p>"
+                ),
+            )
+            conn.execute(
+                "UPDATE warrant_clear_requests SET status='notified', notified_at=datetime('now') WHERE id = ?",
+                (req['id'],),
+            )
+            queued += 1
+        except Exception as e:
+            current_app.logger.warning('warrant_clear email failed: %s', e)
+    conn.commit()
+    conn.close()
+    return queued
+
+
+@app.route('/wanted/notify-when-cleared', methods=['GET', 'POST'])
+def wanted_notify_when_cleared():
+    """Public form: register to be emailed when a warrant is cleared.
+
+    Anyone can submit a name + email + (optional) DOB. When the matching
+    warrant moves to 'cleared' or 'resolved' status, an email is queued.
+    No login required, no paywall.
+    """
+    if request.method == 'POST':
+        person_name = (request.form.get('person_name') or '').strip()[:120]
+        dob = (request.form.get('dob') or '').strip()[:20]
+        county = (request.form.get('county') or '').strip()[:60]
+        email = (request.form.get('email') or '').strip()[:160].lower()
+        warrant_id = (request.form.get('warrant_id') or '').strip()[:20]
+        notes = (request.form.get('notes') or '').strip()[:500]
+
+        errors = []
+        if len(person_name) < 2:
+            errors.append('Name is required.')
+        if '@' not in email or '.' not in email:
+            errors.append('Valid email is required.')
+        # Best-effort warrant id parse
+        wid_int = None
+        if warrant_id.isdigit():
+            wid_int = int(warrant_id)
+
+        if errors:
+            for e in errors:
+                flash(e, 'error')
+            return render_template(
+                'wanted_notify_cleared.html',
+                active_nav='wanted',
+                page_title='Notify Me When a Warrant is Cleared',
+                meta_description=(
+                    'Free public service: get an email when a specific Montana '
+                    'warrant is marked as cleared or resolved.'
+                ),
+                canonical_url=f'{BASE_URL}/wanted/notify-when-cleared',
+                form_data={
+                    'person_name': person_name, 'dob': dob, 'county': county,
+                    'email': email, 'warrant_id': warrant_id, 'notes': notes,
+                },
+                current_year=datetime.now().year,
+            )
+
+        # Verify the warrant if id was given
+        conn = get_db()
+        if wid_int is not None:
+            w = conn.execute('SELECT id FROM warrants WHERE id = ?', (wid_int,)).fetchone()
+            if not w:
+                wid_int = None  # silently drop a bad id rather than reject
+        ip = request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or (
+            request.remote_addr or ''
+        )[:128]
+        conn.execute(
+            '''
+            INSERT INTO warrant_clear_requests
+              (warrant_id, person_name, dob, county, email, status, ip_address, notes)
+            VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+            ''',
+            (wid_int, person_name, dob or None, county or None, email, ip or None, notes or None),
+        )
+        conn.commit()
+        conn.close()
+        flash(
+            f"You're on the list. We'll email {email} the moment a warrant matching "
+            f"{person_name}{' (DOB ' + dob + ')' if dob else ''} is cleared.",
+            'success',
+        )
+        return redirect(url_for('wanted_notify_when_cleared'))
+
+    # GET — empty form, pre-fill from query params
+    prefill = {
+        'person_name': (request.args.get('name') or '').strip()[:120],
+        'dob': (request.args.get('dob') or '').strip()[:20],
+        'county': (request.args.get('county') or '').strip()[:60],
+        'warrant_id': (request.args.get('warrant_id') or '').strip()[:20],
+    }
+    return render_template(
+        'wanted_notify_cleared.html',
+        active_nav='wanted',
+        page_title='Notify Me When a Warrant is Cleared',
+        meta_description=(
+            'Free public service: get an email when a specific Montana '
+            'warrant is marked as cleared or resolved.'
+        ),
+        canonical_url=f'{BASE_URL}/wanted/notify-when-cleared',
+        form_data=prefill,
+        current_year=datetime.now().year,
+    )
+
 
 @app.route('/feed.xml')
 def rss_feed():
@@ -9312,6 +9965,160 @@ def subscribe():
                            source=source,
                            subscriber_count=subscriber_count,
                            current_year=datetime.now().year)
+
+
+# ---------------------------------------------------------------------------
+# /newsletter — marketing landing page for the digest
+# Pulls recent published posts as samples so visitors can see what they'd get
+# before subscribing. The actual signup form lives at /subscribe.
+# ---------------------------------------------------------------------------
+@app.route('/newsletter')
+def public_newsletter():
+    conn = get_db()
+    _ensure_subscriber_schema(conn)
+
+    # Sample posts: most recent 4 with clean audit status
+    sample_rows = conn.execute(
+        '''
+        SELECT id, title, summary, seo_slug, county, agency_type,
+               incident_date, created_at, meta_description
+        FROM posts
+        WHERE COALESCE(audit_status, 'pending') = 'clean'
+          AND title IS NOT NULL AND title != ''
+        ORDER BY created_at DESC, id DESC
+        LIMIT 4
+        '''
+    ).fetchall()
+    samples = [dict(r) for r in sample_rows]
+
+    # County selection list (top 20 by subscriber count + alphabetical)
+    county_rows = conn.execute(
+        '''
+        SELECT c.county, COUNT(s.id) AS subs
+        FROM (
+            SELECT DISTINCT county FROM posts
+            WHERE county IS NOT NULL AND county != ''
+        ) c
+        LEFT JOIN subscribers s
+          ON (',' || s.counties || ',') LIKE ('%,' || c.county || ',%')
+        GROUP BY c.county
+        ORDER BY subs DESC, c.county ASC
+        LIMIT 24
+        '''
+    ).fetchall()
+    top_counties = [r['county'] for r in county_rows]
+
+    # Subscriber count
+    sub_count = conn.execute(
+        'SELECT COUNT(*) AS n FROM subscribers WHERE active = 1'
+    ).fetchone()['n']
+
+    # Post count for stats
+    post_count = conn.execute(
+        "SELECT COUNT(*) AS n FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean'"
+    ).fetchone()['n']
+    conn.close()
+
+    return render_template(
+        'newsletter.html',
+        samples=samples,
+        top_counties=top_counties,
+        sub_count=sub_count,
+        post_count=post_count,
+        page_title='Daily Montana Blotter Digest | Newsletter',
+        meta_description=(
+            'A free daily email digest of Montana public-safety incidents, '
+            'AI-summarized, county-filtered, and PII-screened. '
+            'Subscribe to get the morning briefing in your inbox at 7am MT.'
+        ),
+        canonical_url=f'{BASE_URL}/newsletter',
+        og_title='Daily Montana Blotter Digest',
+        og_description=(
+            'Free daily email digest of Montana public-safety incidents, '
+            'AI-summarized and PII-screened. 7am MT each morning.'
+        ),
+        active_nav='subscribe',
+        current_year=datetime.now().year,
+    )
+
+
+# ---------------------------------------------------------------------------
+# /sponsored-digest — public recruiting landing for paid county sponsors
+# Shows what the sponsor gets, pricing, and an inquiry form. Admin handles
+# the actual sign-up via /admin/sponsored-digests.
+# ---------------------------------------------------------------------------
+@app.route('/sponsored-digest', methods=['GET', 'POST'])
+def public_sponsored_digest():
+    if request.method == 'POST':
+        county = (request.form.get('county') or '').strip()[:80]
+        business = (request.form.get('business') or '').strip()[:120]
+        contact = (request.form.get('contact') or '').strip()[:120]
+        email_addr = (request.form.get('email') or '').strip()[:160].lower()
+        message = (request.form.get('message') or '').strip()[:600]
+        if not county or not business or not email_addr or '@' not in email_addr:
+            return render_template(
+                'sponsored_digest.html',
+                page_title='Sponsor a County Digest',
+                meta_description=(
+                    'Be the presenting sponsor of a Montana county digest. '
+                    'Reach the local subscribers who care most about public safety.'
+                ),
+                canonical_url=f'{BASE_URL}/sponsored-digest',
+                og_title='Sponsor a County Digest',
+                active_nav='sponsor',
+                current_year=datetime.now().year,
+                error='County, business name, and a valid email are required.',
+                submitted={'county': county, 'business': business, 'contact': contact,
+                           'email': email_addr, 'message': message},
+            ), 200
+        # Persist the inquiry so the admin can see it
+        conn = get_db()
+        try:
+            conn.execute(
+                '''
+                INSERT INTO sponsored_digests
+                  (county, sponsor_name, sponsor_pitch, contact_email,
+                   monthly_rate_cents, is_active, notes)
+                VALUES (?, ?, ?, ?, 0, 0, ?)
+                ''',
+                (county, business, message or 'INQUIRY — pending contact', email_addr,
+                 f'INQUIRY contact={contact or "—"}'),
+            )
+            conn.commit()
+        except Exception:
+            pass
+        finally:
+            conn.close()
+        return render_template(
+            'sponsored_digest.html',
+            page_title='Sponsor a County Digest',
+            meta_description=(
+                'Be the presenting sponsor of a Montana county digest. '
+                'Reach the local subscribers who care most about public safety.'
+            ),
+            canonical_url=f'{BASE_URL}/sponsored-digest',
+            og_title='Sponsor a County Digest',
+            active_nav='sponsor',
+            current_year=datetime.now().year,
+            success=True,
+        )
+
+    return render_template(
+        'sponsored_digest.html',
+        page_title='Sponsor a County Digest',
+        meta_description=(
+            'Be the presenting sponsor of a Montana county digest. '
+            'Reach the local subscribers who care most about public safety.'
+        ),
+        canonical_url=f'{BASE_URL}/sponsored-digest',
+        og_title='Sponsor a County Digest',
+        og_description=(
+            'Sponsor a Montana county digest and reach the local subscribers '
+            'who care most about public safety.'
+        ),
+        active_nav='sponsor',
+        current_year=datetime.now().year,
+    )
 
 
 _TRACKING_PIXEL = bytes([
@@ -11412,9 +12219,379 @@ def county_page(slug):
     )
 
 
+def _normalize_record_date_to_iso(date_str):
+    """Convert mixed-format record dates to YYYY-MM-DD for URL/display.
+
+    Records table stores dates as 'YYYY-MM-DD' (newer) or 'MM/DD/YY' (older).
+    Returns None on unparseable input.
+    """
+    if not date_str:
+        return None
+    s = str(date_str).strip()
+    for fmt in ('%Y-%m-%d', '%m/%d/%y', '%m/%d/%Y', '%Y/%m/%d'):
+        try:
+            return datetime.strptime(s, fmt).strftime('%Y-%m-%d')
+        except (ValueError, TypeError):
+            continue
+    return None
+
+
+def _iso_to_record_date_variants(iso_date):
+    """Build SQL LIKE patterns that match both YYYY-MM-DD and MM/DD/YY storage."""
+    try:
+        dt = datetime.strptime(iso_date, '%Y-%m-%d')
+    except (ValueError, TypeError):
+        return [iso_date]
+    yy = dt.strftime('%y')
+    mm = dt.strftime('%m')
+    dd = dt.strftime('%d')
+    return [iso_date, f'{mm}/{dd}/{yy}', f'{mm}/{dd}/20{yy}']
+
+
+@app.route('/county/<slug>/<date>/')
+def county_day_page(slug, date):
+    """Per-day county blotter — long-tail SEO play.
+
+    Captures queries like 'Gallatin County arrests April 22 2026'.
+    URL: /county/<slug>/YYYY-MM-DD/
+    """
+    county = COUNTY_DATA.get(slug)
+    if not county:
+        return render_template('404.html'), 404
+
+    iso_date = _normalize_record_date_to_iso(date)
+    if not iso_date:
+        return render_template('404.html'), 404
+
+    date_variants = _iso_to_record_date_variants(iso_date)
+    placeholders = ','.join('?' * len(date_variants))
+
+    conn = get_db()
+    records = conn.execute(
+        f'''
+        SELECT id, date, time, location, details,
+               COALESCE(NULLIF(incident_type, ''), NULLIF(incident, ''), 'Incident') AS incident_label,
+               officer, cfs_number
+        FROM records
+        WHERE county = ? AND date IN ({placeholders})
+        ORDER BY time DESC, id DESC
+        ''',
+        (county['name'], *date_variants),
+    ).fetchall()
+
+    incident_breakdown = conn.execute(
+        f'''
+        SELECT COALESCE(NULLIF(incident_type, ''), NULLIF(incident, ''), 'Other') AS label,
+               COUNT(*) AS n
+        FROM records
+        WHERE county = ? AND date IN ({placeholders})
+        GROUP BY label
+        ORDER BY n DESC, label ASC
+        ''',
+        (county['name'], *date_variants),
+    ).fetchall()
+
+    total_for_county = conn.execute(
+        'SELECT COUNT(*) FROM records WHERE county = ?', (county['name'],)
+    ).fetchone()[0]
+
+    posts_for_day = conn.execute(
+        '''
+        SELECT p.id, p.title, p.summary, p.incident_date, p.seo_slug
+        FROM posts p
+        JOIN blotters b ON b.id = p.blotter_id
+        WHERE b.county = ? AND p.incident_date = ?
+        ORDER BY p.created_at DESC
+        LIMIT 5
+        ''',
+        (county['name'], iso_date),
+    ).fetchall()
+
+    conn.close()
+
+    try:
+        pretty_date = datetime.strptime(iso_date, '%Y-%m-%d').strftime('%B %d, %Y')
+    except ValueError:
+        pretty_date = iso_date
+    dt_for_schema = datetime.strptime(iso_date, '%Y-%m-%d')
+
+    page_title = f"{county['name']} County Police Blotter for {pretty_date}"
+    meta_description = (
+        f"Police blotter, arrests, and incident reports for {county['name']} County, Montana on {pretty_date}. "
+        f"Free public records search from Montana Blotter."
+    )
+    canonical_url = f"https://montanablotter.com/county/{slug}/{iso_date}/"
+
+    bail_ad_placements = []
+    try:
+        conn2 = get_db()
+        bail_ad_placements = _bail_ad_public_placements(conn2, county=county['name'])
+        conn2.close()
+    except Exception:
+        pass
+
+    return render_template(
+        'county_day.html',
+        county=county,
+        iso_date=iso_date,
+        pretty_date=pretty_date,
+        record_count=len(records),
+        records=records,
+        incident_breakdown=incident_breakdown,
+        posts_for_day=posts_for_day,
+        total_for_county=total_for_county,
+        bail_ad_placements=bail_ad_placements,
+        page_title=page_title,
+        meta_description=meta_description,
+        canonical_url=canonical_url,
+        og_title=f"{county['name']} County blotter — {pretty_date}",
+        og_description=meta_description,
+        current_year=datetime.now().year,
+        dt_iso=dt_for_schema.isoformat(),
+    )
+
+
 # ==========================================
 # CITY PAGES
 # ==========================================
+
+CHARGE_TOPICS = {
+    'dui': {
+        'slug': 'dui',
+        'label': 'DUI',
+        'short_label': 'DUI',
+        'long_label': 'Driving Under the Influence',
+        'meta_description': 'DUI arrests, OWI charges, and impaired-driving incidents reported across Montana, broken down by county and month.',
+        'charge_categories': ['dui'],
+        'incident_type_patterns': ['%DUI%', '%OWI%', '%DRIVING UNDER%', '%IMPAIRED%'],
+    },
+    'theft': {
+        'slug': 'theft',
+        'label': 'Theft',
+        'short_label': 'Theft',
+        'long_label': 'Theft, Larceny, and Burglary',
+        'meta_description': 'Theft, larceny, shoplifting, burglary, and robbery incidents across Montana, organized by county and date.',
+        'charge_categories': ['property'],
+        'incident_type_patterns': ['%THEFT%', '%LARCENY%', '%SHOPLIFT%', '%BURGLARY%', '%ROBBERY%', '%STOLEN%'],
+    },
+    'assault': {
+        'slug': 'assault',
+        'label': 'Assault',
+        'short_label': 'Assault',
+        'long_label': 'Assault and Battery',
+        'meta_description': 'Assault, battery, and violent confrontations reported by Montana law enforcement, by county.',
+        'charge_categories': ['violent'],
+        'incident_type_patterns': ['%ASSAULT%', '%BATTERY%', '%FIGHT%'],
+    },
+    'drugs': {
+        'slug': 'drugs',
+        'label': 'Drug Offenses',
+        'short_label': 'Drugs',
+        'long_label': 'Drug and Narcotics Offenses',
+        'meta_description': 'Drug arrests, narcotics incidents, and substance-related offenses reported across Montana, by county.',
+        'charge_categories': ['drug'],
+        'incident_type_patterns': ['%NARCOTIC%', '%DRUG%', '%METH%', '%MARIJUANA%', '%SUBSTANCE%', '%POSSESSION%'],
+    },
+    'domestic': {
+        'slug': 'domestic',
+        'label': 'Domestic',
+        'short_label': 'Domestic',
+        'long_label': 'Domestic Disturbances and Violence',
+        'meta_description': 'Domestic disturbance, domestic violence, and family-related incidents reported in Montana.',
+        'charge_categories': ['domestic'],
+        'incident_type_patterns': ['%DOMESTIC%'],
+    },
+    'traffic': {
+        'label': 'Traffic',
+        'short_label': 'Traffic',
+        'long_label': 'Traffic Stops and Traffic Hazards',
+        'meta_description': 'Traffic stops, traffic hazards, and reckless driving incidents across Montana.',
+        'charge_categories': ['traffic'],
+        'incident_type_patterns': ['%TRAFFIC STOP%', '%TRAFFIC HAZARD%', '%RECKLESS%', '%SPEEDING%'],
+    },
+    'fraud': {
+        'slug': 'fraud',
+        'label': 'Fraud',
+        'short_label': 'Fraud',
+        'long_label': 'Fraud, Scams, and Identity Theft',
+        'meta_description': 'Fraud, scams, identity theft, and financial crimes reported in Montana.',
+        'charge_categories': [],
+        'incident_type_patterns': ['%FRAUD%', '%SCAM%', '%IDENTITY%', '%FORGERY%', '%EMBEZZLE%'],
+    },
+    'vandalism': {
+        'slug': 'vandalism',
+        'label': 'Vandalism',
+        'short_label': 'Vandalism',
+        'long_label': 'Vandalism and Criminal Mischief',
+        'meta_description': 'Vandalism, criminal mischief, and property damage incidents across Montana.',
+        'charge_categories': [],
+        'incident_type_patterns': ['%VANDALISM%', '%CRIMINAL MISCHIEF%', '%PROPERTY DAMAGE%'],
+    },
+    'weapons': {
+        'slug': 'weapons',
+        'label': 'Weapons',
+        'short_label': 'Weapons',
+        'long_label': 'Weapons and Firearms Offenses',
+        'meta_description': 'Weapons, firearms, and concealed-carry incidents across Montana.',
+        'charge_categories': ['weapons'],
+        'incident_type_patterns': ['%WEAPON%', '%FIREARM%', '%GUN%', '%CONCEALED%'],
+    },
+    'welfare-check': {
+        'slug': 'welfare-check',
+        'label': 'Welfare Check',
+        'short_label': 'Welfare Check',
+        'long_label': 'Welfare Checks and Person-Needs-Assistance',
+        'meta_description': 'Welfare checks, person-needs-assistance, and wellness calls reported by Montana law enforcement.',
+        'charge_categories': ['welfare'],
+        'incident_type_patterns': ['%WELFARE%', '%ASSISTANCE%', '%WELLNESS%'],
+    },
+}
+
+
+def _build_charge_topic_where(topic, table_alias=''):
+    """Return (where_sql, params) matching a charge topic across charge_category and incident_type."""
+    prefix = f'{table_alias}.' if table_alias else ''
+    clauses = []
+    params = []
+    if topic.get('charge_categories'):
+        placeholders = ','.join('?' * len(topic['charge_categories']))
+        clauses.append(f"LOWER({prefix}charge_category) IN ({placeholders})")
+        for c in topic['charge_categories']:
+            params.append(c.lower())
+    for pat in topic.get('incident_type_patterns', []):
+        clauses.append(f"LOWER({prefix}incident_type) LIKE ?")
+        params.append(pat.lower())
+    if not clauses:
+        return ('1=0', [])
+    return (' OR '.join(clauses), params)
+
+
+# NOTE: Legacy /charges/<slug> URLs (registered earlier in this file) are
+# intentionally preserved. The new /charge/<slug>/ URLs use stricter coverage
+# (charge_category OR incident_type LIKE). To consolidate SEO, add a canonical
+# link in the legacy charge_detail template pointing to /charge/<slug>/.
+
+
+@app.route('/charge/')
+def charge_index():
+    """Index of all charge topic pages — internal link surface for crawlers."""
+    conn = get_db()
+    topic_stats = []
+    for slug, topic in CHARGE_TOPICS.items():
+        where_sql, params = _build_charge_topic_where(topic, 'r')
+        row = conn.execute(
+            f'SELECT COUNT(*) AS n FROM records r WHERE {where_sql}', params
+        ).fetchone()
+        topic_stats.append({
+            'slug': slug,
+            'label': topic['label'],
+            'long_label': topic.get('long_label', topic['label']),
+            'count': row['n'] if row else 0,
+        })
+    topic_stats.sort(key=lambda t: (-t['count'], t['label']))
+    conn.close()
+    return render_template(
+        'charge_index.html',
+        topic_stats=topic_stats,
+        page_title='Montana Police Blotter by Charge Type',
+        meta_description='Browse Montana arrest records, police blotters, and incident reports by charge type: DUI, theft, assault, drug offenses, and more.',
+        canonical_url='https://montanablotter.com/charge/',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/charge/<slug>/')
+def charge_topic(slug):
+    """Single charge topic — captures 'Montana DUI arrests' / 'Gallatin thefts' long-tail SEO."""
+    topic = CHARGE_TOPICS.get(slug)
+    if not topic:
+        return render_template('404.html'), 404
+
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 25
+    county_filter = request.args.get('county', '').strip()
+
+    where_sql, params = _build_charge_topic_where(topic, 'r')
+    if county_filter:
+        where_sql = f'({where_sql}) AND r.county = ?'
+        params.append(county_filter)
+
+    conn = get_db()
+    total = conn.execute(
+        f'SELECT COUNT(*) AS n FROM records r WHERE {where_sql}', params
+    ).fetchone()['n']
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    records = conn.execute(
+        f'''
+        SELECT r.id, r.date, r.time, r.county, r.location,
+               COALESCE(NULLIF(r.incident_type, ''), NULLIF(r.incident, ''), 'Incident') AS incident_label,
+               r.cfs_number
+        FROM records r
+        WHERE {where_sql}
+        ORDER BY r.date DESC, r.time DESC, r.id DESC
+        LIMIT ? OFFSET ?
+        ''',
+        (*params, per_page, (page - 1) * per_page),
+    ).fetchall()
+
+    by_county = conn.execute(
+        f'''
+        SELECT r.county, COUNT(*) AS n
+        FROM records r
+        WHERE {where_sql}
+        GROUP BY r.county
+        ORDER BY n DESC, r.county ASC
+        LIMIT 12
+        ''',
+        params,
+    ).fetchall()
+
+    conn.close()
+
+    page_title = f"{topic['long_label']} in Montana — Police Blotter Records"
+    canonical_url = (
+        f"https://montanablotter.com/charge/{slug}/"
+        + (f"?county={county_filter}" if county_filter else "")
+    )
+    pagination_rels = []
+    if page > 1:
+        prev_qs = f"page={page - 1}" + (f"&county={county_filter}" if county_filter else "")
+        pagination_rels.append({"rel": "prev", "href": f"https://montanablotter.com/charge/{slug}/?{prev_qs}"})
+    if page < total_pages:
+        next_qs = f"page={page + 1}" + (f"&county={county_filter}" if county_filter else "")
+        pagination_rels.append({"rel": "next", "href": f"https://montanablotter.com/charge/{slug}/?{next_qs}"})
+
+    return render_template(
+        'charge_topic.html',
+        topic=topic,
+        records=records,
+        by_county=by_county,
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        per_page=per_page,
+        county_filter=county_filter,
+        page_title=page_title,
+        meta_description=topic['meta_description'],
+        canonical_url=canonical_url,
+        pagination_rels=pagination_rels,
+        current_year=datetime.now().year,
+    )
+
+
+def log_post_correction(conn, *, post_id, field_name, old_value, new_value, reason, corrected_by=None, is_public=1):
+    """Append a public correction record for a post. Idempotent at the call site."""
+    if not reason or not str(reason).strip():
+        raise ValueError('reason is required for a correction')
+    conn.execute(
+        '''
+        INSERT INTO post_corrections (post_id, field_name, old_value, new_value, reason, corrected_by, is_public)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''',
+        (post_id, field_name, old_value, new_value, str(reason).strip(), corrected_by, int(bool(is_public))),
+    )
+
 
 CITY_DATA = {
     'billings': {
@@ -12814,7 +13991,128 @@ def editorial_standards():
 
 @app.route('/corrections')
 def corrections_policy():
-    return render_template('corrections.html', current_year=datetime.now().year)
+    conn = get_db()
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 20
+    offset = (page - 1) * per_page
+
+    total = conn.execute(
+        'SELECT COUNT(*) AS n FROM post_corrections WHERE is_public = 1'
+    ).fetchone()['n']
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    rows = conn.execute(
+        '''
+        SELECT pc.id, pc.post_id, pc.field_name, pc.old_value, pc.new_value,
+               pc.reason, pc.corrected_by, pc.created_at,
+               p.title AS post_title, p.seo_slug, p.county, p.incident_date
+        FROM post_corrections pc
+        LEFT JOIN posts p ON p.id = pc.post_id
+        WHERE pc.is_public = 1
+        ORDER BY pc.created_at DESC, pc.id DESC
+        LIMIT ? OFFSET ?
+        ''',
+        (per_page, offset),
+    ).fetchall()
+    posts_corrected_row = conn.execute(
+        'SELECT COUNT(DISTINCT post_id) AS n FROM post_corrections WHERE is_public = 1'
+    ).fetchone()
+    conn.close()
+
+    return render_template(
+        'corrections.html',
+        current_year=datetime.now().year,
+        rows=rows,
+        total=total,
+        posts_corrected=posts_corrected_row['n'] if posts_corrected_row else 0,
+        page=page,
+        total_pages=total_pages,
+    )
+
+
+@app.route('/transparency')
+def pii_transparency():
+    """Public PII audit transparency page.
+
+    Aggregates audit counts and PII-flag breakdowns across the post corpus so
+    readers can see, in aggregate, what we detect and how often. No raw PII is
+    surfaced; only counts, severities, and type names.
+    """
+    import json
+    from collections import Counter
+
+    conn = get_db()
+
+    status_rows = conn.execute(
+        'SELECT COALESCE(audit_status, "pending") AS s, COUNT(*) AS n '
+        'FROM posts GROUP BY COALESCE(audit_status, "pending")'
+    ).fetchall()
+    status_counts = {r['s']: r['n'] for r in status_rows}
+
+    type_counter: Counter = Counter()
+    severity_counter: Counter = Counter()
+    flag_rows = conn.execute(
+        "SELECT pii_flags FROM posts "
+        "WHERE pii_flags IS NOT NULL AND pii_flags != '' AND pii_flags != '[]'"
+    ).fetchall()
+    for r in flag_rows:
+        try:
+            flags = json.loads(r['pii_flags'])
+        except (ValueError, TypeError):
+            continue
+        for f in flags if isinstance(flags, list) else []:
+            t = (f or {}).get('pii_type', 'unknown')
+            s = (f or {}).get('severity', 'unknown')
+            type_counter[t] += 1
+            severity_counter[s] += 1
+
+    last_audited_row = conn.execute(
+        'SELECT MAX(audited_at) AS last_at FROM posts WHERE audited_at IS NOT NULL'
+    ).fetchone()
+    total_audited = sum(
+        v for k, v in status_counts.items() if k in ('clean', 'manual_review')
+    )
+    total_with_flags = len(flag_rows)
+    flagged_share = (
+        round((total_with_flags / total_audited) * 100, 1) if total_audited else 0.0
+    )
+
+    conn.close()
+
+    pii_type_rows = [
+        {
+            'pii_type': t,
+            'count': n,
+            'label': t.replace('_', ' ').title(),
+            'description': _PII_TYPE_DESCRIPTIONS.get(
+                t, 'Detected by automated regex scan during publication audit.'
+            ),
+        }
+        for t, n in type_counter.most_common()
+    ]
+
+    return render_template(
+        'transparency.html',
+        current_year=datetime.now().year,
+        status_counts=status_counts,
+        total_audited=total_audited,
+        total_with_flags=total_with_flags,
+        flagged_share=flagged_share,
+        pii_type_rows=pii_type_rows,
+        severity_counts=dict(severity_counter),
+        last_audited_at=last_audited_row['last_at'] if last_audited_row else None,
+    )
+
+
+_PII_TYPE_DESCRIPTIONS = {
+    'ssn': 'Social Security numbers — never published. Triggered: any 9-digit pattern with a valid SSN prefix.',
+    'dob': 'Dates of birth labeled as personal (DOB, birthday, born on). Birthdays that appear as event context are kept.',
+    'mt_dl': 'Montana driver-license numbers. Format-validated against the MT DL pattern.',
+    'phone': 'Phone numbers — redaction triggered when the number is paired with a personal label (caller, victim, witness).',
+    'home_address': 'Street addresses — redaction triggered when a residential identifier (apartment, trailer, home) is paired with a personal label.',
+    'email': 'Personal email addresses paired with a victim, witness, or reporting-party label.',
+    'other': 'Other PII surfaced by Claude during tone/context review. Re-reviewed manually before publication.',
+}
 
 
 @app.route('/trends')
@@ -12829,6 +14127,129 @@ def trends():
         latest_weekly_digest=latest_weekly_digest,
         current_year=datetime.now().year,
     )
+
+
+@app.route('/embed')
+def embed_widget_demo():
+    """Public-facing demo page for the embeddable blotter widget.
+
+    Other Montana sites (city pages, town sites, civic groups) can drop a
+    single <script> tag to render recent public-safety calls for a chosen
+    county. This page shows what the widget looks like and how to embed it.
+    """
+    conn = get_db()
+    county_rows = conn.execute(
+        "SELECT DISTINCT county, COUNT(*) AS n FROM records "
+        "WHERE county IS NOT NULL AND county != '' "
+        "GROUP BY county ORDER BY n DESC LIMIT 20"
+    ).fetchall()
+    conn.close()
+    return render_template(
+        'embed_demo.html',
+        current_year=datetime.now().year,
+        counties=[r['county'] for r in county_rows],
+    )
+
+
+@app.route('/embed/blotter.js')
+def embed_blotter_js():
+    """Returns a tiny JS shim that injects the blotter widget.
+
+    Query params:
+        county — county name (default 'Gallatin')
+        limit — number of records to show (default 8, max 25)
+        title — optional custom header
+        theme — 'light' or 'dark' (default 'light')
+        target — id of the element to render into (default: writes to its own div)
+    """
+    county = (request.args.get('county') or 'Gallatin')[:60]
+    limit = max(1, min(25, request.args.get('limit', 8, type=int)))
+    title = (request.args.get('title') or f'{county} County Blotter')[:120]
+    theme = (request.args.get('theme') or 'light')
+    target = (request.args.get('target') or '')[:80]
+
+    # The JS is generated server-side so query params can be inlined.
+    # It is intentionally small and dependency-free.
+    js = f"""(function(){{
+  var cfg={{county:{county!r},limit:{limit},title:{title!r},theme:{theme!r},target:{target!r}}};
+  var api='/api/embed/blotter.json?county='+encodeURIComponent(cfg.county)+'&limit='+cfg.limit;
+  var host=document.getElementById(cfg.target);
+  if(!host){{
+    host=document.createElement('div');
+    host.className='mt-blotter-embed';
+    host.setAttribute('data-mt-theme',cfg.theme);
+    var s=document.getElementById('mt-blotter-embed-'+cfg.county.toLowerCase().replace(/[^a-z0-9]+/g,'-'));
+    if(s&&s.parentNode)s.parentNode.insertBefore(host,s);
+    else document.body.appendChild(host);
+  }}
+  host.innerHTML='<div class="mt-blotter-embed__head"><strong>'+cfg.title+'</strong> &middot; <a href="https://montanablotter.com/county/'+encodeURIComponent(cfg.county)+'">more &rarr;</a></div><div class="mt-blotter-embed__list" data-state="loading">Loading&hellip;</div><div class="mt-blotter-embed__foot"><a href="https://montanablotter.com">Montana Blotter</a></div>';
+  fetch(api).then(function(r){{return r.json()}}).then(function(d){{
+    var list=host.querySelector('.mt-blotter-embed__list');
+    if(!d.records||!d.records.length){{list.innerHTML='<em>No recent records.</em>';list.removeAttribute('data-state');return;}}
+    list.removeAttribute('data-state');
+    list.innerHTML=d.records.map(function(r){{
+      var dt=(r.date||'').slice(0,10);
+      var loc=(r.location||'').replace(/</g,'&lt;');
+      var inc=(r.incident||'').replace(/</g,'&lt;');
+      return '<div class="mt-blotter-embed__item"><time>'+dt+'</time> <span>'+inc+'</span> <small>'+loc+'</small></div>';
+    }}).join('');
+  }}).catch(function(){{
+    var list=host.querySelector('.mt-blotter-embed__list');
+    list.innerHTML='<em>Could not load records.</em>';
+    list.removeAttribute('data-state');
+  }});
+}})();"""
+    resp = Response(js, mimetype='application/javascript')
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
+
+
+@app.route('/api/embed/blotter.json')
+def api_embed_blotter():
+    """JSON feed used by the embed widget.
+
+    Returns the most recent public records for a county. No PII, no
+    officer names, no personal addresses. Date is YYYY-MM-DD only.
+    """
+    county = (request.args.get('county') or '').strip()[:60]
+    limit = max(1, min(25, request.args.get('limit', 8, type=int)))
+
+    conn = get_db()
+    if county:
+        rows = conn.execute(
+            """
+            SELECT id, date, time, location, incident, charge_category
+            FROM records
+            WHERE county = ?
+            ORDER BY date DESC, id DESC
+            LIMIT ?
+            """,
+            (county, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT id, date, time, location, incident, charge_category
+            FROM records
+            ORDER BY date DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    conn.close()
+
+    out = {
+        'county': county or None,
+        'count': len(rows),
+        'records': [dict(r) for r in rows],
+        'source': 'montanablotter.com',
+        'attribution': 'Montana Blotter public records',
+    }
+    resp = jsonify(out)
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
 
 
 @app.route('/blog')
@@ -13224,8 +14645,486 @@ def pricing_page():
     return render_template(
         'pricing.html',
         stripe_publishable_key=keys['publishable_key'],
+        monthly_subscription_link=_monthly_subscription_link(),
         current_year=datetime.now().year,
     )
+
+
+# ---------------------------------------------------------------------------
+# B2B data API (/api/v1/data/*)
+# Token-gated bulk data export for researchers, journalists, and civic
+# integrators. Marketing page is at /data-api.
+# ---------------------------------------------------------------------------
+import hashlib as _hashlib
+import secrets as _secrets
+from datetime import datetime as _dt
+
+
+def _hash_api_token(plaintext: str) -> str:
+    return _hashlib.sha256(plaintext.encode('utf-8')).hexdigest()
+
+
+def _new_api_token() -> str:
+    """Generate a plaintext API token. Format: mb_live_<32 random chars>."""
+    return 'mb_live_' + _secrets.token_urlsafe(32)
+
+
+def _check_api_token():
+    """Look up the bearer token from the request and enforce rate limit.
+
+    Returns (token_row, error_response_tuple). On success, error is None.
+    On any failure, token_row is None and the caller should return
+    error_response_tuple directly.
+    """
+    auth = request.headers.get('Authorization', '')
+    if not auth.startswith('Bearer '):
+        return None, (jsonify({'error': 'missing_bearer_token',
+                               'message': 'Pass Authorization: Bearer <token>.'}), 401)
+    plaintext = auth[7:].strip()
+    if not plaintext or len(plaintext) < 16:
+        return None, (jsonify({'error': 'invalid_token'}), 401)
+
+    h = _hash_api_token(plaintext)
+    conn = get_db()
+    row = conn.execute(
+        'SELECT * FROM api_data_tokens WHERE token_hash = ? AND is_active = 1',
+        (h,),
+    ).fetchone()
+    if not row:
+        conn.close()
+        return None, (jsonify({'error': 'invalid_token'}), 401)
+    if row['expires_at'] and row['expires_at'] < _dt.utcnow().isoformat():
+        conn.close()
+        return None, (jsonify({'error': 'token_expired'}), 401)
+
+    # Per-minute rate limit
+    minute = _dt.utcnow().strftime('%Y-%m-%dT%H:%M')
+    conn.execute(
+        '''
+        INSERT INTO api_data_token_hits (token_id, hit_minute, hit_count)
+        VALUES (?, ?, 1)
+        ON CONFLICT(token_id, hit_minute) DO UPDATE SET hit_count = hit_count + 1
+        ''',
+        (row['id'], minute),
+    )
+    hit = conn.execute(
+        'SELECT hit_count FROM api_data_token_hits WHERE token_id = ? AND hit_minute = ?',
+        (row['id'], minute),
+    ).fetchone()
+    conn.execute(
+        'UPDATE api_data_tokens SET last_used_at = datetime("now") WHERE id = ?',
+        (row['id'],),
+    )
+    conn.commit()
+    conn.close()
+    if hit and hit['hit_count'] > row['rate_limit_per_minute']:
+        return None, (jsonify({
+            'error': 'rate_limited',
+            'limit_per_minute': row['rate_limit_per_minute'],
+            'message': 'Slow down — you exceeded your per-minute cap.',
+        }), 429)
+    return row, None
+
+
+def _api_v1_records():
+    token, err = _check_api_token()
+    if err:
+        return err
+    county = (request.args.get('county') or '').strip()[:60]
+    since = (request.args.get('since') or '').strip()[:20]  # YYYY-MM-DD
+    until = (request.args.get('until') or '').strip()[:20]
+    limit = max(1, min(500, request.args.get('limit', 100, type=int)))
+    page = max(1, request.args.get('page', 1, type=int))
+    offset = (page - 1) * limit
+
+    where, params = [], []
+    if county:
+        where.append('county = ?'); params.append(county)
+    if since:
+        where.append('date >= ?'); params.append(since)
+    if until:
+        where.append('date <= ?'); params.append(until)
+    where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+
+    conn = get_db()
+    total = conn.execute(
+        f'SELECT COUNT(*) AS n FROM records {where_sql}', params
+    ).fetchone()['n']
+    rows = conn.execute(
+        f'''
+        SELECT id, date, time, location, incident, status, county,
+               incident_type, charge_category, cfs_number
+        FROM records
+        {where_sql}
+        ORDER BY date DESC, id DESC
+        LIMIT ? OFFSET ?
+        ''',
+        params + [limit, offset],
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'tier': token['tier'],
+        'page': page,
+        'per_page': limit,
+        'total': total,
+        'count': len(rows),
+        'records': [dict(r) for r in rows],
+    })
+
+
+def _api_v1_warrants():
+    token, err = _check_api_token()
+    if err:
+        return err
+    county = (request.args.get('county') or '').strip()[:60]
+    status = (request.args.get('status') or 'active').strip()[:20]
+    limit = max(1, min(500, request.args.get('limit', 100, type=int)))
+    page = max(1, request.args.get('page', 1, type=int))
+    offset = (page - 1) * limit
+
+    where, params = ['status = ?'], [status]
+    if county:
+        where.append('county = ?'); params.append(county)
+    where_sql = 'WHERE ' + ' AND '.join(where)
+
+    conn = get_db()
+    total = conn.execute(
+        f'SELECT COUNT(*) AS n FROM warrants {where_sql}', params
+    ).fetchone()['n']
+    rows = conn.execute(
+        f'''
+        SELECT id, person_name, dob, county, city, warrant_type, charges_text,
+               issued_by, issue_date, bond_amount, bond_type, status, source_url,
+               first_seen_at, resolved_at
+        FROM warrants
+        {where_sql}
+        ORDER BY first_seen_at DESC
+        LIMIT ? OFFSET ?
+        ''',
+        params + [limit, offset],
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'tier': token['tier'],
+        'page': page,
+        'per_page': limit,
+        'total': total,
+        'count': len(rows),
+        'warrants': [dict(r) for r in rows],
+    })
+
+
+def _api_v1_jail_bookings():
+    token, err = _check_api_token()
+    if err:
+        return err
+    county = (request.args.get('county') or '').strip()[:60]
+    since = (request.args.get('since') or '').strip()[:20]
+    limit = max(1, min(500, request.args.get('limit', 100, type=int)))
+    page = max(1, request.args.get('page', 1, type=int))
+    offset = (page - 1) * limit
+
+    where, params = [], []
+    if county:
+        where.append('county_name = ?'); params.append(county)
+    if since:
+        where.append('booking_at >= ?'); params.append(since)
+    where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+
+    conn = get_db()
+    total = conn.execute(
+        f'SELECT COUNT(*) AS n FROM jail_bookings {where_sql}', params
+    ).fetchone()['n']
+    rows = conn.execute(
+        f'''
+        SELECT id, person_name, age, booking_number, booking_at, release_at,
+               charges_summary, arresting_agency, county_name, facility_name,
+               booking_status, is_current, source_url
+        FROM jail_bookings
+        {where_sql}
+        ORDER BY booking_at DESC
+        LIMIT ? OFFSET ?
+        ''',
+        params + [limit, offset],
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'tier': token['tier'],
+        'page': page,
+        'per_page': limit,
+        'total': total,
+        'count': len(rows),
+        'bookings': [dict(r) for r in rows],
+    })
+
+
+def _api_v1_posts():
+    token, err = _check_api_token()
+    if err:
+        return err
+    county = (request.args.get('county') or '').strip()[:60]
+    limit = max(1, min(200, request.args.get('limit', 50, type=int)))
+    page = max(1, request.args.get('page', 1, type=int))
+    offset = (page - 1) * limit
+
+    where, params = ["COALESCE(audit_status, 'pending') = 'clean'"], []
+    if county:
+        where.append('county = ?'); params.append(county)
+    where_sql = 'WHERE ' + ' AND '.join(where)
+
+    conn = get_db()
+    total = conn.execute(
+        f'SELECT COUNT(*) AS n FROM posts {where_sql}', params
+    ).fetchone()['n']
+    rows = conn.execute(
+        f'''
+        SELECT id, title, seo_title, seo_slug, summary, county, city, agency_name,
+               incident_date, audit_status, meta_description, created_at
+        FROM posts
+        {where_sql}
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+        ''',
+        params + [limit, offset],
+    ).fetchall()
+    conn.close()
+    return jsonify({
+        'tier': token['tier'],
+        'page': page,
+        'per_page': limit,
+        'total': total,
+        'count': len(rows),
+        'posts': [dict(r) for r in rows],
+    })
+
+
+def _api_v1_summary():
+    token, err = _check_api_token()
+    if err:
+        return err
+    conn = get_db()
+    out = {
+        'tier': token['tier'],
+        'totals': {
+            'records': conn.execute('SELECT COUNT(*) AS n FROM records').fetchone()['n'],
+            'warrants_active': conn.execute(
+                "SELECT COUNT(*) AS n FROM warrants WHERE status='active'"
+            ).fetchone()['n'],
+            'warrants_resolved': conn.execute(
+                "SELECT COUNT(*) AS n FROM warrants WHERE status IN ('cleared','resolved')"
+            ).fetchone()['n'],
+            'jail_bookings_30d': conn.execute(
+                "SELECT COUNT(*) AS n FROM jail_bookings "
+                "WHERE booking_at >= date('now', '-30 days')"
+            ).fetchone()['n'],
+            'posts_published': conn.execute(
+                "SELECT COUNT(*) AS n FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean'"
+            ).fetchone()['n'],
+        },
+        'counties': [
+            {'county': r['county'], 'records': r['n']}
+            for r in conn.execute(
+                "SELECT county, COUNT(*) AS n FROM records "
+                "WHERE county IS NOT NULL AND county != '' "
+                "GROUP BY county ORDER BY n DESC"
+            ).fetchall()
+        ],
+    }
+    conn.close()
+    return jsonify(out)
+
+
+# Public marketing page for the B2B API
+@app.route('/data-api')
+def data_api_landing():
+    return render_template(
+        'data_api.html',
+        current_year=datetime.now().year,
+        canonical_url=f'{BASE_URL}/data-api',
+    )
+
+
+# ---------------------------------------------------------------------------
+# Attorney referral directory (/attorneys, plus widget for warrant pages)
+# ---------------------------------------------------------------------------
+def _pick_attorneys_for_county(county: str, limit: int = 1):
+    """Return up to `limit` active attorney referrals for a county."""
+    if not county:
+        return []
+    conn = get_db()
+    rows = conn.execute(
+        '''
+        SELECT id, county, name, firm, phone, email, website, practice_areas, blurb
+        FROM attorney_referrals
+        WHERE county = ? AND is_active = 1
+        ORDER BY sort_order ASC, id ASC
+        LIMIT ?
+        ''',
+        (county, limit),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+@app.route('/attorneys')
+def attorneys_directory():
+    """Public directory of Montana defense attorneys by county."""
+    conn = get_db()
+    rows = conn.execute(
+        '''
+        SELECT id, county, name, firm, phone, email, website, practice_areas, blurb
+        FROM attorney_referrals
+        WHERE is_active = 1
+        ORDER BY county ASC, sort_order ASC, name ASC
+        '''
+    ).fetchall()
+    conn.close()
+    by_county: dict = {}
+    for r in rows:
+        by_county.setdefault(r['county'], []).append(dict(r))
+    return render_template(
+        'attorneys.html',
+        current_year=datetime.now().year,
+        by_county=by_county,
+        total_attorneys=len(rows),
+        total_counties=len(by_county),
+        canonical_url=f'{BASE_URL}/attorneys',
+    )
+
+
+# ---------------------------------------------------------------------------
+# Public tip submission (/submit-a-tip)
+# Anyone can submit a tip about a record, warrant, missing person, or other
+# public-safety matter. Tips are queued for admin review.
+# ---------------------------------------------------------------------------
+TIP_CATEGORIES = [
+    ('record_correction', 'A blotter record has an error'),
+    ('warrant_clarification', 'A warrant status is wrong'),
+    ('missing_person_update', 'I have information on a missing person'),
+    ('court_case_update', 'Court case status has changed'),
+    ('source_link', 'A source link is broken or moved'),
+    ('safety_concern', 'A general public-safety concern'),
+    ('other', 'Something else'),
+]
+
+
+@app.route('/submit-a-tip', methods=['GET', 'POST'])
+def submit_a_tip():
+    if request.method == 'POST':
+        category = (request.form.get('category') or 'other').strip()[:40]
+        subject = (request.form.get('subject') or '').strip()[:160]
+        body = (request.form.get('body') or '').strip()[:4000]
+        is_anonymous = 1 if request.form.get('is_anonymous') == 'on' else 0
+        name = (request.form.get('name') or '').strip()[:120] or None
+        email = (request.form.get('email') or '').strip()[:160].lower() or None
+        phone = (request.form.get('phone') or '').strip()[:40] or None
+        related_record_id = (request.form.get('related_record_id') or '').strip()[:20]
+        related_warrant_id = (request.form.get('related_warrant_id') or '').strip()[:20]
+
+        errors = []
+        if category not in {c for c, _ in TIP_CATEGORIES}:
+            errors.append('Invalid category.')
+        if len(subject) < 4:
+            errors.append('Subject is required (at least 4 characters).')
+        if len(body) < 20:
+            errors.append('Tip body is required (at least 20 characters).')
+        if not is_anonymous and not email:
+            errors.append('Email is required unless you check "submit anonymously".')
+
+        # Best-effort id parse
+        rec_id = int(related_record_id) if related_record_id.isdigit() else None
+        war_id = int(related_warrant_id) if related_warrant_id.isdigit() else None
+
+        if errors:
+            for e in errors:
+                flash(e, 'error')
+            return render_template(
+                'submit_tip.html',
+                current_year=datetime.now().year,
+                categories=TIP_CATEGORIES,
+                canonical_url=f'{BASE_URL}/submit-a-tip',
+                form_data={
+                    'category': category, 'subject': subject, 'body': body,
+                    'is_anonymous': is_anonymous, 'name': name, 'email': email,
+                    'phone': phone, 'related_record_id': related_record_id,
+                    'related_warrant_id': related_warrant_id,
+                },
+            )
+
+        ip = request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or (
+            request.remote_addr or ''
+        )[:128]
+        ua = (request.user_agent.string or '')[:500]
+
+        conn = get_db()
+        cur = conn.execute(
+            '''
+            INSERT INTO public_tips
+              (category, subject, body, submitter_name, submitter_email,
+               submitter_phone, is_anonymous, related_record_id, related_warrant_id,
+               ip_address, user_agent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (category, subject, body, name, email, phone, is_anonymous,
+             rec_id, war_id, ip or None, ua or None),
+        )
+        tip_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+
+        # Best-effort admin notification (do not block the response on SMTP)
+        try:
+            from services.publishing.morning_briefing import send_email
+            admin_email = (
+                config.ADMIN_ALERT_EMAILS[0] if getattr(config, 'ADMIN_ALERT_EMAILS', None)
+                else (getattr(config, 'EMAIL_USER', '') or 'admin@montanablotter.com')
+            )
+            send_email(
+                admin_email,
+                f"[{category}] {subject}",
+                (
+                    f"<p><strong>New public tip submitted (#{tip_id})</strong></p>"
+                    f"<p><strong>Category:</strong> {category}<br>"
+                    f"<strong>Subject:</strong> {subject}</p>"
+                    f"<p><strong>Body:</strong></p><blockquote>{body}</blockquote>"
+                    f"<p><strong>Submitter:</strong> "
+                    f"{'anonymous' if is_anonymous else (name or 'unknown')}"
+                    f"{' &lt;' + email + '&gt;' if email else ''}"
+                    f"{' · ' + phone if phone else ''}</p>"
+                    f"<p><small>IP: {ip}<br>UA: {ua[:200]}</small></p>"
+                ),
+            )
+        except Exception as e:
+            current_app.logger.warning('tip notification email failed: %s', e)
+
+        flash(
+            f"Tip submitted. Reference number: #{tip_id}. "
+            f"{'We have your email and may follow up.' if email else 'You submitted anonymously.'}",
+            'success',
+        )
+        return redirect(url_for('submit_a_tip'))
+
+    prefill = {
+        'category': (request.args.get('category') or 'other')[:40],
+        'subject': (request.args.get('subject') or '')[:160],
+        'related_record_id': (request.args.get('record_id') or '')[:20],
+        'related_warrant_id': (request.args.get('warrant_id') or '')[:20],
+    }
+    return render_template(
+        'submit_tip.html',
+        current_year=datetime.now().year,
+        categories=TIP_CATEGORIES,
+        canonical_url=f'{BASE_URL}/submit-a-tip',
+        form_data=prefill,
+    )
+
+
+# v1 endpoints — each token-gated
+app.add_url_rule('/api/v1/data/records', view_func=_api_v1_records, methods=['GET'])
+app.add_url_rule('/api/v1/data/warrants', view_func=_api_v1_warrants, methods=['GET'])
+app.add_url_rule('/api/v1/data/jail-bookings', view_func=_api_v1_jail_bookings, methods=['GET'])
+app.add_url_rule('/api/v1/data/posts', view_func=_api_v1_posts, methods=['GET'])
+app.add_url_rule('/api/v1/data/summary', view_func=_api_v1_summary, methods=['GET'])
 
 
 @app.errorhandler(500)
