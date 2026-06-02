@@ -168,4 +168,61 @@
         </section>
     </aside>
 </div>
+
+<section class="public-card corrections-log-card" id="corrections-log">
+    <div class="public-card__body">
+        <p class="public-card__eyebrow">Published corrections</p>
+        <h2 class="public-title public-title--small">The log</h2>
+        <p class="public-copy">
+            Every material change to a published post is recorded below. PII redactions,
+            factual errors, and editorial framing changes are all here. Stylistic edits
+            (typos, formatting) are not logged.
+        </p>
+
+        <ul class="corrections-summary" style="margin-top:1rem;display:flex;gap:1.5rem;list-style:none;padding:0;">
+            <li><strong>{{ total }}</strong> correction{{ '' if total == 1 else 's' }} on file</li>
+            <li><strong>{{ posts_corrected }}</strong> post{{ '' if posts_corrected == 1 else 's' }} corrected</li>
+        </ul>
+
+        {% if rows %}
+        <ol class="corrections-list" style="margin-top:1.5rem;list-style:none;padding:0;display:flex;flex-direction:column;gap:1.25rem;">
+            {% for r in rows %}
+            <li class="correction-item" style="border-left:3px solid #b91c1c;padding-left:1rem;">
+                <div class="meta" style="font-size:0.85rem;color:#475569;display:flex;flex-wrap:wrap;gap:0.75rem;">
+                    <time datetime="{{ r.created_at }}">{{ r.created_at[:10] }}</time>
+                    {% if r.corrected_by %}<span>by <strong>{{ r.corrected_by }}</strong></span>{% endif %}
+                    <span>field: <code>{{ r.field_name }}</code></span>
+                </div>
+                <div class="diff" style="margin-top:0.5rem;">
+                    {% if r.old_value %}<p style="margin:0.25rem 0;"><span style="color:#64748b;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;">was</span> <del style="color:#991b1b;">{{ r.old_value }}</del></p>{% endif %}
+                    {% if r.new_value %}<p style="margin:0.25rem 0;"><span style="color:#64748b;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;">now</span> <ins style="color:#166534;text-decoration:none;font-weight:600;">{{ r.new_value }}</ins></p>{% endif %}
+                </div>
+                <p style="margin:0.5rem 0 0 0;"><strong>Reason:</strong> {{ r.reason }}</p>
+                {% if r.post_id and r.post_title %}
+                <p style="margin:0.25rem 0 0 0;font-size:0.9rem;">
+                    On post:
+                    <a href="/post/{{ r.post_id }}{% if r.seo_slug %}-{{ r.seo_slug }}{% endif %}">{{ r.post_title }}</a>
+                    {% if r.county %}· {{ r.county }} County{% endif %}
+                    {% if r.incident_date %}· {{ r.incident_date }}{% endif %}
+                </p>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+
+        {% if total_pages > 1 %}
+        <nav class="pagination" aria-label="Corrections log pagination" style="margin-top:1.5rem;display:flex;gap:1rem;align-items:center;">
+            {% if page > 1 %}<a class="btn-secondary" href="/corrections?page={{ page - 1 }}">← Previous</a>{% endif %}
+            <span>Page {{ page }} of {{ total_pages }}</span>
+            {% if page < total_pages %}<a class="btn-secondary" href="/corrections?page={{ page + 1 }}">Next →</a>{% endif %}
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <p style="margin-top:1.5rem;color:#475569;">
+            No corrections have been published yet. We hope it stays this way — but if we get something wrong, you'll see it here.
+        </p>
+        {% endif %}
+    </div>
+</section>
 {% endblock %}

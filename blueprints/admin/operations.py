@@ -26,6 +26,12 @@ from services.persons.missing import (
     update_missing_person,
     update_missing_person_status,
 )
+from services.persons.warrants_admin import (
+    clear_warrant_staff_photo,
+    get_warrant_by_id,
+    update_warrant_photo_fields,
+    warrant_admin_context,
+)
 from services.meetings.public import ensure_public_meeting_schema, meeting_admin_context
 from utils.auth_constants import ADMIN_ACCESS_ROLES, ADMIN_MANAGEMENT_ROLES, OPERATIONS_ROLES
 from utils.app_settings import _save_app_setting
@@ -581,6 +587,103 @@ def admin_missing_person_status(person_id):
     finally:
         conn.close()
     return redirect(url_for('admin.admin_missing_persons'))
+
+
+@admin_bp.route('/operations/warrants')
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_warrants():
+    conn = get_db()
+    context = warrant_admin_context(
+        conn,
+        q=request.args.get('q'),
+        county=request.args.get('county'),
+        photo_filter=request.args.get('photo'),
+    )
+    editing_warrant = None
+    edit_id = request.args.get('edit', type=int)
+    if edit_id:
+        editing_warrant = get_warrant_by_id(conn, edit_id)
+    conn.close()
+    return render_template(
+        'admin_warrants.html',
+        **context,
+        editing_warrant=editing_warrant,
+    )
+
+
+@admin_bp.route('/operations/warrants/save', methods=['POST'])
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_warrant_photo_save():
+    actor = getattr(current_user, 'username', '') or getattr(current_user, 'email', '') or 'admin'
+    warrant_id_raw = (request.form.get('warrant_id') or '').strip()
+    if not warrant_id_raw.isdigit():
+        flash('Invalid warrant record.', 'error')
+        return redirect(url_for('admin.admin_warrants'))
+
+    run_ts = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    conn = get_db()
+    try:
+        record = update_warrant_photo_fields(
+            conn,
+            int(warrant_id_raw),
+            photo_url=request.form.get('photo_url') or '',
+            social_profile_url=request.form.get('social_profile_url') or '',
+            run_ts=run_ts,
+        )
+        if not record:
+            flash('Warrant record not found.', 'error')
+            return redirect(url_for('admin.admin_warrants'))
+
+        _log_admin_action(
+            'warrant.photo_updated',
+            target_type='warrant',
+            target_id=record['id'],
+            metadata={
+                'person_name': record['person_name'],
+                'county': record['county'],
+                'has_staff_photo': bool(record.get('photo_url')),
+                'has_social_link': bool(record.get('social_profile_url')),
+                'actor': actor,
+            },
+            conn=conn,
+        )
+        conn.commit()
+        flash(
+            f'Saved photo settings for {record["person_name"]}. '
+            'Staff photos override official sheriff mugshots on /wanted.',
+            'success',
+        )
+    except ValueError as exc:
+        conn.rollback()
+        flash(str(exc), 'error')
+    finally:
+        conn.close()
+    return redirect(url_for('admin.admin_warrants', edit=int(warrant_id_raw)))
+
+
+@admin_bp.route('/operations/warrants/<int:warrant_id>/clear-photo', methods=['POST'])
+@login_required
+@require_role(*OPERATIONS_ROLES)
+def admin_warrant_photo_clear(warrant_id: int):
+    run_ts = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    conn = get_db()
+    try:
+        if not clear_warrant_staff_photo(conn, warrant_id, run_ts=run_ts):
+            flash('Warrant record not found.', 'error')
+        else:
+            _log_admin_action(
+                'warrant.photo_cleared',
+                target_type='warrant',
+                target_id=warrant_id,
+                conn=conn,
+            )
+            conn.commit()
+            flash('Cleared staff-approved photo and social profile link.', 'success')
+    finally:
+        conn.close()
+    return redirect(url_for('admin.admin_warrants', edit=warrant_id))
 
 
 @admin_bp.route('/facebook', methods=['GET', 'POST'])

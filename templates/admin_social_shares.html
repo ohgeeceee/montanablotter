@@ -1,0 +1,89 @@
+{% extends "admin.html" %}
+{% block title %}Social Shares{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <h1 class="text-2xl font-bold">Social Share Log</h1>
+    <p class="text-sm text-slate-500 mt-1">Every auto-share or manual share attempt is logged here. Filter by platform or status to see what was posted where.</p>
+</div>
+
+{% if platform_summary %}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-6">
+    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Total Attempts</div>
+        <div class="text-2xl font-black mt-1">{{ total }}</div>
+    </div>
+    {% for row in platform_summary %}
+    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{{ row.platform }}</div>
+        <div class="text-2xl font-black mt-1">{{ row.n }}</div>
+        <div class="text-xs text-slate-500">{{ row.status }}</div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<form method="get" action="/admin/social-shares" class="flex flex-wrap gap-2 mb-4">
+    <select name="platform" class="rounded border border-slate-300 px-3 py-2 text-sm">
+        <option value="">All platforms</option>
+        <option value="facebook" {% if platform == 'facebook' %}selected{% endif %}>Facebook</option>
+        <option value="reddit" {% if platform == 'reddit' %}selected{% endif %}>Reddit</option>
+        <option value="x" {% if platform == 'x' %}selected{% endif %}>X / Twitter</option>
+        <option value="manual" {% if platform == 'manual' %}selected{% endif %}>Manual</option>
+    </select>
+    <select name="status" class="rounded border border-slate-300 px-3 py-2 text-sm">
+        <option value="">All statuses</option>
+        <option value="queued" {% if status == 'queued' %}selected{% endif %}>Queued</option>
+        <option value="success" {% if status == 'success' %}selected{% endif %}>Success</option>
+        <option value="failed" {% if status == 'failed' %}selected{% endif %}>Failed</option>
+        <option value="skipped" {% if status == 'skipped' %}selected{% endif %}>Skipped</option>
+    </select>
+    <button type="submit" class="rounded bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700">Filter</button>
+</form>
+
+<div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-left">
+                <th class="px-3 py-2 font-bold">When</th>
+                <th class="px-3 py-2 font-bold">Post</th>
+                <th class="px-3 py-2 font-bold">Platform</th>
+                <th class="px-3 py-2 font-bold">Status</th>
+                <th class="px-3 py-2 font-bold">Code</th>
+                <th class="px-3 py-2 font-bold">Triggered by</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+            <tr class="border-b border-slate-100 hover:bg-slate-50">
+                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ r.created_at[:19] }}</td>
+                <td class="px-3 py-2">
+                    {% if r.post_title %}
+                    <a href="/admin/social-shares/post/{{ r.post_id }}" class="text-blue-700 hover:underline">{{ r.post_title[:50] }}{% if r.post_title|length > 50 %}…{% endif %}</a>
+                    {% else %}<span class="text-slate-400">(post #{{ r.post_id }})</span>{% endif %}
+                </td>
+                <td class="px-3 py-2"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{{ r.platform }}</span></td>
+                <td class="px-3 py-2">
+                    {% if r.status == 'success' %}<span class="text-emerald-700 font-bold">✓ {{ r.status }}</span>
+                    {% elif r.status == 'failed' %}<span class="text-red-700 font-bold">✗ {{ r.status }}</span>
+                    {% elif r.status == 'queued' %}<span class="text-amber-700 font-bold">{{ r.status }}</span>
+                    {% else %}<span class="text-slate-600">{{ r.status }}</span>{% endif %}
+                </td>
+                <td class="px-3 py-2 text-slate-600">{{ r.response_code or '—' }}</td>
+                <td class="px-3 py-2 text-slate-500 text-xs">{{ r.triggered_by or '—' }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="px-3 py-8 text-center text-slate-500">No share attempts logged yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if total > per_page %}
+<nav class="mt-4 flex gap-2 items-center text-sm">
+    {% if page > 1 %}<a class="rounded bg-slate-100 px-3 py-1.5 hover:bg-slate-200" href="?page={{ page - 1 }}">← Previous</a>{% endif %}
+    <span class="text-slate-600">Page {{ page }} of {{ (total + per_page - 1) // per_page }}</span>
+    {% if page * per_page < total %}<a class="rounded bg-slate-100 px-3 py-1.5 hover:bg-slate-200" href="?page={{ page + 1 }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}
