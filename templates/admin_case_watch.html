@@ -1,0 +1,222 @@
+{% extends "admin.html" %}
+{% block title %}Case Watch{% endblock %}
+
+{% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="max-w-7xl mx-auto mt-6 px-6">
+      {% for category, message in messages %}
+        <div class="{% if category == 'error' %}bg-red-600{% else %}bg-blue-600{% endif %} text-white p-4 rounded-2xl shadow-lg mb-4 text-sm font-bold flex items-center">
+          <i class="fas {% if category == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-3"></i> {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+<div class="admin-page-header">
+    <h1 class="text-2xl font-bold">Case Watch</h1>
+    <p class="text-sm text-slate-500 mt-1">
+        Booking &rarr; court-case links created by the disposition watcher.
+        Pending notifications are outcomes the admin has not acknowledged yet.
+    </p>
+</div>
+
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-6">
+    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Total Links</div>
+        <div class="text-2xl font-black mt-1">{{ stats.total_links or 0 }}</div>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">With Outcome</div>
+        <div class="text-2xl font-black mt-1">{{ stats.with_outcome or 0 }}</div>
+    </div>
+    <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">Pending Notify</div>
+        <div class="text-2xl font-black mt-1 text-amber-900">{{ stats.pending or 0 }}</div>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Never Checked</div>
+        <div class="text-2xl font-black mt-1">{{ stats.never_checked or 0 }}</div>
+    </div>
+</div>
+
+<div class="flex flex-wrap items-center gap-2 mb-4">
+    <a href="/admin/case-watch"
+       class="rounded px-3 py-2 text-sm font-bold border {% if not only_pending %}bg-slate-900 text-white border-slate-900{% else %}bg-white text-slate-700 border-slate-300 hover:bg-slate-50{% endif %}">
+        All
+    </a>
+    <a href="/admin/case-watch?pending=1"
+       class="rounded px-3 py-2 text-sm font-bold border {% if only_pending %}bg-slate-900 text-white border-slate-900{% else %}bg-white text-slate-700 border-slate-300 hover:bg-slate-50{% endif %}">
+        Pending only
+    </a>
+    <form method="post" action="/admin/case-watch/refresh" class="inline">
+        <button type="submit"
+                class="rounded bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600"
+                onclick="return confirm('Run refresh_outcome_data now? This will hit the court scraper for every link.')">
+            Refresh outcomes now
+        </button>
+    </form>
+</div>
+
+{% if pending_rows %}
+<section class="mb-8">
+    <h2 class="text-lg font-bold mb-3">
+        Pending Outcome Notifications
+        <span class="text-sm font-normal text-slate-500">({{ pending_rows|length }})</span>
+    </h2>
+    <form method="post" action="/admin/case-watch/mark-notified">
+        <div class="rounded-2xl border border-amber-300 bg-amber-50 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-amber-100 border-b border-amber-300 text-left">
+                        <th class="px-3 py-2 font-bold w-8">
+                            <input type="checkbox" id="select-all-pending" onclick="document.querySelectorAll('.pending-cb').forEach(cb => cb.checked = this.checked)">
+                        </th>
+                        <th class="px-3 py-2 font-bold">Booking</th>
+                        <th class="px-3 py-2 font-bold">Case</th>
+                        <th class="px-3 py-2 font-bold">Outcome</th>
+                        <th class="px-3 py-2 font-bold">Match</th>
+                        <th class="px-3 py-2 font-bold">Checked</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for r in pending_rows %}
+                    <tr class="border-b border-amber-200/70 hover:bg-amber-100/60">
+                        <td class="px-3 py-2">
+                            <input type="checkbox" class="pending-cb" name="link_id" value="{{ r.id }}">
+                        </td>
+                        <td class="px-3 py-2">
+                            <div class="font-semibold">{{ r.person_name }}</div>
+                            <div class="text-xs text-slate-600">
+                                {{ r.county_name }} &middot; {{ r.booking_at[:10] if r.booking_at else '—' }}
+                            </div>
+                        </td>
+                        <td class="px-3 py-2">
+                            <div class="font-mono text-xs">{{ r.case_number or '—' }}</div>
+                            <div class="text-xs text-slate-600 truncate max-w-xs">
+                                {{ r.charges_text or '—' }}
+                            </div>
+                        </td>
+                        <td class="px-3 py-2">
+                            <div class="font-semibold">{{ r.disposition or '—' }}</div>
+                            {% if r.sentence_text %}
+                                <div class="text-xs text-slate-600 truncate max-w-xs">
+                                    {{ r.sentence_text }}
+                                </div>
+                            {% endif %}
+                            {% if r.sentence_date %}
+                                <div class="text-xs text-slate-500">sentenced {{ r.sentence_date[:10] }}</div>
+                            {% endif %}
+                            {% if r.sentencing_judge %}
+                                <div class="text-xs text-slate-500">by {{ r.sentencing_judge }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-3 py-2">
+                            <span class="rounded bg-white border border-slate-300 px-2 py-0.5 text-xs font-bold">
+                                {{ r.match_type_label }}
+                            </span>
+                            <div class="text-xs text-slate-500">conf {{ '%.2f' % (r.confidence or 0) }}</div>
+                        </td>
+                        <td class="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">
+                            {{ r.last_checked_at[:19] if r.last_checked_at else '—' }}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <button type="submit" class="rounded bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700">
+                Mark selected as read
+            </button>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+<section>
+    <h2 class="text-lg font-bold mb-3">
+        Recent Links
+        <span class="text-sm font-normal text-slate-500">(page {{ page }} of {{ ((total + per_page - 1) // per_page) if total else 1 }} &middot; {{ total }} total)</span>
+    </h2>
+    {% if rows %}
+    <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-left">
+                    <th class="px-3 py-2 font-bold">Linked</th>
+                    <th class="px-3 py-2 font-bold">Booking</th>
+                    <th class="px-3 py-2 font-bold">Case</th>
+                    <th class="px-3 py-2 font-bold">Match</th>
+                    <th class="px-3 py-2 font-bold">Outcome?</th>
+                    <th class="px-3 py-2 font-bold">Notified</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in rows %}
+                <tr class="border-b border-slate-100 hover:bg-slate-50 {% if r.is_pending %}bg-amber-50/40{% endif %}">
+                    <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ r.linked_at[:19] if r.linked_at else '—' }}</td>
+                    <td class="px-3 py-2">
+                        <div class="font-semibold">{{ r.person_name }}</div>
+                        <div class="text-xs text-slate-600">{{ r.county_name }}</div>
+                    </td>
+                    <td class="px-3 py-2">
+                        <div class="font-mono text-xs">{{ r.case_number or '—' }}</div>
+                        <div class="text-xs text-slate-600 truncate max-w-xs">
+                            {{ r.charges_text or '—' }}
+                        </div>
+                    </td>
+                    <td class="px-3 py-2">
+                        <span class="rounded bg-slate-100 border border-slate-200 px-2 py-0.5 text-xs font-bold">
+                            {{ r.match_type_label }}
+                        </span>
+                    </td>
+                    <td class="px-3 py-2 text-xs">
+                        {% if r.has_outcome %}
+                            {% if r.disposition %}
+                                <div class="font-semibold">{{ r.disposition }}</div>
+                            {% endif %}
+                            {% if r.sentence_date %}
+                                <div class="text-slate-500">sentenced {{ r.sentence_date[:10] }}</div>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-slate-400">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">
+                        {% if r.notified_admin_at %}
+                            {{ r.notified_admin_at[:19] }}
+                        {% elif r.has_outcome %}
+                            <span class="rounded bg-amber-200 text-amber-900 px-2 py-0.5 text-[10px] font-black uppercase">pending</span>
+                        {% else %}
+                            <span class="text-slate-400">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if total > per_page %}
+    <div class="flex gap-2 mt-4">
+        {% if page > 1 %}
+            <a href="?{% if only_pending %}pending=1&amp;{% endif %}page={{ page - 1 }}"
+               class="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-bold hover:bg-slate-50">
+                &laquo; Prev
+            </a>
+        {% endif %}
+        {% if page * per_page < total %}
+            <a href="?{% if only_pending %}pending=1&amp;{% endif %}page={{ page + 1 }}"
+               class="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-bold hover:bg-slate-50">
+                Next &raquo;
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+        No links yet. The disposition watcher will populate this as new bookings come in.
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
