@@ -4,6 +4,7 @@ import tempfile
 import unittest
 import importlib
 
+from services.datasets.catalog import DATASET_DEFINITIONS, get_dataset_definition
 from services.datasets.refresh import refresh_all_dataset_metrics
 from services.datasets.schema import ensure_dataset_metrics_schema
 
@@ -46,6 +47,20 @@ class DatasetMetricsTests(unittest.TestCase):
         conn.close()
         self.assertIsNotNone(row)
 
+    def test_dataset_registry_contains_five_core_datasets(self) -> None:
+        self.assertEqual(
+            list(DATASET_DEFINITIONS.keys()),
+            [
+                "jail-bookings",
+                "warrants",
+                "arrests",
+                "public-meetings",
+                "police-calls",
+            ],
+        )
+        self.assertEqual(get_dataset_definition("warrants").title, "Warrants")
+        self.assertEqual(get_dataset_definition("arrests").records_href, "/arrests")
+
     def test_refresh_all_dataset_metrics_writes_rows(self) -> None:
         conn = self.app_module.get_db()
         ensure_dataset_metrics_schema(conn)
@@ -54,6 +69,17 @@ class DatasetMetricsTests(unittest.TestCase):
         ).fetchone()
         self.assertIsNotNone(row)
         refresh_all_dataset_metrics(conn)
-        rows = conn.execute("SELECT dataset_slug FROM dataset_metrics").fetchall()
+        rows = conn.execute(
+            "SELECT dataset_slug FROM dataset_metrics ORDER BY dataset_slug"
+        ).fetchall()
         conn.close()
-        self.assertGreaterEqual(len(rows), 3)
+        self.assertEqual(
+            [row["dataset_slug"] for row in rows],
+            [
+                "arrests",
+                "jail-bookings",
+                "police-calls",
+                "public-meetings",
+                "warrants",
+            ],
+        )

@@ -4,24 +4,33 @@ import os
 import sqlite3
 import time
 from contextlib import contextmanager
-from typing import Dict, Iterable, List
+from typing import Callable, Dict, Iterable, List
 
+from services.datasets.catalog import DATASET_DEFINITIONS
 from services.datasets.metrics import (
+    DATASET_SLUG_ARRESTS,
     DATASET_SLUG_JAIL_BOOKINGS,
     DATASET_SLUG_POLICE_CALLS,
     DATASET_SLUG_PUBLIC_MEETINGS,
+    DATASET_SLUG_WARRANTS,
+    compute_arrests_metrics,
     compute_jail_bookings_metrics,
     compute_police_calls_metrics,
     compute_public_meetings_metrics,
+    compute_warrants_metrics,
 )
 from services.datasets.schema import ensure_dataset_metrics_schema
 
 
-DEFAULT_DATASET_SLUGS: List[str] = [
-    DATASET_SLUG_JAIL_BOOKINGS,
-    DATASET_SLUG_PUBLIC_MEETINGS,
-    DATASET_SLUG_POLICE_CALLS,
-]
+DEFAULT_DATASET_SLUGS: List[str] = list(DATASET_DEFINITIONS.keys())
+
+_DATASET_METRIC_FUNCTIONS: Dict[str, Callable[[sqlite3.Connection], Dict[str, object]]] = {
+    DATASET_SLUG_JAIL_BOOKINGS: compute_jail_bookings_metrics,
+    DATASET_SLUG_WARRANTS: compute_warrants_metrics,
+    DATASET_SLUG_ARRESTS: compute_arrests_metrics,
+    DATASET_SLUG_PUBLIC_MEETINGS: compute_public_meetings_metrics,
+    DATASET_SLUG_POLICE_CALLS: compute_police_calls_metrics,
+}
 
 
 @contextmanager
@@ -47,14 +56,10 @@ def file_lock(lock_path: str, stale_seconds: int = 6 * 60 * 60):
 
 
 def refresh_dataset_metrics(conn: sqlite3.Connection, dataset_slug: str) -> Dict[str, object]:
-    if dataset_slug == DATASET_SLUG_JAIL_BOOKINGS:
-        metrics = compute_jail_bookings_metrics(conn)
-    elif dataset_slug == DATASET_SLUG_PUBLIC_MEETINGS:
-        metrics = compute_public_meetings_metrics(conn)
-    elif dataset_slug == DATASET_SLUG_POLICE_CALLS:
-        metrics = compute_police_calls_metrics(conn)
-    else:
+    compute_metrics = _DATASET_METRIC_FUNCTIONS.get(dataset_slug)
+    if compute_metrics is None:
         raise ValueError(f"unknown dataset slug: {dataset_slug}")
+    metrics = compute_metrics(conn)
 
     conn.execute(
         """
@@ -96,4 +101,3 @@ def refresh_all_dataset_metrics(
     for slug in dataset_slugs:
         results[slug] = refresh_dataset_metrics(conn, slug)
     return results
-
