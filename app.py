@@ -36,6 +36,7 @@ from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
 from blueprints.detention import register_detention_blueprint
+from blueprints.datacenter import register_datacenter_blueprint
 from blueprints.code_violations import register_code_violations_blueprint
 from blueprints.license_sanctions import register_license_sanctions_blueprint
 from blueprints.sex_offender import register_sex_offender_blueprint
@@ -6605,6 +6606,7 @@ def inject_public_nav():
     public_primary_nav_items = [
         {'id': 'home', 'href': home_href, 'label': 'Home'},
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
+        {'id': 'data_center', 'href': '/datacenter', 'label': 'Data Center'},
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
         {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
         {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons'},

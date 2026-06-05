@@ -1,0 +1,52 @@
+{% extends "public_page_base.html" %}
+
+{% block body_class %}datacenter-dataset-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/datacenter">Data Center</a>
+<span class="mx-2">/</span>
+<span>{{ dataset.title }}</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl">
+            <p class="public-eyebrow" style="color: var(--public-steel);">Dataset</p>
+            <h1 class="public-title mt-3">{{ dataset.title }}</h1>
+            <p class="public-copy max-w-3xl">
+                {{ dataset.summary }}
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="public-section">
+    <section class="max-w-5xl mx-auto">
+        <div class="public-card p-6">
+            <div class="grid gap-5 md:grid-cols-[minmax(0,1.5fr),minmax(0,1fr)]">
+                <div>
+                    <p class="public-card__eyebrow">What it covers</p>
+                    <h2 class="public-panel-title mt-2">Built from {{ dataset.source_kind }} data.</h2>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">
+                        {{ dataset.methodology }}
+                    </p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Explorer</p>
+                    <p class="mt-2 leading-6">
+                        Open the records view to browse the active dataset interface, or jump back to the data center directory.
+                    </p>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <a href="{{ explorer_href }}" class="public-btn public-btn--primary">Open records</a>
+                        <a href="/datacenter" class="public-btn public-btn--secondary">Back to data center</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
