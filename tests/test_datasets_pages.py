@@ -83,3 +83,13 @@ class DatasetMetricsTests(unittest.TestCase):
                 "warrants",
             ],
         )
+
+    def test_refresh_datasets_main_exits_cleanly(self) -> None:
+        from scripts.refresh_datasets import main
+
+        lock_path = os.path.join(tempfile.gettempdir(), "datasets_refresh.lock")
+        if os.path.exists(lock_path):
+            os.unlink(lock_path)
+
+        rc = main(["--lock", lock_path])
+        self.assertEqual(rc, 0)
