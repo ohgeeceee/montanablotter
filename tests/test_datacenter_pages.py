@@ -124,6 +124,53 @@ class DataCenterPagesTests(unittest.TestCase):
         conn.commit()
         conn.close()
 
+    def _seed_police_calls(self) -> None:
+        conn = app_module.get_db()
+        blotter_cursor = conn.execute(
+            """
+            INSERT INTO blotters (filename, county, incident_count, source_type, source_document_id)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            ('police-calls-2026-06-05.pdf', 'Hill', 2, 'incident feed', 'doc-police-calls-1'),
+        )
+        blotter_id = int(blotter_cursor.lastrowid)
+        conn.executemany(
+            """
+            INSERT INTO records (
+                blotter_id, cfs_number, date, time, incident_type, incident,
+                location, details, county, officer
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    blotter_id,
+                    'CFS-1001',
+                    '2026-06-05',
+                    '08:15',
+                    'Traffic Stop',
+                    'Traffic Stop',
+                    'US Hwy 87 / 3rd St',
+                    'Officer stopped a vehicle for a broken taillight and issued a warning.',
+                    'Hill',
+                    'Ofc. Smith',
+                ),
+                (
+                    blotter_id,
+                    'CFS-1002',
+                    '2026-06-05',
+                    '09:30',
+                    'Disturbance',
+                    'Disturbance',
+                    '400 block of 2nd Ave',
+                    'Multiple callers reported a loud disturbance in the alley behind the building.',
+                    'Blaine',
+                    'Ofc. Jones',
+                ),
+            ],
+        )
+        conn.commit()
+        conn.close()
+
     def test_datacenter_index_renders(self) -> None:
         client = app_module.app.test_client()
         resp = client.get('/datacenter')
@@ -176,12 +223,30 @@ class DataCenterPagesTests(unittest.TestCase):
 
     def test_police_calls_records_shell_renders(self) -> None:
         client = app_module.app.test_client()
+        self._seed_police_calls()
         resp = client.get('/datasets/police-calls/records')
         html = resp.get_data(as_text=True)
 
         self.assertEqual(resp.status_code, 200)
         self.assertIn('Police Calls', html)
-        self.assertIn('Generic explorer shell', html)
+        self.assertIn('Call-for-service explorer', html)
+        self.assertIn('Traffic Stop', html)
+        self.assertIn('CFS-1001', html)
+        self.assertIn('Ofc. Smith', html)
+        self.assertNotIn('Generic explorer shell', html)
+
+    def test_police_calls_records_filters_and_search(self) -> None:
+        client = app_module.app.test_client()
+        self._seed_police_calls()
+
+        resp = client.get('/datasets/police-calls/records?q=taillight&county=Hill&type=Traffic+Stop&page=1')
+        html = resp.get_data(as_text=True)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Traffic Stop', html)
+        self.assertIn('Hill County', html)
+        self.assertIn('broken taillight', html.lower())
+        self.assertNotIn('loud disturbance in the alley', html.lower())
 
     def test_public_nav_exposes_datacenter_link(self) -> None:
         with app_module.app.test_request_context('/'):
