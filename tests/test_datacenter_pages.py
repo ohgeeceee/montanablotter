@@ -212,7 +212,9 @@ class DataCenterPagesTests(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertIn('Warrants', html)
-        self.assertIn('records', html)
+        self.assertIn('Montana Active Warrant Database', html)
+        self.assertIn('Search active warrants posted by Montana sheriff offices.', html)
+        self.assertIn('Open Warrant Feed', html)
 
     def test_dataset_records_route_redirects_to_existing_explorer(self) -> None:
         client = app_module.app.test_client()
