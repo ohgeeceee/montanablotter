@@ -14,151 +14,217 @@
 {% block hero %}
 <section class="public-hero">
     <div class="public-hero__frame">
-        <div class="max-w-4xl">
-            <p class="public-eyebrow" style="color: var(--public-steel);">Call-for-service explorer</p>
-            <h1 class="public-title mt-3">{{ dataset.title }}</h1>
-            <p class="public-copy max-w-3xl">
-                Browse public police call records, filter by county or incident type, and search by CFS number, location, or incident text.
-            </p>
+        <div class="public-hero__grid">
+            <div>
+                <span class="public-eyebrow" style="color: var(--public-red);">Live Filtered Feed</span>
+                <h1 class="public-title public-title--medium">{{ dataset.title }}</h1>
+                <p class="public-copy">
+                    Records where a CFS number exists across Montana Blotter's current archive window. Filter by county or incident type, then open the record for source context.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Current Count</p>
+                    <div class="public-stat-grid">
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Calls</p>
+                            <p class="public-stat-value">{{ summary.total_calls }}</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Counties</p>
+                            <p class="public-stat-value">{{ summary.county_count }}</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Mode</p>
+                            <p class="public-stat-value">Live Feed</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<main class="public-section">
-    <section class="max-w-7xl mx-auto">
-        <div class="public-card p-6 md:p-8">
-            <div class="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Police calls</p>
-                    <h2 class="mt-3 text-3xl font-black text-slate-950" style="font-family:'Playfair Display', Georgia, serif;">
-                        Call-for-service explorer
-                    </h2>
-                    <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                        Search the statewide call log by county, call type, and text fields that matter for CFS lookups.
-                    </p>
-                </div>
-                <div class="text-sm text-slate-500">
-                    <a class="public-btn public-btn--secondary" href="{{ explorer_href }}">Back to dataset</a>
-                </div>
-            </div>
-
-            <div class="mt-6 grid gap-3 md:grid-cols-4">
-                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Total calls</p>
-                    <p class="mt-2 text-2xl font-black text-slate-950">{{ '{:,}'.format(summary.total_calls) }}</p>
-                </div>
-                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Filtered results</p>
-                    <p class="mt-2 text-2xl font-black text-slate-950">{{ '{:,}'.format(summary.filtered_calls) }}</p>
-                </div>
-                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Counties</p>
-                    <p class="mt-2 text-2xl font-black text-slate-950">{{ '{:,}'.format(summary.county_count) }}</p>
-                </div>
-                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Call types</p>
-                    <p class="mt-2 text-2xl font-black text-slate-950">{{ '{:,}'.format(summary.incident_type_count) }}</p>
-                </div>
-            </div>
-
-            <form method="get" action="/datasets/police-calls/records" class="mt-6 grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 md:grid-cols-4">
-                <label class="block">
-                    <span class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Search</span>
-                    <input
-                        type="search"
-                        name="q"
-                        value="{{ q }}"
-                        placeholder="CFS number, location, details..."
-                        class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-500"
-                    >
-                </label>
-                <label class="block">
-                    <span class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">County</span>
-                    <select name="county" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-500">
-                        <option value="">All counties</option>
-                        {% for item in counties %}
-                        <option value="{{ item }}" {% if county == item %}selected{% endif %}>{{ item }} County</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label class="block">
-                    <span class="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Type</span>
-                    <select name="type" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-500">
-                        <option value="">All types</option>
-                        {% for item in incident_types %}
-                        <option value="{{ item }}" {% if incident_type == item %}selected{% endif %}>{{ item }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <div class="flex items-end gap-2">
-                    <button type="submit" class="public-btn public-btn--primary">Filter</button>
-                    {% if q or county or incident_type %}
-                    <a href="/datasets/police-calls/records" class="public-btn public-btn--secondary">Reset</a>
-                    {% endif %}
-                </div>
-            </form>
-
-            <div class="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-                <p>
-                    Showing <strong>{{ '{:,}'.format(records|length) }}</strong> of <strong>{{ '{:,}'.format(summary.filtered_calls) }}</strong> matching call{{ '' if summary.filtered_calls == 1 else 's' }}.
-                </p>
-                {% if q or county or incident_type %}
-                <p>
-                    Active filters:
-                    {% if q %}<span class="font-semibold text-slate-900">query "{{ q }}"</span>{% endif %}
-                    {% if county %}<span class="font-semibold text-slate-900">{% if q %} · {% endif %}{{ county }} County</span>{% endif %}
-                    {% if incident_type %}<span class="font-semibold text-slate-900">{% if q or county %} · {% endif %}{{ incident_type }}</span>{% endif %}
-                </p>
-                {% endif %}
-            </div>
-
-            <div class="mt-6 space-y-4">
-                {% if records %}
-                    {% for rec in records %}
-                    <article class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="public-pill public-pill--accent">{{ rec.incident_type }}</span>
-                                    {% if rec.cfs_number %}
-                                    <span class="public-pill">CFS {{ rec.cfs_number }}</span>
-                                    {% endif %}
-                                </div>
-                                <h3 class="mt-3 text-lg font-black text-slate-950">
-                                    {{ rec.location }}
-                                </h3>
-                                <p class="mt-1 text-sm text-slate-600">
-                                    {{ rec.date }} · {{ rec.time }} · {{ rec.county }} County
-                                    {% if rec.officer %} · {{ rec.officer }}{% endif %}
-                                </p>
-                            </div>
-                        </div>
-                        <p class="mt-4 text-sm leading-6 text-slate-700">
-                            {{ rec.details_snippet }}
-                        </p>
-                    </article>
-                    {% endfor %}
-
-                    {% if total_pages > 1 %}
-                    <nav class="mt-6 flex flex-wrap items-center gap-3" aria-label="Police calls pagination">
-                        {% if pagination_prev_href %}
-                        <a class="public-btn public-btn--secondary" href="{{ pagination_prev_href }}">← Previous</a>
-                        {% endif %}
-                        <span class="text-sm font-medium text-slate-600">Page {{ page }} of {{ total_pages }}</span>
-                        {% if pagination_next_href %}
-                        <a class="public-btn public-btn--secondary" href="{{ pagination_next_href }}">Next →</a>
-                        {% endif %}
-                    </nav>
-                    {% endif %}
-                {% else %}
-                    <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-600">
-                        No police calls matched the current filters.
+<div class="public-route-layout public-route-layout--wide">
+    <aside class="public-sidebar-stack lg:sticky top-24">
+        <div class="public-form-card">
+            <div class="public-form-card__body">
+                <h3 class="public-card__eyebrow mb-3">Filter</h3>
+                <form method="GET" action="/datasets/police-calls/records" class="space-y-3" id="police-calls-filter-form">
+                    <div>
+                        <label class="public-form-label">Search</label>
+                        <input type="search" name="q" value="{{ q }}"
+                               placeholder="CFS number, location..."
+                               class="public-form-input" id="police-calls-search-input">
                     </div>
-                {% endif %}
+                    <div>
+                        <label class="public-form-label">County</label>
+                        <select name="county" class="public-form-select" id="police-calls-county-select">
+                            <option value="">All Counties</option>
+                            {% for item in counties %}
+                            <option value="{{ item }}" {% if county == item %}selected{% endif %}>{{ item }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="public-form-label">Type</label>
+                        <select name="type" class="public-form-select" id="police-calls-type-select">
+                            <option value="">All Types</option>
+                            {% for item in incident_types %}
+                            <option value="{{ item }}" {% if incident_type == item %}selected{% endif %}>{{ item }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="submit" class="public-btn public-btn--primary flex-1">
+                            Filter
+                        </button>
+                        {% if county or q or incident_type %}
+                        <a href="/datasets/police-calls/records" class="public-btn public-btn--secondary inline-flex items-center justify-center" title="Clear filters">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="10" y2="10"/><line x1="10" y1="4" x2="4" y2="10"/></svg>
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
             </div>
         </div>
-    </section>
+
+        <div class="public-sidebar-card mt-4">
+            <div class="public-sidebar-card__panel">
+                <p class="public-sidebar-card__eyebrow">Dataset</p>
+                <p class="public-sidebar-card__title">{{ dataset.title }}</p>
+                <a href="/datasets/{{ dataset.slug }}" class="public-sidebar-card__text inline-flex items-center gap-1 mt-2 hover:text-steel-600 transition">
+                    Dataset page <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l4 4-4 4"/></svg>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="public-main-stack">
+        {% if county or q or incident_type %}
+        <div class="flex flex-wrap items-center gap-2 text-xs mb-4">
+            <span class="text-slate-500 font-semibold">Filtered by:</span>
+            {% if county %}
+            <span class="public-filter-pill active">{{ county }} County</span>
+            {% endif %}
+            {% if incident_type %}
+            <span class="public-filter-pill active">{{ incident_type }}</span>
+            {% endif %}
+            {% if q %}
+            <span class="public-filter-pill active">&ldquo;{{ q }}&rdquo;</span>
+            {% endif %}
+            <a href="/datasets/police-calls/records" class="ml-auto text-slate-400 hover:text-slate-600 transition">Clear all</a>
+        </div>
+        {% endif %}
+
+        {% if records %}
+        <div class="space-y-3">
+            {% for rec in records %}
+            <a href="/record/{{ rec.id }}"
+               class="public-card public-card--lift block p-5 group">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-black uppercase tracking-wide">
+                                <i class="fas fa-phone-volume text-[9px]"></i> Call
+                            </span>
+                            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold uppercase tracking-wide">
+                                {{ rec.incident_type }}
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">
+                                {{ rec.date }}
+                            </span>
+                            {% if rec.county %}
+                            <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold">
+                                {{ rec.county }}
+                            </span>
+                            {% endif %}
+                            {% if rec.cfs_number %}
+                            <span class="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px] font-bold">
+                                CFS {{ rec.cfs_number }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <h3 class="font-bold text-slate-800 mb-1">
+                            {{ rec.location or 'Unknown location' }}
+                        </h3>
+                        <p class="text-xs text-slate-500 mb-1.5">
+                            {% if rec.time %}<i class="fas fa-clock text-slate-300 mr-1"></i>{{ rec.time }}{% endif %}
+                            {% if rec.officer %}{% if rec.time %} · {% endif %}{{ rec.officer }}{% endif %}
+                        </p>
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            {{ rec.details_snippet }}
+                        </p>
+                    </div>
+                    <div class="text-slate-300 group-hover:text-red-500 transition flex-shrink-0 mt-1">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+        {% if total_pages > 1 %}
+        <nav class="flex items-center justify-between pt-6 pb-8">
+            <p class="text-sm text-slate-500">Page {{ page }} of {{ total_pages }} &mdash; {{ total }} calls</p>
+            <div class="flex gap-2">
+                {% if pagination_prev_href %}
+                <a href="{{ pagination_prev_href }}"
+                   class="public-btn public-btn--secondary">&larr; Prev</a>
+                {% endif %}
+                {% if pagination_next_href %}
+                <a href="{{ pagination_next_href }}"
+                   class="public-btn public-btn--secondary">Next &rarr;</a>
+                {% endif %}
+            </div>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="public-card public-empty-state">
+            <i class="fas fa-phone-volume text-slate-200 text-5xl mb-4 block"></i>
+            <h3 class="text-xl font-black text-slate-700 mb-2">No police calls found</h3>
+            <p class="text-slate-400 text-sm">
+                {% if county or q or incident_type %}Try adjusting your filters.{% else %}No call-for-service records have been indexed yet.{% endif %}
+            </p>
+            {% if county or q or incident_type %}
+            <a href="/datasets/police-calls/records" class="public-btn public-btn--primary mt-4 inline-flex">Clear filters</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
 </main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    var form = document.getElementById('police-calls-filter-form');
+    var countySelect = document.getElementById('police-calls-county-select');
+    var typeSelect = document.getElementById('police-calls-type-select');
+    var searchInput = document.getElementById('police-calls-search-input');
+
+    if (countySelect && form) {
+        countySelect.addEventListener('change', function() {
+            form.submit();
+        });
+    }
+
+    if (typeSelect && form) {
+        typeSelect.addEventListener('change', function() {
+            form.submit();
+        });
+    }
+
+    if (searchInput && form) {
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                form.submit();
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}

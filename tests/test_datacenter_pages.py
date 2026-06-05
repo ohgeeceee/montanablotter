@@ -229,7 +229,7 @@ class DataCenterPagesTests(unittest.TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertIn('Police Calls', html)
-        self.assertIn('Call-for-service explorer', html)
+        self.assertIn('Live Filtered Feed', html)
         self.assertIn('Traffic Stop', html)
         self.assertIn('CFS-1001', html)
         self.assertIn('Ofc. Smith', html)
