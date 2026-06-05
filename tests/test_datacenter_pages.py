@@ -216,6 +216,32 @@ class DataCenterPagesTests(unittest.TestCase):
         self.assertIn('Search active warrants posted by Montana sheriff offices.', html)
         self.assertIn('Open Warrant Feed', html)
 
+    def test_jail_bookings_dataset_landing_page_renders(self) -> None:
+        client = app_module.app.test_client()
+        resp = client.get('/datasets/jail-bookings')
+        html = resp.get_data(as_text=True)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Jail Bookings', html)
+        self.assertIn('Daily Booking Monitor', html)
+        self.assertIn("Search newly posted jail bookings from Montana county rosters.", html)
+        self.assertIn('Open Booking Feed', html)
+        self.assertIn('Jail Roster Directory', html)
+        self.assertIn('Detention Hub', html)
+
+    def test_arrests_dataset_landing_page_renders(self) -> None:
+        client = app_module.app.test_client()
+        resp = client.get('/datasets/arrests')
+        html = resp.get_data(as_text=True)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Arrest Log', html)
+        self.assertIn('Live Filtered Feed', html)
+        self.assertIn("Records where an arrest was made across Montana Blotter's current archive window.", html)
+        self.assertIn('Open Arrest Log', html)
+        self.assertIn('Jail Booking Feed', html)
+        self.assertIn('Police Calls Records', html)
+
     def test_dataset_records_route_redirects_to_existing_explorer(self) -> None:
         client = app_module.app.test_client()
         resp = client.get('/datasets/arrests/records', follow_redirects=False)
