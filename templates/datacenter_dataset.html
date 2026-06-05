@@ -38,6 +38,67 @@
         </div>
     </div>
 </section>
+{% elif dataset.slug == 'arrests' %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <span class="public-eyebrow" style="color: var(--public-red);">Live Filtered Feed</span>
+                <h1 class="public-title public-title--medium">Arrest Log</h1>
+                <p class="public-copy">
+                    Records where an arrest was made across Montana Blotter's current archive window. Open the live arrest log, then move into booking-linked or incident-linked records for source context.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Navigation</p>
+                    <div class="public-stat-grid">
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Dataset</p>
+                            <p class="public-stat-value">Arrests</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Explorer</p>
+                            <p class="public-stat-value">Live Feed</p>
+                        </div>
+                        <div class="public-stat-box">
+                            <p class="public-stat-label">Mode</p>
+                            <p class="public-stat-value">Filtered</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% elif dataset.slug == 'jail-bookings' %}
+<section class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white py-12 px-4 sm:px-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="max-w-4xl">
+            <div class="inline-flex items-center rounded-full bg-orange-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-300">
+                Daily Booking Monitor
+            </div>
+            <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Search newly posted jail bookings from Montana county rosters.</h1>
+            <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                Track current and recent booking entries from detention sources, then move into the live county booking feed or the wider jail roster directory.
+            </p>
+        </div>
+        <div class="mt-8 grid gap-4 sm:grid-cols-3">
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Dataset</p>
+                <p class="mt-2 text-3xl font-black">Jail Bookings</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Explorer</p>
+                <p class="mt-2 text-3xl font-black">Live Feed</p>
+            </div>
+            <div class="rounded-2xl border border-orange-400/20 bg-orange-500/10 px-5 py-4">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-orange-200">Records</p>
+                <p class="mt-2 text-xl font-black">County Booking Sync</p>
+            </div>
+        </div>
+    </div>
+</section>
 {% else %}
 <section class="public-hero">
     <div class="public-hero__frame">
@@ -72,6 +133,50 @@
                 <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Popular county</p>
                 <p class="mt-2 text-xl font-black text-slate-900 group-hover:text-red-700">Yellowstone County</p>
                 <p class="mt-2 text-sm leading-6 text-slate-600">A direct path into one of the strongest local warrant audiences in the state.</p>
+            </a>
+        </div>
+    </div>
+</div>
+{% elif dataset.slug == 'arrests' %}
+<div class="max-w-7xl mx-auto px-4 py-10 sm:px-6">
+    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="grid gap-4 sm:grid-cols-3">
+            <a href="{{ explorer_href }}" class="group rounded-2xl border border-red-200 bg-red-50 px-5 py-4 transition-all hover:shadow-md">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-red-600">Primary entry</p>
+                <p class="mt-2 text-xl font-black text-slate-900 group-hover:text-red-700">Open Arrest Log</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Search the live arrest log with the same filters and record links used by the public arrest pages.</p>
+            </a>
+            <a href="/jail-bookings" class="group rounded-2xl border border-slate-200 bg-white px-5 py-4 transition-all hover:shadow-md">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Booking context</p>
+                <p class="mt-2 text-xl font-black text-slate-900 group-hover:text-red-700">Jail Booking Feed</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Use the jail-bookings feed to compare arrest activity with current detention rosters.</p>
+            </a>
+            <a href="/datasets/police-calls/records" class="group rounded-2xl border border-slate-200 bg-white px-5 py-4 transition-all hover:shadow-md">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Incident context</p>
+                <p class="mt-2 text-xl font-black text-slate-900 group-hover:text-red-700">Police Calls Records</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Jump into public incident records that often provide additional context around arrests.</p>
+            </a>
+        </div>
+    </div>
+</div>
+{% elif dataset.slug == 'jail-bookings' %}
+<div class="max-w-7xl mx-auto px-4 py-10 sm:px-6">
+    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="grid gap-4 sm:grid-cols-3">
+            <a href="{{ explorer_href }}" class="group rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 transition-all hover:shadow-md">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-orange-600">Primary entry</p>
+                <p class="mt-2 text-xl font-black text-slate-900 group-hover:text-orange-700">Open Booking Feed</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Search the live county booking feed with the same filters used by the public booking pages.</p>
+            </a>
+            <a href="/jail-rosters" class="group rounded-2xl border border-slate-200 bg-white px-5 py-4 transition-all hover:shadow-md">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">County and source</p>
+                <p class="mt-2 text-xl font-black text-slate-900 group-hover:text-orange-700">Jail Roster Directory</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Browse the county roster directory and jump into the underlying detention sources.</p>
+            </a>
+            <a href="/detention" class="group rounded-2xl border border-slate-200 bg-white px-5 py-4 transition-all hover:shadow-md">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Monitor view</p>
+                <p class="mt-2 text-xl font-black text-slate-900 group-hover:text-orange-700">Detention Hub</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Use the detention dashboard for a broader view of county booking activity and coverage.</p>
             </a>
         </div>
     </div>
