@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Operations</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Data Center Operations</h1>
+            <p class="text-sm text-slate-500 mt-2 max-w-3xl">
+                Freshness and refresh monitoring for the core Montana data center datasets.
+                This view tracks the cached dataset metrics used by the public portal and internal ops tooling.
+            </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="/datacenter" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50">
+                Open public data center
+            </a>
+            <a href="/admin/operations/sources" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-slate-700 hover:bg-slate-50">
+                Source registry
+            </a>
+        </div>
+    </div>
+
+    <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-emerald-700">Fresh datasets</p>
+            <p class="mt-1 text-2xl font-black text-emerald-950">{{ summary.fresh_count }}</p>
+            <p class="mt-1 text-xs text-emerald-700">Updated within {{ summary.stale_after_hours }}h</p>
+        </div>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-amber-700">Stale datasets</p>
+            <p class="mt-1 text-2xl font-black text-amber-950">{{ summary.stale_count }}</p>
+            <p class="mt-1 text-xs text-amber-700">Older than {{ summary.stale_after_hours }}h</p>
+        </div>
+        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-rose-700">Failing feeds</p>
+            <p class="mt-1 text-2xl font-black text-rose-950">{{ summary.failing_count }}</p>
+            <p class="mt-1 text-xs text-rose-700">Older than {{ summary.failing_after_hours }}h or missing</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Dataset count</p>
+            <p class="mt-1 text-2xl font-black text-slate-900">{{ summary.dataset_count }}</p>
+            <p class="mt-1 text-xs text-slate-500">Core datasets tracked</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white px-4 py-4">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Latest refresh</p>
+            <p class="mt-1 text-sm font-black text-slate-900 leading-5">{{ summary.latest_refresh_at }}</p>
+            <p class="mt-1 text-xs text-slate-500">Most recent cached update</p>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Core dataset health</h2>
+            <p class="text-sm text-slate-500 mt-1">Freshness is based on the cached <code>dataset_metrics.updated_at</code> timestamp.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[1020px]">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-[0.14em] font-black text-slate-500">
+                    <tr>
+                        <th class="px-5 py-3 text-left">Dataset</th>
+                        <th class="px-5 py-3 text-left">Status</th>
+                        <th class="px-5 py-3 text-left">Last Refresh</th>
+                        <th class="px-5 py-3 text-left">1d</th>
+                        <th class="px-5 py-3 text-left">7d</th>
+                        <th class="px-5 py-3 text-left">30d</th>
+                        <th class="px-5 py-3 text-left">Coverage</th>
+                        <th class="px-5 py-3 text-left">Explorer</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for dataset in datasets %}
+                    <tr class="align-top hover:bg-slate-50 transition">
+                        <td class="px-5 py-4">
+                            <p class="text-sm font-black text-slate-900">{{ dataset.title }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ dataset.summary }}</p>
+                        </td>
+                        <td class="px-5 py-4">
+                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]
+                                {% if dataset.freshness_state == 'fresh' %}bg-emerald-100 text-emerald-800
+                                {% elif dataset.freshness_state == 'stale' %}bg-amber-100 text-amber-800
+                                {% else %}bg-rose-100 text-rose-800{% endif %}">
+                                {{ dataset.freshness_label }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ dataset.updated_at or 'No refresh yet' }}</td>
+                        <td class="px-5 py-4 text-sm font-black text-slate-900">{{ dataset.window_1d_count }}</td>
+                        <td class="px-5 py-4 text-sm font-black text-slate-900">{{ dataset.window_7d_count }}</td>
+                        <td class="px-5 py-4 text-sm font-black text-slate-900">{{ dataset.window_30d_count }}</td>
+                        <td class="px-5 py-4 text-sm text-slate-700">{{ dataset.coverage_count }} groups</td>
+                        <td class="px-5 py-4">
+                            <a href="{{ dataset.records_href }}" class="text-sm font-black text-blue-700 hover:text-blue-800">Open records</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-5 py-8 text-center text-sm text-slate-500">No dataset metrics have been cached yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Monitoring notes</h2>
+        </div>
+        <div class="p-5 grid gap-4 md:grid-cols-2">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p class="text-sm font-black text-slate-900">Freshness threshold</p>
+                <p class="text-sm text-slate-600 mt-2">
+                    A dataset is treated as fresh for the first {{ summary.stale_after_hours }} hours after refresh.
+                    After that it is marked stale until it crosses the failing threshold.
+                </p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p class="text-sm font-black text-slate-900">Failure threshold</p>
+                <p class="text-sm text-slate-600 mt-2">
+                    A dataset is marked failing when the cache is older than {{ summary.failing_after_hours }} hours
+                    or the metric row is missing entirely.
+                </p>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

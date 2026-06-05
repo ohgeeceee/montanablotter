@@ -6,6 +6,7 @@ import unittest
 import app as app_module
 import config
 import init_db
+from services.datasets.schema import ensure_dataset_metrics_schema
 
 
 class DataCenterPagesTests(unittest.TestCase):
@@ -46,6 +47,83 @@ class DataCenterPagesTests(unittest.TestCase):
         if os.path.exists(self.db_path):
             os.unlink(self.db_path)
 
+    def _create_admin_user(self) -> int:
+        conn = app_module.get_db()
+        cursor = conn.execute(
+            """
+            INSERT INTO users (username, password, email, role, is_active)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            ('datacenter-admin', 'not-used-in-tests', 'datacenter@example.com', 'ops', 1),
+        )
+        conn.commit()
+        conn.close()
+        return int(cursor.lastrowid)
+
+    def _login_admin_session(self, client) -> None:
+        admin_user_id = self._create_admin_user()
+        with client.session_transaction() as session:
+            session['_user_id'] = str(admin_user_id)
+            session['_fresh'] = True
+            session['_csrf_token'] = 'test-csrf-token'
+
+    def _seed_dataset_metrics(self) -> None:
+        conn = app_module.get_db()
+        ensure_dataset_metrics_schema(conn)
+        conn.executemany(
+            """
+            INSERT INTO dataset_metrics (
+                dataset_slug, updated_at,
+                window_1d_count, window_7d_count, window_30d_count,
+                trend_30d_json, top_categories_json, coverage_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    'jail-bookings',
+                    '2026-06-05 12:00:00',
+                    12,
+                    48,
+                    96,
+                    '[]',
+                    '[]',
+                    '[{"label":"Hill","count":12}]',
+                ),
+                (
+                    'warrants',
+                    '2026-06-03 12:00:00',
+                    4,
+                    9,
+                    18,
+                    '[]',
+                    '[]',
+                    '[{"label":"Hill","count":4}]',
+                ),
+                (
+                    'arrests',
+                    '2026-05-31 12:00:00',
+                    3,
+                    11,
+                    21,
+                    '[]',
+                    '[]',
+                    '[{"label":"Hill","count":3}]',
+                ),
+                (
+                    'public-meetings',
+                    '2026-06-05 05:00:00',
+                    2,
+                    5,
+                    8,
+                    '[]',
+                    '[]',
+                    '[{"label":"Hill","count":2}]',
+                ),
+            ],
+        )
+        conn.commit()
+        conn.close()
+
     def test_datacenter_index_renders(self) -> None:
         client = app_module.app.test_client()
         resp = client.get('/datacenter')
@@ -54,6 +132,30 @@ class DataCenterPagesTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn('Montana Public Data Center', html)
         self.assertIn('Jail Bookings', html)
+        self.assertIn('Police Calls', html)
+
+    def test_admin_data_center_requires_login(self) -> None:
+        client = app_module.app.test_client()
+        resp = client.get('/admin/operations/data-center')
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/admin/login', resp.headers['Location'])
+
+    def test_admin_data_center_renders_for_logged_in_admin(self) -> None:
+        client = app_module.app.test_client()
+        self._login_admin_session(client)
+        self._seed_dataset_metrics()
+
+        resp = client.get('/admin/operations/data-center')
+        html = resp.get_data(as_text=True)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Data Center Operations', html)
+        self.assertIn('Fresh datasets', html)
+        self.assertIn('Stale datasets', html)
+        self.assertIn('Failing feeds', html)
+        self.assertIn('Jail Bookings', html)
+        self.assertIn('Warrants', html)
         self.assertIn('Police Calls', html)
 
     def test_dataset_landing_page_renders(self) -> None:
