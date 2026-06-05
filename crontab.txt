@@ -1,7 +1,8 @@
 # Montana Blotter cron jobs
 
-# Background workers and agent jobs are intentionally disabled so the web app
-# can use the host with minimal contention. Restore jobs here if needed.
+# Email workers are active so the Havre PD DOCX jail roster and image-based
+# blotters (Havre, etc.) reach the site. Other background workers remain
+# disabled to keep host contention low for the web app.
 
 SHELL=/bin/bash
 BASH_ENV=/root/montanablotter/.env
@@ -9,6 +10,26 @@ BASH_ENV=/root/montanablotter/.env
 # Web server healthcheck — keep only the lightweight liveness probe.
 */3 * * * * /root/montanablotter/scripts/ops/healthcheck_restart.sh
 
+# Email queue scan — polls IONOS inbox (records@montanablotter.com) every 15 min
+# and routes Havre PD daily jail roster DOCX attachments to the jail_bookings
+# pipeline via services/ingestion/fetchers/havre_inmate.py. Logs to mail.log.
+*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_worker --log /root/montanablotter/logs/mail.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py --mode queue
+
+# Image-based blotter ingestion — separate from the queue scan above because
+# it processes the 14-day inbox window for any image attachments missed by the
+# queue poll (Havre PDF blotters, etc.). Offset by 8 min to avoid stacking.
+8-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_image_blotter --log /root/montanablotter/logs/email_image_blotter.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_image_blotter.py --since-days 14
+
 # Disposition watcher — link new jail bookings to court cases + detect outcome
 # changes for existing links. Every 15 min. Logs to logs/disposition_watcher.log.
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/disposition_watcher.py >> /root/montanablotter/logs/disposition_watcher.log 2>&1
+
+# Ad integration health check — assert Monetag loader + meta are present and that
+# no AdSense references have crept back into public_page_base.html. Lightweight
+# (single HTTP request, stdlib only). Every 15 min, offset by 7 min to avoid
+# stacking on the disposition_watcher at :00/:15/:30/:45. Logs to logs/ad_health.log.
+7-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/check_ads_health.py >> /root/montanablotter/logs/ad_health.log 2>&1
+
+# Daily dataset metrics refresh — rebuilds cached metrics for the five core
+# public datasets and publishes them through the existing job_runner wrapper.
+10 6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name datasets_refresh --log /root/montanablotter/logs/datasets_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/refresh_datasets.py
