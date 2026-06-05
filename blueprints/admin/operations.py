@@ -33,6 +33,7 @@ from services.persons.warrants_admin import (
     warrant_admin_context,
 )
 from services.meetings.public import ensure_public_meeting_schema, meeting_admin_context
+from services.datasets.admin import build_data_center_ops_summary
 from utils.auth_constants import ADMIN_ACCESS_ROLES, ADMIN_MANAGEMENT_ROLES, OPERATIONS_ROLES
 from utils.app_settings import _save_app_setting
 from blueprints.admin import admin_bp, require_role, _log_admin_action
@@ -194,6 +195,16 @@ def admin_meetings():
     context = meeting_admin_context(conn)
     conn.close()
     return render_template('admin_meetings.html', **context)
+
+
+@admin_bp.route('/operations/data-center')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_data_center():
+    conn = get_db()
+    context = build_data_center_ops_summary(conn)
+    conn.close()
+    return render_template('admin_data_center.html', **context)
 
 
 @admin_bp.route('/operations/jail-bookings')
