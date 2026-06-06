@@ -1,64 +1,97 @@
 {% extends "base.html" %}
 
-{% block title %}Mission Control Runbook | Admin{% endblock %}
+{% block title %}Command Center Runbook | Admin{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto space-y-6">
-    <section class="rounded-[28px] border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <section class="rounded-[24px] border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div class="px-6 py-6 border-b border-slate-200 bg-slate-950 text-white">
             <p class="text-[11px] uppercase tracking-[0.22em] font-black text-cyan-300">Command Center</p>
-            <h1 class="mt-2 text-3xl font-black">Agent Events Service Deployment</h1>
+            <h1 class="mt-2 text-3xl font-black">Command Center Runbook</h1>
             <p class="mt-2 max-w-3xl text-sm text-slate-300">
-                Run the Flask app and the FastAPI agent-events service as separate processes, backed by the same Redis instance.
+                Current production checks for the admin operations console, Flask app, nginx edge, Redis, and background pipelines.
             </p>
         </div>
 
-        <div class="grid gap-4 p-6 lg:grid-cols-2">
+        <div class="grid gap-4 p-6 lg:grid-cols-3">
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Local Development</p>
-                <pre class="mt-3 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100"><code># Flask app
-./venv/bin/python app.py
-
-# FastAPI sidecar
-MB_REDIS_HOST=127.0.0.1 MB_REDIS_PORT=6379 \
-  ./venv/bin/python -m uvicorn agent_events_service:app --host 0.0.0.0 --port 8010</code></pre>
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Primary Flask App</p>
+                <p class="mt-2 text-sm text-slate-700">Gunicorn serves the Flask app on <code class="rounded bg-white px-1.5 py-0.5 text-[12px]">127.0.0.1:5000</code> behind nginx.</p>
             </div>
-
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">systemd Install</p>
-                <pre class="mt-3 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100"><code>sudo cp /root/montanablotter/ops/systemd/flask-app.service /etc/systemd/system/montanablotter.service
-sudo cp /root/montanablotter/ops/systemd/agent-events.service /etc/systemd/system/montanablotter-agent-events.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now montanablotter.service
-sudo systemctl enable --now montanablotter-agent-events.service</code></pre>
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Redis</p>
+                <p class="mt-2 text-sm text-slate-700">Redis is local-only on <code class="rounded bg-white px-1.5 py-0.5 text-[12px]">127.0.0.1:6379</code> for queues, cache, and live ops state.</p>
             </div>
-        </div>
-
-        <div class="border-t border-slate-200 px-6 py-5">
-            <div class="grid gap-4 lg:grid-cols-3">
-                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Flask</p>
-                    <p class="mt-2 text-sm text-slate-700">Keep the main app on port 5000 behind gunicorn.</p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">FastAPI</p>
-                    <p class="mt-2 text-sm text-slate-700">Run the agent-events service on port 8010 behind uvicorn.</p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Redis</p>
-                    <p class="mt-2 text-sm text-slate-700">Both services must point at the same Redis URL or host/port pair.</p>
-                </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Agent Events Sidecar</p>
+                <p class="mt-2 text-sm text-slate-700">The legacy FastAPI sidecar is currently disabled. Do not enable it unless a live agent-events workflow explicitly requires port 8010.</p>
             </div>
         </div>
     </section>
 
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Health Checks</p>
+            <h2 class="mt-1 text-xl font-black text-slate-950">Confirm the public route and local service state</h2>
+        </div>
+        <pre class="overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100"><code># Public admin route should redirect unauthenticated users to login
+curl -sSI https://montanablotter.com/admin/command-center/runbook
+
+# Flask app should be active
+systemctl status montanablotter.service --no-pager
+
+# Gunicorn should be bound locally
+ss -ltnp | rg '127.0.0.1:5000|:443|:80'
+
+# Redis should be listening locally
+ss -ltnp | rg '127.0.0.1:6379'</code></pre>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Operations</p>
+            <h2 class="mt-1 text-xl font-black text-slate-950">Restart and log commands</h2>
+        </div>
+        <div class="grid gap-4 lg:grid-cols-2">
+            <div>
+                <p class="text-sm font-black text-slate-800">Restart Flask after code or template deploys</p>
+                <pre class="mt-2 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100"><code>systemctl restart montanablotter.service
+systemctl status montanablotter.service --no-pager</code></pre>
+            </div>
+            <div>
+                <p class="text-sm font-black text-slate-800">Inspect recent app logs</p>
+                <pre class="mt-2 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100"><code>tail -n 120 /root/montanablotter/logs/gunicorn.log
+journalctl -u montanablotter.service --since '30 minutes ago' --no-pager</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+        <div>
+            <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Pipelines</p>
+            <h2 class="mt-1 text-xl font-black text-slate-950">Check ingestion and scheduled work</h2>
+        </div>
+        <pre class="overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100"><code># Cron schedule
+crontab -l
+
+# Recent scheduled job output
+tail -n 120 /root/montanablotter/logs/cron.log
+tail -n 120 /root/montanablotter/logs/cron_errors.log
+
+# Source-specific diagnostics
+tail -n 80 /root/montanablotter/logs/agendas_ingest.log
+tail -n 80 /root/montanablotter/logs/jail_booking_ingest.log
+tail -n 80 /root/montanablotter/logs/ingestion_alerts.log</code></pre>
+    </section>
+
     <section class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
-        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Verification</p>
-        <ul class="space-y-2 text-sm text-slate-700 list-disc pl-5">
-            <li><code class="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">GET /api/monitoring/agents/bootstrap</code> returns <code class="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">ok: true</code>.</li>
-            <li><code class="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">WS /ws/agents</code> connects and receives a snapshot event.</li>
-            <li>Dashboard review actions publish into Redis and appear in the live feed.</li>
-        </ul>
+        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Legacy Sidecar</p>
+        <p class="text-sm text-slate-700">
+            <code class="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">montanablotter-agent-events.service</code>
+            is intentionally treated as optional. If a future workflow needs it, verify the unit points at
+            <code class="rounded bg-slate-100 px-1.5 py-0.5 text-[12px]">services.agents.events_service:app</code>,
+            then start it explicitly and confirm port 8010 before updating this runbook.
+        </p>
     </section>
 </div>
 {% endblock %}
