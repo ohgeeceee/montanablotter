@@ -176,8 +176,13 @@ class AdminMissionControlTests(unittest.TestCase):
 
         html = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Agent Events Service Deployment", html)
-        self.assertIn("/root/montanablotter/ops/systemd/flask-app.service", html)
+        self.assertIn("Command Center Runbook", html)
+        self.assertIn("Primary Flask App", html)
+        self.assertIn("systemctl status montanablotter.service", html)
+        self.assertIn("curl -sSI https://montanablotter.com/admin/command-center/runbook", html)
+        self.assertIn("Agent Events Sidecar", html)
+        self.assertNotIn("Agent Events Service Deployment", html)
+        self.assertNotIn("ops/systemd/flask-app.service", html)
 
 
 if __name__ == "__main__":
