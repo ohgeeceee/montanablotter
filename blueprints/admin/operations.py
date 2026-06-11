@@ -32,7 +32,11 @@ from services.persons.warrants_admin import (
     update_warrant_photo_fields,
     warrant_admin_context,
 )
-from services.meetings.public import ensure_public_meeting_schema, meeting_admin_context
+from services.meetings.public import (
+    ensure_public_meeting_schema,
+    meeting_admin_context,
+    review_duplicate_meeting_group,
+)
 from services.datasets.admin import build_data_center_ops_summary
 from utils.auth_constants import ADMIN_ACCESS_ROLES, ADMIN_MANAGEMENT_ROLES, OPERATIONS_ROLES
 from utils.app_settings import _save_app_setting
@@ -195,6 +199,78 @@ def admin_meetings():
     context = meeting_admin_context(conn)
     conn.close()
     return render_template('admin_meetings.html', **context)
+
+
+@admin_bp.route('/operations/meetings/review', methods=['POST'])
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_meeting_duplicate_review():
+    action = (request.form.get('action') or '').strip().lower()
+    source_slug = (request.form.get('source_slug') or '').strip()
+    meeting_date = (request.form.get('meeting_date') or '').strip()
+    meeting_time = (request.form.get('meeting_time') or '').strip()
+    meeting_ids = []
+    for value in request.form.getlist('meeting_id'):
+        raw = (value or '').strip()
+        if raw.isdigit():
+            meeting_ids.append(int(raw))
+    keeper_raw = (request.form.get('keeper_meeting_id') or '').strip()
+    duplicate_raw = (request.form.get('duplicate_meeting_id') or '').strip()
+
+    if action not in {'keep_both', 'merge'}:
+        flash('Choose a valid meeting review action.', 'error')
+        return redirect(url_for('admin.admin_meetings'))
+    if not source_slug or not meeting_date or len(meeting_ids) < 2:
+        flash('Meeting review request was incomplete.', 'error')
+        return redirect(url_for('admin.admin_meetings'))
+
+    keeper_meeting_id = int(keeper_raw) if keeper_raw.isdigit() else None
+    duplicate_meeting_id = int(duplicate_raw) if duplicate_raw.isdigit() else None
+
+    conn = get_db()
+    ensure_public_meeting_schema(conn)
+    try:
+        result = review_duplicate_meeting_group(
+            conn,
+            source_slug=source_slug,
+            meeting_date=meeting_date,
+            meeting_time=meeting_time,
+            meeting_ids=meeting_ids,
+            action=action,
+            keeper_meeting_id=keeper_meeting_id,
+            duplicate_meeting_id=duplicate_meeting_id,
+            decided_by_user_id=getattr(current_user, 'id', None),
+        )
+        _log_admin_action(
+            f'meetings.duplicate_review.{action}',
+            target_type='meeting_duplicate_review',
+            target_id=result.get('review_key'),
+            metadata={
+                'source_slug': source_slug,
+                'meeting_date': meeting_date,
+                'meeting_time': meeting_time,
+                'meeting_ids': meeting_ids,
+                'keeper_meeting_id': keeper_meeting_id,
+                'duplicate_meeting_id': duplicate_meeting_id,
+                'migrated_docs': result.get('migrated_docs', 0),
+            },
+            conn=conn,
+        )
+        conn.commit()
+    except ValueError as exc:
+        conn.close()
+        flash(str(exc), 'error')
+        return redirect(url_for('admin.admin_meetings'))
+
+    conn.close()
+    if action == 'keep_both':
+        flash('Marked the same-slot pair as intentionally distinct.', 'success')
+    else:
+        flash(
+            f"Merged duplicate meeting #{duplicate_meeting_id} into #{keeper_meeting_id}.",
+            'success',
+        )
+    return redirect(url_for('admin.admin_meetings'))
 
 
 @admin_bp.route('/operations/data-center')

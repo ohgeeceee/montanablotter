@@ -154,7 +154,112 @@ def user_has_warrant_access() -> bool:
     if current_user.is_authenticated:
         return True
     plan = get_user_plan()
-    return plan in WARRANT_PLANS
+    if plan in WARRANT_PLANS:
+        return True
+    return user_has_ad_unlocked_warrant()
+
+
+def user_has_ad_unlocked_warrant() -> bool:
+    """Return True if the current public user has an active ad-watched grant."""
+    public_user_id = session.get('public_user_id')
+    if not public_user_id:
+        return False
+    return get_ad_unlock_remaining_seconds(int(public_user_id)) > 0
+
+
+def get_ad_unlock_remaining_seconds(public_user_id: int) -> int:
+    """Return seconds remaining on the user's most recent active ad grant (0 if none)."""
+    try:
+        conn = get_db()
+        row = conn.execute(
+            '''
+            SELECT MAX(expires_at) AS latest_expiry
+              FROM ad_unlock_grants
+             WHERE public_user_id = ?
+               AND expires_at > datetime('now')
+            ''',
+            (public_user_id,),
+        ).fetchone()
+        conn.close()
+    except sqlite3.OperationalError:
+        return 0
+    if not row or not row['latest_expiry']:
+        return 0
+    try:
+        # SQLite default datetime('now') is UTC, no timezone suffix.
+        expiry = datetime.strptime(row['latest_expiry'], '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+    except ValueError:
+        return 0
+    now = datetime.now(timezone.utc)
+    return max(0, int((expiry - now).total_seconds()))
+
+
+def record_ad_unlock(
+    public_user_id: int,
+    watch_seconds: int,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+    ad_id: str | None = None,
+    duration_hours: int = 24,
+    provider: str = 'youtube',
+) -> str:
+    """Insert an ad-watched grant and return the new expires_at string (UTC).
+
+    The grant always extends from `now()` — stacking works because the paywall
+    check uses MAX(expires_at) > now().
+
+    `provider` is a short tag identifying the ad source ('youtube', 'monetag',
+    'adsterra', etc.). Stored alongside the grant for revenue attribution and
+    fraud analytics. Defaults to 'youtube' for back-compat with existing
+    callers; new Monetag integrations pass 'monetag' explicitly.
+    """
+    duration_hours = max(1, int(duration_hours))
+    provider_tag = (provider or 'youtube').strip().lower()[:32] or 'youtube'
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=duration_hours)).strftime('%Y-%m-%d %H:%M:%S')
+    conn = get_db()
+    try:
+        conn.execute(
+            '''
+            INSERT INTO ad_unlock_grants
+                (public_user_id, expires_at, ad_id, watch_seconds, ip_address, user_agent, provider)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                public_user_id,
+                expires_at,
+                (ad_id or None),
+                int(watch_seconds),
+                (ip_address or None),
+                (user_agent or None),
+                provider_tag,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return expires_at
+
+
+def count_recent_ad_unlocks_by_ip(ip_address: str, hours: int = 1) -> int:
+    """Return how many grants an IP has produced in the last `hours` hours (rate-limit helper)."""
+    if not ip_address:
+        return 0
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        conn = get_db()
+        row = conn.execute(
+            '''
+            SELECT COUNT(*) AS c
+              FROM ad_unlock_grants
+             WHERE ip_address = ?
+               AND granted_at >= ?
+            ''',
+            (ip_address, cutoff),
+        ).fetchone()
+        conn.close()
+    except sqlite3.OperationalError:
+        return 0
+    return int(row['c'] or 0) if row else 0
 
 
 # ---------------------------------------------------------------------------

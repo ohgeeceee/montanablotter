@@ -55,7 +55,7 @@ DB_LOCK_RETRY_ATTEMPTS = int(getattr(config, "DB_LOCK_RETRY_ATTEMPTS", 3))
 DB_LOCK_RETRY_SLEEP_SECONDS = float(getattr(config, "DB_LOCK_RETRY_SLEEP_SECONDS", 2.0))
 PUBLISHER_PAYLOAD_PATH = str(getattr(config, "NEXTJS_JAIL_BOOKING_PAYLOAD_PATH", "") or "").strip()
 
-SUPPORTED_ADAPTERS = {"broadwater", "cascade", "carbon", "flathead", "gallatin", "jefferson", "lake", "madison", "meagher", "missoula", "ravalli", "roosevelt", "rosebud", "sanders", "stillwater", "valley", "wheatland", "yellowstone"}
+SUPPORTED_ADAPTERS = {"beaverhead", "broadwater", "cascade", "carbon", "flathead", "gallatin", "jefferson", "lake", "madison", "meagher", "missoula", "park", "ravalli", "roosevelt", "rosebud", "sanders", "stillwater", "valley", "wheatland", "yellowstone"}
 SKIPPED_SOURCES = {
     "broadwater": "Official roster host is timing out from the ingest machine.",
 }
@@ -87,6 +87,14 @@ TRACKED_SOURCES = {
         "facility_name": "Gallatin County Detention Center",
         "roster_url": "https://gallatin-so-mt.zuercherportal.com/#/inmates",
         "phone": "406-582-2100",
+        "coverage_tier": "major",
+        "is_featured": 1,
+    },
+    "hill": {
+        "county_name": "Hill",
+        "facility_name": "Hill County Detention Center",
+        "roster_url": "https://hillso.org",
+        "phone": "406-265-5481",
         "coverage_tier": "major",
         "is_featured": 1,
     },
@@ -601,8 +609,13 @@ def fetch_zuercher_bookings(source_url: str, *, county_name: str = "") -> list[J
                 f"Zuercher API endpoint not found for {api_base} (portal may not expose public API)."
             )
         response.raise_for_status()
-        content_type = response.headers.get("Content-Type", "")
-        if "text/html" in content_type or (response.content[:100].strip().lower().startswith(b"<")):
+        content_type = str(response.headers.get("Content-Type", "") or "")
+        response_bytes = getattr(response, "content", b"") or b""
+        if isinstance(response_bytes, str):
+            response_bytes = response_bytes.encode("utf-8", errors="ignore")
+        elif not isinstance(response_bytes, (bytes, bytearray)):
+            response_bytes = b""
+        if "text/html" in content_type or (response_bytes[:100].strip().lower().startswith(b"<")):
             raise SourceTemporarilyUnavailable(
                 f"Zuercher portal at {api_base} returned HTML instead of JSON — likely in maintenance mode."
             )
@@ -1159,6 +1172,10 @@ def _sync_records(
 def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool = False) -> tuple[SyncStats, str]:
     county_slug = source["county_slug"]
     roster_url = (source["roster_url"] or "").strip()
+    if county_slug == "hill":
+        note = "Hill County is ingested from the Havre email DOCX pipeline, not the scheduled roster fetcher."
+        _record_run(conn, source_id=source["id"], run_type="scheduled", status="skipped", notes=note)
+        return SyncStats(), "skipped"
     if county_slug in SKIPPED_SOURCES:
         note = SKIPPED_SOURCES[county_slug]
         _record_run(conn, source_id=source["id"], run_type="scheduled", status="skipped", notes=note)
@@ -1191,6 +1208,12 @@ def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool 
             records = fetch_lake_bookings(roster_url)
         elif county_slug == "rosebud":
             records = fetch_rosebud_bookings(roster_url)
+        elif county_slug == "park":
+            from services.ingestion.roster_generic import fetch_park_bookings
+            records = fetch_park_bookings(roster_url)
+        elif county_slug == "beaverhead":
+            from services.ingestion.roster_generic import fetch_beaverhead_bookings
+            records = fetch_beaverhead_bookings(roster_url)
         else:
             raise RuntimeError(f"No adapter for county slug: {county_slug}")
     except SourceTemporarilyUnavailable as exc:
