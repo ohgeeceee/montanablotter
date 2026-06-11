@@ -1,5 +1,7 @@
 # Admin AI Console Implementation Plan
 
+> **Status:** Completed. The `tests/test_kimi_sqlite_agent.py` file referenced below was removed in commit 7aa2b07b — the `kimi_sqlite_agent` module path no longer exists; tool registration consolidated elsewhere under the admin AI service module.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build an admin-only `/admin/ai` console that uses Kimi 2.6 through a server-side tool registry for read queries and draft-only actions with confirmation and audit logging.
