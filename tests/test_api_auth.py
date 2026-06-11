@@ -39,7 +39,7 @@ class ApiAuthTests(unittest.TestCase):
         conn.close()
 
         # Ensure api_auth reads from the same DB
-        import api_auth as _api_auth_module
+        import services.api.auth as _api_auth_module
         self._original_get_db = _api_auth_module._get_db
         def _test_get_db():
             c = sqlite3.connect(self.db_path)
@@ -48,7 +48,7 @@ class ApiAuthTests(unittest.TestCase):
         _api_auth_module._get_db = _test_get_db
 
     def tearDown(self) -> None:
-        import api_auth as _api_auth_module
+        import services.api.auth as _api_auth_module
         _api_auth_module._get_db = self._original_get_db
         config.DB_PATH = self.previous_db_path
         init_db.DB_PATH = self.previous_init_db_path
@@ -115,7 +115,7 @@ class ApiAuthTests(unittest.TestCase):
         self.assertIn("X-RateLimit-Remaining", headers)
 
         # Exhaust quota by logging max requests
-        from api_auth import DEFAULT_TIERS, log_request
+        from services.api.auth import DEFAULT_TIERS, log_request
         max_req = DEFAULT_TIERS["free"]["max_requests"]
         for _ in range(max_req):
             log_request(conn, client.id, status_code=200)
@@ -130,7 +130,7 @@ class ApiAuthTests(unittest.TestCase):
         plaintext, client_id = create_client(conn, "Pro User", "pro")
         client = get_client_by_key_hash(conn, _hash_key(plaintext))
 
-        from api_auth import DEFAULT_TIERS, log_request
+        from services.api.auth import DEFAULT_TIERS, log_request
         max_req = DEFAULT_TIERS["pro"]["max_requests"]
         # Log one less than max
         for _ in range(max_req - 1):
@@ -196,7 +196,7 @@ class ApiAuthIntegrationTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 401)
 
     def test_create_key_requires_admin_secret(self) -> None:
-        import api_auth as api_auth_module
+        import services.api.auth as api_auth_module
         original = api_auth_module.MB_API_ADMIN_SECRET
         api_auth_module.MB_API_ADMIN_SECRET = "configured-secret"
         try:
@@ -206,7 +206,7 @@ class ApiAuthIntegrationTests(unittest.TestCase):
             api_auth_module.MB_API_ADMIN_SECRET = original
 
     def test_create_key_with_bad_secret_returns_403(self) -> None:
-        import api_auth as api_auth_module
+        import services.api.auth as api_auth_module
         original = api_auth_module.MB_API_ADMIN_SECRET
         api_auth_module.MB_API_ADMIN_SECRET = "configured-secret"
         try:
@@ -220,7 +220,7 @@ class ApiAuthIntegrationTests(unittest.TestCase):
             api_auth_module.MB_API_ADMIN_SECRET = original
 
     def test_full_key_lifecycle(self) -> None:
-        import api_auth as api_auth_module
+        import services.api.auth as api_auth_module
 
         # Patch admin secret for this test
         original_secret = api_auth_module.MB_API_ADMIN_SECRET
@@ -283,7 +283,7 @@ class ApiAuthIntegrationTests(unittest.TestCase):
         self.assertIn("X-RateLimit-Remaining", resp.headers)
 
     def test_public_api_with_valid_key_rate_limit_headers(self) -> None:
-        import api_auth as api_auth_module
+        import services.api.auth as api_auth_module
 
         original_secret = api_auth_module.MB_API_ADMIN_SECRET
         api_auth_module.MB_API_ADMIN_SECRET = "test-admin-secret"

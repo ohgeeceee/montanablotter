@@ -226,8 +226,8 @@ class CourtSourceAdaptersTests(unittest.TestCase):
         self.assertIn('getDocByCTrackId?DocId=560004', filing_row['source_url'])
         self.assertIsNotNone(source['last_success_at'])
 
-    @mock.patch('court_source_adapters.fetch_district_court_portal_html_via_playwright')
-    @mock.patch('court_source_adapters.fetch_district_court_portal_html')
+    @mock.patch('services.court.source_adapters.fetch_district_court_portal_html_via_playwright')
+    @mock.patch('services.court.source_adapters.fetch_district_court_portal_html')
     def test_load_district_court_portal_html_falls_back_to_playwright(self, fetch_http, fetch_playwright) -> None:
         fetch_http.side_effect = ConnectionResetError('reset')
         fetch_playwright.return_value = '<html><option>Yellowstone District Court</option></html>'
