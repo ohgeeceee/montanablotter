@@ -1,0 +1,215 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Advertise with Montana Blotter — Defense Attorney Sponsorship" %}
+{% set meta_description = "Get your Montana criminal defense, DUI, or family law firm listed in the Montana Blotter defense attorney directory. Free Bronze, Silver Featured ($99/mo), Gold Top Rated ($199/mo)." %}
+{% set canonical_url = "https://montanablotter.com/advertise/attorney-sponsorship" %}
+{% set og_title = page_title %}
+{% set og_description = meta_description %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Defense Attorney Sponsorship — Montana Blotter",
+  "url": "https://montanablotter.com/advertise/attorney-sponsorship"
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/attorneys" class="hover:underline">Attorneys</a>
+<span class="mx-2">/</span>
+<span>Advertise</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">For Defense Attorneys</p>
+                <h1 class="public-title public-title--medium">Be the first call a Montana family makes.</h1>
+                <p class="public-copy">
+                    Montana Blotter publishes 16.7M page views a year and ranks #1 in Google for
+                    “<em>[County] jail roster</em>,” “<em>[County] arrests today</em>,” and dozens more
+                    high-intent searches. When someone is booked, their family searches for a
+                    defense attorney within the hour. We capture that search.
+                </p>
+                <p class="public-copy" style="margin-top:.5rem;">
+                    The <a href="/attorneys" class="public-policy-inline-link">/attorneys</a> directory is free to join.
+                    Sponsored tiers rank above the free listings in your county.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">By the numbers</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.5rem;">
+                        <div>
+                            <div style="font-size:1.6rem;font-weight:700;line-height:1;">16.7M</div>
+                            <div style="font-size:.78rem;color:#475569;">page views / yr</div>
+                        </div>
+                        <div>
+                            <div style="font-size:1.6rem;font-weight:700;line-height:1;">2,586</div>
+                            <div style="font-size:.78rem;color:#475569;">jail bookings indexed</div>
+                        </div>
+                        <div>
+                            <div style="font-size:1.6rem;font-weight:700;line-height:1;">56</div>
+                            <div style="font-size:.78rem;color:#475569;">counties covered</div>
+                        </div>
+                        <div>
+                            <div style="font-size:1.6rem;font-weight:700;line-height:1;">#1</div>
+                            <div style="font-size:.78rem;color:#475569;">Google ranking</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, msg in messages %}
+            <article class="public-detail-frame" style="border-color:#ef4444;">
+                <div class="public-detail-frame__body">
+                    <p style="color:#991b1b;">{{ msg }}</p>
+                </div>
+            </article>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <h2 class="public-detail-title">Three ways to be listed.</h2>
+                <p class="public-detail-subtitle">Free Bronze is opt-in. Silver and Gold are paid placements that rank above free listings in your county.</p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;">
+
+                    <div style="border:1px solid #e2e8f0;border-radius:14px;padding:1.5rem;background:#fff;">
+                        <p style="font-size:.7rem;font-weight:700;letter-spacing:.14em;color:#64748b;text-transform:uppercase;margin:0;">Free</p>
+                        <h3 style="margin:.4rem 0;font-size:1.2rem;">Bronze</h3>
+                        <p style="font-size:1.6rem;font-weight:700;margin:.5rem 0;color:#0f172a;">$0</p>
+                        <p style="font-size:.85rem;color:#475569;margin-bottom:1rem;">Opt-in directory listing. Verified against the Montana State Bar.</p>
+                        <ul style="list-style:none;padding:0;margin:0;font-size:.85rem;color:#334155;">
+                            <li style="padding:.3rem 0;border-bottom:1px solid #f1f5f9;">✓ Name + firm</li>
+                            <li style="padding:.3rem 0;border-bottom:1px solid #f1f5f9;">✓ Phone + website</li>
+                            <li style="padding:.3rem 0;border-bottom:1px solid #f1f5f9;">✓ 200-character blurb</li>
+                            <li style="padding:.3rem 0;">✓ Mobile tap-to-call</li>
+                        </ul>
+                    </div>
+
+                    {% for tier in tiers %}
+                    <div style="border:{% if tier.id == 'gold' %}2px solid #c9a227{% else %}2px solid #94a3b8{% endif %};border-radius:14px;padding:1.5rem;background:{% if tier.id == 'gold' %}#fffdf0{% else %}#fff{% endif %};position:relative;">
+                        {% if tier.id == 'gold' %}<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#c9a227;color:#fff;padding:.2rem .8rem;border-radius:12px;font-size:.72rem;font-weight:700;letter-spacing:.1em;">MOST POPULAR</div>{% endif %}
+                        <p style="font-size:.7rem;font-weight:700;letter-spacing:.14em;color:{% if tier.id == 'gold' %}#a16207{% else %}#475569{% endif %};text-transform:uppercase;margin:0;">{{ tier.badge }}</p>
+                        <h3 style="margin:.4rem 0;font-size:1.2rem;">{{ tier.name }}</h3>
+                        <p style="font-size:1.6rem;font-weight:700;margin:.5rem 0;color:#0f172a;">{{ tier.price_label }}</p>
+                        <p style="font-size:.78rem;color:#64748b;margin-bottom:1rem;">or {{ tier.price_label_annual }} billed annually</p>
+                        <p style="font-size:.85rem;color:#475569;margin-bottom:1rem;">{{ tier.description }}</p>
+                        <ul style="list-style:none;padding:0;margin:0;font-size:.85rem;color:#334155;">
+                            {% for f in tier.features %}
+                            <li style="padding:.3rem 0;border-bottom:1px solid #f1f5f9;">✓ {{ f }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+        </article>
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <h2 class="public-detail-title">Claim or upgrade your listing.</h2>
+                <p class="public-detail-subtitle">Fill this out and we’ll verify your Montana Bar admission, activate your listing within one business day, and send a one-time invoice. No long contract — cancel anytime.</p>
+            </div>
+            <div class="public-detail-frame__body">
+                <form method="post" action="{{ url_for('attorney_ads.attorney_sponsorship_claim') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;">
+                        Firm name *
+                        <input type="text" name="firm_name" required maxlength="200" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;">
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;">
+                        Your name *
+                        <input type="text" name="contact_name" required maxlength="200" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;">
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;">
+                        Email *
+                        <input type="email" name="contact_email" required maxlength="160" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;">
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;">
+                        Phone (optional)
+                        <input type="tel" name="contact_phone" maxlength="40" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;">
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;grid-column:1/-1;">
+                        Counties served * <span style="font-weight:400;color:#64748b;">(comma-separated, e.g. “Yellowstone, Carbon, Stillwater”)</span>
+                        <input type="text" name="counties_served" required maxlength="400" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;">
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;grid-column:1/-1;">
+                        Website
+                        <input type="url" name="website" maxlength="200" placeholder="https://" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;">
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;grid-column:1/-1;">
+                        Practice areas <span style="font-weight:400;color:#64748b;">(e.g. “Criminal defense, DUI, juvenile”)</span>
+                        <input type="text" name="practice_areas" maxlength="400" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;">
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;grid-column:1/-1;">
+                        Short blurb <span style="font-weight:400;color:#64748b;">(500 chars for Silver/Gold, 200 for Bronze)</span>
+                        <textarea name="blurb" maxlength="1000" rows="3" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;font-family:inherit;"></textarea>
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;">
+                        Montana Bar #
+                        <input type="text" name="mt_bar_number" maxlength="40" style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;">
+                    </label>
+
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;">
+                        Tier *
+                        <select name="tier_requested" required style="padding:.55rem .7rem;border:1px solid #cbd5e1;border-radius:8px;font-size:.95rem;font-weight:400;background:#fff;">
+                            <option value="">— pick one —</option>
+                            <option value="silver">Silver Featured — $99/mo</option>
+                            <option value="gold">Gold Top Rated — $199/mo</option>
+                        </select>
+                    </label>
+
+                    <div style="grid-column:1/-1;display:flex;align-items:center;gap:1rem;margin-top:.5rem;">
+                        <button type="submit" style="background:#0f172a;color:#fff;padding:.8rem 1.4rem;border:none;border-radius:8px;font-weight:600;font-size:.95rem;cursor:pointer;">
+                            Submit claim →
+                        </button>
+                        <span style="font-size:.78rem;color:#64748b;">We’ll be in touch within one business day with a Bar-verification link and an invoice.</span>
+                    </div>
+                </form>
+            </div>
+        </article>
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__body">
+                <p class="public-policy-copy" style="font-size:.85rem;">
+                    <strong>Disclaimer:</strong> Montana Blotter does not provide legal advice and does not endorse any specific attorney.
+                    Sponsored listings are paid placements, not endorsements. All attorneys — sponsored or free — must verify Montana State Bar admission.
+                    Choosing an attorney is a personal decision; the Montana State Bar’s lawyer referral service is also a resource:
+                    <a href="https://www.montanabar.org" target="_blank" rel="noopener" class="public-policy-inline-link">montanabar.org</a>.
+                </p>
+            </div>
+        </article>
+
+    </main>
+</div>
+{% endblock %}
