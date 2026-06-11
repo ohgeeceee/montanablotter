@@ -12,6 +12,7 @@ import smtplib
 import re
 import contextlib
 import time
+from dataclasses import dataclass
 from datetime import datetime, UTC
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -41,6 +42,26 @@ def utcnow_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _parse_email_date_to_iso(date_header: str) -> str | None:
+    """Coerce an RFC 2822 ``Date:`` header into ``YYYY-MM-DD`` (UTC date).
+
+    Returns ``None`` for missing / unparseable input — callers fall back to
+    the filename-stem source_record_id format in that case.
+    """
+    if not date_header:
+        return None
+    try:
+        from email.utils import parsedate_to_datetime
+        dt = parsedate_to_datetime(date_header)
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC).strftime("%Y-%m-%d")
+    except (TypeError, ValueError):
+        return None
+
+
 # Setup logging
 logging.basicConfig(
     filename=config.LOG_FILE,
@@ -48,44 +69,106 @@ logging.basicConfig(
     format=config.LOG_FORMAT
 )
 
+@dataclass(frozen=True)
+class _ImapAccount:
+    """One IMAP inbox the email worker polls.
+
+    `label` is a short identifier used only for log lines ("ionos", "gmail").
+    An account is considered configured when user and password are both
+    non-empty. The IONOS account is always present if its envs are set;
+    the Gmail account is present only when MB_GMAIL_IMAP_USER and
+    MB_GMAIL_IMAP_PASSWORD are both non-empty.
+    """
+    label: str
+    user: str
+    password: str
+    server: str
+    port: int
+
+    @property
+    def is_configured(self) -> bool:
+        return bool((self.user or '').strip() and (self.password or '').strip())
+
+
 class EmailWorker:
-    """Handles fetching and processing blotter emails"""
-    
+    """Handles fetching and processing blotter emails from one or more IMAP inboxes."""
+
     def __init__(self):
-        self.email_user = config.EMAIL_USER
-        self.email_pass = config.EMAIL_PASSWORD
-        self.imap_server = config.IMAP_SERVER
-        self.imap_port = config.IMAP_PORT
         self.upload_dir = config.UPLOAD_DIR or UPLOAD_DIR
         self.processed_folder = config.PROCESSED_FOLDER
-        
-        # Ensure upload directory exists
+        self.accounts: list[_ImapAccount] = self._load_accounts()
+        self.last_havre_roster_published_count = 0
+
+        # Backwards-compat aliases: a single configured account keeps the
+        # old attribute names working for any external reader.
+        primary = self.accounts[0] if self.accounts else None
+        self.email_user = primary.user if primary else ''
+        self.email_pass = primary.password if primary else ''
+        self.imap_server = primary.server if primary else ''
+        self.imap_port = primary.port if primary else 0
+
         os.makedirs(self.upload_dir, exist_ok=True)
 
-    def _validate_imap_config(self) -> str | None:
-        if not (self.email_user or '').strip():
-            return 'MB_EMAIL_USER is not set'
-        if not (self.email_pass or '').strip():
-            return 'MB_EMAIL_PASSWORD is not set'
-        if (self.email_pass or '').strip().lower() in {'replace-me', 'changeme', 'change-me'}:
-            return 'MB_EMAIL_PASSWORD is still a placeholder value'
-        if not (self.imap_server or '').strip():
-            return 'MB_IMAP_SERVER is not set'
+    @staticmethod
+    def _load_accounts() -> list[_ImapAccount]:
+        """Build the list of IMAP accounts to poll, in priority order.
+
+        IONOS (records@montanablotter.com) is always first when configured.
+        Gmail (montanablotter@gmail.com) is appended when its envs are set.
+        """
+        accounts: list[_ImapAccount] = []
+        if (config.EMAIL_USER or '').strip() and (config.EMAIL_PASSWORD or '').strip():
+            accounts.append(_ImapAccount(
+                label='ionos',
+                user=config.EMAIL_USER,
+                password=config.EMAIL_PASSWORD,
+                server=config.IMAP_SERVER or 'imap.ionos.com',
+                port=int(config.IMAP_PORT or 993),
+            ))
+        if (config.GMAIL_IMAP_USER or '').strip() and (config.GMAIL_IMAP_PASSWORD or '').strip():
+            accounts.append(_ImapAccount(
+                label='gmail',
+                user=config.GMAIL_IMAP_USER,
+                password=config.GMAIL_IMAP_PASSWORD,
+                server=config.GMAIL_IMAP_SERVER or 'imap.gmail.com',
+                port=int(config.GMAIL_IMAP_PORT or 993),
+            ))
+        return accounts
+
+    def _validate_accounts(self) -> str | None:
+        """Return an error string if no account is usable, else None."""
+        if not self.accounts:
+            return (
+                'No IMAP accounts configured — set MB_EMAIL_USER + MB_EMAIL_PASSWORD '
+                'or MB_GMAIL_IMAP_USER + MB_GMAIL_IMAP_PASSWORD'
+            )
+        for acct in self.accounts:
+            if (acct.password or '').strip().lower() in {'replace-me', 'changeme', 'change-me'}:
+                return f'IMAP account {acct.label!r} password is still a placeholder value'
         return None
 
-    def _connect_imap(self, retries: int = 3) -> imaplib.IMAP4_SSL:
-        """Connect and authenticate to IMAP with exponential backoff on failure."""
+    # Backwards-compat shim: email_image_blotter.py and the inline caller
+    # path historically called this method name. Delegates to the new
+    # multi-account validator.
+    def _validate_imap_config(self) -> str | None:
+        return self._validate_accounts()
+
+    def _connect_imap(self, account: _ImapAccount, retries: int = 3) -> imaplib.IMAP4_SSL:
+        """Connect and authenticate to a specific IMAP account with exponential backoff."""
         delay = 2
-        last_exc: Exception = RuntimeError("IMAP connection failed")
+        last_exc: Exception = RuntimeError(f"IMAP connection failed for {account.label}")
         for attempt in range(retries):
             try:
-                mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
-                mail.login(self.email_user, self.email_pass)
+                mail = imaplib.IMAP4_SSL(account.server, account.port)
+                mail.login(account.user, account.password)
                 return mail
             except (imaplib.IMAP4.error, OSError) as exc:
                 last_exc = exc
                 if attempt < retries - 1:
-                    logging.warning(f"IMAP connect attempt {attempt + 1} failed: {exc}; retrying in {delay}s")
+                    logging.warning(
+                        f"IMAP connect [{account.label}] attempt {attempt + 1} failed: {exc}; "
+                        f"retrying in {delay}s"
+                    )
                     time.sleep(delay)
                     delay *= 2
         raise last_exc
@@ -216,206 +299,427 @@ class EmailWorker:
             return True
 
         return self._sender_looks_like_public_safety(sender) and self._has_date_like_text(body)
-    
+
+    @staticmethod
+    def _has_docx_attachment(msg) -> bool:
+        """Return True when the message carries at least one .docx attachment."""
+        for part in msg.walk():
+            if part.get_content_maintype() == "multipart":
+                continue
+            if part.get("Content-Disposition") is None:
+                continue
+            filename = part.get_filename()
+            if filename and filename.lower().endswith(".docx"):
+                return True
+        return False
+
+    @staticmethod
+    def _looks_like_havre_jail_roster(subject: str, sender: str, body: str = "", msg=None) -> bool:
+        """Detect a Havre Police Department daily jail roster email.
+
+        The roster is usually a DOCX attachment. We deliberately keep the
+        allow-list narrow enough to avoid routing unrelated DOCX mail, but
+        we do not require the sender to be a Havre domain because forwarded
+        rosters often arrive from a personal inbox.
+        """
+        subj = (subject or "").lower()
+        snd = (sender or "").lower()
+        body_text = (body or "")[:4000].lower()
+        combined = " ".join([subj, snd, body_text])
+
+        # "hillso" matches the Hill County Sheriff's Office (hillso.org) sender
+        # domain — HCSO is the source of record for the daily jail roster DOCX
+        # and their messages carry an empty body, so the sender is the only
+        # signal we get. "hill county" alone misses it (no space, no "county").
+        if not any(
+            kw in combined
+            for kw in ("havre", "hill county", "hillso", "hpd")
+        ):
+            return False
+
+        roster_markers = ("roster", "inmate", "booking report", "jail", "detention", "daily roster")
+        if not any(marker in combined for marker in roster_markers):
+            return False
+
+        if msg is not None:
+            if not EmailWorker._has_docx_attachment(msg):
+                return False
+
+        return True
+
+    def _process_havre_roster_attachments(
+        self, msg, *, source_message_id: str, sender: str, subject: str,
+        received_at: str = "",
+    ) -> tuple[bool, bool]:
+        """Save the .docx attachments from a Havre roster email and ingest
+        each one into the ``jail_bookings`` table via the havre_inmate
+        adapter. Returns ``(had_attachment, any_succeeded)`` matching the
+        contract of ``_process_attachments`` so the caller can move the
+        email out of INBOX on success.
+
+        ``received_at`` is the email's ``Date:`` header. It's used to derive
+        a per-day ``roster_date`` (YYYY-MM-DD) so each HCSO roster is scoped
+        to its own day in the jail_bookings.source_record_id — HCSO re-uses
+        the same DOCX filename every day, so without this every re-ingest
+        would silently no-op on dedup.
+        """
+        try:
+            from services.ingestion.fetchers.havre_inmate import ingest_havre_roster
+        except Exception as exc:  # pragma: no cover - import failure path
+            logging.error("Could not import havre_inmate: %s", exc)
+            return True, False
+
+        roster_date = _parse_email_date_to_iso(received_at) if received_at else None
+
+        had_attachment = False
+        any_succeeded = False
+        for part in msg.walk():
+            if part.get_content_maintype() == "multipart":
+                continue
+            if part.get("Content-Disposition") is None:
+                continue
+            filename = part.get_filename()
+            if not (filename and filename.lower().endswith(".docx")):
+                continue
+            had_attachment = True
+            payload = part.get_payload(decode=True) or b""
+            filepath = os.path.join(self.upload_dir, filename)
+            with open(filepath, "wb") as f:
+                f.write(payload)
+            logging.info(
+                "Havre roster DOCX saved: message_id=%s filename=%s path=%s roster_date=%s",
+                source_message_id, filename, filepath, roster_date,
+            )
+            try:
+                stats = ingest_havre_roster(filepath, roster_date=roster_date)
+                logging.info(
+                    "Havre roster ingested: filename=%s fetched=%s new=%s updated=%s missing=%s",
+                    filename,
+                    stats.fetched_count,
+                    stats.new_count,
+                    stats.updated_count,
+                    stats.missing_count,
+                )
+                logging.info(
+                    "Havre roster published to jail_bookings: message_id=%s filename=%s county=%s",
+                    source_message_id,
+                    filename,
+                    "Hill",
+                )
+                any_succeeded = True
+            except Exception as exc:
+                logging.exception(
+                    "Failed to ingest Havre roster DOCX %s: %s", filename, exc
+                )
+
+        return had_attachment, any_succeeded
+
     def fetch_and_process_emails(self):
-        """Main method - fetch emails and process PDFs"""
-        config_error = self._validate_imap_config()
+        """Main entry point — poll every configured IMAP account and process
+        its UNSEEN messages. Accounts are processed sequentially in the
+        order returned by ``_load_accounts`` (IONOS first, Gmail second if
+        configured). A message already seen in an earlier account of this
+        run is skipped (Message-ID dedup).
+        """
+        config_error = self._validate_accounts()
         if config_error:
             logging.error(f"Email worker config error: {config_error}")
             return 0
 
-        try:
-            mail = self._connect_imap()
-            mail.select("INBOX")
-            logging.info("Connected to IONOS IMAP successfully")
-            
-            # Search all unread emails
-            status, messages = mail.search(None, 'UNSEEN')
+        total_processed = 0
+        seen_message_ids: set[str] = set()
 
+        for account in self.accounts:
+            try:
+                total_processed += self._process_account_inbox(account, seen_message_ids)
+            except Exception as e:
+                logging.error(f"Account {account.label!r} failed: {e}")
+                continue
+
+        logging.info(
+            f"Email worker complete: {total_processed} emails processed across "
+            f"{len(self.accounts)} account(s)"
+        )
+        return total_processed
+
+    def _process_account_inbox(
+        self,
+        account: '_ImapAccount',
+        seen_message_ids: set[str],
+    ) -> int:
+        """Process the UNSEEN folder of one IMAP account. Returns the
+        number of emails successfully processed from that account."""
+        mail = self._connect_imap(account)
+        try:
+            mail.select("INBOX")
+            logging.info(
+                f"Connected to {account.label} IMAP ({account.server}) successfully"
+            )
+
+            status, messages = mail.search(None, 'UNSEEN')
             if status != 'OK' or not messages[0]:
-                logging.info("No new emails found")
-                mail.logout()
+                logging.info(f"[{account.label}] No new emails found")
                 return 0
 
             email_ids = messages[0].split()
-            logging.info(f"Found {len(email_ids)} unread emails to scan")
-            
+            logging.info(
+                f"[{account.label}] Found {len(email_ids)} unread emails to scan"
+            )
+
             processed_count = 0
-            
             for num in email_ids:
                 try:
-                    # Fetch the email
                     res, msg_data = mail.fetch(num, "(RFC822)")
-                    
+
                     for response_part in msg_data:
-                        if isinstance(response_part, tuple):
-                            msg = email.message_from_bytes(response_part[1])
-                            
-                            # Extract subject for logging
-                            subject = msg.get('subject', 'No Subject')
-                            sender = msg.get('from', 'Unknown')
-                            logging.info(f"Processing email: {subject} from {sender}")
+                        if not isinstance(response_part, tuple):
+                            continue
 
-                            # Skip bounce / delivery-failure emails
-                            if 'mailer-daemon' in sender.lower() or 'delivery' in subject.lower():
-                                logging.info(f"Skipping bounce/delivery email: {subject}")
-                                continue
+                        msg = email.message_from_bytes(response_part[1])
 
-                            # Process attachments
-                            message_id = msg.get('Message-ID', '')
-                            msg_date = msg.get('Date', '')
-                            had_pdf, pdf_succeeded = self._process_attachments(
-                                msg,
-                                source_message_id=message_id,
-                                sender=sender,
-                                subject=subject,
-                                received_at=msg_date,
+                        subject = msg.get('subject', 'No Subject')
+                        sender = msg.get('from', 'Unknown')
+                        message_id = (msg.get('Message-ID', '') or '').strip()
+                        logging.info(
+                            f"[{account.label}] Processing email: {subject!r} from {sender}"
+                        )
+
+                        # Dedupe across accounts (rare, but possible with
+                        # forwarding rules or shared inboxes).
+                        if message_id and message_id in seen_message_ids:
+                            logging.info(
+                                f"[{account.label}] Skipping duplicate Message-ID: {message_id}"
                             )
+                            self._move_to_processed(mail, num)
+                            continue
+                        if message_id:
+                            seen_message_ids.add(message_id)
 
-                            if had_pdf:
-                                # Email had PDF(s) — mark processed regardless of parse errors
-                                if pdf_succeeded:
+                        # Skip bounce / delivery-failure emails
+                        if 'mailer-daemon' in sender.lower() or 'delivery' in subject.lower():
+                            logging.info(
+                                f"[{account.label}] Skipping bounce/delivery email: {subject}"
+                            )
+                            self._move_to_processed(mail, num)
+                            continue
+
+                        msg_date = msg.get('Date', '')
+                        had_pdf, pdf_succeeded = self._process_attachments(
+                            msg,
+                            source_message_id=message_id,
+                            sender=sender,
+                            subject=subject,
+                            received_at=msg_date,
+                        )
+
+                        if had_pdf:
+                            if pdf_succeeded:
+                                self._move_to_processed(mail, num)
+                                processed_count += 1
+                                logging.info(
+                                    f"[{account.label}] Successfully processed email with attachment(s)"
+                                )
+                            else:
+                                logging.error(
+                                    f"[{account.label}] Attachment(s) found but all failed to process: {subject}"
+                                )
+                        else:
+                            # No PDF — try plain-text body as blotter
+                            body, body_method = self._extract_body_text(msg)
+                            if body and len(body.strip()) > 200:
+                                if not self._looks_like_blotter_email(subject, sender, body):
+                                    logging.info(
+                                        f"[{account.label}] Skipping non-blotter text email: {subject}"
+                                    )
+                                    self._move_to_processed(mail, num)
+                                    continue
+
+                                try:
+                                    preview = parse_text_blotter(body)
+                                except Exception as e:
+                                    logging.warning(
+                                        f"[{account.label}] Text-body preview parse failed for {subject}: {e}"
+                                    )
+                                    preview = {'total_count': 0}
+
+                                if preview.get('total_count', 0) <= 0:
+                                    logging.info(
+                                        f"[{account.label}] Skipping text email with no extractable incidents: {subject}"
+                                    )
+                                    self._move_to_processed(mail, num)
+                                    continue
+                                if not self._preview_is_plausible_text_blotter(
+                                    preview,
+                                    subject=subject,
+                                    sender=sender,
+                                    body=body,
+                                ):
+                                    logging.info(
+                                        f"[{account.label}] Skipping text email with weak blotter structure: {subject}"
+                                    )
+                                    self._move_to_processed(mail, num)
+                                    continue
+
+                                body_hash = sha256_text(body)
+                                source_document_id = ensure_source_document(
+                                    source_type='imap_text',
+                                    source_message_id=message_id,
+                                    source_sender=sender,
+                                    source_subject=subject,
+                                    source_received_at=msg_date,
+                                    filename=None,
+                                    content_sha256=body_hash,
+                                    storage_path=None,
+                                    raw_text=body,
+                                    extraction_method=body_method,
+                                    extraction_warnings=[],
+                                )
+                                ingestion_job_id = ensure_ingestion_job(source_document_id)
+                                existing_status = get_ingestion_job_status(source_document_id)
+                                if existing_status == 'published':
                                     self._move_to_processed(mail, num)
                                     processed_count += 1
-                                    logging.info("Successfully processed email with PDF(s)")
-                                else:
-                                    logging.error(f"PDF(s) found but all failed to process: {subject}")
-                            else:
-                                # No PDF — try plain-text body as blotter
-                                body, body_method = self._extract_body_text(msg)
-                                if body and len(body.strip()) > 200:
-                                    if not self._looks_like_blotter_email(subject, sender, body):
-                                        logging.info(f"Skipping non-blotter text email: {subject}")
-                                        self._move_to_processed(mail, num)
-                                        continue
-
-                                    try:
-                                        preview = parse_text_blotter(body)
-                                    except Exception as e:
-                                        logging.warning(f"Text-body preview parse failed for {subject}: {e}")
-                                        preview = {'total_count': 0}
-
-                                    if preview.get('total_count', 0) <= 0:
-                                        logging.info(
-                                            f"Skipping text email with no extractable incidents: {subject}"
-                                        )
-                                        self._move_to_processed(mail, num)
-                                        continue
-                                    if not self._preview_is_plausible_text_blotter(
-                                        preview,
-                                        subject=subject,
-                                        sender=sender,
-                                        body=body,
-                                    ):
-                                        logging.info(
-                                            f"Skipping text email with weak blotter structure: {subject}"
-                                        )
-                                        self._move_to_processed(mail, num)
-                                        continue
-
-                                    body_hash = sha256_text(body)
-                                    source_document_id = ensure_source_document(
-                                        source_type='imap_text',
-                                        source_message_id=message_id,
-                                        source_sender=sender,
-                                        source_subject=subject,
-                                        source_received_at=msg_date,
-                                        filename=None,
-                                        content_sha256=body_hash,
-                                        storage_path=None,
-                                        raw_text=body,
-                                        extraction_method=body_method,
-                                        extraction_warnings=[],
+                                    logging.info(
+                                        f"[{account.label}] Skipped already-published text source document"
                                     )
-                                    ingestion_job_id = ensure_ingestion_job(source_document_id)
-                                    existing_status = get_ingestion_job_status(source_document_id)
-                                    if existing_status == 'published':
-                                        self._move_to_processed(mail, num)
-                                        processed_count += 1
-                                        logging.info('Skipped already-published text source document')
-                                        continue
+                                    continue
 
-                                    set_ingestion_job_status_legacy(ingestion_job_id, 'extracted')
+                                set_ingestion_job_status_legacy(ingestion_job_id, 'extracted')
+                                log_pipeline_event(
+                                    ingestion_job_id,
+                                    'extract',
+                                    'ok',
+                                    {'extraction_method': body_method, 'message': 'email-body-extracted'},
+                                )
+                                try:
+                                    process_text_blotter(
+                                        body,
+                                        sender_email=sender,
+                                        source_document_id=source_document_id,
+                                        ingestion_job_id=ingestion_job_id,
+                                    )
+                                    self._move_to_processed(mail, num)
+                                    processed_count += 1
+                                    logging.info(
+                                        f"[{account.label}] Processed text-body blotter from email"
+                                    )
+                                except Exception as e:
+                                    logging.error(
+                                        f"[{account.label}] Failed to process text blotter: {e}"
+                                    )
+                                    increment_ingestion_retry(ingestion_job_id, str(e))
+                                    set_ingestion_job_status_legacy(
+                                        ingestion_job_id, 'failed', last_error=str(e), finished=True
+                                    )
                                     log_pipeline_event(
                                         ingestion_job_id,
-                                        'extract',
-                                        'ok',
-                                        {'extraction_method': body_method, 'message': 'email-body-extracted'},
+                                        'publish',
+                                        'error',
+                                        {'error': str(e)},
                                     )
-                                    try:
-                                        process_text_blotter(
-                                            body,
-                                            sender_email=sender,
-                                            source_document_id=source_document_id,
-                                            ingestion_job_id=ingestion_job_id,
-                                        )
-                                        self._move_to_processed(mail, num)
-                                        processed_count += 1
-                                        logging.info("Processed text-body blotter from email")
-                                    except Exception as e:
-                                        logging.error(f"Failed to process text blotter: {e}")
-                                        increment_ingestion_retry(ingestion_job_id, str(e))
-                                        set_ingestion_job_status_legacy(
-                                            ingestion_job_id, 'failed', last_error=str(e), finished=True
-                                        )
-                                        log_pipeline_event(
-                                            ingestion_job_id,
-                                            'publish',
-                                            'error',
-                                            {'error': str(e)},
-                                        )
-                                else:
-                                    logging.info(f"No blotter content found in email: {subject} — skipping")
-                
+                            else:
+                                logging.info(
+                                    f"[{account.label}] No blotter content found in email: {subject} — skipping"
+                                )
+
                 except Exception as e:
-                    logging.error(f"Error processing email {num}: {str(e)}")
+                    logging.error(
+                        f"[{account.label}] Error processing email {num}: {e}"
+                    )
                     continue
-            
+
             mail.expunge()
-            mail.logout()
-            
-            logging.info(f"Email worker complete: {processed_count} emails processed")
             return processed_count
-            
-        except imaplib.IMAP4.error as e:
-            logging.error(f"IMAP Error: {str(e)}")
-            return 0
-        except Exception as e:
-            logging.error(f"Email worker critical error: {str(e)}")
-            return 0
+        finally:
+            with contextlib.suppress(Exception):
+                mail.close()
+            with contextlib.suppress(Exception):
+                mail.logout()
 
     def scan_mailbox_for_new_items(self) -> list[dict]:
         """
-        First-pass queue migration path:
-        - fetch unread email
-        - save PDF attachments locally
-        - return enqueue item payloads
+        First-pass queue migration path. Polls every configured IMAP account
+        and returns enqueue item payloads for the RQ worker.
+
+        PDF attachments are saved and enqueued (the queue worker parses them).
+        Havre PD .docx jail rosters are NOT enqueued — they're processed
+        inline by ``_process_havre_roster_attachments`` because the RQ
+        pipeline only knows about PDF blotters. (The inline path is the
+        canonical one for havre_inmate.py.)
         """
-        config_error = self._validate_imap_config()
+        config_error = self._validate_accounts()
         if config_error:
             logging.error(f"Email worker config error: {config_error}")
             return []
 
         items: list[dict] = []
+        havre_roster_published = 0
+        seen_message_ids: set[str] = set()
 
+        for account in self.accounts:
+            try:
+                account_items, account_havre_count = self._scan_account_for_new_items(
+                    account, seen_message_ids
+                )
+                items.extend(account_items)
+                havre_roster_published += account_havre_count
+            except Exception as e:
+                logging.error(f"Queue scan for account {account.label!r} failed: {e}")
+                continue
+
+        self.last_havre_roster_published_count = havre_roster_published
+        logging.info(
+            f"Queue scan complete: {len(items)} item(s) across "
+            f"{len(self.accounts)} account(s)"
+        )
+        if havre_roster_published:
+            logging.info(
+                "Havre roster queue summary: published=%s account(s)=%s",
+                havre_roster_published,
+                len(self.accounts),
+            )
+        return items
+
+    def _scan_account_for_new_items(
+        self,
+        account: '_ImapAccount',
+        seen_message_ids: set[str],
+    ) -> tuple[list[dict], int]:
+        """Scan one IMAP account for new blotter items.
+
+        Uses ``SINCE <date>`` rather than ``UNSEEN`` so emails that were
+        marked as read by another IMAP client (phone push, webmail,
+        Gmail's own auto-read) still get picked up. The Message-ID
+        dedupe via ``source_documents`` and the per-email skip reasons
+        keep this safe to run frequently.
+        """
+        mail = self._connect_imap(account)
         try:
-            mail = self._connect_imap()
             mail.select("INBOX")
-
-            status, messages = mail.search(None, "UNSEEN")
+            from datetime import datetime, timedelta
+            since_date = (datetime.now() - timedelta(days=14)).strftime("%d-%b-%Y")
+            search_criteria = f'(SINCE "{since_date}")'
+            status, messages = mail.search(None, search_criteria)
             if status != "OK" or not messages[0]:
-                logging.info("No new emails found for queue scan")
-                mail.logout()
-                return items
+                logging.info(
+                    f"[{account.label}] No new emails found for queue scan (SINCE {since_date})"
+                )
+                return [], 0
 
             email_ids = messages[0].split()
-            logging.info(f"Queue scan found {len(email_ids)} unread emails")
+            logging.info(
+                f"[{account.label}] Queue scan found {len(email_ids)} emails SINCE {since_date}"
+            )
 
+            items: list[dict] = []
+            havre_roster_published = 0
             for num in email_ids:
                 try:
                     res, msg_data = mail.fetch(num, "(RFC822)")
                     if res != "OK":
-                        logging.warning(f"Failed to fetch email id {num!r}")
+                        logging.warning(
+                            f"[{account.label}] Failed to fetch email id {num!r}"
+                        )
                         continue
 
                     for response_part in msg_data:
@@ -425,12 +729,65 @@ class EmailWorker:
                         msg = email.message_from_bytes(response_part[1])
                         subject = msg.get("subject", "No Subject")
                         sender = msg.get("from", "Unknown")
-                        message_id = msg.get("Message-ID", "") or ""
+                        message_id = (msg.get("Message-ID", "") or "").strip()
+
+                        # Tracks whether any handler acted on this email.
+                        # Set True by every code path below (skip with reason,
+                        # route to havre, save PDF, etc.). If still False at
+                        # the end, the queue scan consumed the email silently
+                        # — emit a WARNING so this never hides a real bug
+                        # again (this is exactly the gap that let the
+                        # hillso.org havre roster outage hide for 4+ days).
+                        email_handled = False
+
+                        # Dedupe across accounts
+                        if message_id and message_id in seen_message_ids:
+                            logging.info(
+                                f"[{account.label}] Queue scan skipping duplicate Message-ID: {message_id}"
+                            )
+                            self._move_to_processed(mail, num)
+                            email_handled = True
+                            continue
+                        if message_id:
+                            seen_message_ids.add(message_id)
 
                         if "mailer-daemon" in sender.lower() or "delivery" in subject.lower():
-                            logging.info(f"Skipping bounce/delivery email in queue scan: {subject}")
+                            logging.info(
+                                f"[{account.label}] Skipping bounce/delivery email in queue scan: {subject}"
+                            )
+                            self._move_to_processed(mail, num)
+                            email_handled = True
                             continue
 
+                        # Havre PD daily roster: route to the docx pipeline
+                        # inline. The RQ worker only knows about PDFs, so we
+                        # can't enqueue this — call the handler synchronously.
+                        if self._looks_like_havre_jail_roster(subject, sender, msg=msg):
+                            email_handled = True
+                            logging.info(
+                                f"[{account.label}] Queue scan routing Havre roster to jail_bookings pipeline: subject={subject!r}"
+                            )
+                            had_attach, any_succeeded = self._process_havre_roster_attachments(
+                                msg,
+                                source_message_id=message_id,
+                                sender=sender,
+                                subject=subject,
+                                received_at=msg.get("Date", ""),
+                            )
+                            if had_attach:
+                                self._move_to_processed(mail, num)
+                                if not any_succeeded:
+                                    logging.error(
+                                        f"[{account.label}] Havre roster attachments found but all failed: {subject}"
+                                    )
+                                else:
+                                    logging.info(
+                                        f"[{account.label}] Havre roster published to jail_bookings: subject={subject!r}"
+                                    )
+                                    havre_roster_published += 1
+                            continue
+
+                        # Standard PDF path: save attachment and enqueue.
                         found_pdf = False
                         for part in msg.walk():
                             if part.get_content_maintype() == "multipart":
@@ -461,27 +818,39 @@ class EmailWorker:
                                 }
                             )
                             logging.info(
-                                f"Queue scan saved PDF attachment: message_id={source_key} path={filepath}"
+                                f"[{account.label}] Queue scan saved PDF attachment: message_id={source_key} path={filepath}"
                             )
 
                         if found_pdf:
                             self._move_to_processed(mail, num)
-                            logging.info(f"Queue scan moved email to processed: {subject}")
+                            logging.info(
+                                f"[{account.label}] Queue scan moved email to processed: {subject}"
+                            )
+                            email_handled = True
+                        elif not email_handled:
+                            # No PDF, no havre match, no skip-with-reason — the
+                            # email is being consumed without anyone doing
+                            # anything with it. Surface this so it can't
+                            # hide a misconfigured handler again.
+                            logging.warning(
+                                f"[{account.label}] Queue scan consumed email with no action: subject={subject!r} sender={sender!r} message_id={message_id!r} — no PDF attachment, no Havre roster match, no skip reason. Check whether a new handler is needed."
+                            )
+                            self._move_to_processed(mail, num)
+                            email_handled = True
 
                 except Exception as e:
-                    logging.error(f"Queue scan failed for email {num}: {e}")
+                    logging.error(
+                        f"[{account.label}] Queue scan failed for email {num}: {e}"
+                    )
                     continue
 
             mail.expunge()
-            mail.logout()
-            return items
-
-        except imaplib.IMAP4.error as e:
-            logging.error(f"IMAP Error during queue scan: {e}")
-            return items
-        except Exception as e:
-            logging.error(f"Queue scan critical error: {e}")
-            return items
+            return items, havre_roster_published
+        finally:
+            with contextlib.suppress(Exception):
+                mail.close()
+            with contextlib.suppress(Exception):
+                mail.logout()
 
     def smoke_check_connection(self) -> dict:
         """Read-only IMAP connectivity check used by ingestion smoke tests."""
@@ -511,11 +880,28 @@ class EmailWorker:
     
     def _process_attachments(self, msg, source_message_id: str, sender: str, subject: str, received_at: str) -> tuple[bool, bool]:
         """
-        Extract and process PDF attachments from email.
-        Returns (had_pdf, any_succeeded):
-          had_pdf      — True if at least one .pdf attachment was found
-          any_succeeded — True if at least one was successfully processed
+        Extract and process attachments from email. Routes Havre PD
+        daily roster emails to the jail_bookings DOCX pipeline; otherwise
+        falls back to the standard PDF blotter pipeline.
+        Returns (had_attachment, any_succeeded):
+          had_attachment — True if at least one .pdf or .docx attachment was found
+          any_succeeded  — True if at least one was successfully processed
         """
+        # Route Havre PD daily roster emails to the jail_bookings pipeline
+        # before the regular blotter dispatch (which would reject them).
+        if self._looks_like_havre_jail_roster(subject, sender, msg=msg):
+            logging.info(
+                "Routing Havre PD roster email to jail_bookings pipeline: subject=%r sender=%r",
+                subject, sender,
+            )
+            return self._process_havre_roster_attachments(
+                msg,
+                source_message_id=source_message_id,
+                sender=sender,
+                subject=subject,
+                received_at=received_at,
+            )
+
         had_pdf = False
         any_succeeded = False
 
@@ -719,13 +1105,14 @@ def process_inline_legacy() -> None:
 def enqueue_mode() -> int:
     queued = 0
     ingestion_retry = Retry(max=5, interval=[30, 120, 300, 900, 1800])
+    worker = EmailWorker()
 
     with redis_lock("lock:email_worker_scan", timeout=15 * 60) as acquired:
         if not acquired:
             print(f"{utcnow_iso()} email_worker scan skipped: lock already held")
             return 0
 
-        items = scan_mailbox_for_new_items()
+        items = worker.scan_mailbox_for_new_items()
         for item in items:
             try:
                 job = ingestion_q.enqueue(
@@ -745,6 +1132,10 @@ def enqueue_mode() -> int:
                 logging.error(f"Failed to enqueue email item {item}: {e}")
 
     print(f"{utcnow_iso()} email_worker queued_count={queued}")
+    print(
+        f"{utcnow_iso()} email_worker havre_roster_published="
+        f"{worker.last_havre_roster_published_count}"
+    )
     return queued
 
 
