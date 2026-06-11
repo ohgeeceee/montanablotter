@@ -1129,8 +1129,12 @@ from services.api.auth import (
 
 def _require_admin_secret():
     """Abort 403 if the X-Admin-Secret header doesn't match."""
+    # Read the secret via the source module each time so tests can patch
+    # services.api.auth.MB_API_ADMIN_SECRET without also having to patch the
+    # local re-export in this blueprint module.
+    import services.api.auth as _auth_module
     provided = (request.headers.get("X-Admin-Secret") or "").strip()
-    secret = (MB_API_ADMIN_SECRET or "").strip()
+    secret = (getattr(_auth_module, "MB_API_ADMIN_SECRET", "") or "").strip()
     if not secret:
         abort(503, description="API admin secret not configured.")
     if not secrets.compare_digest(provided, secret):
@@ -1197,7 +1201,7 @@ def api_revoke_key(client_id: int):
 @api_bp.route("/api/auth/whoami")
 def api_whoami():
     """Return the authenticated client's metadata (useful for debugging tiers)."""
-    from api_auth import validate_request
+    from services.api.auth import validate_request
     conn = get_db()
     client = validate_request(conn)
     conn.close()
