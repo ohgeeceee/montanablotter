@@ -1,0 +1,39 @@
+Subject: Free listing for {{firm_name}} in the Montana defense attorney directory
+Preview text: I built a directory Montana families actually use — want to be in it?
+
+---
+
+Hi {{contact_first_name}},
+
+I run Montana Blotter — the statewide public records platform that publishes jail rosters, court records, and the daily blotter for all 56 Montana counties. Last year we indexed 16.7M page views, 2,586 jail bookings, and 114+ blog posts. We rank #1 in Google for "[county] jail roster" and "[county] arrests today" across the top Montana counties.
+
+I just launched a public defense attorney directory at montanablotter.com/attorneys so Montana families can find the right defense attorney the moment they need one. Listing is free, opt-in, and Bar-verified.
+
+I'm reaching out because {{firm_name}} is one of the firms I'd specifically like to see represented in {{county}} County. If you cover other counties too, just list them on the form and we'll add the firm to each.
+
+Three tiers:
+
+- Free Bronze — name, firm, phone, website, short blurb. No cost. Verified against the Montana Bar.
+- Silver Featured — $99/mo. Pinned above the free listings in your county. Logo upload, 500-character blurb, larger card, "Featured" badge, monthly impression report.
+- Gold Top Rated — $199/mo. Top of your county's section. Photo + logo + custom tagline callout. "Top Rated" badge. Featured on the warrant detail pages in your counties.
+
+No exclusivity. No long contract. Cancel anytime. The free listing is genuinely free — no upsell pressure. The paid tiers exist to cover our verification and hosting costs and to give the firms that sponsor the directory a visual edge.
+
+If you want in:
+→ montanablotter.com/advertise/attorney-sponsorship
+
+Pick a tier (or just Bronze), fill out the 90-second form, and I'll personally verify your Montana Bar admission and get your listing live within one business day. If a paid tier isn't in the cards, the free listing is more than welcome.
+
+Either way, I'd love to have {{firm_name}} in the directory. If there's someone else at the firm who handles marketing, feel free to forward this along.
+
+Best,
+[Your Name]
+Montana Blotter
+attorneys@montanablotter.com
+(406) XXX-XXXX
+
+P.S. — We just shipped the warrant detail pages with attorney referral widgets, and the /arrests page now surfaces {{county}} County's recent bookings. Sponsored Gold listings are surfaced on both. That's the highest-intent traffic in Montana.
+
+---
+
+You're receiving this because {{firm_name}} practices criminal defense in Montana and we identified your firm as a good fit for our directory. If you'd rather not hear from us, reply "unsubscribe" and we'll remove you within 24 hours. Montana Blotter, PO Box [REDACTED], Billings, MT 59101.

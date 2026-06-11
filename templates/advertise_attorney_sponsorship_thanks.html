@@ -1,0 +1,55 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Claim received — Montana Blotter Attorney Sponsorship" %}
+{% set meta_description = "Your attorney sponsorship claim has been received. We will verify your Montana Bar admission and be in touch within one business day." %}
+{% set canonical_url = "https://montanablotter.com/advertise/attorney-sponsorship" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/attorneys" class="hover:underline">Attorneys</a>
+<span class="mx-2">/</span>
+<span>Advertise</span>
+<span class="mx-2">/</span>
+<span>Received</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Claim received</p>
+                <h1 class="public-title public-title--medium">Thanks — we’ll be in touch.</h1>
+                <p class="public-copy">
+                    We got your <strong>{{ tier_name }}</strong> claim for <strong>{{ firm_name }}</strong>.
+                    We verify Montana State Bar admission for every listing, so you’ll get a one-time
+                    Bar-verification link by email within one business day. After verification we’ll
+                    send a one-time invoice and activate your listing.
+                </p>
+                <p class="public-copy" style="margin-top:.5rem;">
+                    Questions? Email <a href="mailto:attorneys@montanablotter.com" class="public-policy-inline-link">attorneys@montanablotter.com</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__body">
+                <p class="public-policy-copy">
+                    In the meantime, you can:
+                </p>
+                <ul style="font-size:.95rem;line-height:1.8;color:#334155;padding-left:1.4rem;">
+                    <li><a href="/attorneys" class="public-policy-inline-link">See the current directory</a></li>
+                    <li><a href="https://www.montanabar.org" target="_blank" rel="noopener" class="public-policy-inline-link">Look up your Montana Bar admission</a></li>
+                    <li>Reply to the verification email with a headshot and logo (Gold needs a photo, Silver needs a logo).</li>
+                </ul>
+            </div>
+        </article>
+    </main>
+</div>
+{% endblock %}
