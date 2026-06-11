@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 from agendas_scraper.config import CityScrapeConfig
 from agendas_scraper.models import AgendaDocument, MeetingRecord
@@ -286,6 +287,94 @@ class AgendasScraperTests(unittest.TestCase):
         )
         self.assertTrue(provider._matches_filters("2-10-2026 Agenda"))
         self.assertFalse(provider._matches_filters("2-10-2026 Minutes"))
+
+    def test_custom_html_can_keep_meeting_notice_when_agenda_button_href_is_empty(self) -> None:
+        class FakeAnchor:
+            def __init__(self, href: str, text: str) -> None:
+                self.href = href
+                self.text = text
+
+            def get_attribute(self, name: str) -> str:
+                return self.href if name == "href" else ""
+
+            def inner_text(self) -> str:
+                return self.text
+
+        class FakeLocator:
+            def __init__(self, items) -> None:
+                self.items = list(items)
+
+            def all(self):
+                return list(self.items)
+
+            def count(self) -> int:
+                return len(self.items)
+
+            @property
+            def first(self):
+                return self.items[0] if self.items else FakeMissing()
+
+        class FakeMissing:
+            def count(self) -> int:
+                return 0
+
+            def inner_text(self) -> str:
+                return ""
+
+        class FakeRow:
+            def __init__(self) -> None:
+                self.mapping = {
+                    "div.sqs-html-content h1 em, div.sqs-html-content h1": [SimpleNamespace(inner_text=lambda: "Agenda")],
+                    "div.sqs-html-content p": [
+                        SimpleNamespace(
+                            inner_text=lambda: "City Council will meet on Monday, June 15th, 2026 at 6:30 PM in a regular session at Fort Benton City Hall."
+                        )
+                    ],
+                    "a.sqs-block-button-element[href]:has-text('Agenda')": [FakeAnchor("", "Agenda")],
+                    "a[href*='__minutes_disabled__']": [],
+                    "a[href]": [FakeAnchor("/s/unrelated.pdf", "Variance Notice")],
+                }
+
+            def locator(self, selector: str):
+                return FakeLocator(self.mapping.get(selector, []))
+
+        class FakePage:
+            url = "https://www.cityoffortbenton.org/city-council"
+
+            def __init__(self) -> None:
+                self.row = FakeRow()
+
+            def locator(self, selector: str):
+                if selector == "body":
+                    return FakeLocator([self.row])
+                return FakeLocator([])
+
+        provider = CustomHTMLProvider(
+            CityScrapeConfig(
+                slug="fort-benton-city-council",
+                name="Fort Benton City Council",
+                provider="custom_html",
+                url="https://www.cityoffortbenton.org/city-council",
+                selectors={
+                    "row": "body",
+                    "title": "div.sqs-html-content h1 em, div.sqs-html-content h1",
+                    "date": "div.sqs-html-content p",
+                    "agenda_link": "a.sqs-block-button-element[href]:has-text('Agenda')",
+                    "minutes_link": "a[href*='__minutes_disabled__']",
+                },
+                metadata={"disable_fallback_link": True},
+            )
+        )
+
+        meetings = provider.extract_meetings(FakePage())
+
+        self.assertEqual(len(meetings), 1)
+        self.assertEqual(meetings[0].title, "Agenda")
+        self.assertEqual(
+            meetings[0].starts_at,
+            "City Council will meet on Monday, June 15th, 2026 at 6:30 PM in a regular session at Fort Benton City Hall.",
+        )
+        self.assertEqual(meetings[0].documents, [])
 
 
 if __name__ == "__main__":

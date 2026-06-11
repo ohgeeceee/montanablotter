@@ -180,6 +180,9 @@ class DataCenterPagesTests(unittest.TestCase):
         self.assertIn('Montana Public Data Center', html)
         self.assertIn('Jail Bookings', html)
         self.assertIn('Police Calls', html)
+        self.assertIn('Daily Booking Monitor', html)
+        self.assertIn('Montana Active Warrant Database', html)
+        self.assertIn('Live Filtered Feed', html)
 
     def test_admin_data_center_requires_login(self) -> None:
         client = app_module.app.test_client()
