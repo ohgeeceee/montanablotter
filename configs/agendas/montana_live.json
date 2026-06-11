@@ -296,6 +296,31 @@
     }
   },
   {
+    "slug": "fort-benton-city-council",
+    "name": "Fort Benton City Council",
+    "provider": "custom_html",
+    "url": "https://www.cityoffortbenton.org/city-council",
+    "selectors": {
+      "row": "body",
+      "title": "div.sqs-html-content h1 em, div.sqs-html-content h1",
+      "date": "div.sqs-html-content p",
+      "agenda_link": "a.sqs-block-button-element[href]:has-text('Agenda')",
+      "minutes_link": "a[href*='__minutes_disabled__']"
+    },
+    "metadata": {
+      "meeting_scope": "city",
+      "location_slug": "fort-benton",
+      "location_name": "Fort Benton",
+      "city_name": "Fort Benton",
+      "county_name": "Chouteau",
+      "body_name": "Fort Benton City Council",
+      "include_keywords": [
+        "agenda"
+      ],
+      "disable_fallback_link": true
+    }
+  },
+  {
     "slug": "helena-city-commission",
     "name": "Helena City Commission",
     "provider": "primegov",
