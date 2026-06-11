@@ -1,0 +1,195 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Havre Daily Roster — Hill County, MT | Montana Blotter" %}
+{% set meta_description = "Daily jail roster from the Havre Police Department. Current bookings, releases, and 7-day booking history for the Hill County detention population." %}
+{% set canonical_url = "https://montanablotter.com/jail-bookings/hill" %}
+{% set og_title = "Havre Daily Roster — Hill County, MT" %}
+{% set og_description = "Daily HPD jail roster with current bookings and the last 7 days of activity." %}
+{% set active_nav = "jail_rosters" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/jail-rosters" class="hover:text-slate-700">Jail Rosters</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Havre Daily Roster</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="public-eyebrow mb-4" style="color: var(--public-amber);">
+                <i class="fas fa-building-shield mr-2"></i>Havre Police Department
+            </div>
+            <h1 class="public-title public-title--medium mx-auto">Havre Daily Roster</h1>
+            <p class="public-copy max-w-2xl mx-auto">
+                Daily jail booking snapshot from the Havre Police Department. Each
+                morning HPD emails the current detention population; this page
+                surfaces the most recent roster and the last 7 days of activity.
+            </p>
+
+            <div class="mt-6 inline-flex items-center gap-3 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.14em]
+                {% if freshness_state == 'fresh' %}bg-emerald-50 border-emerald-200 text-emerald-700
+                {% elif freshness_state == 'stale' %}bg-amber-50 border-amber-200 text-amber-700
+                {% else %}bg-slate-50 border-slate-200 text-slate-600{% endif %}">
+                <i class="fas fa-circle text-[8px]"></i>
+                <span>{{ freshness_label|default("Awaiting first HPD email") }}</span>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block body_class %}havre-daily-roster-page{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8 space-y-10">
+
+    {# ================================================================ #}
+    {# SECTION 1: Currently Booked                                      #}
+    {# ================================================================ #}
+    <section>
+        <div class="flex items-center gap-3 mb-4">
+            <div class="bg-slate-900 text-white p-2 rounded-lg">
+                <i class="fas fa-lock"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-slate-900">Currently Booked</h2>
+                <p class="text-sm text-slate-500">
+                    {{ currently_booked|length }} inmate{{ '' if currently_booked|length == 1 else 's' }} on the
+                    HPD roster
+                    {% if last_run_at %}· as of {{ last_run_at }}{% endif %}
+                </p>
+            </div>
+        </div>
+
+        {% if currently_booked %}
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
+                    <tr>
+                        <th class="text-left px-5 py-3">Name</th>
+                        <th class="text-left px-5 py-3">Age</th>
+                        <th class="text-left px-5 py-3">Booked</th>
+                        <th class="text-left px-5 py-3">Charges</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in currently_booked %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-4">
+                            <a href="/booking/{{ row.id }}" class="font-black text-slate-900 hover:text-orange-700">
+                                {{ row.person_name }}
+                            </a>
+                        </td>
+                        <td class="px-5 py-4 text-slate-700">{{ row.age or '—' }}</td>
+                        <td class="px-5 py-4 text-slate-600 font-mono text-xs">
+                            {{ row.booking_at_label|default(row.booking_at or '—') }}
+                        </td>
+                        <td class="px-5 py-4 text-slate-700">
+                            <span class="line-clamp-2">{{ row.charges_summary or 'Charge details pending from HPD.' }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-10 text-center">
+            <i class="fas fa-inbox text-3xl text-slate-300 mb-3"></i>
+            <p class="text-base font-black text-slate-700">No active HPD bookings on file</p>
+            <p class="mt-2 text-sm text-slate-500 max-w-md mx-auto">
+                When the Havre Police Department sends their next daily roster email,
+                current inmates will appear here. Past rosters are preserved in the
+                7-day history below.
+            </p>
+        </div>
+        {% endif %}
+    </section>
+
+    {# ================================================================ #}
+    {# SECTION 2: Last 7 Days                                           #}
+    {# ================================================================ #}
+    <section>
+        <div class="flex items-center gap-3 mb-4">
+            <div class="bg-blue-600 text-white p-2 rounded-lg">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-slate-900">Last 7 Days</h2>
+                <p class="text-sm text-slate-500">
+                    Daily roster diffs — new bookings and releases, day by day
+                </p>
+            </div>
+        </div>
+
+        {% if daily_diff %}
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+            {% for day in daily_diff %}
+            <div class="bg-white border border-slate-200 rounded-xl p-3 text-center shadow-sm">
+                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{{ day.label }}</p>
+                <div class="mt-2 flex items-baseline justify-center gap-2">
+                    <span class="text-2xl font-black {% if day.new_count > 0 %}text-emerald-700{% else %}text-slate-300{% endif %}">
+                        +{{ day.new_count }}
+                    </span>
+                    <span class="text-[10px] font-bold uppercase text-slate-400">new</span>
+                </div>
+                <div class="mt-1 flex items-baseline justify-center gap-2">
+                    <span class="text-sm font-black {% if day.released_count > 0 %}text-amber-700{% else %}text-slate-300{% endif %}">
+                        −{{ day.released_count }}
+                    </span>
+                    <span class="text-[9px] font-bold uppercase text-slate-400">released</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center mb-6">
+            <p class="text-sm text-slate-500">No HPD roster activity recorded in the last 7 days yet.</p>
+        </div>
+        {% endif %}
+
+        {% if recent_new_entries %}
+        <h3 class="text-sm font-black uppercase tracking-[0.14em] text-slate-500 mb-3">Newly booked in the last 7 days</h3>
+        <div class="space-y-2">
+            {% for row in recent_new_entries %}
+            <div class="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-center gap-3 shadow-sm">
+                <a href="/booking/{{ row.id }}" class="font-black text-slate-900 hover:text-orange-700 flex-1 min-w-0 truncate">
+                    {{ row.person_name }}
+                </a>
+                <span class="text-xs font-mono text-slate-500">{{ row.booking_at_label|default(row.booking_at or '—') }}</span>
+                <span class="text-xs text-slate-600 truncate max-w-md">{{ row.charges_summary or '—' }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+
+    {# ================================================================ #}
+    {# SECTION 3: Source / contact                                       #}
+    {# ================================================================ #}
+    <section class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-sm text-amber-900">
+        <p class="font-black mb-2"><i class="fas fa-triangle-exclamation mr-2"></i>Source &amp; Contact</p>
+        <p class="leading-6">
+            This roster is built from the daily jail roster emailed by the
+            <a href="{{ hpd_public_url }}" target="_blank" rel="noopener" class="underline font-bold hover:text-amber-700">
+                Havre Police Department
+            </a>
+            (Hill County, MT). The Havre PD does not maintain a public online
+            inmate roster, so we publish the email they share with us to keep
+            Hi-Line residents informed.
+        </p>
+        <p class="mt-3 leading-6">
+            <strong>Notice an error?</strong> Contact the Havre Police Department
+            at <a href="tel:{{ hpd_phone }}" class="underline font-bold hover:text-amber-700">{{ hpd_phone }}</a>
+            or by email at <a href="mailto:records@montanablotter.com" class="underline font-bold hover:text-amber-700">records@montanablotter.com</a>.
+        </p>
+        <p class="mt-3 leading-6 text-amber-800 text-xs">
+            <i class="fas fa-info-circle mr-1"></i>
+            Inmate status can change at any time. Montana Blotter is not affiliated
+            with the Havre Police Department or Hill County. Records reflect
+            booking or detention status only and do not imply guilt or conviction.
+        </p>
+    </section>
+</div>
+{% endblock %}
