@@ -1,5 +1,7 @@
 # Mobile UX, PWA & Alerting Implementation Plan
 
+> **Status:** Completed. The two SMTP/alerting test files referenced below (`test_ingestion_alerts_smtp.py`, `test_morning_briefing_admin_alert.py`) were removed in commit 7aa2b07b when `alerting` was refactored under `services.alerts.legacy` — the assertions no longer match the codebase.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Ship a mobile bottom tab bar, PWA manifest + service worker, footer modals for 4 secondary pages, and close 3 email alerting gaps.
