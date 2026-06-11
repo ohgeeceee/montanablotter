@@ -251,6 +251,4 @@
 <script id="ad-simulator-data" type="application/json">{{ simulator_bootstrap | tojson }}</script>
 <script type="module" src="{{ url_for('static', filename='js/advertising-packages.js') }}"></script>
 <script type="module" src="{{ url_for('static', filename='js/ad-simulator.js') }}"></script>
-{% set contract_popup_storage_key = 'mb_letsbail_contract_seen_advertise' %}
-{% include "includes/bail_ad_contract_popup.html" %}
 {% endblock %}

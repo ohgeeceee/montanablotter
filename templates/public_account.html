@@ -77,14 +77,12 @@
                 <p class="mt-1 text-sm text-slate-600">Get full access to Montana's active warrant database — search by name, county, or charge across all 56 counties.</p>
                 <div class="mt-3 flex items-baseline gap-1">
                     <span class="text-2xl font-black text-red-700">$1</span>
-                    <span class="text-sm text-slate-500">first 7 days, then $7/month &mdash; cancel anytime</span>
+                    <span class="text-sm text-slate-500">paid trial for the warrant database, then $7/month &mdash; cancel anytime</span>
                 </div>
-                <form method="POST" action="/checkout/warrant-access" class="mt-4">
-                    <button type="submit" class="public-btn public-btn--primary inline-flex items-center gap-2">
-                        <i class="fas fa-unlock"></i> Start 7-Day Trial &mdash; $1
-                    </button>
-                </form>
-                <p class="mt-2 text-[11px] text-slate-400">Secure checkout via Stripe &bull; Cancel anytime before trial ends</p>
+                <a href="/checkout/warrant-access" class="public-btn public-btn--primary inline-flex items-center gap-2">
+                    <i class="fas fa-unlock"></i> Start Paid 7-Day Trial &mdash; $1
+                </a>
+                <p class="mt-2 text-[11px] text-slate-400">Secure Stripe checkout for paid warrant access &bull; Cancel anytime before trial ends</p>
                 {% endif %}
             </div>
 

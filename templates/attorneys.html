@@ -69,8 +69,16 @@
                 <div class="public-detail-frame__body">
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
                     {% for a in attorneys %}
-                        <div class="public-card">
+                        <div class="public-card" style="{% if a.sponsor_tier == 'gold' %}border:2px solid #c9a227;background:linear-gradient(180deg,#fffdf0 0%,#fff 60%);{% elif a.sponsor_tier == 'silver' %}border:1px solid #94a3b8;{% endif %}{% if a.sponsor_tier == 'gold' %}box-shadow:0 4px 12px rgba(201,162,39,.15);{% endif %}">
                             <div class="public-card__body">
+                                {% if a.sponsor_tier == 'gold' %}
+                                <p style="display:inline-block;background:#c9a227;color:#fff;font-size:.65rem;font-weight:800;letter-spacing:.14em;padding:.15rem .55rem;border-radius:999px;margin:0 0 .4rem;text-transform:uppercase;">🏆 Top Rated</p>
+                                {% elif a.sponsor_tier == 'silver' %}
+                                <p style="display:inline-block;background:#475569;color:#fff;font-size:.65rem;font-weight:800;letter-spacing:.14em;padding:.15rem .55rem;border-radius:999px;margin:0 0 .4rem;text-transform:uppercase;">⭐ Featured</p>
+                                {% endif %}
+                                {% if a.tagline %}
+                                <p style="font-size:.78rem;color:#a16207;font-weight:600;margin:0 0 .25rem;">{{ a.tagline }}</p>
+                                {% endif %}
                                 <p class="public-card__eyebrow" style="margin-bottom:0.25rem;">{{ a.firm or 'Independent' }}</p>
                                 <h3 class="public-card__title" style="font-size:1.15rem;">{{ a.name }}</h3>
                                 {% if a.blurb %}

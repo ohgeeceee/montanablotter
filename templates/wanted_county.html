@@ -82,7 +82,38 @@
             {% endfor %}
         </div>
     </div>
-    {% else %}
+    {% endif %}
+
+    {% if not warrant_access and active_count > 0 %}
+    <!-- Paywall soft gate for county page -->
+    <div class="relative mb-10">
+        {% if active_rows %}<div class="pointer-events-none absolute -top-32 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-white" aria-hidden="true"></div>{% endif %}
+        <div class="group rounded-3xl border-2 border-red-200 bg-white px-6 py-10 shadow-xl text-center cursor-pointer" onclick="location.href='/wanted/subscribe'">
+            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                <i class="fas fa-lock text-2xl text-red-600"></i>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900">
+                <a href="/wanted/subscribe" class="hover:text-red-700 transition-colors">{{ active_count - active_rows|length }} more active warrants in {{ county_name }} County</a>
+            </h2>
+            <p class="mt-2 text-sm text-slate-500 max-w-sm mx-auto">
+                You&rsquo;re seeing {{ active_rows|length }} of {{ active_count }} active records. <a href="/wanted/subscribe" class="text-red-600 font-semibold hover:underline">Start the paid warrant trial</a> &mdash; updated daily from all 56 Montana counties.
+            </p>
+            <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div class="rounded-2xl bg-red-50 border border-red-100 px-6 py-4 text-center min-w-[160px]">
+                    <p class="text-3xl font-black text-red-700">$1</p>
+                    <p class="text-xs text-red-500 font-bold">first 7 days</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">then $7/month</p>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <a href="/wanted/subscribe" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-8 py-3.5 text-sm font-black text-white hover:bg-red-700 transition-colors group-hover:bg-red-700">
+                        <i class="fas fa-unlock"></i> Start Paid Warrant Trial
+                    </a>
+                    <p class="text-[11px] text-slate-400 text-center">Paid access to the warrant database &bull; Secure Stripe checkout &bull; Cancel anytime</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif not active_rows %}
     <div class="mb-10 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm text-center">
         <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
             <i class="fas fa-search text-2xl text-slate-400"></i>
@@ -150,4 +181,8 @@
     </div>
 
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include "includes/warrant_offer_popup.html" %}
 {% endblock %}

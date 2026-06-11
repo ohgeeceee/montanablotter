@@ -27,9 +27,6 @@
     <meta name="twitter:image" content="{{ og_image or 'https://montanablotter.com/static/icons/og-default.png' }}">
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
     {% include "includes/google_analytics.html" %}
-    {% if not request.args.get('noads') %}
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9126743762075114" crossorigin="anonymous"></script>
-    {% endif %}
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#f7f4ee">
     <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
@@ -136,20 +133,6 @@
         </div>
     </div>
 
-    {% if not request.args.get('noads') %}
-    <div class="public-ad-slot max-w-7xl mx-auto px-4 sm:px-6 pt-4">
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="ca-pub-9126743762075114"
-             data-ad-slot="4077573892"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-    </div>
-    {% endif %}
-
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-2">
@@ -167,21 +150,6 @@
     <div class="pb-16 md:pb-0">
     {% block content %}{% endblock %}
     </div>
-
-    {% if not request.args.get('noads') %}
-    <div class="public-ad-slot max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <!-- Main -->
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="ca-pub-9126743762075114"
-             data-ad-slot="4077573892"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-    </div>
-    {% endif %}
 
     <footer class="public-footer">
         <div class="public-footer__grid max-w-7xl mx-auto px-6">
@@ -216,28 +184,6 @@
 
     <script>
     (function(){
-        function collapseUnfilledAds() {
-            try {
-                document.querySelectorAll('.public-ad-slot ins.adsbygoogle').forEach(function (ins) {
-                    var status = (ins.getAttribute('data-ad-status') || '').toLowerCase();
-                    if (status === 'unfilled') {
-                        var wrap = ins.closest('.public-ad-slot');
-                        if (wrap) wrap.style.display = 'none';
-                        return;
-                    }
-
-                    // If the ads script is blocked or fails, hide only *large* empty slots to avoid a giant gap.
-                    if (!status) {
-                        var hasIframe = !!ins.querySelector('iframe');
-                        if (!hasIframe && ins.offsetHeight >= 200) {
-                            var wrap2 = ins.closest('.public-ad-slot');
-                            if (wrap2) wrap2.style.display = 'none';
-                        }
-                    }
-                });
-            } catch (e) {}
-        }
-
         function sendSubscribeEvent(eventType, source, pagePath) {
             try {
                 var payload = JSON.stringify({
@@ -378,11 +324,6 @@
                 sendSubscribeEvent('form_submit', source);
             });
         });
-
-        // Adsense sometimes reserves large empty space on desktop when an ad is unfilled.
-        // Collapse those slots so the page doesn't show a giant gap under the header.
-        setTimeout(collapseUnfilledAds, 1500);
-        setTimeout(collapseUnfilledAds, 6000);
 
     })();
     </script>

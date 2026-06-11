@@ -14,7 +14,8 @@
     </div>
     <div class="mt-5 grid gap-4 sm:grid-cols-2">
         {% for a in attorneys %}
-        <div class="rounded-2xl bg-white p-5 shadow-sm">
+        <div class="rounded-2xl bg-white p-5 shadow-sm {% if a.sponsor_tier == 'gold' %}ring-2 ring-amber-500{% elif a.sponsor_tier == 'silver' %}ring-1 ring-slate-400{% endif %}">
+            {% if a.sponsor_tier == 'gold' %}<p class="text-[10px] font-black uppercase tracking-[0.14em] text-amber-700">🏆 Top Rated</p>{% elif a.sponsor_tier == 'silver' %}<p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">⭐ Featured</p>{% endif %}
             <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ a.firm or 'Independent' }}</p>
             <h3 class="mt-1 text-lg font-black text-slate-900">{{ a.name }}</h3>
             {% if a.blurb %}<p class="mt-2 text-sm text-slate-600">{{ a.blurb }}</p>{% endif %}

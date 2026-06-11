@@ -2,7 +2,6 @@
 
 {% set page_title = "Montana Public Data Center" %}
 {% set meta_description = "A statewide directory for Montana Blotter public datasets, with shared search and records entry points." %}
-{% set canonical_url = "https://montanablotter.com/datacenter" %}
 {% set og_title = "Montana Public Data Center | Montana Blotter" %}
 {% set og_description = meta_description %}
 
@@ -12,6 +11,8 @@
 <span class="mx-2">/</span>
 <span>Data Center</span>
 {% endblock %}
+
+{% set featured_slugs = ['jail-bookings', 'warrants', 'arrests'] %}
 
 {% block hero %}
 <section class="public-hero">
@@ -51,8 +52,39 @@
     </section>
 
     <section class="max-w-7xl mx-auto pt-6">
+        <div class="grid gap-4 md:grid-cols-3">
+            {% for dataset in datasets if dataset.slug in featured_slugs %}
+            <article class="public-card public-card--lift p-5">
+                {% if dataset.slug == 'jail-bookings' %}
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-orange-600">Daily Booking Monitor</p>
+                <div class="mt-3 inline-flex items-center rounded-full bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-orange-700">Jail Bookings</div>
+                {% elif dataset.slug == 'warrants' %}
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-red-600">Montana Active Warrant Database</p>
+                <div class="mt-3 inline-flex items-center rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-red-700">Warrants</div>
+                {% elif dataset.slug == 'arrests' %}
+                <p class="text-[11px] font-black uppercase tracking-[0.16em] text-red-500">Live Filtered Feed</p>
+                <div class="mt-3 inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">Arrests</div>
+                {% endif %}
+                <h2 class="mt-4 text-2xl font-black text-slate-950" style="font-family:'Playfair Display', Georgia, serif;">
+                    {{ dataset.title }}
+                </h2>
+                <p class="mt-3 text-sm leading-6 text-slate-600">{{ dataset.summary }}</p>
+                <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+                    <span class="public-chip">{{ dataset.metric_kind }}</span>
+                    <span class="public-chip">{{ dataset.methodology }}</span>
+                </div>
+                <div class="mt-5 flex flex-wrap gap-2">
+                    <a href="{{ dataset.landing_href }}" class="public-btn public-btn--primary">Open dataset</a>
+                    <a href="{{ dataset.records_href }}" class="public-btn public-btn--secondary">Browse records</a>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto pt-6">
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {% for dataset in datasets %}
+            {% for dataset in datasets if dataset.slug not in featured_slugs %}
             <article class="public-card public-card--lift p-5">
                 <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{{ dataset.source_kind }}</p>
                 <h2 class="mt-3 text-2xl font-black text-slate-950" style="font-family:'Playfair Display', Georgia, serif;">

@@ -17,7 +17,7 @@
             Montana Active Warrants
         </div>
         <h1 class="text-4xl font-black tracking-tight text-slate-900">Full Warrant Access</h1>
-        <p class="mt-3 text-base text-slate-500 leading-7">Search and browse the full Montana active warrant database &mdash; updated daily from 56 counties.</p>
+        <p class="mt-3 text-base text-slate-500 leading-7">This is the paid warrant access plan. Search and browse the full Montana active warrant database &mdash; updated daily from 56 counties.</p>
     </div>
 
     <!-- Pricing card -->
@@ -74,26 +74,58 @@
                 Browse Active Warrants
             </a>
             {% elif is_logged_in %}
-            <form method="POST" action="/checkout/warrant-access">
-                <button type="submit"
-                        class="w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors">
-                    Start 7-Day Trial &mdash; $1
-                </button>
-            </form>
+            <a href="/checkout/warrant-access"
+               class="block w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
+                Start Paid 7-Day Trial &mdash; $1
+            </a>
             <p class="mt-3 text-center text-[11px] text-slate-400">
-                Secure checkout via Stripe &bull; Cancel anytime before trial ends &bull; No hidden fees
+                Secure Stripe checkout for paid warrant access &bull; Cancel anytime before trial ends &bull; No hidden fees
             </p>
+
+            <div class="my-6 flex items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                <span class="flex-1 border-t border-slate-200"></span>
+                <span>or unlock for free</span>
+                <span class="flex-1 border-t border-slate-200"></span>
+            </div>
+
+            {% if ad_unlock_active %}
+            <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-5 py-4 mb-3 text-sm text-emerald-800">
+                <p class="font-bold mb-1"><i class="fas fa-check-circle mr-2 text-emerald-600"></i>You have free ad-access</p>
+                <p class="text-emerald-700">
+                    <span class="font-bold" data-ad-unlock-remaining>{{ (ad_unlock_remaining_seconds // 3600) }}h {{ ((ad_unlock_remaining_seconds % 3600) // 60) }}m</span>
+                    of warrant access remaining. Watch another ad to extend, or jump straight to the database.
+                </p>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <a href="/ad/watch"
+                   class="rounded-xl bg-slate-900 py-3 text-sm font-black text-white hover:bg-slate-800 transition-colors text-center">
+                    Watch Ad &amp; Extend
+                </a>
+                <a href="/wanted"
+                   class="rounded-xl bg-white border border-slate-300 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 transition-colors text-center">
+                    Browse Warrants
+                </a>
+            </div>
+            {% else %}
+            <a href="/ad/watch"
+               class="block w-full rounded-xl bg-slate-900 py-3.5 text-base font-black text-white hover:bg-slate-800 transition-colors text-center">
+                <i class="fas fa-play-circle mr-2"></i>Watch a short ad &mdash; free 24h access
+            </a>
+            <p class="mt-2 text-center text-[11px] text-slate-400">
+                Watch a 15-second video to earn full access for 24 hours. No card, no signup fee.
+            </p>
+            {% endif %}
             {% else %}
             <div class="rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 mb-4 text-sm text-amber-800">
                 <p class="font-bold mb-1"><i class="fas fa-lock mr-2"></i>Account required to subscribe</p>
-                <p class="text-amber-700">Create a free account (takes 30 seconds), then come back here to start your trial.</p>
+                <p class="text-amber-700">Create a free account (takes 30 seconds), then come back here to start your paid trial.</p>
             </div>
             <a href="/register?next=/wanted/subscribe"
                class="block w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
-                Create Account &amp; Subscribe &mdash; $1
+                Create Account &amp; Start Paid Trial &mdash; $1
             </a>
             <p class="mt-3 text-center text-[11px] text-slate-400">
-                Free account &bull; Secure checkout via Stripe &bull; Cancel anytime
+                Free account &bull; Secure checkout for paid warrant access &bull; Cancel anytime
             </p>
             {% endif %}
         </div>

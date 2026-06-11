@@ -1019,7 +1019,7 @@ a { color: inherit; text-decoration: none; }
 .zone-mill  { background: linear-gradient(180deg,#5a4830 0%,#4a3820 100%); }
 .zone-mine  { background: linear-gradient(180deg,#282420 0%,#181410 100%); }
 
-/* ─── Keep / Castle Tower ─── */
+/* ─── Core / Control Tower ─── */
 .cs-tower {
   position: absolute; bottom: 0; left: 50%;
   transform: translateX(-50%);
@@ -1083,7 +1083,7 @@ a { color: inherit; text-decoration: none; }
 .cs-stone:nth-child(1){width:6px;height:5px} .cs-stone:nth-child(2){width:8px;height:7px}
 .cs-stone:nth-child(3){width:5px;height:4px} .cs-stone:nth-child(4){width:7px;height:6px}
 
-/* ─── Farm / Barn Frame ─── */
+/* ─── Pipeline / Processing Frame ─── */
 .cs-barn-frame {
   position: absolute; bottom: 0; left: 50%;
   transform: translateX(-50%); width: 44px; height: 32px; z-index:3;
@@ -1113,7 +1113,7 @@ a { color: inherit; text-decoration: none; }
 .cs-hay { position:absolute; bottom:0; right:3px; width:10px; height:8px; background:#c8a040; border:1px solid #8a6010; border-radius:2px; }
 .cs-hay::before{content:'';position:absolute;top:3px;left:0;right:0;height:1px;background:rgba(0,0,0,.3);}
 
-/* ─── Lumber Mill ─── */
+/* ─── Ingest / Scrape Mill ─── */
 .cs-mill { position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:34px; z-index:3; }
 .cs-mill-base { width:34px; height:22px; background:#6a4a20; border:1px solid #4a2a10; border-radius:2px 2px 0 0; position:relative; }
 .cs-log { position:absolute; bottom:4px; left:2px; width:24px; height:8px; background:#8a5a28; border-radius:50% 50% 0 0 / 30% 30% 0 0; border:1px solid #5a3a10; }
@@ -1139,7 +1139,7 @@ a { color: inherit; text-decoration: none; }
 .cs-lumber-stack{position:absolute;bottom:0;right:2px;display:flex;flex-direction:column;gap:1px;align-items:center;}
 .cs-plank-s{width:18px;height:3px;background:#8a6030;border-radius:1px;border:1px solid #5a3010;}
 
-/* ─── Mine Shaft ─── */
+/* ─── Runtime / Server Shaft ─── */
 .cs-mine-entrance{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:30px;z-index:3;}
 .cs-mine-arch{width:30px;height:24px;background:#120e08;border-radius:50% 50% 0 0 / 60% 60% 0 0;position:relative;border:2px solid #3a2a18;}
 .cs-timber{position:absolute;background:#5a3a10;}
@@ -1161,26 +1161,26 @@ a { color: inherit; text-decoration: none; }
   background:#3a2810; z-index:2;
 }
 
-/* ── Villager row — flex container at bottom of each zone ── */
-.cs-villager-row {
+/* ── Worker row — flex container at bottom of each zone ── */
+.cs-worker-row {
   position: absolute; bottom: 8px; left: 2px; right: 2px;
   display: flex; justify-content: space-around; align-items: flex-end;
   z-index: 5; gap: 2px;
   overflow: visible;
 }
 
-/* ── Individual villager slot — no absolute positioning ── */
-.vil-slot {
+/* ── Individual worker slot — no absolute positioning ── */
+.cs-worker-slot {
   position: relative;
   display: flex; flex-direction: column; align-items: center;
   flex-shrink: 1; min-width: 0;
   cursor: default;
 }
-.vil-slot .typing-dots { position: relative; margin-top: 1px; bottom: auto; }
-.vil-slot .typing-dots span { width: 3px; height: 3px; }
+.cs-worker-slot .typing-dots { position: relative; margin-top: 1px; bottom: auto; }
+.cs-worker-slot .typing-dots span { width: 3px; height: 3px; }
 
 /* Task label below feet — always readable */
-.vil-task-lbl {
+.cs-worker-task-lbl {
   margin-top: 3px;
   font-size: .58rem;
   font-family: 'IBM Plex Mono', monospace;
@@ -1199,25 +1199,25 @@ a { color: inherit; text-decoration: none; }
   pointer-events: none;
 }
 /* Working agents get amber glow on label */
-[data-state="working"] .vil-task-lbl {
+[data-state="working"] .cs-worker-task-lbl {
   color: var(--amber);
   border-color: rgba(212,137,42,.4);
   box-shadow: 0 0 6px rgba(212,137,42,.15);
 }
 /* Waiting agents get blue label */
-[data-state="waiting"] .vil-task-lbl {
+[data-state="waiting"] .cs-worker-task-lbl {
   color: var(--blue);
   border-color: rgba(88,166,255,.35);
 }
 /* Idle/offline agents get muted label */
-[data-state="idle"] .vil-task-lbl,
-[data-state="offline"] .vil-task-lbl {
+[data-state="idle"] .cs-worker-task-lbl,
+[data-state="offline"] .cs-worker-task-lbl {
   color: var(--soft);
   border-color: var(--border);
 }
 
 /* Hover tooltip shows full agent ID */
-.vil-slot::after {
+.cs-worker-slot::after {
   content: attr(data-name);
   position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
   background: rgba(0,0,0,.92); color: var(--text);
@@ -1227,10 +1227,10 @@ a { color: inherit; text-decoration: none; }
   font-family: 'IBM Plex Mono', monospace; z-index: 30;
   border: 1px solid rgba(212,137,42,.4);
 }
-.vil-slot:hover::after { opacity: 1; }
+.cs-worker-slot:hover::after { opacity: 1; }
 
-/* Remove old speech bubble from villager slots (task shown as label now) */
-.vil-slot .speech-bub { display: none; }
+  /* Remove old speech bubble from worker slots (task shown as label now) */
+.cs-worker-slot .speech-bub { display: none; }
 
 /* ── Resource cart flying between zones ── */
 .cs-resource-fly {
@@ -1343,120 +1343,21 @@ a { color: inherit; text-decoration: none; }
       <!-- 3-Column Grid -->
       <div class="cc-grid">
 
-        <!-- AoE Construction Site — full width top row -->
+        <!-- 3D Office Hub — full width top row -->
         <div class="panel house-panel">
           <div class="panel-head" id="house-panel-head">
-            <div class="panel-title"><i class="fa fa-hammer"></i> Construction Site — Command HQ</div>
-            <span class="panel-count" id="pc-agents">—</span>
+            <div class="panel-title"><i class="fa fa-cube"></i> 3D Office Hub</div>
+            <span class="panel-count" id="pc-agents">Live</span>
           </div>
-          <div class="cs-scene" id="house-scene">
-
-            <!-- Sky -->
-            <div class="cs-sky">
-              <div class="cs-aurora"></div>
-              <div class="cs-moon"></div>
-              <div class="cs-bird">〜</div>
-              <div class="cs-bird">〜</div>
-              <div class="cs-star" style="width:2px;height:2px;top:22%;left:15%;animation-delay:.4s;"></div>
-              <div class="cs-star" style="width:2px;height:2px;top:40%;left:28%;animation-delay:1.2s;"></div>
-              <div class="cs-star" style="width:3px;height:3px;top:15%;left:45%;animation-delay:.8s;"></div>
-              <div class="cs-star" style="width:2px;height:2px;top:50%;left:60%;animation-delay:1.9s;"></div>
-              <div class="cs-star" style="width:2px;height:2px;top:28%;left:75%;animation-delay:.3s;"></div>
-              <div class="cs-star" style="width:2px;height:2px;top:60%;left:88%;animation-delay:1.5s;"></div>
-              <!-- Tech readout overlay on sky -->
-              <div style="position:absolute;bottom:4px;left:8px;font-family:'IBM Plex Mono',monospace;font-size:.35rem;color:rgba(88,166,255,.4);letter-spacing:.1em;">
-                VPS:ONLINE &nbsp;·&nbsp; AGENTS:ACTIVE &nbsp;·&nbsp; OPS:RUNNING
-              </div>
-              <div style="position:absolute;bottom:4px;right:8px;font-family:'IBM Plex Mono',monospace;font-size:.35rem;color:rgba(212,137,42,.45);letter-spacing:.1em;" id="sky-ts">——</div>
-            </div>
-
-            <!-- Horizon tree line -->
-            <div class="cs-horizon"></div>
-
-            <!-- Ground — four build zones -->
-            <div class="cs-ground">
-
-              <!-- Zone 1: Keep / Castle — heavy agents -->
-              <div class="cs-zone zone-keep" id="zone-keep">
-                <span class="cs-zone-lbl">Keep</span>
-                <div class="cs-hud-badge" id="hud-keep">PWR:●●●</div>
-                <div class="cs-villager-row" id="vrow-zone-keep"></div>
-                <div class="cs-tower">
-                  <div class="cs-tower-wall">
-                    <div class="cs-merlon"></div>
-                    <div class="cs-merlon"></div>
-                    <div class="cs-merlon"></div>
-                    <div class="cs-arrow-slit"></div>
-                    <div class="cs-scaf-pole sp1"></div>
-                    <div class="cs-scaf-pole sp2"></div>
-                    <div class="cs-scaf-plank sk1"></div>
-                    <div class="cs-scaf-plank sk2"></div>
-                    <div class="cs-placing-block" id="placing-block"></div>
-                  </div>
-                  <div class="cs-stone-pile">
-                    <div class="cs-stone"></div><div class="cs-stone"></div>
-                    <div class="cs-stone"></div><div class="cs-stone"></div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Zone 2: Farm / Processing — pipeline agents -->
-              <div class="cs-zone zone-farm" id="zone-farm">
-                <span class="cs-zone-lbl">Farm</span>
-                <div class="cs-hud-badge" id="hud-farm">PROC:▶▶▶</div>
-                <div class="cs-villager-row" id="vrow-zone-farm"></div>
-                <div class="cs-barn-frame">
-                  <div class="cs-post p1"></div>
-                  <div class="cs-post p2"></div>
-                  <div class="cs-post p3"></div>
-                  <div class="cs-post p4"></div>
-                  <div class="cs-beam b1"></div>
-                  <div class="cs-beam b2"></div>
-                  <div class="cs-roof-partial"></div>
-                  <div class="cs-plank-fly"></div>
-                </div>
-                <div class="cs-hay"></div>
-              </div>
-
-              <!-- Zone 3: Mill / Lumber — scraper agents -->
-              <div class="cs-zone zone-mill" id="zone-mill">
-                <span class="cs-zone-lbl">Mill</span>
-                <div class="cs-hud-badge" id="hud-mill">LOG:████</div>
-                <div class="cs-villager-row" id="vrow-zone-mill"></div>
-                <div class="cs-mill">
-                  <div class="cs-mill-base">
-                    <div class="cs-log"></div>
-                    <div class="cs-saw-dust d1"></div>
-                    <div class="cs-saw-dust d2"></div>
-                    <div class="cs-saw-dust d3"></div>
-                    <div class="cs-wheel"></div>
-                  </div>
-                  <div class="cs-lumber-stack">
-                    <div class="cs-plank-s"></div>
-                    <div class="cs-plank-s" style="width:14px"></div>
-                    <div class="cs-plank-s" style="width:16px"></div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Zone 4: Mine / Server — server/hermes agents -->
-              <div class="cs-zone zone-mine" id="zone-mine">
-                <span class="cs-zone-lbl">Mine</span>
-                <div class="cs-hud-badge" id="hud-mine">SRV:████</div>
-                <div class="cs-villager-row" id="vrow-zone-mine"></div>
-                <div class="cs-mine-entrance">
-                  <div class="cs-mine-arch">
-                    <div class="cs-timber t1"></div>
-                    <div class="cs-timber t2"></div>
-                    <div class="cs-timber t3"></div>
-                    <div class="cs-mine-glow"></div>
-                  </div>
-                  <div class="cs-cart"></div>
-                </div>
-              </div>
-
-            </div><!-- /cs-ground -->
-          </div><!-- /cs-scene -->
+          <div class="cs-scene" id="house-scene" style="padding:0; background:#08101d;">
+            <iframe
+              src="/admin/office/office"
+              title="Claw3D Office Hub"
+              loading="eager"
+              style="width:100%;height:100%;min-height:720px;border:0;display:block;background:#08101d;"
+              allow="fullscreen"
+            ></iframe>
+          </div>
         </div>
 
         <!-- Pipeline -->
@@ -1500,60 +1401,60 @@ a { color: inherit; text-decoration: none; }
 (function () {
   'use strict';
 
-  /* ── Villager definitions (AoE style) ── */
+  /* ── Worker definitions ── */
   const CHARS = {
     /* Core agents */
-    'hermes-scan':  { tunic:'t-blue',   name:'Scout Vil.',      color:'#4a90d9' },
-    'hermes-intel': { tunic:'t-green',  name:'Intel Vil.',      color:'#3a8a2a' },
-    'hermes-notify':{ tunic:'t-red',    name:'Herald Vil.',     color:'#b03030' },
-    'main':         { tunic:'t-amber',  name:'Main Vil.',       color:'#b87028' },
-    'reporter':     { tunic:'t-purple', name:'Scribe Vil.',     color:'#7a38a0' },
-    'scout':        { tunic:'t-teal',   name:'Ranger Vil.',     color:'#2a8870' },
-    'clerk':        { tunic:'t-rose',   name:'Clerk Vil.',      color:'#b04060' },
-    'bailbot':      { tunic:'t-grey',   name:'Warden Vil.',     color:'#5a6070' },
+    'hermes-scan':  { tunic:'t-blue',   name:'Scout Worker',      color:'#4a90d9' },
+    'hermes-intel': { tunic:'t-green',  name:'Intel Worker',      color:'#3a8a2a' },
+    'hermes-notify':{ tunic:'t-red',    name:'Alert Worker',      color:'#b03030' },
+    'main':         { tunic:'t-amber',  name:'Main Worker',       color:'#b87028' },
+    'reporter':     { tunic:'t-purple', name:'Scribe Worker',     color:'#7a38a0' },
+    'scout':        { tunic:'t-teal',   name:'Ranger Worker',     color:'#2a8870' },
+    'clerk':        { tunic:'t-rose',   name:'Clerk Worker',      color:'#b04060' },
+    'bailbot':      { tunic:'t-grey',   name:'Ops Worker',        color:'#5a6070' },
     /* Extended */
-    'analyst':              { tunic:'t-purple', name:'Analyst Vil.',    color:'#7a38a0' },
-    'scraper':              { tunic:'t-blue',   name:'Miner Vil.',      color:'#4a90d9' },
-    'orchestrator':         { tunic:'t-amber',  name:'Lord Vil.',       color:'#b87028' },
-    'publisher':            { tunic:'t-teal',   name:'Printer Vil.',    color:'#2a8870' },
-    'duplicate_blog_checker':{ tunic:'t-green', name:'Checker Vil.',    color:'#3a8a2a' },
-    'facebook_page_manager':{ tunic:'t-rose',   name:'Town Crier.',     color:'#b04060' },
-    'demo_bot_001':         { tunic:'t-grey',   name:'Apprentice.',     color:'#5a6070' },
-    'test':                 { tunic:'t-grey',   name:'Test Vil.',       color:'#5a6070' },
+    'analyst':              { tunic:'t-purple', name:'Analyst Worker',    color:'#7a38a0' },
+    'scraper':              { tunic:'t-blue',   name:'Scraper Worker',    color:'#4a90d9' },
+    'orchestrator':         { tunic:'t-amber',  name:'Lead Worker',       color:'#b87028' },
+    'publisher':            { tunic:'t-teal',   name:'Publisher Worker',  color:'#2a8870' },
+    'duplicate_blog_checker':{ tunic:'t-green', name:'Checker Worker',    color:'#3a8a2a' },
+    'facebook_page_manager':{ tunic:'t-rose',   name:'Social Worker',     color:'#b04060' },
+    'demo_bot_001':         { tunic:'t-grey',   name:'Demo Worker',       color:'#5a6070' },
+    'test':                 { tunic:'t-grey',   name:'Test Worker',       color:'#5a6070' },
     /* Hermes / codex instances */
-    'codex_1788991': { tunic:'t-green',  name:'Codex #1788', color:'#3a8a2a' },
-    'codex_207810':  { tunic:'t-red',    name:'Codex #2078', color:'#b03030' },
-    'codex_221581':  { tunic:'t-amber',  name:'Codex #2215', color:'#b87028' },
-    'codex_231115':  { tunic:'t-teal',   name:'Codex #2311', color:'#2a8870' },
-    'codex_245080':  { tunic:'t-blue',   name:'Codex #2450', color:'#4a90d9' },
-    'codex_245881':  { tunic:'t-rose',   name:'Codex #2458', color:'#b04060' },
-    'codex_786627':  { tunic:'t-purple', name:'Codex #7866', color:'#7a38a0' },
-    'hermes_1518062':{ tunic:'t-amber',  name:'Hrm #1518',   color:'#b87028' },
-    'hermes_225864': { tunic:'t-blue',   name:'Hrm #2258',   color:'#4a90d9' },
-    'hermes_26478':  { tunic:'t-grey',   name:'Hrm #264',    color:'#5a6070' },
-    'hermes_30908':  { tunic:'t-green',  name:'Hrm #309',    color:'#3a8a2a' },
-    'hermes_51264':  { tunic:'t-teal',   name:'Hrm #512',    color:'#2a8870' },
-    'hermes_772':    { tunic:'t-red',    name:'Hrm #772',    color:'#b03030' },
+    'codex_1788991': { tunic:'t-green',  name:'Worker #1788', color:'#3a8a2a' },
+    'codex_207810':  { tunic:'t-red',    name:'Worker #2078', color:'#b03030' },
+    'codex_221581':  { tunic:'t-amber',  name:'Worker #2215', color:'#b87028' },
+    'codex_231115':  { tunic:'t-teal',   name:'Worker #2311', color:'#2a8870' },
+    'codex_245080':  { tunic:'t-blue',   name:'Worker #2450', color:'#4a90d9' },
+    'codex_245881':  { tunic:'t-rose',   name:'Worker #2458', color:'#b04060' },
+    'codex_786627':  { tunic:'t-purple', name:'Worker #7866', color:'#7a38a0' },
+    'hermes_1518062':{ tunic:'t-amber',  name:'Worker #1518', color:'#b87028' },
+    'hermes_225864': { tunic:'t-blue',   name:'Worker #2258', color:'#4a90d9' },
+    'hermes_26478':  { tunic:'t-grey',   name:'Worker #264',  color:'#5a6070' },
+    'hermes_30908':  { tunic:'t-green',  name:'Worker #309',  color:'#3a8a2a' },
+    'hermes_51264':  { tunic:'t-teal',   name:'Worker #512',  color:'#2a8870' },
+    'hermes_772':    { tunic:'t-red',    name:'Worker #772',  color:'#b03030' },
   };
 
   const STAGES = ['extract','parse','summarize','publish'];
 
   /* ── Zone assignments (agent_id → zone element ID) ── */
   const ROOM_ASSIGN = {
-    /* Keep — core command agents */
+    /* Core — command agents */
     'hermes-scan':'zone-keep',  'hermes-intel':'zone-keep',
     'hermes-notify':'zone-keep','main':'zone-keep',
     'orchestrator':'zone-keep', 'bailbot':'zone-keep',
-    /* Farm — pipeline / content agents */
+    /* Pipeline — content agents */
     'reporter':  'zone-farm', 'publisher':  'zone-farm',
     'analyst':   'zone-farm', 'scout':      'zone-farm',
     'duplicate_blog_checker':'zone-farm', 'facebook_page_manager':'zone-farm',
     'demo_bot_001':'zone-farm', 'test':'zone-farm',
-    /* Mill — scrapers / data movers */
+    /* Ingest — scrapers / data movers */
     'scraper':'zone-mill', 'clerk':'zone-mill',
     'codex_1788991':'zone-mill','codex_207810':'zone-mill',
     'codex_221581': 'zone-mill','codex_231115':'zone-mill',
-    /* Mine — hermes / server instances */
+    /* Runtime — hermes / server instances */
     'codex_245080': 'zone-mine','codex_245881':'zone-mine',
     'codex_786627': 'zone-mine',
     'hermes_1518062':'zone-mine','hermes_225864':'zone-mine',
@@ -1614,7 +1515,7 @@ a { color: inherit; text-decoration: none; }
     return '🛠 ' + raw.slice(0, 12);
   }
 
-  /* ── AoE Villager sprite builder ── */
+  /* ── Worker sprite builder ── */
   function charSprite(agentId, task, state, lastTool) {
     const c = CHARS[agentId];
     if (!c) return '';
@@ -1629,7 +1530,7 @@ a { color: inherit; text-decoration: none; }
     const dots = isWorking ? `<div class="typing-dots"><span></span><span></span><span></span></div>` : '';
     const dust = `<div class="vil-dust"><span></span><span></span><span></span></div>`;
     /* Task label shown below feet — always readable */
-    const taskLbl = bubText ? `<div class="vil-task-lbl">${esc(bubText)}</div>` : '';
+    const taskLbl = bubText ? `<div class="cs-worker-task-lbl">${esc(bubText)}</div>` : '';
 
     return `<div class="vil-wrap">
       <div class="vil ${c.tunic}">
@@ -1655,8 +1556,11 @@ a { color: inherit; text-decoration: none; }
 
   /* ── Place all agents into their construction zones ── */
   function buildHouseScene(hermes, openclaw) {
+    const scene = document.getElementById('house-scene');
+    if (!scene || scene.querySelector('iframe')) return;
+
     /* Clear old slots from flex rows */
-    document.querySelectorAll('.vil-slot').forEach(n => n.remove());
+    document.querySelectorAll('.cs-worker-slot').forEach(n => n.remove());
 
     const zoneCounts = {'zone-keep':0,'zone-farm':0,'zone-mill':0,'zone-mine':0};
     const OVERFLOW_ZONES = ['zone-keep','zone-farm','zone-mill','zone-mine'];
@@ -1693,7 +1597,7 @@ a { color: inherit; text-decoration: none; }
       }
       if (!zid) return;
 
-      /* Append to the flex villager row, not the zone itself */
+    /* Append to the flex worker row, not the zone itself */
       const row = document.getElementById('vrow-' + zid);
       if (!row) return;
 
@@ -1701,7 +1605,7 @@ a { color: inherit; text-decoration: none; }
 
       const c = CHARS[ag.id] || { tunic:'t-grey', name: ag.id };
       const slot = document.createElement('div');
-      slot.className = 'vil-slot';
+      slot.className = 'cs-worker-slot';
       slot.id = slotId;
       slot.setAttribute('data-state', 'working');
       slot.setAttribute('data-name', c.name || ag.id);
@@ -1712,7 +1616,7 @@ a { color: inherit; text-decoration: none; }
     });
 
     const total = allAgents.length;
-    document.getElementById('pc-agents').textContent = total + ' villagers';
+    document.getElementById('pc-agents').textContent = total + ' workers';
     document.getElementById('s-agents').textContent = activeCount;
     const ph = document.getElementById('house-panel-head');
     if (ph) ph.classList.toggle('has-active', activeCount > 0);
@@ -1922,9 +1826,9 @@ a { color: inherit; text-decoration: none; }
     '⚖️  summarizing charges',
   ];
 
-  /* Rotate tasks on ~45% of villagers each cycle — everybody hammers */
+    /* Rotate tasks on ~45% of workers each cycle — everybody keeps moving */
   function simWork() {
-    const slots = Array.from(document.querySelectorAll('.vil-slot'));
+    const slots = Array.from(document.querySelectorAll('.cs-worker-slot'));
     if (!slots.length) return;
     const batch = slots.sort(() => Math.random() - .5)
                        .slice(0, Math.max(1, Math.ceil(slots.length * 0.45)));
@@ -1932,10 +1836,10 @@ a { color: inherit; text-decoration: none; }
       slot.setAttribute('data-state', 'working');
       const task = SIM_TASKS[Math.floor(Math.random() * SIM_TASKS.length)];
       /* Update the always-visible task label */
-      let lbl = slot.querySelector('.vil-task-lbl');
+      let lbl = slot.querySelector('.cs-worker-task-lbl');
       if (!lbl) {
         lbl = document.createElement('div');
-        lbl.className = 'vil-task-lbl';
+        lbl.className = 'cs-worker-task-lbl';
         slot.appendChild(lbl);
       }
       lbl.textContent = task;
@@ -1954,7 +1858,7 @@ a { color: inherit; text-decoration: none; }
   const RESOURCES = ['🪨','🪵','🌾','⚔️','🏹','🛡️','💰','📜'];
   function deliverResource() {
     const scene = document.getElementById('house-scene');
-    const slots = Array.from(document.querySelectorAll('.vil-slot'));
+    const slots = Array.from(document.querySelectorAll('.cs-worker-slot'));
     if (!scene || !slots.length) return;
 
     const icon = RESOURCES[Math.floor(Math.random() * RESOURCES.length)];
@@ -1964,7 +1868,7 @@ a { color: inherit; text-decoration: none; }
     scene.appendChild(fly);
 
     const sceneR = scene.getBoundingClientRect();
-    /* pick two random villager slots as origin/destination */
+    /* pick two random worker slots as origin/destination */
     const [a, b] = slots.sort(() => Math.random()-.5).slice(0,2);
     const aR = a.getBoundingClientRect(), bR = b.getBoundingClientRect();
 
