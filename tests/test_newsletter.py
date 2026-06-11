@@ -3,6 +3,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import app as app_module
 import config
@@ -121,6 +122,17 @@ class NewsletterTests(unittest.TestCase):
         self.assertIn('Gallatin', html)
         self.assertIn('Missoula', html)
         self.assertIn('Yellowstone', html)
+
+    def test_subscribe_page_falls_back_without_recaptcha_runtime(self) -> None:
+        client = app_module.app.test_client()
+        with patch.object(config, 'RECAPTCHA_SITE_KEY', 'test-site-key'), \
+             patch.object(config, 'RECAPTCHA_SECRET_KEY', 'test-secret-key'), \
+             patch.object(config, 'RECAPTCHA_ENABLED', True):
+            r = client.get('/subscribe')
+        html = r.get_data(as_text=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("if (!window.grecaptcha", html)
+        self.assertIn("form.submit();", html)
 
 
 if __name__ == '__main__':

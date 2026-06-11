@@ -96,6 +96,8 @@ class AdminDashboardTests(unittest.TestCase):
         self.assertIn('/admin/audience/subscribers', html)
         self.assertIn('/admin/analytics', html)
         self.assertIn('Operations Shortcuts', html)
+        self.assertIn('/admin/office/', html)
+        self.assertIn('>Office<', html)
 
 
 if __name__ == '__main__':

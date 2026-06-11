@@ -122,6 +122,17 @@ class WantedPagesTestCase(unittest.TestCase):
         self.assertIn("https://example.com/mugshot.jpg", body)
         self.assertNotIn("No photo", body)
 
+    def test_wanted_index_paywall_card_labels_paid_trial(self):
+        from unittest.mock import patch
+
+        with patch("app.user_has_warrant_access", return_value=False):
+            resp = self.client.get("/wanted")
+        body = resp.get_data(as_text=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Start the paid warrant trial", body)
+        self.assertIn("Start Paid Warrant Trial", body)
+        self.assertIn("Paid access to the warrant database", body)
+
     def test_wanted_detail_renders_record(self):
         slug = warrant_slug("test-warrant:jane-doe")
         resp = self.client.get(f"/wanted/{slug}")

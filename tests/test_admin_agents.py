@@ -139,6 +139,27 @@ class AdminAgentsTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/admin/command-center', response.headers['Location'])
 
+    def test_admin_office_serves_static_vps_office_html(self) -> None:
+        client = app_module.app.test_client()
+        self._login_admin_session(client)
+
+        response = client.get('/admin/office/', follow_redirects=True)
+
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Claw3D Office', body)
+        self.assertIn('iframe', body)
+        self.assertIn(config.CLAW3D_OFFICE_URL, body)
+
+    def test_admin_office_redirects_to_trailing_slash(self) -> None:
+        client = app_module.app.test_client()
+        self._login_admin_session(client)
+
+        response = client.get('/admin/office', follow_redirects=False)
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.headers['Location'], '/admin/office/')
+
     def test_admin_agents_stream_returns_error_event_when_openclaw_missing(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)

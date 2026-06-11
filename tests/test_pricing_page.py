@@ -34,7 +34,7 @@ class PricingPageTests(unittest.TestCase):
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(html.count('https://buy.stripe.com/14A4gzajyeoAcDU4qh8EM03'), 2)
+        self.assertEqual(html.count('https://buy.stripe.com/28E14nfDS4O0gUa9KB8EM04'), 2)
 
 
 if __name__ == '__main__':

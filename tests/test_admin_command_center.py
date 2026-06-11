@@ -81,6 +81,9 @@ class AdminCommandCenterTests(unittest.TestCase):
         self.assertIn('Browse All Admin Tools', html)
         self.assertIn('All Admin Tools', html)
         self.assertIn('ops-health-bar', html)
+        self.assertIn('Claw3D Office Hub', html)
+        self.assertIn('<iframe', html)
+        self.assertIn('/admin/office/office', html)
         self.assertNotIn('Mission Control', html)
         self.assertNotIn('/admin/mission-control', html)
 

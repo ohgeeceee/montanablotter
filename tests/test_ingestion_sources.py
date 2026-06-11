@@ -34,6 +34,29 @@ class _FakeSession:
 
 
 class IngestionSourceTests(unittest.TestCase):
+    def test_hill_source_is_email_only_in_scheduler(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        source = conn.execute(
+            """
+            SELECT
+                1 AS id,
+                'hill' AS county_slug,
+                'Hill' AS county_name,
+                'Havre Police Department' AS facility_name,
+                'https://www.havremt.gov/police' AS roster_url
+            """
+        ).fetchone()
+
+        with mock.patch.object(jail_booking_ingest, "_record_run") as record_run, \
+             mock.patch.object(jail_booking_ingest, "_mark_source_checked") as mark_checked:
+            stats, status = jail_booking_ingest._run_source(conn, source)
+
+        self.assertEqual(status, "skipped")
+        self.assertEqual(stats.fetched_count, 0)
+        record_run.assert_called_once()
+        mark_checked.assert_not_called()
+
     def test_sync_records_inserts_new_jail_booking_payload_columns(self) -> None:
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
@@ -361,7 +384,7 @@ class IngestionSourceTests(unittest.TestCase):
                     <td>12345</td>
                     <td>Bkg-BKW</td>
                     <td>$500.00</td>
-                    <td>05/20/2026</td>
+                    <td>06/04/2026</td>
                     <td>01/01/1990</td>
                 </tr>
             </table>
@@ -377,7 +400,7 @@ class IngestionSourceTests(unittest.TestCase):
                     <td class="text-center">Bkg-BKW</td>
                     <td class="text-center"><a href="inmatedet.asp?Booknum=2026-000001&LName=DOE&FName=JOHN">View Charges</a></td>
                     <td class="text-center">$500.00</td>
-                    <td class="text-center">05/20/2026</td>
+                    <td class="text-center">06/04/2026</td>
                     <td class="text-center">01/01/1990</td>
                 </tr>
             </table>
@@ -412,7 +435,7 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].person_name, "Doe, John")
         self.assertEqual(records[0].booking_number, "2026-000001")
-        self.assertEqual(records[0].booking_at, "2026-05-20 00:00:00")
+        self.assertEqual(records[0].booking_at, "2026-06-04 00:00:00")
         self.assertIn("Theft", records[0].charges_summary)
         self.assertIn("Misdemeanor", records[0].charges_summary)
         self.assertIn("Bond $500.00", records[0].charges_summary)

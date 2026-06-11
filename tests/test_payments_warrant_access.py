@@ -25,6 +25,33 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         self.app_module.app.config['TESTING'] = True
         self.client = self.app_module.app.test_client()
 
+        bootstrap_conn = sqlite3.connect(self.db_path)
+        bootstrap_conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS public_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                subscriber_plan TEXT DEFAULT 'scout',
+                subscription_status TEXT DEFAULT '',
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            )
+            """
+        )
+        bootstrap_conn.execute(
+            """
+            INSERT OR REPLACE INTO public_users (
+                id, email, password_hash, display_name, subscriber_plan, subscription_status, is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (7, 'trial-user@example.com', 'hash', 'Trial User', 'scout', '', 1),
+        )
+        bootstrap_conn.commit()
+        bootstrap_conn.close()
+
         self.conn = sqlite3.connect(':memory:')
         self.conn.row_factory = sqlite3.Row
         self.conn.execute(
@@ -96,6 +123,18 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         kwargs = create_mock.call_args.kwargs
         self.assertEqual(kwargs['line_items'][0]['price'], env_overrides['MB_WARRANT_TRIAL_FEE_PRICE_ID'])
         self.assertEqual(kwargs['line_items'][1]['price'], env_overrides['MB_WARRANT_MONTHLY_PRICE_ID'])
+
+    def test_wanted_subscribe_page_labels_paid_trial(self):
+        with self.client.session_transaction() as session_:
+            session_['public_user_id'] = 7
+
+        response = self.client.get('/wanted/subscribe')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('This is the paid warrant access plan.', html)
+        self.assertIn('Start Paid 7-Day Trial', html)
+        self.assertIn('Secure Stripe checkout for paid warrant access', html)
 
 
 if __name__ == '__main__':
