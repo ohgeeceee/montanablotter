@@ -22,11 +22,17 @@ config_stub.SMTP_SERVER = "smtp.example.com"
 config_stub.SMTP_PORT = 587
 sys.modules.setdefault("config", config_stub)
 
-# Stub alerting
-alerting_stub = types.ModuleType("alerting")
+# Stub services.alerts.legacy (morning_briefing imports collect_alert_recipients and
+# send_plaintext_email from there now, not from a top-level alerting module).
+alerting_stub = types.ModuleType("services.alerts.legacy")
 alerting_stub.collect_alert_recipients = lambda conn: []
 alerting_stub.send_plaintext_email = lambda *a, **kw: None
-sys.modules.setdefault("alerting", alerting_stub)
+sys.modules.setdefault("services.alerts.legacy", alerting_stub)
+# Back-compat: some legacy code paths may still try `from alerting import ...`.
+alerting_legacy_alias = types.ModuleType("alerting")
+alerting_legacy_alias.collect_alert_recipients = lambda conn: []
+alerting_legacy_alias.send_plaintext_email = lambda *a, **kw: None
+sys.modules.setdefault("alerting", alerting_legacy_alias)
 
 from services.publishing.morning_briefing import _update_crisis_banner  # noqa: E402
 
@@ -84,7 +90,7 @@ class TestUpdateCrisisBannerCrisisDetected(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_message
 
-        with patch("morning_briefing.anthropic") as mock_anthropic:
+        with patch("services.publishing.morning_briefing.anthropic") as mock_anthropic:
             mock_anthropic.Anthropic.return_value = mock_client
             _update_crisis_banner(SAMPLE_POSTS, conn=conn)
 
@@ -108,7 +114,7 @@ class TestUpdateCrisisBannerCrisisDetected(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_message
 
-        with patch("morning_briefing.anthropic") as mock_anthropic:
+        with patch("services.publishing.morning_briefing.anthropic") as mock_anthropic:
             mock_anthropic.Anthropic.return_value = mock_client
             _update_crisis_banner(SAMPLE_POSTS, conn=conn)
 
@@ -129,7 +135,7 @@ class TestUpdateCrisisBannerCrisisDetected(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_message
 
-        with patch("morning_briefing.anthropic") as mock_anthropic:
+        with patch("services.publishing.morning_briefing.anthropic") as mock_anthropic:
             mock_anthropic.Anthropic.return_value = mock_client
             _update_crisis_banner(SAMPLE_POSTS, conn=conn)
 
@@ -151,7 +157,7 @@ class TestUpdateCrisisBannerNoCrisis(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_message
 
-        with patch("morning_briefing.anthropic") as mock_anthropic:
+        with patch("services.publishing.morning_briefing.anthropic") as mock_anthropic:
             mock_anthropic.Anthropic.return_value = mock_client
             _update_crisis_banner(EVERGREEN_POSTS, conn=conn)
 
@@ -164,7 +170,7 @@ class TestUpdateCrisisBannerNoCrisis(unittest.TestCase):
     def test_writes_evergreen_when_posts_empty(self):
         conn = _make_db()
 
-        with patch("morning_briefing.anthropic") as mock_anthropic:
+        with patch("services.publishing.morning_briefing.anthropic") as mock_anthropic:
             _update_crisis_banner(EMPTY_POSTS, conn=conn)
             # Claude should NOT be called for empty posts
             mock_anthropic.Anthropic.assert_not_called()
@@ -191,7 +197,7 @@ class TestUpdateCrisisBannerApiFailure(unittest.TestCase):
         )
         conn.commit()
 
-        with patch("morning_briefing.anthropic") as mock_anthropic:
+        with patch("services.publishing.morning_briefing.anthropic") as mock_anthropic:
             mock_client = MagicMock()
             mock_client.messages.create.side_effect = Exception("API down")
             mock_anthropic.Anthropic.return_value = mock_client
@@ -222,7 +228,7 @@ class TestUpdateCrisisBannerApiFailure(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_message
 
-        with patch("morning_briefing.anthropic") as mock_anthropic:
+        with patch("services.publishing.morning_briefing.anthropic") as mock_anthropic:
             mock_anthropic.Anthropic.return_value = mock_client
             _update_crisis_banner(SAMPLE_POSTS, conn=conn)
 

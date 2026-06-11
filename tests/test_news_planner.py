@@ -181,8 +181,8 @@ class NewsPlannerTests(unittest.TestCase):
                 return None
 
         try:
-            with mock.patch("news_planner.EXTERNAL_SOURCE_PATH", config_path):
-                with mock.patch("news_planner.requests.get", return_value=FakeResponse()):
+            with mock.patch("services.publishing.news_planner.EXTERNAL_SOURCE_PATH", config_path):
+                with mock.patch("services.publishing.news_planner.requests.get", return_value=FakeResponse()):
                     packets = fetch_external_story_packets()
         finally:
             os.unlink(config_path)
@@ -208,8 +208,8 @@ class NewsPlannerTests(unittest.TestCase):
                 return None
 
         try:
-            with mock.patch("news_planner.EXTERNAL_SOURCE_PATH", config_path):
-                with mock.patch("news_planner.requests.get", return_value=FakeResponse()):
+            with mock.patch("services.publishing.news_planner.EXTERNAL_SOURCE_PATH", config_path):
+                with mock.patch("services.publishing.news_planner.requests.get", return_value=FakeResponse()):
                     packets = fetch_external_story_packets()
         finally:
             os.unlink(config_path)

@@ -5,12 +5,12 @@ import services.ops.smoke_check as ingestion_smoke_check
 
 
 class IngestionSmokeCheckTests(unittest.TestCase):
-    @mock.patch('ingestion_smoke_check._check_crimemapping')
-    @mock.patch('ingestion_smoke_check._check_email')
-    @mock.patch('ingestion_smoke_check._check_missoula')
-    @mock.patch('ingestion_smoke_check._check_bozeman_crime')
-    @mock.patch('ingestion_smoke_check._check_bozeman_calls')
-    @mock.patch('ingestion_smoke_check._check_whitefish')
+    @mock.patch('services.ops.smoke_check._check_crimemapping')
+    @mock.patch('services.ops.smoke_check._check_email')
+    @mock.patch('services.ops.smoke_check._check_missoula')
+    @mock.patch('services.ops.smoke_check._check_bozeman_crime')
+    @mock.patch('services.ops.smoke_check._check_bozeman_calls')
+    @mock.patch('services.ops.smoke_check._check_whitefish')
     def test_run_smoke_checks_collects_results(
         self,
         whitefish,
