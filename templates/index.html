@@ -170,6 +170,18 @@
     color: var(--ink-muted);
     font-size: 0.72rem;
 }
+.hub-card__item--featured {
+    margin-top: 0.4rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed rgba(234, 88, 12, 0.35);
+    background: rgba(234, 88, 12, 0.06);
+}
+.hub-card__item--featured strong {
+    color: #b45309;
+}
+.hub-card__item--featured:hover {
+    background: rgba(234, 88, 12, 0.12);
+}
 
 .hub-card__footer {
     margin-top: auto;
@@ -580,6 +592,11 @@
                     {% else %}
                     <div class="hub-card__item"><span>Jail booking data will appear here as rosters are refreshed.</span></div>
                     {% endfor %}
+                    <a href="/jail-bookings/hill" class="hub-card__item hub-card__item--featured">
+                        <i class="fas fa-building-shield text-orange-600 mr-2"></i>
+                        <strong>Havre Daily Roster</strong>
+                        <span>{{ havre_current_count }} currently booked · Hill County</span>
+                    </a>
                 </div>
                 <div class="hub-card__footer">
                     <a href="/detention">View all jails <i class="fas fa-arrow-right text-[10px]"></i></a>

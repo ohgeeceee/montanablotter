@@ -72,6 +72,69 @@
     </section>
     {% endif %}
 
+    {% if duplicate_review_groups %}
+    <section class="rounded-2xl border border-blue-200 bg-blue-50 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-blue-200 bg-blue-100/70">
+            <h2 class="text-lg font-black text-blue-900">Same-Slot Review Queue</h2>
+            <p class="text-sm text-blue-800 mt-1">These current meetings share the same source and time slot but still look materially distinct after automatic cleanup.</p>
+        </div>
+        <div class="divide-y divide-blue-200">
+            {% for group in duplicate_review_groups %}
+            <div class="px-5 py-4">
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="inline-flex rounded-full bg-blue-200 px-3 py-1 text-xs font-black uppercase tracking-[0.12em] text-blue-900">{{ group.meeting_count }} rows</span>
+                    <p class="text-sm font-black text-slate-900">{{ group.source_name }}</p>
+                    <p class="text-xs text-slate-600">{{ group.meeting_date or 'Unknown date' }}{% if group.meeting_time %} · {{ group.meeting_time }}{% endif %}</p>
+                </div>
+                <p class="mt-2 text-sm text-slate-700">{{ group.body_name }}</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <form method="post" action="{{ url_for('admin.admin_meeting_duplicate_review') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="keep_both">
+                        <input type="hidden" name="source_slug" value="{{ group.source_slug }}">
+                        <input type="hidden" name="meeting_date" value="{{ group.meeting_date }}">
+                        <input type="hidden" name="meeting_time" value="{{ group.meeting_time }}">
+                        {% for meeting in group.meetings %}
+                        <input type="hidden" name="meeting_id" value="{{ meeting.id }}">
+                        {% endfor %}
+                        <button type="submit" class="inline-flex rounded-full border border-blue-300 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-blue-900 hover:bg-blue-100">Keep Both</button>
+                    </form>
+                </div>
+                <div class="mt-3 grid gap-3 lg:grid-cols-2">
+                    {% for meeting in group.meetings %}
+                    <div class="rounded-xl border border-blue-200 bg-white px-4 py-3">
+                        <p class="text-sm font-black text-slate-900">#{{ meeting.id }} · {{ meeting.title }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ meeting.starts_at_raw or 'No raw start text' }}</p>
+                        <p class="mt-2 text-xs text-slate-600">Documents: {{ meeting.document_count }}{% if meeting.document_types %} · {{ meeting.document_types }}{% endif %}</p>
+                        {% if meeting.meeting_page_url %}
+                        <p class="mt-2 text-xs break-all text-slate-500">{{ meeting.meeting_page_url }}</p>
+                        {% elif meeting.source_url %}
+                        <p class="mt-2 text-xs break-all text-slate-500">{{ meeting.source_url }}</p>
+                        {% endif %}
+                        {% if group.meetings|length == 2 %}
+                        {% set other = group.meetings[1] if loop.index0 == 0 else group.meetings[0] %}
+                        <form method="post" action="{{ url_for('admin.admin_meeting_duplicate_review') }}" class="mt-3">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="merge">
+                            <input type="hidden" name="source_slug" value="{{ group.source_slug }}">
+                            <input type="hidden" name="meeting_date" value="{{ group.meeting_date }}">
+                            <input type="hidden" name="meeting_time" value="{{ group.meeting_time }}">
+                            <input type="hidden" name="meeting_id" value="{{ meeting.id }}">
+                            <input type="hidden" name="meeting_id" value="{{ other.id }}">
+                            <input type="hidden" name="keeper_meeting_id" value="{{ meeting.id }}">
+                            <input type="hidden" name="duplicate_meeting_id" value="{{ other.id }}">
+                            <button type="submit" class="inline-flex rounded-full bg-blue-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white hover:bg-blue-800">Merge Other Into #{{ meeting.id }}</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
             <h2 class="text-lg font-black text-slate-900">Refresh Workflow</h2>

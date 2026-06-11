@@ -128,9 +128,15 @@
 document.getElementById('subscribe-form').addEventListener('submit', function(e) {
     e.preventDefault();
     var form = this;
+    if (!window.grecaptcha || typeof grecaptcha.ready !== 'function' || typeof grecaptcha.execute !== 'function') {
+        form.submit();
+        return;
+    }
     grecaptcha.ready(function() {
         grecaptcha.execute('{{ recaptcha_site_key }}', {action: 'subscribe'}).then(function(token) {
             document.getElementById('recaptcha-token').value = token;
+            form.submit();
+        }).catch(function() {
             form.submit();
         });
     });

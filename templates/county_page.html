@@ -681,6 +681,13 @@
                         <i class="fas fa-file-circle-exclamation text-blue-500 w-4 text-center"></i>
                         {{ county.name }} County warrants
                     </a>
+                    {% if county.jail_roster_href %}
+                    <a href="{{ county.jail_roster_href }}"
+                       class="flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-200 hover:bg-orange-100 transition text-sm font-bold text-orange-800">
+                        <i class="fas fa-building-shield text-orange-600 w-4 text-center"></i>
+                        {{ county.jail_roster_label or 'Daily Jail Roster' }}
+                    </a>
+                    {% endif %}
                     <a href="/cities"
                        class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition text-sm font-bold text-slate-700">
                         <i class="fas fa-city text-blue-500 w-4 text-center"></i>

@@ -104,7 +104,7 @@
                 <a href="/wanted/subscribe" class="hover:text-red-700 transition-colors">{{ summary.active - rows|length }} more active warrants</a>
             </h2>
             <p class="mt-2 text-sm text-slate-500 max-w-sm mx-auto">
-                You&rsquo;re seeing 5 of {{ summary.active }} active records. <a href="/wanted/subscribe" class="text-red-600 font-semibold hover:underline">Subscribe for full access</a> &mdash; updated daily from all 56 Montana counties.
+                You&rsquo;re seeing 5 of {{ summary.active }} active records. <a href="/wanted/subscribe" class="text-red-600 font-semibold hover:underline">Start the paid warrant trial</a> &mdash; updated daily from all 56 Montana counties.
             </p>
             <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <div class="rounded-2xl bg-red-50 border border-red-100 px-6 py-4 text-center min-w-[160px]">
@@ -114,9 +114,9 @@
                 </div>
                 <div class="flex flex-col gap-3">
                     <a href="/wanted/subscribe" class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-8 py-3.5 text-sm font-black text-white hover:bg-red-700 transition-colors group-hover:bg-red-700">
-                        <i class="fas fa-unlock"></i> Unlock Full Access
+                        <i class="fas fa-unlock"></i> Start Paid Warrant Trial
                     </a>
-                    <p class="text-[11px] text-slate-400 text-center">Cancel anytime &bull; Secure checkout via Stripe</p>
+                    <p class="text-[11px] text-slate-400 text-center">Paid access to the warrant database &bull; Secure Stripe checkout &bull; Cancel anytime</p>
                 </div>
             </div>
         </div>
@@ -144,4 +144,8 @@
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include "includes/warrant_offer_popup.html" %}
 {% endblock %}
