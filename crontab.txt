@@ -1,13 +1,15 @@
 # Montana Blotter cron jobs
-
-# Email workers are active so the Havre PD DOCX jail roster and image-based
-# blotters (Havre, etc.) reach the site. Other background workers remain
-# disabled to keep host contention low for the web app.
+#
+# Strategy (2026-06-11): re-enabled the four high-ROI workers that drive
+# arrests / jail rosters / blog content, but throttled + low-priority so the
+# web app keeps headroom. Each new entry is wrapped in `nice -n 19 ionice -c 3`
+# and offset on the clock from the existing 15-minute email jobs to avoid
+# stacking. Watchdog is kept in sync via services.ops.cron_introspection.
 
 SHELL=/bin/bash
 BASH_ENV=/root/montanablotter/.env
 
-# Web server healthcheck — keep only the lightweight liveness probe.
+# Web server healthcheck — lightweight liveness probe.
 */3 * * * * /root/montanablotter/scripts/ops/healthcheck_restart.sh
 
 # Email queue scan — polls IONOS inbox (records@montanablotter.com) every 15 min
@@ -24,12 +26,53 @@ BASH_ENV=/root/montanablotter/.env
 # changes for existing links. Every 15 min. Logs to logs/disposition_watcher.log.
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/disposition_watcher.py >> /root/montanablotter/logs/disposition_watcher.log 2>&1
 
-# Ad integration health check — assert Monetag loader + meta are present and that
-# no AdSense references have crept back into public_page_base.html. Lightweight
-# (single HTTP request, stdlib only). Every 15 min, offset by 7 min to avoid
-# stacking on the disposition_watcher at :00/:15/:30/:45. Logs to logs/ad_health.log.
+# Ad integration health check — assert Monetag loader + meta are present and
+# that no AdSense references have crept back. Every 15 min, offset by 7 min.
 7-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/check_ads_health.py >> /root/montanablotter/logs/ad_health.log 2>&1
 
 # Daily dataset metrics refresh — rebuilds cached metrics for the five core
-# public datasets and publishes them through the existing job_runner wrapper.
+# public datasets at 06:10 daily.
 10 6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name datasets_refresh --log /root/montanablotter/logs/datasets_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/refresh_datasets.py
+
+# Public meetings ingest — refresh statewide agendas every 6 hours at :45.
+45 */6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name agendas_ingest --log /root/montanablotter/logs/agendas_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.meetings.agendas_ingest /root/montanablotter/configs/agendas/montana_live.json
+
+# Public meetings source alerts — evaluate stale/failing agenda sources twice
+# an hour at :05 and :35.
+5,35 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name meeting_source_alerts --log /root/montanablotter/logs/meeting_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.alerts.meetings
+
+# --- Re-enabled 2026-06-11 (was disabled on/after 2026-06-05) ---
+# All four entries below are wrapped in nice -n 19 ionice -c 3 to keep
+# them from competing with the web app for CPU/IO. They are offset on
+# the clock to avoid stacking on the existing quarter-hour workers.
+
+# Run all scrapers (FWP, 511 crashes, professional boards, federal cases,
+# civil violations, transparency, alert engine). Every 6h at :20 — staggered
+# from agendas_ingest (which fires at :45) and the email workers.
+20 */6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name run_all_scrapers --log /root/montanablotter/logs/run_all_scrapers.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/ingestion/run_all_scrapers.py
+
+# Daily blog worker — publishes one statewide blog post per day from the
+# latest records + jail bookings + public digests. 05:30 daily, before the
+# web traffic ramp.
+30 5 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name daily_blog_worker --log /root/montanablotter/logs/daily_blog.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/daily_blog_worker.py
+
+# Court refresh — pulls new court cases and dispositions. Every 6h at :50
+# so it runs after agendas_ingest and run_all_scrapers.
+50 */6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name court_refresh --log /root/montanablotter/logs/court_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.court.refresh
+
+# DB backup — daily at 03:00. Off-peak.
+0 3 * * * /usr/bin/nice -n 19 /bin/bash /root/montanablotter/scripts/ops/backup_db.sh
+
+# --- Newsroom (re-enabled 2026-06-11, throttled + low-priority) ---
+# news_planner gathers story candidates; news_writer drafts posts;
+# news_editor audits + publishes. Staggered so they don't pile up.
+# Use only 3h cadence (was hourly) to keep host pressure low.
+
+# News planner — every 3h at :15 (between email_worker :00/:15 and meeting_source_alerts :05/:35)
+15 */3 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_planner --log /root/montanablotter/logs/news_planner.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.news_planner
+
+# News writer — every 3h at :25
+25 */3 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_writer_agent --log /root/montanablotter/logs/news_writer.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.news_writer
+
+# News editor — every 3h at :35
+35 */3 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_editor_agent --log /root/montanablotter/logs/news_editor.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.news_editor

@@ -35,6 +35,7 @@ from services.api.auth import after_api_request
 from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
+from blueprints.warrant_unlock import register_warrant_unlock_blueprint
 from blueprints.detention import register_detention_blueprint
 from blueprints.datacenter import register_datacenter_blueprint
 from blueprints.code_violations import register_code_violations_blueprint
@@ -44,6 +45,7 @@ from blueprints.public_salaries import register_public_salaries_blueprint
 from blueprints.government_spending import register_government_spending_blueprint
 from blueprints.watchdog import register_watchdog_blueprint
 from blueprints.recovery_ads import recovery_ads_bp
+from blueprints.attorney_ads import attorney_ads_bp
 from services.court.tracker import (
     court_admin_context,
     court_case_detail,
@@ -73,7 +75,11 @@ from services.persons.warrants_public import (
     warrant_homepage_context,
     warrant_public_context,
 )
-from services.meetings.public import ensure_public_meeting_schema, meeting_admin_context
+from services.meetings.public import (
+    _effective_meeting_status_sql,
+    ensure_public_meeting_schema,
+    meeting_admin_context,
+)
 from facebook_publisher import (
     load_facebook_settings,
     mask_token,
@@ -695,6 +701,7 @@ MAJOR_JAIL_BOOKING_COUNTIES = (
     'missoula',
     'gallatin',
     'flathead',
+    'hill',        # Havre Police Department daily roster
     'jefferson',   # ADDED: visible on /jail-bookings page
     'sanders',     # ADDED: visible on /jail-bookings page
 )
@@ -1815,7 +1822,7 @@ def _stripe_ready_for_webhooks():
 def _monthly_subscription_link():
     return (
         (getattr(config, 'STRIPE_MONTHLY_SUBSCRIPTION_LINK', '') or '').strip()
-        or 'https://buy.stripe.com/14A4gzajyeoAcDU4qh8EM03'
+        or 'https://buy.stripe.com/28E14nfDS4O0gUa9KB8EM04'
     )
 
 
@@ -2640,12 +2647,28 @@ def _bail_ad_public_placements(conn, county=''):
         )
 
     banner = _pick(lambda item: _bail_ad_package_supports_banner(item.get('package_id')))
-    sidebar = county_sponsor or _pick(lambda item: _bail_ad_package_supports_sidebar(item.get('package_id')))
+
+    # Keep the public experience lighter: surface only one paid placement per
+    # page instead of stacking a top banner and a sticky sidebar together.
+    if county_sponsor:
+        return {
+            'banner': None,
+            'sidebar': _bail_ad_clone_for_surface(county_sponsor, 'county', county=normalized_county),
+            'county_sponsor': _bail_ad_clone_for_surface(county_sponsor, 'county', county=normalized_county),
+        }
+    if banner:
+        return {
+            'banner': _bail_ad_clone_for_surface(banner, 'banner', county=normalized_county),
+            'sidebar': None,
+            'county_sponsor': None,
+        }
+
+    sidebar = _pick(lambda item: _bail_ad_package_supports_sidebar(item.get('package_id')))
 
     return {
-        'banner': _bail_ad_clone_for_surface(banner, 'banner', county=normalized_county),
-        'sidebar': _bail_ad_clone_for_surface(sidebar, 'county' if county_sponsor else 'sidebar', county=normalized_county),
-        'county_sponsor': _bail_ad_clone_for_surface(county_sponsor, 'county', county=normalized_county),
+        'banner': None,
+        'sidebar': _bail_ad_clone_for_surface(sidebar, 'sidebar', county=normalized_county),
+        'county_sponsor': None,
     }
 
 
@@ -6471,10 +6494,12 @@ def _public_meetings_dashboard_context():
     city = (request.args.get('city') or '').strip()
     conn = get_db()
     ensure_public_meeting_schema(conn)
+    effective_status_sql = _effective_meeting_status_sql()
 
-    sql = '''
+    sql = f'''
         SELECT
             public_meetings.*,
+            {effective_status_sql} AS effective_status,
             meeting_sources.name AS source_name,
             meeting_sources.source_url AS source_listing_url,
             meeting_sources.last_success_at AS source_last_success_at,
@@ -6487,7 +6512,7 @@ def _public_meetings_dashboard_context():
         JOIN meeting_sources ON meeting_sources.id = public_meetings.source_id
         LEFT JOIN meeting_locations ON meeting_locations.id = public_meetings.location_id
         WHERE public_meetings.is_current = 1
-          AND public_meetings.status = 'upcoming'
+          AND {effective_status_sql} = 'upcoming'
     '''
     params = []
     if q:
@@ -6518,9 +6543,6 @@ def _public_meetings_dashboard_context():
         LIMIT 150
     '''
     meetings = conn.execute(sql, params).fetchall()
-    if not meetings:
-        fallback_sql = sql.replace("          AND public_meetings.status = 'upcoming'\n", '')
-        meetings = conn.execute(fallback_sql, params).fetchall()
     documents_map = _meeting_documents_map(conn, [row['id'] for row in meetings])
     latest_sync_row = conn.execute(
         '''
@@ -8025,6 +8047,27 @@ def healthz():
     """Cheap liveness probe for nginx/systemd health checks."""
     return jsonify(status='ok')
 
+
+@app.route('/health/freshness')
+def health_freshness():
+    """Data freshness for arrests and jail rosters.
+
+    Returns JSON. HTTP 200 even when status is "stale" — clients can
+    read the `status` field. Use this to monitor whether the
+    ingestion pipelines are keeping up.
+    """
+    from services.ops import freshness as _freshness
+    payload = _freshness.summarize()
+    return jsonify(payload), 200
+
+
+@app.route('/office')
+@app.route('/office/')
+def office_redirect():
+    """Public shorthand that lands on the canonical admin office mount."""
+    return redirect('/admin/office/office', code=302)
+
+
 @app.route('/')
 def index():
     """Public homepage — daily activity reports with calendar filter"""
@@ -8251,6 +8294,11 @@ def index():
         LIMIT 5
     """).fetchall()
 
+    havre_current_count = conn.execute("""
+        SELECT COUNT(*) FROM jail_bookings
+        WHERE county_slug = 'hill' AND COALESCE(is_current, 1) = 1
+    """).fetchone()[0]
+
     recent_blog_posts = conn.execute("""
         SELECT title, slug, excerpt, created_at
         FROM blog_posts
@@ -8297,6 +8345,7 @@ def index():
                            recent_court_events=recent_court_events,
                            recent_license_sanctions=recent_license_sanctions,
                            recent_jail_bookings=recent_jail_bookings,
+                           havre_current_count=havre_current_count,
                            recent_blog_posts=recent_blog_posts,
                            hub_counts=hub_counts,
                            page_title='Real-Time Public Record Reporting',
@@ -9091,13 +9140,15 @@ def wanted_counties():
         counties=counties,
         total_with_data=sum(1 for c in counties if c['active'] > 0),
         current_year=datetime.now().year,
+        warrant_access=user_has_warrant_access(),
     )
 
 
 @app.route('/wanted/county/<slug>')
 def wanted_county(slug):
     conn = get_db()
-    context = warrant_county_context(conn, slug)
+    has_access = user_has_warrant_access()
+    context = warrant_county_context(conn, slug, has_access=has_access)
     conn.close()
     if not context:
         return render_template('404.html'), 404
@@ -9118,6 +9169,7 @@ def wanted_county(slug):
         canonical_url=f"{BASE_URL}/wanted/county/{slug}",
         og_title=title,
         og_description=meta[:200],
+        warrant_access=has_access,
         **context,
         current_year=datetime.now().year,
     )
@@ -11808,6 +11860,8 @@ COUNTY_DATA = {
             {'name': 'Blaine', 'slug': 'blaine'},
             {'name': 'Phillips', 'slug': 'phillips'},
         ],
+        'jail_roster_href': '/jail-bookings/hill',
+        'jail_roster_label': 'Havre Daily Roster',
     },
     'carbon': {
         'slug': 'carbon',
@@ -13559,7 +13613,7 @@ def city_page(slug):
     ).fetchone()
     last_report = last_row['incident_date'] if last_row else None
     bail_ad_placements = _bail_ad_public_placements(conn, county=city['county'])
-    wanted_city = warrant_city_context(conn, city['name'], city['county'])
+    wanted_city = warrant_city_context(conn, city['name'], city['county'], has_access=user_has_warrant_access())
 
     conn.close()
 
@@ -14454,6 +14508,8 @@ register_admin_blueprint(app)
 register_api_blueprint(app)
 register_auth_blueprint(app)
 register_payments_blueprint(app)
+register_warrant_unlock_blueprint(app)
+register_datacenter_blueprint(app)
 register_code_violations_blueprint(app, get_db=get_db)
 register_license_sanctions_blueprint(app, get_db=get_db)
 register_sex_offender_blueprint(app, get_db=get_db)
@@ -14461,6 +14517,7 @@ register_public_salaries_blueprint(app, get_db=get_db)
 register_government_spending_blueprint(app, get_db=get_db)
 register_watchdog_blueprint(app)
 app.register_blueprint(recovery_ads_bp)
+app.register_blueprint(attorney_ads_bp)
 from blueprints.admin_geocode import admin_geocode_bp
 app.register_blueprint(admin_geocode_bp)
 app.after_request(after_api_request)
@@ -14748,7 +14805,19 @@ def not_found(e):
 
 @app.route('/uploads/<path:filename>')
 def serve_upload(filename):
-    """Serve files from the uploads directory"""
+    """Serve files from the uploads directory.
+
+    DOCX files are blocked at this route. The daily HCSO jail roster DOCX
+    is a full unredacted roster (names, ages, charges, bond amounts,
+    warrant details) that the email worker archives here for operator
+    reference — it's never intended for anonymous web distribution. The
+    rendered booking data still appears on /jail-bookings/hill, but the
+    raw DOCX is no longer fetchable from /uploads/. Police-blotter PDFs
+    (the rest of the uploads/ directory) are public records already
+    curated by the sending agency and continue to serve normally.
+    """
+    if filename.lower().endswith('.docx'):
+        abort(403)
     return send_from_directory(config.UPLOAD_DIR, filename)
 
 
@@ -15264,16 +15333,23 @@ def disposition_api_landing():
 # Attorney referral directory (/attorneys, plus widget for warrant pages)
 # ---------------------------------------------------------------------------
 def _pick_attorneys_for_county(county: str, limit: int = 1):
-    """Return up to `limit` active attorney referrals for a county."""
+    """Return up to `limit` active attorney referrals for a county.
+
+    Sponsored Gold > Silver > free, then by sort_order, then by name.
+    """
     if not county:
         return []
     conn = get_db()
     rows = conn.execute(
         '''
-        SELECT id, county, name, firm, phone, email, website, practice_areas, blurb
+        SELECT id, county, name, firm, phone, email, website, practice_areas, blurb,
+               sponsored, sponsor_tier, logo_path, photo_path, tagline
         FROM attorney_referrals
         WHERE county = ? AND is_active = 1
-        ORDER BY sort_order ASC, id ASC
+        ORDER BY
+            CASE sponsor_tier WHEN 'gold' THEN 0 WHEN 'silver' THEN 1 ELSE 2 END,
+            sort_order ASC,
+            name ASC
         LIMIT ?
         ''',
         (county, limit),
@@ -15284,14 +15360,22 @@ def _pick_attorneys_for_county(county: str, limit: int = 1):
 
 @app.route('/attorneys')
 def attorneys_directory():
-    """Public directory of Montana defense attorneys by county."""
+    """Public directory of Montana defense attorneys by county.
+
+    Sponsored Gold > Silver > free listings, then by sort_order, then by name.
+    """
     conn = get_db()
     rows = conn.execute(
         '''
-        SELECT id, county, name, firm, phone, email, website, practice_areas, blurb
+        SELECT id, county, name, firm, phone, email, website, practice_areas, blurb,
+               sponsored, sponsor_tier, logo_path, photo_path, tagline
         FROM attorney_referrals
         WHERE is_active = 1
-        ORDER BY county ASC, sort_order ASC, name ASC
+        ORDER BY
+            county ASC,
+            CASE sponsor_tier WHEN 'gold' THEN 0 WHEN 'silver' THEN 1 ELSE 2 END,
+            sort_order ASC,
+            name ASC
         '''
     ).fetchall()
     conn.close()

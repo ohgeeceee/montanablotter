@@ -44,43 +44,38 @@ class MonitoredStateJob:
 
 LOGS = ROOT / "logs"
 
+# Keep this tuple in sync with crontab.txt AND
+# services.ops.cron_introspection.well_known_jobs().
+# The drift test in tests/test_watchdog_drift.py enforces the contract:
+# if a job is enabled in crontab AND has a well_known entry, it MUST be
+# listed here.
 JOBS: tuple[MonitoredJob, ...] = (
-    MonitoredJob("cleanup", LOGS / "cleanup.log", 30, "daily"),
+    # healthcheck_restart is silent on success (only logs on failure), so
+    # the log file mtime is not a useful freshness signal. The real liveness
+    # signal is the systemd service check below.
     MonitoredJob("email_worker", LOGS / "mail.log", 2, "every 15 minutes"),
-    MonitoredJob("facebook_worker", LOGS / "facebook_worker.log", 2, "every 15 minutes"),
-    MonitoredJob("morning_briefing", LOGS / "briefing.log", 30, "daily"),
-    MonitoredJob("daily_blog_worker", LOGS / "daily_blog.log", 30, "daily"),
-    MonitoredJob("weekly_county_digest", LOGS / "weekly_county_digest.log", 8 * 24, "weekly"),
-    MonitoredJob("weekly_safety_report", LOGS / "weekly_safety_report.log", 8 * 24, "weekly"),
-    MonitoredJob("charge_explainer_worker", LOGS / "charge_explainer.log", 8 * 24, "weekly"),
-    MonitoredJob("weekly_snapshot", LOGS / "weekly_snapshot.log", 8 * 24, "weekly"),
-    MonitoredJob("script_watchdog", LOGS / "cron_errors.log", 30, "daily"),
-    MonitoredJob("pattern_conversion_report", LOGS / "cron.log", 30, "daily"),
-    MonitoredJob("backup_db", LOGS / "backup.log", 26, "daily"),
-    MonitoredJob("court_refresh", LOGS / "court_refresh.log", 5, "every 3 hours"),
-    MonitoredJob("court_source_alerts", LOGS / "court_source_alerts.log", 2, "every 30 minutes"),
-    MonitoredJob("agendas_ingest", LOGS / "agendas_ingest.log", 8, "every 6 hours"),
+    MonitoredJob("email_image_blotter", LOGS / "email_image_blotter.log", 2, "every 15 minutes"),
+    MonitoredJob("disposition_watcher", LOGS / "disposition_watcher.log", 2, "every 15 minutes"),
+    MonitoredJob("check_ads_health", LOGS / "ad_health.log", 4, "every 15 minutes"),
     MonitoredJob("meeting_source_alerts", LOGS / "meeting_source_alerts.log", 2, "every 30 minutes"),
-    MonitoredJob("crimemapping_fetcher", LOGS / "crimemapping.log", 14, "twice daily"),
-    MonitoredJob("missoula_public_report_fetcher", LOGS / "missoula_fetcher.log", 2, "hourly"),
-    MonitoredJob("whitefish_blotter_fetcher", LOGS / "whitefish_fetcher.log", 8, "every 6 hours"),
-    MonitoredJob("jail_booking", LOGS / "jail_booking_ingest.log", 4, "every 2 hours"),
-    MonitoredJob("missing_person_watch", LOGS / "missing_person_watch.log", 2, "hourly"),
-    MonitoredJob("bozeman_police_calls", LOGS / "bozeman_calls.log", 2, "hourly"),
-    MonitoredJob("bozeman_police_crime", LOGS / "bozeman_crime.log", 8, "every 6 hours"),
-    MonitoredJob("ingestion_alerts", LOGS / "ingestion_alerts.log", 2, "every 30 minutes"),
+    MonitoredJob("agendas_ingest", LOGS / "agendas_ingest.log", 8, "every 6 hours"),
+    MonitoredJob("datasets_refresh", LOGS / "datasets_refresh.log", 24, "daily"),
+    MonitoredJob("run_all_scrapers", LOGS / "run_all_scrapers.log", 8, "every 6 hours"),
+    MonitoredJob("daily_blog_worker", LOGS / "daily_blog.log", 30, "daily"),
+    MonitoredJob("court_refresh", LOGS / "court_refresh.log", 8, "every 6 hours"),
+    MonitoredJob("backup_db", LOGS / "backup.log", 26, "daily"),
     MonitoredJob("news_planner", LOGS / "news_planner.log", 5, "every 3 hours"),
-    MonitoredJob("news_writer_agent", LOGS / "news_writer.log", 2, "hourly"),
-    MonitoredJob("news_editor_agent", LOGS / "news_editor.log", 2, "hourly"),
+    MonitoredJob("news_writer_agent", LOGS / "news_writer.log", 5, "every 3 hours"),
+    MonitoredJob("news_editor_agent", LOGS / "news_editor.log", 5, "every 3 hours"),
 )
 
-STATE_JOBS: tuple[MonitoredStateJob, ...] = (
-    MonitoredStateJob("jail_booking_ingest_yellowstone", 4, "every 2 hours"),
-    MonitoredStateJob("jail_booking_ingest_missoula", 4, "every 2 hours"),
-    MonitoredStateJob("jail_booking_ingest_flathead", 4, "every 2 hours"),
-    MonitoredStateJob("jail_booking_ingest_jefferson", 4, "every 2 hours"),
-    MonitoredStateJob("jail_booking_ingest_sanders", 4, "every 2 hours"),
-)
+# STATE_JOBS watches rows in the `scheduled_job_state` table — populated by
+# workers that explicitly record their own heartbeat. The jail booking source
+# poller used to do this but is no longer scheduled in cron (jail data flows
+# through the email pipeline + the cron-driven jail source scrapers in
+# services/ingestion). Keep this empty until something writes to that table
+# again.
+STATE_JOBS: tuple[MonitoredStateJob, ...] = ()
 
 SUCCESS_STATUSES = {"ok", "success"}
 
