@@ -19,7 +19,7 @@ from db import get_db
 # Warrant Access subscription — created 2026-05-31
 _WARRANT_MONTHLY_PRICE_ID = 'price_1Td9jmGL8T8btZcu5OXZzr9g'
 _WARRANT_TRIAL_FEE_PRICE_ID = 'price_1Td9jmGL8T8btZcumpWLuzLf'
-_WARRANT_PAYMENT_LINK = 'https://buy.stripe.com/dRm9AT0IY2FS9rI1e58EM02'
+_WARRANT_PAYMENT_LINK = 'https://buy.stripe.com/14A4gzajyeoAcDU4qh8EM03'
 
 
 payments_bp = Blueprint('payments', __name__)
@@ -982,7 +982,7 @@ def checkout_subscription_cancel():
 # Warrant Access checkout — $1 for 7-day trial, then $7/month
 # ---------------------------------------------------------------------------
 
-@payments_bp.route('/checkout/warrant-access', methods=['POST'])
+@payments_bp.route('/checkout/warrant-access', methods=['GET', 'POST'])
 def checkout_warrant_access():
     from urllib.parse import urlencode
     m = _app()
@@ -1066,10 +1066,16 @@ def checkout_warrant_access_success():
 
 @payments_bp.route('/wanted/subscribe')
 def wanted_subscribe():
-    from services.monetization.paywall import user_has_warrant_access
+    from services.monetization.paywall import (
+        get_ad_unlock_remaining_seconds,
+        user_has_warrant_access,
+    )
     public_user_id = session.get('public_user_id')
     is_logged_in = bool(public_user_id)
     already_subscribed = is_logged_in and user_has_warrant_access()
+    ad_unlock_remaining_seconds = (
+        get_ad_unlock_remaining_seconds(int(public_user_id)) if public_user_id else 0
+    )
     next_url = request.args.get('next', '/wanted/subscribe')
     return render_template(
         'wanted_subscribe.html',
@@ -1081,6 +1087,8 @@ def wanted_subscribe():
         is_logged_in=is_logged_in,
         already_subscribed=already_subscribed,
         next_url=next_url,
+        ad_unlock_active=ad_unlock_remaining_seconds > 0,
+        ad_unlock_remaining_seconds=ad_unlock_remaining_seconds,
     )
 
 

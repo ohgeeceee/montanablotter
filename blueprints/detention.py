@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, abort, jsonify, render_template, request, url_for
 
@@ -66,6 +66,19 @@ def jail_bookings():
 
 @detention_bp.route('/jail-bookings/<county_slug>')
 def jail_bookings_county(county_slug):
+    # The Hill County slug gets a dedicated daily-roster layout: HPD does
+    # not publish a public online roster, so the page is built from the
+    # daily email HPD sends Montana Blotter.
+    if county_slug == "hill":
+        conn = _get_db()
+        try:
+            context = _havre_roster_context(conn)
+        finally:
+            conn.close()
+        if not context.get("hpd_source"):
+            abort(404)
+        return render_template('havre_daily_roster.html', **context)
+
     context = _load_booking_context(
         county_filter=county_slug,
         status_filter=request.args.get('status'),
@@ -117,6 +130,125 @@ def api_jail_bookings_county(county_slug):
         'official_roster_href': context['selected_source'].get('roster_url'),
         'public_href': context['selected_source'].get('public_href') or url_for('detention.jail_bookings_county', county_slug=county_slug),
     })
+
+
+def _havre_roster_context(conn) -> dict:
+    """Build the context dict the ``havre_daily_roster.html`` template
+    expects. The function is read-only: it does not mutate any row.
+
+    Returns an empty ``hpd_source`` (so the route returns 404) if the
+    jail_booking_sources row for ``hill`` has not been seeded yet — that
+    should never happen at runtime because ``ingest_havre_pdf`` calls
+    ``_ensure_tracked_sources`` on its first run, but we guard against it
+    so a fresh DB doesn't 500 on the public page.
+    """
+    source = conn.execute(
+        "SELECT * FROM jail_booking_sources WHERE county_slug = ?",
+        ("hill",),
+    ).fetchone()
+
+    if source is None:
+        return {"hpd_source": None}
+
+    source_id = source["id"]
+    last_success_at = source["last_success_at"] or source["last_checked_at"]
+    freshness_label, freshness_state, last_run_at = _havre_freshness(last_success_at)
+
+    currently_booked = conn.execute(
+        '''
+        SELECT id, person_name, age, booking_at, charges_summary
+        FROM jail_bookings
+        WHERE county_slug = 'hill' AND COALESCE(is_current, 1) = 1
+        ORDER BY COALESCE(booking_at, first_seen_at) DESC, id DESC
+        ''',
+    ).fetchall()
+
+    recent_new_entries = conn.execute(
+        '''
+        SELECT id, person_name, booking_at, charges_summary
+        FROM jail_bookings
+        WHERE county_slug = 'hill'
+          AND booking_at >= datetime('now', '-7 days')
+        ORDER BY booking_at DESC
+        LIMIT 50
+        ''',
+    ).fetchall()
+
+    raw_diff = conn.execute(
+        '''
+        SELECT date(completed_at) AS day,
+               COALESCE(SUM(new_count), 0) AS new_count,
+               COALESCE(SUM(missing_count), 0) AS released_count
+        FROM jail_booking_runs
+        WHERE source_id = ?
+          AND completed_at >= datetime('now', '-7 days')
+        GROUP BY date(completed_at)
+        ORDER BY day DESC
+        ''',
+        (source_id,),
+    ).fetchall()
+
+    today = datetime.now(timezone.utc).date()
+    daily_diff: list[dict] = []
+    diff_by_day = {row["day"]: row for row in raw_diff}
+    for offset in range(7):
+        day = today - timedelta(days=offset)
+        day_str = day.isoformat()
+        row = diff_by_day.get(day_str)
+        daily_diff.append({
+            "label": day.strftime("%a %-m/%-d"),
+            "date": day_str,
+            "new_count": int(row["new_count"]) if row else 0,
+            "released_count": int(row["released_count"]) if row else 0,
+        })
+
+    return {
+        "hpd_source": source,
+        "hpd_public_url": source["roster_url"] or "https://www.havremt.gov/police",
+        "hpd_phone": source["phone"] or "406-265-4397",
+        "currently_booked": [dict(r) for r in currently_booked],
+        "recent_new_entries": [dict(r) for r in recent_new_entries],
+        "daily_diff": daily_diff,
+        "freshness_label": freshness_label,
+        "freshness_state": freshness_state,
+        "last_run_at": last_run_at,
+        "current_year": datetime.now().year,
+    }
+
+
+def _havre_freshness(last_success_at: str | None) -> tuple[str, str, str | None]:
+    """Render the freshness badge: label, state, and an absolute timestamp.
+
+    State is one of: ``fresh`` (≤ 36h), ``stale`` (≤ 7 days), ``empty``.
+    """
+    if not last_success_at:
+        return ("Awaiting first HPD email", "empty", None)
+    try:
+        # SQLite stores ISO-8601 strings; tolerate both naive and 'Z'-suffixed.
+        cleaned = last_success_at.replace("Z", "+00:00")
+        last_dt = datetime.fromisoformat(cleaned)
+        if last_dt.tzinfo is None:
+            last_dt = last_dt.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return (f"Last updated: {last_success_at}", "stale", last_success_at)
+    delta = datetime.now(timezone.utc) - last_dt
+    hours = int(delta.total_seconds() // 3600)
+    if hours < 0:
+        rel = "just now"
+    elif hours < 1:
+        rel = "less than an hour ago"
+    elif hours == 1:
+        rel = "1 hour ago"
+    elif hours < 36:
+        rel = f"{hours} hours ago"
+    elif hours < 48:
+        rel = "yesterday"
+    else:
+        days = hours // 24
+        rel = f"{days} days ago"
+    state = "fresh" if hours < 36 else "stale"
+    absolute = last_dt.strftime("%Y-%m-%d %H:%M UTC")
+    return (f"Last updated: {rel}", state, absolute)
 
 
 def _slugify_name(name: str) -> str:

@@ -7,7 +7,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import Response, jsonify, render_template
+from flask import Response, jsonify, redirect, render_template
+import config
 from flask import stream_with_context
 from flask_login import login_required
 
@@ -335,9 +336,13 @@ def admin_agents():
 @admin_bp.route('/office')
 @login_required
 def admin_office():
-    from flask import redirect, url_for
+    return redirect('/admin/office/', code=301)
 
-    return redirect(url_for('admin.admin_command_center'))
+
+@admin_bp.route('/office/')
+@login_required
+def admin_office_view():
+    return render_template('admin_office.html', claw3d_office_url=config.CLAW3D_OFFICE_URL)
 
 
 @admin_bp.route('/agents/client-snapshot')

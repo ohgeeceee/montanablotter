@@ -100,15 +100,22 @@ def _decorate_warrant_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     return item
 
 
+# SQL fragment: record has a usable photo (staff override or official mugshot).
+_HAS_PHOTO_CLAUSE = "(COALESCE(photo_url, '') != '' OR COALESCE(mugshot_url, '') != '')"
+
+
 def _build_where(
     *,
     status: str = 'active',
     q: str = '',
     county: str = '',
     city: str = '',
+    with_photo: bool = False,
 ) -> tuple[str, list[Any]]:
     clauses = ['1=1']
     params: list[Any] = []
+    if with_photo:
+        clauses.append(_HAS_PHOTO_CLAUSE)
 
     normalized_status = _single_line(status, max_len=32).lower() or STATUS_ACTIVE
     if normalized_status == STATUS_ACTIVE:
@@ -147,9 +154,12 @@ def _build_city_where(
     status: str = 'active',
     city: str = '',
     county: str = '',
+    with_photo: bool = False,
 ) -> tuple[str, list[Any]]:
     clauses = ['1=1']
     params: list[Any] = []
+    if with_photo:
+        clauses.append(_HAS_PHOTO_CLAUSE)
 
     normalized_status = _single_line(status, max_len=32).lower() or STATUS_ACTIVE
     if normalized_status == STATUS_ACTIVE:
@@ -207,8 +217,9 @@ def _fetch_warrant_rows(
     sort: str = 'updated_desc',
     limit: int | None = None,
     offset: int = 0,
+    with_photo: bool = False,
 ) -> list[sqlite3.Row]:
-    where_sql, params = _build_where(status=status, q=q, county=county, city=city)
+    where_sql, params = _build_where(status=status, q=q, county=county, city=city, with_photo=with_photo)
     sql = f'SELECT * FROM warrants WHERE {where_sql} {_sort_clause(sort)}'
     if limit is not None:
         sql += ' LIMIT ? OFFSET ?'
@@ -224,8 +235,9 @@ def _fetch_city_warrant_rows(
     county: str = '',
     sort: str = 'updated_desc',
     limit: int | None = None,
+    with_photo: bool = False,
 ) -> list[sqlite3.Row]:
-    where_sql, params = _build_city_where(status=status, city=city, county=county)
+    where_sql, params = _build_city_where(status=status, city=city, county=county, with_photo=with_photo)
     sql = f'SELECT * FROM warrants WHERE {where_sql} {_sort_clause(sort)}'
     if limit is not None:
         sql += ' LIMIT ?'
@@ -377,6 +389,7 @@ def warrant_city_context(
     county_name: str,
     *,
     limit: int = 6,
+    has_access: bool = True,
 ) -> dict[str, Any]:
     ensure_warrant_schema(conn)
     city_term = _single_line(city_name, max_len=120)
@@ -385,22 +398,35 @@ def warrant_city_context(
     active_limit = max(limit // 2, 1)
     resolved_limit = max(limit - active_limit, 1)
 
-    active_rows = _fetch_city_warrant_rows(
-        conn,
-        status=STATUS_ACTIVE,
-        city=city_term,
-        county=county_term,
-        sort='updated_desc',
-        limit=active_limit,
-    )
-    resolved_rows = _fetch_city_warrant_rows(
-        conn,
-        status=STATUS_RESOLVED,
-        city=city_term,
-        county=county_term,
-        sort='recently_resolved',
-        limit=resolved_limit,
-    )
+    if not has_access:
+        # Teaser for non-subscribers: photo-only records, no resolved history.
+        active_rows = _fetch_city_warrant_rows(
+            conn,
+            status=STATUS_ACTIVE,
+            city=city_term,
+            county=county_term,
+            sort='updated_desc',
+            limit=active_limit,
+            with_photo=True,
+        )
+        resolved_rows = []
+    else:
+        active_rows = _fetch_city_warrant_rows(
+            conn,
+            status=STATUS_ACTIVE,
+            city=city_term,
+            county=county_term,
+            sort='updated_desc',
+            limit=active_limit,
+        )
+        resolved_rows = _fetch_city_warrant_rows(
+            conn,
+            status=STATUS_RESOLVED,
+            city=city_term,
+            county=county_term,
+            sort='recently_resolved',
+            limit=resolved_limit,
+        )
 
     where_sql, count_params = _build_city_where(
         status=STATUS_ACTIVE,
@@ -439,12 +465,19 @@ def warrant_county_context(
     county_slug: str,
     *,
     limit: int = 100,
+    has_access: bool = True,
+    teaser_limit: int = 5,
 ) -> dict[str, Any] | None:
     """Build context for a county-level wanted page.
 
     Returns None if the slug is completely unknown. Returns a context dict
     with warrant rows (possibly empty) plus source metadata even when no
     records exist — so the template can still render a useful page.
+
+    When ``has_access`` is False (no warrant subscription / ad grant), only
+    a small teaser of records that have a photo is returned, and resolved
+    rows are omitted. Counts always reflect the full dataset so the paywall
+    card can advertise what's behind it.
     """
     ensure_warrant_schema(conn)
     slug = _single_line(county_slug, max_len=60).lower()
@@ -459,20 +492,32 @@ def warrant_county_context(
     source_url = source.get('url', '')
     has_live_source = bool(source_url)
 
-    active_rows = _fetch_warrant_rows(
-        conn,
-        status=STATUS_ACTIVE,
-        county=county_name,
-        sort='name_asc',
-        limit=limit,
-    )
-    resolved_rows = _fetch_warrant_rows(
-        conn,
-        status=STATUS_RESOLVED,
-        county=county_name,
-        sort='recently_resolved',
-        limit=12,
-    )
+    if has_access:
+        active_rows = _fetch_warrant_rows(
+            conn,
+            status=STATUS_ACTIVE,
+            county=county_name,
+            sort='name_asc',
+            limit=limit,
+        )
+        resolved_rows = _fetch_warrant_rows(
+            conn,
+            status=STATUS_RESOLVED,
+            county=county_name,
+            sort='recently_resolved',
+            limit=12,
+        )
+    else:
+        # Teaser: only records with a photo, capped low. No resolved history.
+        active_rows = _fetch_warrant_rows(
+            conn,
+            status=STATUS_ACTIVE,
+            county=county_name,
+            sort='updated_desc',
+            limit=teaser_limit,
+            with_photo=True,
+        )
+        resolved_rows = []
 
     active_count = conn.execute(
         "SELECT COUNT(*) AS total FROM warrants WHERE county = ? AND status = 'active'",
