@@ -1,0 +1,304 @@
+{% extends "public_page_base.html" %}
+
+{% set active_nav = "wanted" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/wanted" class="hover:text-slate-700">Active Warrants</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Watch Ad</span>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-10 sm:px-6">
+
+    <div class="text-center mb-8">
+        <div class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-red-700 mb-3">
+            Free 24-Hour Access
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">Watch a short ad to unlock warrants</h1>
+        <p class="mt-2 text-base text-slate-500 leading-7">
+            Watch for {{ min_watch_seconds }} seconds to earn 24 hours of full warrant database access &mdash; no card, no signup fee.
+        </p>
+        {% if has_active_grant %}
+        <p class="mt-3 text-sm text-emerald-700 font-bold">
+            <i class="fas fa-check-circle mr-1"></i>You already have {{ remaining_human }} of free ad-access remaining.
+        </p>
+        {% endif %}
+    </div>
+
+    {% if video_missing %}
+    <div class="rounded-2xl border-2 border-amber-200 bg-amber-50 px-6 py-6 text-amber-900">
+        <h2 class="text-lg font-black mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Ad slot not configured</h2>
+        <p class="text-sm">The ad-watched unlock is temporarily unavailable. Please check back soon, or
+            <a href="/wanted/subscribe" class="font-bold underline">subscribe for $1/week</a>.</p>
+    </div>
+    {% elif rate_limited %}
+    <div class="rounded-2xl border-2 border-amber-200 bg-amber-50 px-6 py-6 text-amber-900">
+        <h2 class="text-lg font-black mb-2"><i class="fas fa-hourglass-half mr-2"></i>Slow down a bit</h2>
+        <p class="text-sm">You've claimed {{ rate_limit }} grants in the last hour. Try again in a few minutes, or
+            <a href="/wanted/subscribe" class="font-bold underline">subscribe for $1/week</a> for unlimited access.</p>
+    </div>
+    {% elif provider == 'monetag' %}
+    {# Monetag rewarded-video path — the user watches an ad served by Monetag,
+       the network verifies the watch server-side, and we grant 24h access
+       when their SDK calls our onReward callback. #}
+    <div class="rounded-3xl border-2 border-emerald-200 bg-white shadow-xl overflow-hidden">
+        <div class="bg-gradient-to-br from-emerald-600 to-emerald-800 px-8 py-6 text-white text-center">
+            <p class="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-200">Free {{ duration_hours }}-Hour Access</p>
+            <p class="mt-2 text-base text-emerald-50">Watch a short sponsored video to unlock the full warrant database.</p>
+        </div>
+
+        <div class="px-6 py-8 text-center">
+            <div id="monetag-status" class="text-sm text-slate-500 mb-4">Click the button below to start.</div>
+            <button type="button" id="monetag-watch-btn"
+                    class="w-full rounded-xl bg-emerald-600 py-5 text-lg font-black text-white hover:bg-emerald-700 transition-colors shadow-lg">
+                <i class="fas fa-play-circle mr-2"></i>Watch Ad &amp; Earn {{ duration_hours }}h Access
+            </button>
+            <p class="mt-4 text-[11px] text-slate-400">
+                <i class="fas fa-shield-alt mr-1"></i>The ad is served by Monetag. We never see your data, and the ad only takes ~15&ndash;30 seconds.
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 text-sm text-slate-600">
+        <p class="font-bold text-slate-800 mb-1"><i class="fas fa-clock mr-1"></i>How it works</p>
+        <ul class="space-y-1 list-disc list-inside text-slate-600">
+            <li>Click <strong>Watch Ad &amp; Earn Access</strong> &mdash; a sponsored video opens.</li>
+            <li>Watch the full video (Monetag confirms completion automatically).</li>
+            <li>You'll be returned here and the {{ duration_hours }}-hour warrant unlock applies instantly.</li>
+            <li>Watch again any time to extend.</li>
+        </ul>
+    </div>
+    {% else %}
+    {# YouTube path — used for sponsor/PSA/self-promo content where third-party
+       ad networks aren't desired. No revenue; pure attention-value exchange. #}
+    <div class="rounded-3xl border-2 border-slate-200 bg-white shadow-xl overflow-hidden">
+
+        <!-- Video container -->
+        <div class="relative bg-black aspect-video">
+            <div id="youtube-player"></div>
+            <div id="player-placeholder" class="absolute inset-0 flex items-center justify-center text-white/60">
+                <i class="fas fa-spinner fa-spin text-3xl mr-3"></i>Loading video&hellip;
+            </div>
+        </div>
+
+        <!-- Progress / status -->
+        <div class="px-6 py-5 border-t border-slate-100">
+            <div class="flex items-center justify-between text-sm mb-2">
+                <span class="font-bold text-slate-700">
+                    <span id="watch-progress" data-watch-seconds="0">0</span>s watched
+                    <span class="text-slate-400 font-normal">/ {{ min_watch_seconds }}s needed</span>
+                </span>
+                <span id="claim-status" class="text-xs text-slate-400">Play the video to begin</span>
+            </div>
+            <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div id="progress-bar"
+                     class="h-full bg-gradient-to-r from-red-500 to-red-600 transition-[width] duration-200"
+                     style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Claim panel -->
+        <div class="px-6 pb-6">
+            <form id="claim-form" method="POST" action="/api/ad-unlock/complete" class="space-y-3">
+                <input type="hidden" name="nonce" id="claim-nonce" value="{{ nonce }}">
+                <input type="hidden" name="watch_seconds" id="claim-watch" value="0">
+                <input type="hidden" name="provider" id="claim-provider" value="youtube">
+                <button type="submit" id="claim-btn" disabled
+                        class="w-full rounded-xl bg-slate-200 py-4 text-base font-black text-slate-500 cursor-not-allowed transition-colors">
+                    <i class="fas fa-lock mr-2"></i>Watch {{ min_watch_seconds }} seconds to unlock
+                </button>
+            </form>
+            <p class="text-center text-[11px] text-slate-400">
+                <i class="fas fa-shield-alt mr-1"></i>Watch time is verified server-side &bull; pausing or scrubbing doesn't count
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 text-sm text-slate-600">
+        <p class="font-bold text-slate-800 mb-1"><i class="fas fa-clock mr-1"></i>How it works</p>
+        <ul class="space-y-1 list-disc list-inside text-slate-600">
+            <li>Press play on the video above.</li>
+            <li>Watch actively for at least {{ min_watch_seconds }} seconds (pauses &amp; background tabs don't count).</li>
+            <li>Click <strong>Claim 24-Hour Access</strong> to unlock the full warrant database.</li>
+            <li>Each successful watch gives you {{ duration_hours }} hours &mdash; watch again to extend.</li>
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="mt-8 text-center">
+        <a href="/wanted/subscribe" class="text-sm text-slate-400 hover:text-slate-600">
+            &larr; Back to subscribe options
+        </a>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if not video_missing and not rate_limited %}
+<script>
+(function () {
+    'use strict';
+
+    var VIDEO_ID = {{ youtube_video_id|tojson }};
+    var MIN_WATCH = {{ min_watch_seconds|tojson }};
+    var NONCE = {{ nonce|tojson }};
+
+    var activeSeconds = 0;
+    var lastTickTime = 0;
+    var player = null;
+    var apiReady = false;
+    var pendingInit = false;
+
+    function fmt(n) { return Math.floor(n); }
+
+    function updateUI() {
+        var display = Math.min(activeSeconds, MIN_WATCH);
+        var pct = Math.min(100, (display / MIN_WATCH) * 100);
+        document.getElementById('watch-progress').textContent = fmt(display);
+        document.getElementById('watch-progress').setAttribute('data-watch-seconds', fmt(activeSeconds));
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('claim-watch').value = fmt(activeSeconds);
+
+        var btn = document.getElementById('claim-btn');
+        var status = document.getElementById('claim-status');
+        if (activeSeconds >= MIN_WATCH) {
+            btn.disabled = false;
+            btn.className = 'w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors';
+            btn.innerHTML = '<i class="fas fa-unlock mr-2"></i>Claim 24-Hour Access';
+            status.textContent = 'Ready!';
+            status.className = 'text-xs text-emerald-600 font-bold';
+        } else {
+            status.textContent = 'Keep watching&hellip;';
+            status.className = 'text-xs text-slate-400';
+        }
+    }
+
+    function onTimeUpdate() {
+        // If tab is hidden, ignore — prevents background inflation.
+        if (document.hidden) return;
+        if (!player || typeof player.getCurrentTime !== 'function') return;
+        var t = player.getCurrentTime();
+        if (lastTickTime > 0 && t > lastTickTime) {
+            var delta = t - lastTickTime;
+            // Clamp to 1.5s/tick to ignore stalls, scrubs backwards, and tab restores.
+            if (delta <= 1.5) {
+                activeSeconds += delta;
+            }
+        }
+        lastTickTime = t;
+        updateUI();
+    }
+
+    function onStateChange(event) {
+        // YT.PlayerState.PLAYING === 1; PAUSED === 2; BUFFERING === 3; ENDED === 0
+        if (event.data === 1) {
+            // Playing — anchor lastTickTime so we don't credit a huge jump on resume.
+            lastTickTime = player.getCurrentTime();
+        } else if (event.data === 2 || event.data === 0) {
+            // Paused or ended — reset baseline so resume doesn't credit the gap.
+            lastTickTime = 0;
+        }
+    }
+
+    function mountPlayer() {
+        apiReady = true;
+        if (!pendingInit) return;
+        player = new YT.Player('youtube-player', {
+            videoId: VIDEO_ID,
+            playerVars: {
+                'autoplay': 0,
+                'modestbranding': 1,
+                'rel': 0,
+                'playsinline': 1,
+            },
+            events: {
+                'onReady': function () {
+                    var ph = document.getElementById('player-placeholder');
+                    if (ph) ph.style.display = 'none';
+                },
+                'onStateChange': onStateChange,
+            },
+        });
+        // timeupdate fires on a ~250ms interval; bind to the API poll.
+        setInterval(function () {
+            if (player && typeof player.getPlayerState === 'function'
+                && player.getPlayerState() === 1) {
+                onTimeUpdate();
+            }
+        }, 250);
+    }
+
+    function loadApi() {
+        if (window.YT && window.YT.Player) {
+            mountPlayer();
+            return;
+        }
+        // Inject the IFrame API script.
+        var tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        var first = document.getElementsByTagName('script')[0];
+        first.parentNode.insertBefore(tag, first);
+        window.onYouTubeIframeAPIReady = mountPlayer;
+    }
+
+    pendingInit = true;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadApi);
+    } else {
+        loadApi();
+    }
+
+    // Page Visibility — pause accumulator when tab is hidden.
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            lastTickTime = 0; // discard any in-flight delta
+        } else if (player && typeof player.getCurrentTime === 'function') {
+            lastTickTime = player.getCurrentTime();
+        }
+    });
+
+    // Claim form — POST as JSON, then redirect.
+    document.getElementById('claim-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var btn = document.getElementById('claim-btn');
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Claiming&hellip;';
+        var payload = {
+            nonce: NONCE,
+            watch_seconds: Math.floor(activeSeconds),
+        };
+        fetch('/api/ad-unlock/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'same-origin',
+        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+          .then(function (out) {
+            if (out.ok && out.body.ok) {
+                if (typeof gtag === 'function') {
+                    gtag('event', 'ad_watched', {
+                        ad_id: VIDEO_ID,
+                        watch_seconds: payload.watch_seconds,
+                        duration_hours: out.body.duration_hours,
+                    });
+                }
+                window.location.href = '/wanted';
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>'
+                    + (out.body && out.body.error ? out.body.error : 'Try again');
+                btn.className = 'w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors';
+            }
+        }).catch(function () {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Network error &mdash; try again';
+        });
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

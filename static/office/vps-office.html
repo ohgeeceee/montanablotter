@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VPS Office — Montana Blotter Ops</title>
+<style>
+  :root{--bg:#0a0f1a;--panel:#111827;--ink:#e7edf3;--muted:#7c8ca0;--amber:#f5a623;--green:#34d399;--red:#f87171;--blue:#60a5fa}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient( circle at top, #0f1626, var(--bg) 70% );color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:14px 18px;background:rgba(10,15,26,.72);backdrop-filter:saturate(140%) blur(12px);border-bottom:1px solid #172033}
+  .logo{width:28px;height:28px;border-radius:50%;border:2px solid var(--amber);display:grid;place-items:center;color:var(--amber);font-weight:900}
+  h1{font-size:15px;margin:0;letter-spacing:.18em;text-transform:uppercase}
+  .sub{color:var(--muted);font-size:11px;margin-left:6px}
+  main{display:grid;grid-template-rows:auto 1fr;height:100%}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid #172033;background:rgba(17,24,39,.55)}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#10172a;border:1px solid #223049;color:var(--ink);font-size:12px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#345;box-shadow:0 0 0 2px #1b253b}
+  .dot.ok{background:var(--green);box-shadow:0 0 0 2px rgba(52,211,153,.25)}
+  .dot.bad{background:var(--red);box-shadow:0 0 0 2px rgba(248,113,113,.25)}
+  .dot.warn{background:var(--amber);box-shadow:0 0 0 2px rgba(245,166,35,.25)}
+  .rooms{position:relative;padding:14px 16px;min-height:0}
+  .blueprint{position:absolute;inset:14px 16px;border:1px dashed #223049;border-radius:20px;background:linear-gradient(180deg,rgba(22,32,54,.6),rgba(10,15,26,.6));pointer-events:none}
+  .grid{position:relative;display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));grid-template-rows:repeat(2,minmax(170px,1fr));gap:18px}
+  @media (max-width:980px){.grid{grid-template-columns:repeat(2,minmax(200px,1fr));grid-template-rows:repeat(3,minmax(170px,1fr))}}
+  @media (max-width:620px){.grid{grid-template-columns:1fr;grid-template-rows:repeat(6,minmax(170px,1fr))}}
+  .room{position:relative;border-radius:18px;background:linear-gradient(180deg,#101d33,#0b1322);border:1px solid #223049;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-height:0;overflow:hidden}
+  .room::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,#36b5ff,#7d5cff,#f5a623);opacity:.75;border-radius:18px 18px 0 0}
+  .room-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .room h2{margin:0;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#dbe5f2}
+  .badge{font-size:10px;padding:3px 8px;border-radius:999px;background:#0b1322;border:1px solid #223049;color:#9aa8bc}
+  .canvas{flex:1;position:relative;min-height:0;border-radius:12px;background:#080d18;border:1px solid #19253b;overflow:hidden}
+  canvas{display:block;width:100%;height:100%}
+  .foot{display:flex;justify-content:space-between;align-items:center;color:#7c8ca0;font-size:10px}
+  .foot a{color:#9aa8bc}
+  .snack{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);padding:8px 12px;border-radius:12px;background:#0f1626;border:1px solid #223049;color:#e7edf3;font-size:12px;opacity:0;transition:opacity .2s}
+  .snack.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">MB</div>
+  <h1>VPS Office</h1>
+  <div class="sub">Montana Blotter · Blotter Host · networks · live probe</div>
+</header>
+<main>
+  <div class="toolbar">
+    <div class="chip"><span id="net-dot" class="dot"></span><span id="net-label">Loading…</span></div>
+    <div class="chip" id="refresh-chip">Refresh in <b id="countdown">10</b>s</div>
+    <div class="chip">Agents: <b id="agent-count">0</b></div>
+  </div>
+
+  <section class="rooms">
+    <div class="blueprint"></div>
+    <div class="grid" id="office-grid">
+      <!-- rooms rendered here -->
+    </div>
+  </section>
+</main>
+<div class="snack" id="snack">Updated</div>
+
+<script>
+const AGENTS = {
+  'montanablotter-web': { name:'Montana Blotter', role:'Public Site', emoji:'📰', host:'127.0.0.1', ports:[5000], color:'#f5a623' },
+  'blotter-host':       { name:'Blotter Host', role:'Router', emoji:'🌐', host:'127.0.0.1', ports:[3000], color:'#60a5fa' },
+  'claw3d-office':      { name:'Claw3D Office', role:'3D Studio', emoji:'🧊', host:'127.0.0.1', ports:[3000], color:'#67e8f9' },
+  'openclaw-gateway':   { name:'OpenClaw Gateway', role:'Runtime Hub', emoji:'🧠', host:'127.0.0.1', ports:[18789], color:'#a78bfa' },
+  'agent-events':       { name:'Agent Events', role:'Observability', emoji:'📡', host:'0.0.0.0', ports:[8010], color:'#34d399' },
+  'redis':              { name:'Redis', role:'Queue / Cache', emoji:'🟥', host:'127.0.0.1', ports:[6379], color:'#f87171' },
+  'nginx':              { name:'Nginx', role:'Edge / TLS', emoji:'🟩', host:'127.0.0.1', ports:[80,443], color:'#4ade80' },
+};
+
+const ORDER = ['openclaw-gateway','claw3d-office','montanablotter-web','blotter-host','agent-events','redis','nginx'];
+const grid = document.getElementById('office-grid');
+const snack = document.getElementById('snack');
+const label = document.getElementById('net-label').textContent = 'Local services';
+const agentsLive = new Map();
+
+function roomHtml(id){
+  const a = AGENTS[id];
+  return `<article class="room" data-agent="${id}">
+    <div class="room-title"><h2>${a.emoji} ${a.name}</h2><span class="badge">${a.role}</span></div>
+    <div class="canvas"><canvas id="canvas-${id}"></canvas></div>
+    <div class="foot"><span class="status">—</span><span class="probe">${a.host}:${a.ports.join(',')}</span></div>
+  </article>`;
+}
+ORDER.forEach(id => grid.insertAdjacentHTML('beforeend', roomHtml(id)));
+
+function setStatus(id,ok,detail){
+  const el = document.querySelector(`[data-agent="${id}"] .status`);
+  if (!el) return;
+  el.textContent = detail;
+  const dot = el.closest('.room').querySelector('.room');
+}
+function setGlobalDot(count,total){}
+
+const probeCache = new Map();
+async function probeOnce(id){
+  const a = AGENTS[id];
+  if (!a) return 'unknown';
+  const hits = new Set();
+  for (const port of a.ports){
+    const k = `${a.host}:${port}`;
+    if (probeCache.has(k) && (Date.now() - probeCache.get(k).ts) < 4000) { hits.add(probeCache.get(k).ok); continue; }
+    try {
+      const ok = await fetch(`http://${a.host}:${port}/`, {mode:'no-cors', cache:'no-store', signal: AbortSignal.timeout(900)});
+      hits.add(true); probeCache.set(k,{ok:true,ts:Date.now()});
+    } catch { hits.add(false); probeCache.set(k,{ok:false,ts:Date.now()}); }
+  }
+  const up = [...hits].some(Boolean);
+  return up ? 'online' : 'offline';
+}
+
+function draw(id, state){
+  const canvas = document.getElementById('canvas-'+id);
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width));
+  const h = Math.max(1, Math.floor(rect.height));
+  if (canvas.width !== w*dpr || canvas.height !== h*dpr){ canvas.width = w*dpr; canvas.height = h*dpr; canvas.style.width = w+'px'; canvas.style.height = h+'px'; }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+
+  const t = Date.now() / 1000;
+  const a = AGENTS[id];
+  // Room base
+  ctx.fillStyle = '#0b1222';
+  ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle = '#1c2a42';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(.5,.5,w-1,h-1);
+
+  // Grid floor
+  ctx.save();
+  ctx.globalAlpha = .25;
+  ctx.strokeStyle = '#213049';
+  for (let x=0;x<w;x+=28){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y=0;y<h;y+=28){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.restore();
+
+  // Desk
+  const desk = {x: w/2-60, y: h/2-18, w: 120, h: 36};
+  ctx.fillStyle = '#121e34';
+  ctx.fillRect(desk.x, desk.y, desk.w, desk.h);
+  ctx.strokeStyle = '#2b3c59';
+  ctx.strokeRect(desk.x+.5, desk.y+.5, desk.w-1, desk.h-1);
+
+  // Monitor glow
+  const mGrad = ctx.createLinearGradient(desk.x+20, desk.y-28, desk.x+70, desk.y-6);
+  const on = state === 'online';
+  mGrad.addColorStop(0, on ? 'rgba(96,165,250,.18)' : 'rgba(120,130,145,.08)');
+  mGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = mGrad;
+  ctx.fillRect(desk.x+18, desk.y-28, 54, 26);
+
+  // Avatar
+  const bob = Math.sin(t*2 + id.length)*4;
+  ctx.save();
+  ctx.translate(desk.x+60, desk.y-38 + bob);
+  // body
+  ctx.fillStyle = a.color;
+  ctx.beginPath(); ctx.arc(0,0,13,0,Math.PI*2); ctx.fill();
+  // ring
+  ctx.strokeStyle = on ? '#34d399' : '#f87171';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0,0,18,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  // Decorative screens
+  ctx.save();
+  ctx.globalAlpha = .28;
+  ctx.fillStyle = '#14213d';
+  for (let i=0;i<3;i++){ ctx.fillRect(14, 12 + i*18, w-28, 10); }
+  ctx.restore();
+
+  // Label
+  ctx.fillStyle = '#a6b5c6';
+  ctx.font = '600 11px Inter,system-ui,sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${a.emoji} ${a.name} · ${a.role}`, 10, h-10);
+}
+
+async function tick(){
+  let online = 0;
+  for (const id of ORDER){
+    const state = await probeOnce(id);
+    agentsLive.set(id, state);
+    draw(id, state);
+    const foot = document.querySelector(`[data-agent="${id}"] .foot .status`);
+    if (foot) foot.textContent = state;
+    if (state === 'online') online++;
+  }
+  const dot = document.getElementById('net-dot');
+  const countEl = document.getElementById('agent-count');
+  countEl.textContent = `${online}/${ORDER.length}`;
+  dot.className = 'dot ' + (online === ORDER.length ? 'ok' : online > 0 ? 'warn' : 'bad');
+}
+window.addEventListener('resize', () => tick());
+tick();
+setInterval(tick, 10000);
+</script>
+</body>
+</html>
