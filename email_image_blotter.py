@@ -9,6 +9,7 @@ This extends the existing email_worker.py to handle image-based blotters
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import imaplib
 import email
@@ -364,38 +365,73 @@ class ImageBlotterWorker(EmailWorker):
             return False
 
     def fetch_and_process_emails(self, since_days: int = 7):
-        """Override to handle both PDF and image attachments.
-        
+        """Process blotter emails (PDF or image) from every configured IMAP
+        account.
+
+        Iterates ``self.accounts`` (IONOS first, Gmail second if configured)
+        instead of only the primary account. This is what lets the worker
+        see Gmail-hosted county blotters and jail rosters — the previous
+        primary-only path silently dropped them, leaving the arrest feed
+        stale.
+
+        Searches by SINCE date rather than UNSEEN, so emails that were
+        auto-marked-read by another IMAP client (phone push, webmail,
+        Gmail's own read-receipts) still get picked up.
+
         Args:
-            since_days: Search for emails from the last N days (default 7)
-                       instead of only UNSEEN, to catch emails that were
-                       marked as read by another client before processing.
+            since_days: Search for emails from the last N days (default 7).
         """
-        config_error = self._validate_imap_config()
+        config_error = self._validate_accounts()
         if config_error:
             print(f"[email_image_blotter] Config error: {config_error}")
             return 0
 
-        try:
-            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
-            mail.login(self.email_user, self.email_pass)
-            mail.select("INBOX")
-            print("[email_image_blotter] Connected to IMAP successfully")
+        from datetime import datetime, timedelta
+        since_date = (datetime.now() - timedelta(days=since_days)).strftime("%d-%b-%Y")
+        search_criteria = f'(SINCE "{since_date}")'
 
-            # Search by date range instead of UNSEEN to catch emails
-            # that were marked as read by phone/webmail before processing
-            from datetime import datetime, timedelta
-            since_date = (datetime.now() - timedelta(days=since_days)).strftime("%d-%b-%Y")
-            search_criteria = f'(SINCE "{since_date}")'
-            
+        # Track totals across all accounts.
+        total_processed = 0
+        total_skipped = 0
+        total_failed = 0
+
+        for account in self.accounts:
+            print(f"[email_image_blotter] Scanning account={account.label} since={since_date}")
+            try:
+                processed, skipped, failed = self._fetch_and_process_for_account(
+                    account, search_criteria
+                )
+                total_processed += processed
+                total_skipped += skipped
+                total_failed += failed
+            except Exception as e:
+                # One bad account must not block the others.
+                print(f"[email_image_blotter] Critical error on account {account.label!r}: {e}")
+
+        print(
+            f"[email_image_blotter] Complete across {len(self.accounts)} account(s): "
+            f"{total_processed} processed, {total_skipped} skipped, {total_failed} failed"
+        )
+        return total_failed
+
+    def _fetch_and_process_for_account(
+        self,
+        account,
+        search_criteria: str,
+    ) -> tuple[int, int, int]:
+        """Run the per-account scan/ingest pipeline. Returns (processed, skipped, failed)."""
+        mail = self._connect_imap(account)
+        try:
+            mail.select("INBOX")
+            print(f"[email_image_blotter] Connected to IMAP successfully ({account.label})")
+
             status, messages = mail.search(None, search_criteria)
             if status != "OK" or not messages[0]:
-                print(f"[email_image_blotter] No emails found since {since_date}")
-                mail.logout()
-                return 0
+                print(f"[email_image_blotter] No emails found (account={account.label})")
+                return 0, 0, 0
 
             email_ids = messages[0].split()
-            print(f"[email_image_blotter] Found {len(email_ids)} emails since {since_date}")
+            print(f"[email_image_blotter] Found {len(email_ids)} emails (account={account.label})")
 
             processed_count = 0
             skipped_count = 0
@@ -535,13 +571,12 @@ class ImageBlotterWorker(EmailWorker):
                     continue
 
             mail.expunge()
-            mail.logout()
-            print(f"[email_image_blotter] Complete: {processed_count} processed, {skipped_count} skipped, {failed_count} failed")
-            return failed_count
-
-        except Exception as e:
-            print(f"[email_image_blotter] Critical error: {e}")
-            return 1
+            return processed_count, skipped_count, failed_count
+        finally:
+            with contextlib.suppress(Exception):
+                mail.close()
+            with contextlib.suppress(Exception):
+                mail.logout()
 
 
 def run_image_blotter(since_days: int = 14) -> int:
