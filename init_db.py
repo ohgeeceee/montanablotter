@@ -585,6 +585,106 @@ def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
+    """2026-06-06: Sponsored-listing tier on attorney_referrals.
+
+    Free Bronze listings are the default (sponsored=0). Silver ($99/mo) and
+    Gold ($199/mo) tiers rank above free listings in the same county and get
+    a 'Featured' or 'Top Rated' badge. Tier flip is done by the admin after
+    manual invoicing (Stripe wire-up can replace this later).
+
+    `attorney_sponsored_claims` captures inbound self-service form
+    submissions so the admin can review and create the underlying
+    attorney_referrals row + flip the sponsor tier.
+    """
+    _cur = conn.cursor()
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS attorney_referrals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            county TEXT NOT NULL,
+            name TEXT NOT NULL,
+            firm TEXT,
+            phone TEXT,
+            email TEXT,
+            website TEXT,
+            practice_areas TEXT,
+            blurb TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 100,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_ar_county ON attorney_referrals(county, is_active, sort_order)')
+    for col, definition in [
+        ('sponsored', 'INTEGER NOT NULL DEFAULT 0'),
+        ('sponsor_tier', "TEXT"),  # 'silver' | 'gold' | NULL for free/bronze
+        ('sponsor_started_at', 'TEXT'),
+        ('sponsor_expires_at', 'TEXT'),
+        ('sponsor_payment_method', "TEXT DEFAULT 'invoice'"),  # 'invoice' | 'stripe' | 'comp'
+        ('logo_path', 'TEXT'),
+        ('photo_path', 'TEXT'),
+        ('tagline', 'TEXT'),  # short callout shown above name on Gold
+    ]:
+        try:
+            _cur.execute(f'ALTER TABLE attorney_referrals ADD COLUMN {col} {definition}')
+        except sqlite3.OperationalError as exc:
+            if 'duplicate column' not in str(exc).lower():
+                raise
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS attorney_sponsored_claims (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firm_name TEXT NOT NULL,
+            contact_name TEXT NOT NULL,
+            contact_email TEXT NOT NULL,
+            contact_phone TEXT,
+            counties_served TEXT NOT NULL,
+            tier_requested TEXT NOT NULL,
+            website TEXT,
+            practice_areas TEXT,
+            blurb TEXT,
+            mt_bar_number TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',  -- pending | approved | rejected
+            admin_notes TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            reviewed_at TEXT
+        )
+    ''')
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_asc_status ON attorney_sponsored_claims(status, created_at DESC)'
+    )
+    conn.commit()
+
+
+def ensure_ad_unlock_schema(conn: sqlite3.Connection) -> None:
+    """Create ad_unlock_grants table for ad-watched warrant unlock grants.
+
+    Each successful watch inserts a row with expires_at = now() + duration.
+    The paywall check returns True if any unexpired grant exists for the user.
+    """
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS ad_unlock_grants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            public_user_id INTEGER NOT NULL,
+            granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+            expires_at TEXT NOT NULL,
+            ad_id TEXT,
+            watch_seconds INTEGER NOT NULL,
+            ip_address TEXT,
+            user_agent TEXT,
+            provider TEXT NOT NULL DEFAULT 'youtube',
+            FOREIGN KEY (public_user_id) REFERENCES public_users(id)
+        )
+    ''')
+    conn.execute(
+        '''CREATE INDEX IF NOT EXISTS idx_ad_unlock_grants_user_expiry
+           ON ad_unlock_grants(public_user_id, expires_at)'''
+    )
+    conn.commit()
+
+
 def migrate():
     """Safely apply schema changes to an existing DB without data loss"""
     conn = sqlite3.connect(DB_PATH)
@@ -633,6 +733,18 @@ def migrate():
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
     ensure_recovery_ad_schema(conn)
+    ensure_attorney_ad_schema(conn)
+    ensure_ad_unlock_schema(conn)
+    # Backfill: add `provider` column to ad_unlock_grants on installs that
+    # pre-date multi-provider support (2026-06-04). DEFAULT 'youtube' so
+    # existing rows are attributed to the YouTube path retroactively.
+    try:
+        conn.execute(
+            "ALTER TABLE ad_unlock_grants ADD COLUMN provider TEXT NOT NULL DEFAULT 'youtube'"
+        )
+        print('✅ Added ad_unlock_grants.provider')
+    except sqlite3.OperationalError:
+        pass  # column already exists
     ensure_agent_mission_control_schema(conn)
     ensure_api_auth_schema(conn)
     ensure_code_violation_schema(conn)
