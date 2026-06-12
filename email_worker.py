@@ -383,12 +383,19 @@ class EmailWorker:
                 continue
             had_attachment = True
             payload = part.get_payload(decode=True) or b""
-            filepath = os.path.join(self.upload_dir, filename)
+            # HCSO reuses the same DOCX filename across daily emails, so the
+            # bare filename would silently overwrite prior rosters on disk.
+            # Scope the storage path by roster_date so each day's ingest
+            # sees its own file even if the same attachment name recurs.
+            stem, ext = os.path.splitext(filename)
+            date_tag = (roster_date or "undated").replace("-", "")
+            dated_filename = f"{date_tag}_{filename}" if not stem.startswith(date_tag) else filename
+            filepath = os.path.join(self.upload_dir, dated_filename)
             with open(filepath, "wb") as f:
                 f.write(payload)
             logging.info(
                 "Havre roster DOCX saved: message_id=%s filename=%s path=%s roster_date=%s",
-                source_message_id, filename, filepath, roster_date,
+                source_message_id, dated_filename, filepath, roster_date,
             )
             try:
                 stats = ingest_havre_roster(filepath, roster_date=roster_date)

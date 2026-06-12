@@ -251,7 +251,13 @@ class HavreEmailWorkerTests(unittest.TestCase):
         self.assertEqual(ingest_mock.call_count, 2)
 
         saved_paths = [Path(call.args[0]) for call in ingest_mock.call_args_list]
-        self.assertEqual([p.name for p in saved_paths], ["Havre_Roster_1.docx", "Havre_Roster_2.docx"])
+        # Filenames are date-tagged (YYYYMMDD_<original>) so HCSO's reuse of
+        # the same DOCX attachment name across days can't clobber prior
+        # rosters on disk.
+        self.assertEqual(
+            [p.name for p in saved_paths],
+            ["20260101_Havre_Roster_1.docx", "20260101_Havre_Roster_2.docx"],
+        )
         self.assertTrue(all(p.exists() for p in saved_paths))
         self.assertTrue(all(p.parent == Path(self.tmpdir) for p in saved_paths))
 
@@ -325,6 +331,54 @@ class HavreEmailWorkerTests(unittest.TestCase):
         # The email is still moved to processed (operator can find it in the
         # Processed folder if they want to inspect / restore).
         self.assertEqual(fake_mail.copy_calls, [(b"1", self.worker.processed_folder)])
+
+    @mock.patch("services.ingestion.fetchers.havre_inmate.ingest_havre_roster")
+    def test_same_attachment_name_on_different_days_keeps_separate_files(
+        self,
+        ingest_mock,
+    ) -> None:
+        """HCSO reuses the same DOCX attachment name ('JAILROSTER - 12-24-25.docx')
+        across every daily email. Two emails with the same attachment name but
+        different received_at dates must land at different storage paths so
+        the second email doesn't silently clobber the first on disk.
+        """
+        ingest_mock.return_value = mock.Mock(
+            fetched_count=1, new_count=1, updated_count=0, missing_count=0,
+        )
+
+        def _msg_for(received_at: str) -> EmailMessage:
+            m = EmailMessage()
+            m["Subject"] = "JAILROSTER"
+            m["From"] = "reichl <reichl@hillso.org>"
+            m["To"] = "records@montanablotter.com"
+            m.set_content("attached")
+            m.add_attachment(
+                _build_minimal_docx_bytes(),
+                maintype="application",
+                subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
+                filename="JAILROSTER - 12-24-25.docx",
+            )
+            return m
+
+        for received_at in ("Mon, 08 Jun 2026 05:00:00 +0000",
+                            "Tue, 09 Jun 2026 05:00:00 +0000"):
+            msg = _msg_for(received_at)
+            self.worker._process_attachments(
+                msg,
+                source_message_id="<id-{}>".format(received_at[:10]),
+                sender=msg["From"],
+                subject=msg["Subject"],
+                received_at=received_at,
+            )
+
+        saved_paths = [Path(call.args[0]) for call in ingest_mock.call_args_list]
+        self.assertEqual(len(saved_paths), 2)
+        # Different dates => different filenames. The original 'JAILROSTER -
+        # 12-24-25.docx' name is preserved as a suffix for traceability.
+        self.assertNotEqual(saved_paths[0].name, saved_paths[1].name)
+        self.assertTrue(all(p.exists() for p in saved_paths))
+        self.assertEqual(saved_paths[0].name, "20260608_JAILROSTER - 12-24-25.docx")
+        self.assertEqual(saved_paths[1].name, "20260609_JAILROSTER - 12-24-25.docx")
 
 if __name__ == "__main__":
     unittest.main()
