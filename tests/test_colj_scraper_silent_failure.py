@@ -35,10 +35,7 @@ class ColjSilentFailureTests(unittest.TestCase):
         init_db.DB_PATH = self.db_path
         app_module.config.DB_PATH = self.db_path
 
-        # Build just the schema this test needs. init_db.init_database()
-        # has a pre-existing bootstrap ordering bug (it calls
-        # ensure_incident_notification_schema before _create_core_tables
-        # reaches the subscribers CREATE TABLE) that fails on a fresh DB.
+        init_db.init_database()
         self.conn = sqlite3.connect(self.db_path)
         self.conn.row_factory = sqlite3.Row
         ensure_court_tracker_schema(self.conn)

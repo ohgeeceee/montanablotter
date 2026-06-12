@@ -406,11 +406,29 @@ def init_database():
     _configure_sqlite(conn)
     cursor = conn.cursor()
     _create_core_tables(cursor)
+    # Create the subscribers table here so the ensure_* helpers below
+    # (which ALTER TABLE subscribers to add opt-in columns) don't crash
+    # on a fresh DB. The same CREATE TABLE exists in migrate() — the
+    # duplication is intentional; both functions are documented to be
+    # safe to run on a populated DB (CREATE TABLE IF NOT EXISTS, ALTER
+    # is gated on PRAGMA table_info).
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS subscribers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            counties TEXT DEFAULT '',
+            token TEXT NOT NULL,
+            active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            missing_person_email_opt_in INTEGER NOT NULL DEFAULT 1,
+            missing_person_sms_opt_in INTEGER NOT NULL DEFAULT 0,
+            missing_person_push_opt_in INTEGER NOT NULL DEFAULT 0,
+            phone_verified_at TEXT DEFAULT ''
+        )
+    ''')
     ensure_source_material_schema(conn)
     ensure_public_meeting_schema(conn)
     ensure_public_engagement_schema(conn)
-    ensure_incident_notification_schema(conn)
-
     ensure_missing_person_schema(conn)
     ensure_jail_booking_schema(conn)
     ensure_warrant_schema(conn)
