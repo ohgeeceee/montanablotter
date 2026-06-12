@@ -304,6 +304,8 @@ class ColjPortalScraper:
             total_events = 0
             total_cases = 0
             court_names = []
+            login_attempts = 0
+            login_failures = 0
 
             for court_value, court_label in court_options:
                 county = _county_from_court_label(court_label)
@@ -311,7 +313,9 @@ class ColjPortalScraper:
                 court_names.append(court_label)
                 print(f'  → {court_label} ({county})')
 
+                login_attempts += 1
                 if not self._login(court_value, court_label):
+                    login_failures += 1
                     continue
 
                 court_id = upsert_court(
@@ -364,16 +368,39 @@ class ColjPortalScraper:
                     )
                     total_events += 1
 
-            conn.execute(
-                '''
-                UPDATE court_sources
-                SET last_success_at = datetime('now'),
-                    last_error = NULL,
-                    updated_at = datetime('now')
-                WHERE id = ?
-                ''',
-                (source_id,),
-            )
+            if total_events > 0:
+                # Only mark the source as healthy when we actually pulled
+                # events. The proxy-fix graceful-failure path (every login
+                # attempt rejected by the WAF, zero records) would otherwise
+                # update last_success_at to "now" and wipe last_error,
+                # making a 100% failure look like a clean run.
+                conn.execute(
+                    '''
+                    UPDATE court_sources
+                    SET last_success_at = datetime('now'),
+                        last_error = NULL,
+                        updated_at = datetime('now')
+                    WHERE id = ?
+                    ''',
+                    (source_id,),
+                )
+            else:
+                nothing_got_msg = (
+                    f'colj sync ran but retrieved 0 events '
+                    f'(login_attempts={login_attempts}, '
+                    f'login_failures={login_failures}). '
+                    f'Portal likely behind WAF; configure '
+                    f'MB_HTTPS_PROXY to route through a residential IP.'
+                )
+                conn.execute(
+                    '''
+                    UPDATE court_sources
+                    SET last_error = ?,
+                        updated_at = datetime('now')
+                    WHERE id = ?
+                    ''',
+                    (nothing_got_msg[:1000], source_id),
+                )
 
             return {
                 'source_id': source_id,
@@ -383,7 +410,7 @@ class ColjPortalScraper:
                 'case_count': total_cases,
                 'event_count': total_events,
                 'synced_at': _now_iso(),
-                'fetched_live': True,
+                'fetched_live': total_events > 0,
                 'fetch_method': 'playwright',
                 'court_names': court_names,
                 'upserts': total_events,
