@@ -170,6 +170,30 @@ def get_ingestion_job_status(source_document_id: int) -> Optional[str]:
         conn.close()
 
 
+def get_ingestion_job_state(source_document_id: int) -> tuple[Optional[str], Optional[str]]:
+    """Return (status, updated_at) for the most recent ingestion_job row
+    tied to this source_document_id, or (None, None) if no row exists.
+
+    `updated_at` lets callers distinguish "the RQ job just set status to
+    'extracted' a minute ago, leave it alone" from "status has been
+    'extracted' for 3 hours, the RQ job is presumed dead, safe to
+    re-enqueue" without an extra round-trip.
+    """
+    conn = _connect()
+    try:
+        row = conn.execute(
+            'SELECT status, updated_at FROM ingestion_jobs '
+            'WHERE source_document_id = ? '
+            'ORDER BY id DESC LIMIT 1',
+            (source_document_id,),
+        ).fetchone()
+        if not row:
+            return (None, None)
+        return (row['status'], row['updated_at'])
+    finally:
+        conn.close()
+
+
 def set_ingestion_job_status(job_id: int, status: str, *, last_error: Optional[str] = None, finished: bool = False) -> None:
     fields = ['status = ?', 'updated_at = datetime(\'now\')']
     params: List = [status]

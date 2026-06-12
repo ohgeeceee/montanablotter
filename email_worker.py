@@ -26,6 +26,7 @@ from core.pipeline_state import (
     ensure_ingestion_job,
     ensure_source_document,
     get_ingestion_job_status,
+    get_ingestion_job_state,
     increment_ingestion_retry,
     log_pipeline_event,
     set_ingestion_job_status,
@@ -40,6 +41,23 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
 def utcnow_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _parse_iso(value) -> datetime:
+    """Parse a sqlite ``datetime('now')``-style string (``YYYY-MM-DD HH:MM:SS``)
+    into a tz-aware UTC datetime. Pass-through if already a datetime."""
+    if isinstance(value, datetime):
+        return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+    text = str(value).strip() if value is not None else ""
+    if not text:
+        raise ValueError("empty datetime string")
+    # sqlite returns "YYYY-MM-DD HH:MM:SS" without a timezone — treat as UTC.
+    # Tolerate ISO-8601 with "T" or trailing "Z"/offset too.
+    if "T" in text or (len(text) > 10 and ("+" in text[10:] or text.endswith("Z"))):
+        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    else:
+        dt = datetime.fromisoformat(text).replace(tzinfo=UTC)
+    return dt
 
 
 def _parse_email_date_to_iso(date_header: str) -> str | None:
@@ -939,11 +957,45 @@ class EmailWorker:
                     extraction_warnings=[],
                 )
                 ingestion_job_id = ensure_ingestion_job(source_document_id)
-                existing_status = get_ingestion_job_status(source_document_id)
-                if existing_status == 'published':
-                    logging.info(f"Skipping already published attachment: {filename}")
+                existing_status, existing_updated = get_ingestion_job_state(source_document_id)
+                # Skip if the source has reached a terminal state.
+                # The previous version only skipped on 'published', which
+                # meant every 15-min cron run re-saved the PDF, re-set
+                # status='extracted', and re-enqueued another RQ job for
+                # any attachment whose first attempt was 'failed' (e.g.
+                # LLM call timed out) or 'extracted' (RQ worker crashed
+                # mid-flight). That re-parse loop is what created the
+                # backlog of 32 stuck jobs in 2026-06-11.
+                if existing_status in ('published', 'failed', 'skipped'):
+                    logging.info(
+                        "Skipping terminal-status attachment: %s (status=%s)",
+                        filename, existing_status,
+                    )
                     any_succeeded = True
                     continue
+                # In-flight: skip if an RQ worker recently touched the
+                # row. updated_at is bumped on every status write, so a
+                # fresh timestamp means a worker is actively progressing
+                # the job. After INFLIGHT_DEBOUNCE_MIN with no update we
+                # assume the RQ job died and let the re-enqueue below
+                # recover the source.
+                INFLIGHT_DEBOUNCE_MIN = 30
+                if existing_status in ('extracted', 'parsed', 'normalized') and existing_updated:
+                    try:
+                        age_seconds = (datetime.now(UTC) - _parse_iso(existing_updated)).total_seconds()
+                    except (TypeError, ValueError):
+                        age_seconds = INFLIGHT_DEBOUNCE_MIN * 60 + 1
+                    if age_seconds < INFLIGHT_DEBOUNCE_MIN * 60:
+                        logging.info(
+                            "Skipping in-flight attachment: %s (status=%s, age=%.1fmin)",
+                            filename, existing_status, age_seconds / 60,
+                        )
+                        any_succeeded = True
+                        continue
+                    logging.info(
+                        "Re-enqueuing presumed-dead attachment: %s (status=%s, age=%.1fmin)",
+                        filename, existing_status, age_seconds / 60,
+                    )
 
                 with open(filepath, 'wb') as f:
                     f.write(payload)
