@@ -87,15 +87,17 @@ class EmailWorkerSkipStateTests(unittest.TestCase):
         init_db.DB_PATH = self.db_path
         app_module.config.DB_PATH = self.db_path
 
-        # Build just the tables this test needs. init_db.init_database()
-        # has a pre-existing bootstrap ordering bug (it calls
-        # ensure_incident_notification_schema before _create_core_tables
-        # reaches the subscribers CREATE TABLE) that fails on a fresh
-        # test DB.
+        # Build just the tables this test needs. We don't call
+        # init_db.init_database() because its inline schema for
+        # ingestion_jobs omits the source_key and updated_at columns
+        # that the production DB has (and that production migrations
+        # add). For the skip-logic test we only need source_documents,
+        # ingestion_jobs, and pipeline_events with the columns the
+        # worker actually reads/writes.
         conn = sqlite3.connect(self.db_path)
         conn.executescript(
             """
-            CREATE TABLE source_documents (
+            CREATE TABLE IF NOT EXISTS source_documents (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_type TEXT,
                 source_message_id TEXT,
@@ -110,7 +112,7 @@ class EmailWorkerSkipStateTests(unittest.TestCase):
                 extraction_warnings TEXT,
                 created_at TEXT DEFAULT (datetime('now'))
             );
-            CREATE TABLE ingestion_jobs (
+            CREATE TABLE IF NOT EXISTS ingestion_jobs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_document_id INTEGER,
                 status TEXT,
@@ -121,7 +123,7 @@ class EmailWorkerSkipStateTests(unittest.TestCase):
                 source_key TEXT,
                 updated_at TEXT DEFAULT (datetime('now'))
             );
-            CREATE TABLE pipeline_events (
+            CREATE TABLE IF NOT EXISTS pipeline_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ingestion_job_id INTEGER,
                 stage TEXT,
