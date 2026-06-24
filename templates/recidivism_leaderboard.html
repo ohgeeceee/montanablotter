@@ -1,0 +1,84 @@
+{% extends "public_page_base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ canonical_url }}">{% endblock %}
+
+{% block content %}
+<div class="public-page-wrap">
+
+  <div class="public-hero-strip" style="background:#0f172a;padding:2.5rem 1rem 2rem;">
+    <div style="max-width:860px;margin:0 auto;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔄</div>
+      <h1 style="color:#fff;font-size:1.75rem;font-weight:900;margin:0 0 0.5rem;">
+        {% if county_label %}{{ county_label }} County{% else %}Montana{% endif %} Repeat Booking Leaderboard
+      </h1>
+      <p style="color:#94a3b8;font-size:0.95rem;margin:0;">
+        Top {{ limit }} people with the most jail bookings who were released and booked again
+        · {{ total_qualifiers }} qualifying individual{% if total_qualifiers != 1 %}s{% endif %}
+        {% if county_label %}in {{ county_label }} County{% else %}statewide{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div style="max-width:1100px;margin:0 auto;padding:1.5rem 1rem 3rem;">
+
+    {% if counties %}
+    <form method="get" action="/leaderboard" style="margin-bottom:1.25rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+      <label for="county-select" style="font-size:0.9rem;font-weight:600;color:#0f172a;">Filter by county:</label>
+      <select id="county-select" name="county" style="padding:0.45rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;color:#0f172a;min-width:180px;">
+        <option value="" {% if not selected_county %}selected{% endif %}>All counties</option>
+        {% for c in counties %}
+        <option value="{{ c.county_slug }}" {% if selected_county == c.county_slug %}selected{% endif %}>{{ c.county_name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" style="padding:0.45rem 1rem;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;">Apply</button>
+      {% if selected_county %}
+      <a href="/leaderboard" style="font-size:0.85rem;color:#64748b;text-decoration:underline;">Clear</a>
+      {% endif %}
+    </form>
+    {% endif %}
+
+    <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+        <thead>
+          <tr style="background:#f8fafc;">
+            <th style="padding:0.6rem 0.75rem;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">#</th>
+            <th style="padding:0.6rem 0.75rem;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Name</th>
+            <th style="padding:0.6rem 0.75rem;text-align:right;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Bookings</th>
+            <th style="padding:0.6rem 0.75rem;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Counties</th>
+            <th style="padding:0.6rem 0.75rem;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">First seen</th>
+            <th style="padding:0.6rem 0.75rem;text-align:left;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">Latest</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in leaderboard %}
+          <tr style="border-bottom:1px solid #f1f5f9;{% if loop.index <= 3 %}background:#fefce8;{% endif %}">
+            <td style="padding:0.55rem 0.75rem;color:#94a3b8;font-weight:700;">
+              {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+            </td>
+            <td style="padding:0.55rem 0.75rem;">
+              <a href="{{ row.profile_url }}" style="color:#0f172a;font-weight:700;text-decoration:none;">{{ row.display_name }}</a>
+            </td>
+            <td style="padding:0.55rem 0.75rem;text-align:right;font-weight:800;color:#dc2626;">{{ row.booking_count }}</td>
+            <td style="padding:0.55rem 0.75rem;color:#64748b;">{{ row.counties_label }}</td>
+            <td style="padding:0.55rem 0.75rem;color:#64748b;white-space:nowrap;">{{ row.first_booking_at[:10] if row.first_booking_at else '—' }}</td>
+            <td style="padding:0.55rem 0.75rem;color:#64748b;white-space:nowrap;">{{ row.last_booking_at[:10] if row.last_booking_at else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="padding:1.5rem;text-align:center;color:#94a3b8;">No repeat bookings found. Check back after more roster data is ingested.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:1.5rem;padding:1rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+      <p style="margin:0;color:#64748b;font-size:0.85rem;line-height:1.5;">
+        <strong>Methodology:</strong> Only people with at least two jail bookings are shown, and only when a later booking occurred after an earlier booking had a recorded release. Rankings are grouped by name; identical names from different people may be combined. This page updates as new jail roster data is ingested.
+      </p>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
