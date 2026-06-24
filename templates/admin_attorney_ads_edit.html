@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if listing else 'New' }} Attorney Listing — Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <h1>{{ 'Edit' if listing else 'New' }} Attorney Listing</h1>
+
+  <form method="POST" style="max-width:720px;">
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.3rem;">County</label>
+      <input type="text" name="county" value="{{ listing.county if listing else '' }}" required style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.3rem;">Attorney Name</label>
+      <input type="text" name="name" value="{{ listing.name if listing else '' }}" required style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.3rem;">Firm</label>
+      <input type="text" name="firm" value="{{ listing.firm if listing else '' }}" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:.3rem;">Phone</label>
+        <input type="text" name="phone" value="{{ listing.phone if listing else '' }}" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:.3rem;">Email</label>
+        <input type="email" name="email" value="{{ listing.email if listing else '' }}" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      </div>
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.3rem;">Website</label>
+      <input type="url" name="website" value="{{ listing.website if listing else '' }}" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.3rem;">Practice Areas</label>
+      <input type="text" name="practice_areas" value="{{ listing.practice_areas if listing else '' }}" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.3rem;">Tagline</label>
+      <input type="text" name="tagline" value="{{ listing.tagline if listing else '' }}" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.3rem;">Blurb</label>
+      <textarea name="blurb" rows="4" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">{{ listing.blurb if listing else '' }}</textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem;align-items:end;">
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:.3rem;">Sponsor Tier</label>
+        <select name="sponsor_tier" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+          {% for tier_id, tier_label in tier_choices.items() %}
+          <option value="{{ tier_id }}" {% if listing and listing.sponsor_tier == tier_id or (listing and not listing.sponsor_tier and not tier_id) %}selected{% endif %}>{{ tier_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:.3rem;">Sort Order</label>
+        <input type="number" name="sort_order" value="{{ listing.sort_order if listing else 100 }}" style="width:100%;padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:600;">
+          <input type="checkbox" name="is_active" value="1" {% if not listing or listing.is_active %}checked{% endif %}>
+          Active
+        </label>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;">
+      <button type="submit" style="padding:.6rem 1.25rem;background:#0f172a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;">Save Listing</button>
+      <a href="{{ url_for('admin.admin_attorney_ads') }}" style="padding:.6rem 1.25rem;color:#64748b;text-decoration:underline;">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
