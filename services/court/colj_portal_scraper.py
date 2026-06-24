@@ -92,6 +92,13 @@ def _extract_table_rows(html: str) -> list[dict[str, str]]:
     return rows
 
 
+_USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+]
+
+
 class ColjPortalScraper:
     """Playwright scraper for the Courts of Limited Jurisdiction Public Portal."""
 
@@ -113,13 +120,46 @@ class ColjPortalScraper:
         if self.playwright:
             self.playwright.stop()
 
+    def _apply_browser_hardening(self, court_label: str, retry: bool = False) -> None:
+        user_agent = random.choice(_USER_AGENTS)
+        try:
+            self.page.set_extra_http_headers({
+                'User-Agent': user_agent,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': COLJ_PORTAL_URL,
+                'DNT': '1',
+            })
+            self.page.set_viewport_size({'width': 1366, 'height': 900})
+            # Bypass headless automation signatures that WAF rulesets target.
+            self.page.add_init_script(
+                "() => { Object.defineProperty(navigator, 'webdriver', { get: () => false }); }"
+            )
+        except Exception as exc:
+            if not retry:
+                raise
+            print(f'  ⚠️ Hardening tweak failed for {court_label}: {exc}')
+
     def _login(self, court_value: str, court_label: str) -> bool:
         # Fresh page for each court to avoid WAF detection
-        self.page = new_browser_context(self.browser).new_page()
+        context = new_browser_context(self.browser)
+        self.page = context.new_page()
         self.page.set_default_timeout(30000)
+        self._apply_browser_hardening(court_label)
 
-        self.page.goto(COLJ_PORTAL_URL, wait_until='domcontentloaded')
-        self.page.wait_for_timeout(4000 + random.randint(0, 2000))
+        warmup_url = 'https://coljportal.pubcourts.mt.gov/fullcourtweb/start.do'
+        try:
+            self.page.goto(warmup_url, wait_until='domcontentloaded')
+            self.page.wait_for_timeout(4000 + random.randint(0, 2000))
+        except Exception as exc:
+            print(f'  ⚠️ Warmup failed for {court_label}: {exc}')
+            try:
+                self._apply_browser_hardening(court_label, retry=True)
+                self.page.goto(warmup_url, wait_until='domcontentloaded')
+                self.page.wait_for_timeout(4000 + random.randint(0, 2000))
+            except Exception as retry_exc:
+                print(f'  ⚠️ Warmup retry failed for {court_label}: {retry_exc}')
+                return False
 
         try:
             self.page.wait_for_selector("select[name='tenant']", timeout=10000)
@@ -306,6 +346,40 @@ class ColjPortalScraper:
             court_names = []
             login_attempts = 0
             login_failures = 0
+
+            # Fail-fast: if the first court can't login, the portal is likely
+            # behind WAF. Don't burn 40+ minutes on 138 doomed requests.
+            if court_options:
+                first_value, first_label = court_options[0]
+                print(f'  → pre-flight login test: {first_label}')
+                if not self._login(first_value, first_label):
+                    nothing_got_msg = (
+                        f'colj pre-flight login failed ({first_label}); '
+                        f'portal likely behind WAF. Configure MB_HTTPS_PROXY '
+                        f'to route through a residential IP.'
+                    )
+                    conn.execute(
+                        '''
+                        UPDATE court_sources
+                        SET last_error = ?,
+                            updated_at = datetime('now')
+                        WHERE id = ?
+                        ''',
+                        (nothing_got_msg[:1000], source_id),
+                    )
+                    return {
+                        'source_id': source_id,
+                        'source_slug': 'montana-colj-calendar',
+                        'source_url': COLJ_PORTAL_URL,
+                        'court_count': len(court_options),
+                        'case_count': 0,
+                        'event_count': 0,
+                        'synced_at': _now_iso(),
+                        'fetched_live': False,
+                        'fetch_method': 'playwright',
+                        'court_names': [],
+                        'upserts': 0,
+                    }
 
             for court_value, court_label in court_options:
                 county = _county_from_court_label(court_label)

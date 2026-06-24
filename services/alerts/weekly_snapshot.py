@@ -146,6 +146,8 @@ def gather_stats(conn: sqlite3.Connection, county: str, start: str, end: str) ->
 
 def _call_claude(stats: dict, county: str, start: str, end: str) -> dict:
     """Ask Claude for a lead paragraph and safety tip. Returns dict or {}."""
+    if not getattr(config, "USE_PAID_LLM", False):
+        return {}
     try:
         import anthropic
         api_key = getattr(config, "ANTHROPIC_API_KEY", None)

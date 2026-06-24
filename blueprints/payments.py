@@ -30,6 +30,59 @@ def register_payments_blueprint(app):
     app.register_blueprint(payments_bp)
 
 
+# ---------------------------------------------------------------------------
+# Supporter tier ($1/mo) — checkout + success/cancel routes
+# ---------------------------------------------------------------------------
+
+@payments_bp.route('/supporter/checkout', methods=['POST'])
+def supporter_checkout():
+    """Create a Stripe Checkout session for the $1/month supporter plan."""
+    from flask import jsonify, request
+    import config
+
+    payload = request.get_json(silent=True) or {}
+    email = (payload.get('email') or '').strip().lower()
+    if not email or '@' not in email:
+        return jsonify({'error': 'Valid email is required.'}), 400
+
+    price_id = config.STRIPE_SUPPORTER_PRICE_ID
+    if not price_id:
+        return jsonify({'error': 'Supporter plan not available.'}), 503
+
+    stripe.api_key = config.STRIPE_SECRET_KEY
+    base_url = 'https://montanablotter.com'
+
+    session = stripe.checkout.Session.create(
+        mode='subscription',
+        line_items=[{'price': price_id, 'quantity': 1}],
+        customer_email=email,
+        success_url=f'{base_url}/supporter/success?session_id={{CHECKOUT_SESSION_ID}}',
+        cancel_url=f'{base_url}/supporter/cancel',
+        metadata={'tier': 'supporter', 'email': email},
+        subscription_data={
+            'metadata': {'tier': 'supporter', 'email': email},
+        },
+    )
+    return jsonify({'checkout_url': session.url})
+
+
+@payments_bp.route('/supporter/success')
+def supporter_success():
+    """Stripe checkout success redirect for supporter tier."""
+    from flask import render_template
+    return render_template('checkout_subscription_success.html',
+                           plan='supporter',
+                           plan_label='Supporter ($1/month)')
+
+
+@payments_bp.route('/supporter/cancel')
+def supporter_cancel():
+    """Stripe checkout cancel redirect for supporter tier."""
+    from flask import render_template
+    return render_template('checkout_subscription_cancel.html',
+                           plan='supporter')
+
+
 def _app():
     import app as _app_module
     return _app_module
@@ -38,8 +91,8 @@ def _app():
 def _warrant_access_price_ids():
     """Return the active Stripe price IDs for warrant access."""
     return {
-        'trial_fee': (os.getenv('MB_WARRANT_TRIAL_FEE_PRICE_ID', _WARRANT_TRIAL_FEE_PRICE_ID) or '').strip(),
-        'monthly': (os.getenv('MB_WARRANT_MONTHLY_PRICE_ID', _WARRANT_MONTHLY_PRICE_ID) or '').strip(),
+        'weekly': (getattr(config, 'WARRANT_WEEKLY_PRICE_ID', '') or '').strip(),
+        'monthly': (getattr(config, 'WARRANT_MONTHLY_PRICE_ID', '') or _WARRANT_MONTHLY_PRICE_ID or '').strip(),
     }
 
 
@@ -389,11 +442,13 @@ def stripe_webhook():
 # ---------------------------------------------------------------------------
 
 @payments_bp.route('/advertise')
+@payments_bp.route('/advertise/')
 def advertise_redirect():
     return redirect(url_for('.advertise_bail_bonds'))
 
 
 @payments_bp.route('/advertise/bail-bonds', methods=['GET', 'POST'])
+@payments_bp.route('/advertise/bail-bonds/', methods=['GET', 'POST'])
 def advertise_bail_bonds():
     m = _app()
     package_options = m._bail_ad_public_packages()
@@ -448,7 +503,7 @@ def advertise_bail_bonds():
         if request.form.get('policy_ack') != 'yes':
             errors.append('You must confirm the advertising policy.')
         if request.form.get('contract_ack') != 'yes':
-            errors.append("You must review the Affordable Bail Bonds advertising contract.")
+            errors.append("You must review the Montana Blotter Contract.")
 
         budget_cents = m._parse_budget_cents(form_data['monthly_budget'])
         source = (request.form.get('source') or request.args.get('source') or 'bail_ad_page').strip()[:80]
@@ -520,6 +575,7 @@ def advertise_bail_bonds():
 
 
 @payments_bp.route('/advertise/bail-bonds/checkout', methods=['GET', 'POST'])
+@payments_bp.route('/advertise/bail-bonds/checkout/', methods=['GET', 'POST'])
 def advertise_bail_bonds_checkout():
     m = _app()
     conn = get_db()
@@ -625,7 +681,7 @@ def advertise_bail_bonds_checkout():
         if request.form.get('policy_ack') != 'yes':
             errors.append('Advertising policy acknowledgement is required.')
         if request.form.get('contract_ack') != 'yes':
-            errors.append("You must review and accept the Affordable Bail Bonds advertising contract.")
+            errors.append("You must review and accept the Montana Blotter Contract.")
         if request.form.get('terms_ack') != 'yes':
             errors.append('You must accept billing terms to continue.')
 
@@ -772,6 +828,7 @@ def advertise_bail_bonds_checkout():
 
 
 @payments_bp.route('/advertise/bail-bonds/checkout/success')
+@payments_bp.route('/advertise/bail-bonds/checkout/success/')
 def advertise_bail_checkout_success():
     m = _app()
     session_id = (request.args.get('session_id') or '').strip()
@@ -832,6 +889,7 @@ def advertise_bail_checkout_success():
 
 
 @payments_bp.route('/advertise/bail-bonds/control-panel/<token>')
+@payments_bp.route('/advertise/bail-bonds/control-panel/<token>/')
 def advertise_bail_control_panel(token):
     m = _app()
     safe_token = (token or '').strip()[:128]
@@ -874,6 +932,7 @@ def advertise_bail_control_panel(token):
 
 
 @payments_bp.route('/advertise/bail-bonds/checkout/cancel')
+@payments_bp.route('/advertise/bail-bonds/checkout/cancel/')
 def advertise_bail_checkout_cancel():
     m = _app()
     return render_template(
@@ -979,7 +1038,7 @@ def checkout_subscription_cancel():
 
 
 # ---------------------------------------------------------------------------
-# Warrant Access checkout — $1 for 7-day trial, then $7/month
+# Warrant Access checkout — $1/week or $8/month recurring subscription
 # ---------------------------------------------------------------------------
 
 @payments_bp.route('/checkout/warrant-access', methods=['GET', 'POST'])
@@ -990,7 +1049,7 @@ def checkout_warrant_access():
     log.info('warrant-access checkout: public_user_id=%s', public_user_id)
     if not public_user_id:
         log.warning('warrant-access checkout: no session — redirecting to login')
-        flash('Please log in or create an account to start your trial.', 'info')
+        flash('Please log in or create an account to subscribe.', 'info')
         return redirect('/login?next=/wanted/subscribe')
     email = None
     try:
@@ -1002,45 +1061,48 @@ def checkout_warrant_access():
     except Exception:
         log.exception('warrant-access checkout: DB error fetching user %s', public_user_id)
 
+    plan = (request.args.get('plan') or 'monthly').strip().lower()
+    if plan not in {'weekly', 'monthly'}:
+        flash('Please select a valid warrant access plan.', 'error')
+        return redirect('/wanted/subscribe')
+
     keys = m._stripe_keys()
     base_url = (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
     stripe.api_key = keys['secret_key']
     price_ids = _warrant_access_price_ids()
 
     try:
-        if not price_ids['trial_fee'] or not price_ids['monthly']:
-            raise RuntimeError('Warrant access Stripe price IDs are not configured')
+        price_id = price_ids.get(plan)
+        if not price_id:
+            raise RuntimeError(f'Warrant access {plan} Stripe price ID is not configured')
         checkout_session = stripe.checkout.Session.create(
             mode='subscription',
             client_reference_id=str(public_user_id),
             customer_email=email or None,
             line_items=[
                 {
-                    'price': price_ids['trial_fee'],
-                    'quantity': 1,
-                },
-                {
-                    'price': price_ids['monthly'],
+                    'price': price_id,
                     'quantity': 1,
                 },
             ],
             success_url=f"{base_url}/checkout/warrant-access/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{base_url}/wanted/subscribe?canceled=1",
             subscription_data={
-                'trial_period_days': 7,
                 'metadata': {
                     'flow': 'warrant_access',
                     'public_user_id': str(public_user_id),
+                    'plan': plan,
                 },
             },
             metadata={
                 'flow': 'warrant_access',
                 'public_user_id': str(public_user_id),
+                'plan': plan,
             },
         )
         checkout_url = _checkout_redirect_url(checkout_session)
         if checkout_url:
-            log.info('warrant-access checkout: created Stripe Checkout Session for user %s', public_user_id)
+            log.info('warrant-access checkout: created Stripe Checkout Session for user %s plan=%s', public_user_id, plan)
             return redirect(checkout_url)
         raise RuntimeError('Stripe checkout session did not return a URL')
     except Exception:
@@ -1117,7 +1179,7 @@ def advertise_bail_private_contract(token):
         'advertise_bail_contract.html',
         contract_info=contract_info,
         page_title=contract_info['title'],
-        meta_description="Review the Affordable Bail Bonds advertising contract for Montana Blotter placements, billing, creative review, and cancellation terms.",
+        meta_description="Review the Montana Blotter Contract for advertising placements, billing, creative review, and cancellation terms.",
         canonical_url='',
         og_title=contract_info['title'],
         og_description=contract_info['summary'],
@@ -1127,6 +1189,7 @@ def advertise_bail_private_contract(token):
 
 
 @payments_bp.route('/advertise/bail-bonds/onboarding/<token>', methods=['GET', 'POST'])
+@payments_bp.route('/advertise/bail-bonds/onboarding/<token>/', methods=['GET', 'POST'])
 def advertise_bail_onboarding(token):
     m = _app()
     safe_token = (token or '').strip()[:128]

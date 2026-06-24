@@ -355,6 +355,7 @@
       "county_name": "Park",
       "body_name": "Livingston City Commission",
       "disable_fallback_link": true,
+      "timeout_ms": 90000,
       "include_keywords": [
         "city commission"
       ],

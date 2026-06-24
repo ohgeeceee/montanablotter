@@ -17,6 +17,7 @@ from flask import abort, flash, g, redirect, request, session, url_for
 from flask_login import current_user
 
 from db import connect_page_views, get_db
+from utils.auth_constants import ADMIN_ACCESS_ROLES
 
 # ---------------------------------------------------------------------------
 # Plan hierarchy
@@ -150,8 +151,14 @@ def user_has_access(min_plan: str = 'insider') -> bool:
 
 
 def user_has_warrant_access() -> bool:
-    """Return True if the current user has an active warrant-access subscription."""
-    if current_user.is_authenticated:
+    """Return True if the current user has an active warrant-access subscription.
+
+    Warrant access is a paid add-on (WARRANT_PLANS). Admin/staff users with
+    an admin role get an explicit override so they can test the gated pages
+    without a paid subscription. Plain authenticated sessions without the
+    warrant_access plan do NOT get free access.
+    """
+    if current_user.is_authenticated and getattr(current_user, 'role', None) in ADMIN_ACCESS_ROLES:
         return True
     plan = get_user_plan()
     if plan in WARRANT_PLANS:

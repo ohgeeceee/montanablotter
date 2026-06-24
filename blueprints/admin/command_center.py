@@ -7,6 +7,7 @@ from flask import jsonify, render_template
 from flask_login import login_required
 
 from services.agents.mission_control import build_snapshot, recent_events
+from services.agents.registry import build_registry
 from services.agents.status import system_snapshot
 from blueprints.admin import admin_bp, require_role
 from blueprints.admin.agents import _agent_snapshot
@@ -248,6 +249,13 @@ def _build_feed() -> dict:
     }
 
 
+@admin_bp.route('/hub')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_hub():
+    return render_template('admin_hub.html')
+
+
 @admin_bp.route('/command-center')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
@@ -267,3 +275,10 @@ def admin_command_center_runbook():
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_command_center_feed():
     return jsonify(_build_feed())
+
+
+@admin_bp.route('/api/agents/registry')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_agents_registry():
+    return jsonify(build_registry())

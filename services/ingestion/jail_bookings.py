@@ -38,6 +38,7 @@ import pdfplumber
 
 sys.path.insert(0, "/root/montanablotter")
 import config
+from db import timed_db_transaction
 from services.alerts.bail_bonds import dispatch_felony_booking_alerts, dispatch_telegram_booking_alerts
 from services.ingestion.models import JailBookingRecord
 from services.ingestion.fetchers.flathead_inmate import (
@@ -45,19 +46,24 @@ from services.ingestion.fetchers.flathead_inmate import (
     _parse_flathead_roster,
 )
 from services.ingestion.fetchers.rosebud_inmate import fetch_rosebud_bookings
+from services.ingestion.fetchers.custer_inmate import fetch_custer_bookings
+from services.ingestion.fetchers.lewis_clark_inmate import fetch_lewis_clark_bookings
+from services.ingestion.fetchers.lincoln_inmate import fetch_lincoln_bookings
+from services.ingestion.fetchers.silver_bow_inmate import fetch_silver_bow_bookings
 from services.ingestion.fetchers.yellowstone_inmate import fetch_bookings as _fetch_yellowstone_bookings_raw
 
 logger = logging.getLogger(__name__)
 
-DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
-DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
-DB_LOCK_RETRY_ATTEMPTS = int(getattr(config, "DB_LOCK_RETRY_ATTEMPTS", 3))
-DB_LOCK_RETRY_SLEEP_SECONDS = float(getattr(config, "DB_LOCK_RETRY_SLEEP_SECONDS", 2.0))
+DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 60))
+DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 60000))
+DB_LOCK_RETRY_ATTEMPTS = int(getattr(config, "DB_LOCK_RETRY_ATTEMPTS", 5))
+DB_LOCK_RETRY_SLEEP_SECONDS = float(getattr(config, "DB_LOCK_RETRY_SLEEP_SECONDS", 3.0))
 PUBLISHER_PAYLOAD_PATH = str(getattr(config, "NEXTJS_JAIL_BOOKING_PAYLOAD_PATH", "") or "").strip()
 
-SUPPORTED_ADAPTERS = {"beaverhead", "broadwater", "cascade", "carbon", "flathead", "gallatin", "jefferson", "lake", "madison", "meagher", "missoula", "park", "ravalli", "roosevelt", "rosebud", "sanders", "stillwater", "valley", "wheatland", "yellowstone"}
+SUPPORTED_ADAPTERS = {"beaverhead", "broadwater", "cascade", "carbon", "custer", "flathead", "gallatin", "jefferson", "lake", "lewis_clark", "lincoln", "madison", "meagher", "missoula", "park", "ravalli", "roosevelt", "rosebud", "sanders", "silver_bow", "stillwater", "valley", "wheatland", "yellowstone"}
 SKIPPED_SOURCES = {
     "broadwater": "Official roster host is timing out from the ingest machine.",
+    "beaverhead": "Official roster endpoint no longer serves a PDF; generic HTML parser is not supported.",
 }
 
 ZUERCHER_COUNTIES = frozenset({
@@ -218,6 +224,38 @@ TRACKED_SOURCES = {
         "coverage_tier": "standard",
         "is_featured": 0,
     },
+    "custer": {
+        "county_name": "Custer",
+        "facility_name": "Custer County Detention Facility",
+        "roster_url": "https://custercountymt.gov/emergency-enforcement/sheriff/",
+        "phone": "406-874-3320",
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "lewis_clark": {
+        "county_name": "Lewis and Clark",
+        "facility_name": "Lewis and Clark County Detention Center",
+        "roster_url": "https://www.lccountymt.gov/Sheriff/Detention-Center",
+        "phone": "406-447-8235",
+        "coverage_tier": "major",
+        "is_featured": 1,
+    },
+    "lincoln": {
+        "county_name": "Lincoln",
+        "facility_name": "Lincoln County Detention Center",
+        "roster_url": "https://lincolncountymt.us/sheriff-home/detention/",
+        "phone": "406-283-2447",
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "silver_bow": {
+        "county_name": "Silver Bow",
+        "facility_name": "Butte-Silver Bow Detention Center",
+        "roster_url": "https://www.co.silverbow.mt.us/3274/Detention-Center",
+        "phone": "406-497-1120",
+        "coverage_tier": "major",
+        "is_featured": 1,
+    },
 }
 
 
@@ -288,6 +326,24 @@ def _build_booking_payload(source: sqlite3.Row, record: JailBookingRecord) -> tu
     return hash_id, raw_json
 
 
+def _name_slug_for(person_name: str) -> str:
+    """Normalize a person name into a URL-friendly slug.
+
+    Mirrors the backfill migration in init_db.py so that newly ingested
+    bookings are immediately groupable with existing rows.
+    """
+    if not person_name:
+        return ''
+    return re.sub(r"[^a-z0-9-]", "", (
+        person_name
+        .lower()
+        .replace(" ", "-")
+        .replace(".", "")
+        .replace("'", "")
+        .replace(",", "")
+    ))
+
+
 class _RosterTextExtractor(HTMLParser):
     """Convert HTML into a newline-friendly plain-text stream."""
 
@@ -329,8 +385,23 @@ def _is_lock_error(exc: Exception) -> bool:
     return "database is locked" in str(exc).lower()
 
 
-def _ensure_tracked_sources(conn: sqlite3.Connection) -> None:
-    for county_slug, meta in TRACKED_SOURCES.items():
+def _ensure_tracked_sources(
+    conn: sqlite3.Connection, *, county_slug: str | None = None
+) -> None:
+    """Seed/update jail_booking_sources rows from TRACKED_SOURCES.
+
+    By default all tracked sources are refreshed (used by the scheduled CLI
+    runner). Callers that only need one source -- e.g. the Havre email DOCX
+    pipeline -- should pass ``county_slug`` to touch only that row. This
+    dramatically narrows the write lock window when other processes are
+    contending for the database.
+    """
+    sources = (
+        {county_slug: TRACKED_SOURCES[county_slug]}.items()
+        if county_slug and county_slug in TRACKED_SOURCES
+        else TRACKED_SOURCES.items()
+    )
+    for slug, meta in sources:
         conn.execute(
             '''
             INSERT OR IGNORE INTO jail_booking_sources (
@@ -348,13 +419,39 @@ def _ensure_tracked_sources(conn: sqlite3.Connection) -> None:
             ) VALUES (?, ?, ?, ?, ?, 'official_roster', ?, 1, ?, datetime('now'), datetime('now'))
             ''',
             (
-                county_slug,
+                slug,
                 meta["county_name"],
                 meta["facility_name"],
                 meta["roster_url"],
                 meta["phone"],
                 meta["coverage_tier"],
                 meta["is_featured"],
+            ),
+        )
+        # Keep existing rows in sync with the canonical metadata in TRACKED_SOURCES.
+        # This repairs stale roster URLs when a source moves to a new endpoint,
+        # but preserves the existing is_enabled flag so intentional disables are
+        # not overwritten.
+        conn.execute(
+            '''
+            UPDATE jail_booking_sources
+            SET county_name = ?,
+                facility_name = ?,
+                roster_url = ?,
+                phone = ?,
+                coverage_tier = ?,
+                is_featured = ?,
+                updated_at = datetime('now')
+            WHERE county_slug = ?
+            ''',
+            (
+                meta["county_name"],
+                meta["facility_name"],
+                meta["roster_url"],
+                meta["phone"],
+                meta["coverage_tier"],
+                meta["is_featured"],
+                slug,
             ),
         )
     conn.commit()
@@ -805,7 +902,23 @@ def fetch_yellowstone_bookings(source_url: str) -> list[JailBookingRecord]:
 
 
 def _extract_cascade_pdf_url(page_html: str) -> str | None:
-    """Find the SharePoint PDF link embedded in the Cascade County roster page."""
+    """Find the SharePoint PDF link embedded in the Cascade County roster page.
+
+    Cascade has used two link shapes:
+      1. Direct personal/tenant path ending in .pdf (legacy).
+      2. Anonymous ``:b:/g/personal/...`` sharing links (current), where
+         ``jailroster`` appears in the username portion of the URL.
+    """
+    # Current anonymous sharing link, e.g.
+    # https://ccmtgov-my.sharepoint.com/:b:/g/personal/jailroster_cascadecountymt_gov/...
+    match = re.search(
+        r'href="(https://ccmtgov-my\.sharepoint\.com/:[bu]:/g/personal/jailroster[^"]+)"',
+        page_html,
+        re.IGNORECASE,
+    )
+    if match:
+        return match.group(1)
+    # Legacy direct .pdf link with "jailroster" in the path.
     match = re.search(
         r'href="(https://ccmtgov-my\.sharepoint\.com/[^"]*jailroster[^"]*\.pdf[^"]*)"',
         page_html,
@@ -813,7 +926,7 @@ def _extract_cascade_pdf_url(page_html: str) -> str | None:
     )
     if match:
         return match.group(1)
-    # Broader fallback for any sharepoint PDF link on the page
+    # Broader fallback for any sharepoint PDF link on the page.
     match = re.search(
         r'href="(https://ccmtgov-my\.sharepoint\.com/[^"]*\.pdf[^"]*)"',
         page_html,
@@ -1033,6 +1146,7 @@ def _sync_records(
             stats.new_count += 1
             if dry_run:
                 continue
+            name_slug = _name_slug_for(record.person_name)
             cursor = conn.execute(
                 '''
                 INSERT INTO jail_bookings (
@@ -1049,13 +1163,14 @@ def _sync_records(
                     source_record_id,
                     hash_id,
                     raw_json,
+                    name_slug,
                     booking_status,
                     is_current,
                     first_seen_at,
                     last_seen_at,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'current', 1, datetime('now'), datetime('now'), datetime('now'), datetime('now'))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'current', 1, datetime('now'), datetime('now'), datetime('now'), datetime('now'))
                 ''',
                 (
                     source["id"],
@@ -1071,6 +1186,7 @@ def _sync_records(
                     record.source_record_id,
                     hash_id,
                     raw_json,
+                    name_slug,
                 ),
             )
             stats.alert_candidates.append(
@@ -1100,6 +1216,7 @@ def _sync_records(
             stats.updated_count += 1
         if dry_run:
             continue
+        name_slug = _name_slug_for(record.person_name)
         conn.execute(
             '''
             UPDATE jail_bookings
@@ -1111,6 +1228,7 @@ def _sync_records(
                 source_url = ?,
                 hash_id = ?,
                 raw_json = ?,
+                name_slug = ?,
                 booking_status = 'current',
                 is_current = 1,
                 release_at = NULL,
@@ -1127,6 +1245,7 @@ def _sync_records(
                 record.source_url or source["roster_url"],
                 hash_id,
                 raw_json,
+                name_slug,
                 now_sql,
                 now_sql,
                 current["id"],
@@ -1169,7 +1288,53 @@ def _sync_records(
     return stats
 
 
-def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool = False) -> tuple[SyncStats, str]:
+def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[JailBookingRecord]:
+    """Fetch records for a single source. Network/OCR work happens here, outside DB transactions."""
+    county_slug = source["county_slug"]
+    if county_slug == "broadwater":
+        return fetch_broadwater_bookings(roster_url)
+    if county_slug == "flathead":
+        return fetch_flathead_bookings(roster_url)
+    if county_slug in ZUERCHER_COUNTIES:
+        return fetch_zuercher_bookings(roster_url, county_name=source["county_name"])
+    if county_slug == "missoula":
+        from services.ingestion.fetchers.missoula_inmate import fetch_missoula_bookings
+        return fetch_missoula_bookings(roster_url)
+    if county_slug == "sanders":
+        return fetch_sanders_bookings(roster_url)
+    if county_slug == "yellowstone":
+        return fetch_yellowstone_bookings(roster_url)
+    if county_slug == "cascade":
+        return fetch_cascade_bookings(roster_url)
+    if county_slug == "custer":
+        return fetch_custer_bookings(roster_url)
+    if county_slug == "lake":
+        from services.ingestion.fetchers.lake_inmate import fetch_lake_bookings
+        return fetch_lake_bookings(roster_url)
+    if county_slug == "lewis_clark":
+        return fetch_lewis_clark_bookings(roster_url)
+    if county_slug == "lincoln":
+        return fetch_lincoln_bookings(roster_url)
+    if county_slug == "silver_bow":
+        return fetch_silver_bow_bookings(roster_url)
+    if county_slug == "rosebud":
+        return fetch_rosebud_bookings(roster_url)
+    if county_slug == "park":
+        from services.ingestion.roster_generic import fetch_park_bookings
+        return fetch_park_bookings(roster_url)
+    if county_slug == "beaverhead":
+        from services.ingestion.roster_generic import fetch_beaverhead_bookings
+        return fetch_beaverhead_bookings(roster_url)
+    raise RuntimeError(f"No adapter for county slug: {county_slug}")
+
+
+def _run_source(
+    conn: sqlite3.Connection,
+    source: sqlite3.Row,
+    *,
+    dry_run: bool = False,
+    records: list[JailBookingRecord] | None = None,
+) -> tuple[SyncStats, str]:
     county_slug = source["county_slug"]
     roster_url = (source["roster_url"] or "").strip()
     if county_slug == "hill":
@@ -1188,34 +1353,8 @@ def _run_source(conn: sqlite3.Connection, source: sqlite3.Row, *, dry_run: bool 
         return SyncStats(), "skipped"
 
     try:
-        if county_slug == "broadwater":
-            records = fetch_broadwater_bookings(roster_url)
-        elif county_slug == "flathead":
-            records = fetch_flathead_bookings(roster_url)
-        elif county_slug in ZUERCHER_COUNTIES:
-            records = fetch_zuercher_bookings(roster_url, county_name=source["county_name"])
-        elif county_slug == "missoula":
-            from services.ingestion.fetchers.missoula_inmate import fetch_missoula_bookings
-            records = fetch_missoula_bookings(roster_url)
-        elif county_slug == "sanders":
-            records = fetch_sanders_bookings(roster_url)
-        elif county_slug == "yellowstone":
-            records = fetch_yellowstone_bookings(roster_url)
-        elif county_slug == "cascade":
-            records = fetch_cascade_bookings(roster_url)
-        elif county_slug == "lake":
-            from services.ingestion.fetchers.lake_inmate import fetch_lake_bookings
-            records = fetch_lake_bookings(roster_url)
-        elif county_slug == "rosebud":
-            records = fetch_rosebud_bookings(roster_url)
-        elif county_slug == "park":
-            from services.ingestion.roster_generic import fetch_park_bookings
-            records = fetch_park_bookings(roster_url)
-        elif county_slug == "beaverhead":
-            from services.ingestion.roster_generic import fetch_beaverhead_bookings
-            records = fetch_beaverhead_bookings(roster_url)
-        else:
-            raise RuntimeError(f"No adapter for county slug: {county_slug}")
+        if records is None:
+            records = _fetch_records_for_source(source, roster_url)
     except SourceTemporarilyUnavailable as exc:
         note = str(exc)
         _record_run(conn, source_id=source["id"], run_type="scheduled", status="skipped", notes=note)
@@ -1333,12 +1472,12 @@ def _publish_payload_to_disk(payload: dict[str, object]) -> None:
 def ingest_jail_bookings(*, county_slug: str = "", dry_run: bool = False) -> dict[str, SyncStats]:
     attempt = 1
     max_attempts = max(1, DB_LOCK_RETRY_ATTEMPTS)
-    while True:
-        conn = _connect_db()
-        try:
+
+    def _load_sources(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+        with timed_db_transaction("ingest_jail_bookings_setup"):
             _ensure_tracked_sources(conn)
             if county_slug:
-                sources = conn.execute(
+                rows = conn.execute(
                     '''
                     SELECT *
                     FROM jail_booking_sources
@@ -1348,7 +1487,7 @@ def ingest_jail_bookings(*, county_slug: str = "", dry_run: bool = False) -> dic
                     (county_slug,),
                 ).fetchall()
             else:
-                sources = conn.execute(
+                rows = conn.execute(
                     '''
                     SELECT *
                     FROM jail_booking_sources
@@ -1356,50 +1495,103 @@ def ingest_jail_bookings(*, county_slug: str = "", dry_run: bool = False) -> dic
                     ORDER BY COALESCE(is_featured, 0) DESC, county_name ASC
                     '''
                 ).fetchall()
+            conn.commit()
+            return rows
 
-            results: dict[str, SyncStats] = {}
-            successful_source_ids: list[int] = []
-            failed_counties: dict[str, str] = {}
-            for source in sources:
-                logger.info("Processing jail roster source: %s", source["county_name"])
-                try:
-                    stats, run_status = _run_source(conn, source, dry_run=dry_run)
-                    results[source["county_slug"]] = stats
-                    if run_status == "success":
-                        successful_source_ids.append(int(source["id"]))
-                    conn.commit()
-                except Exception as exc:
-                    failure_type, exact_error = _classify_scraper_failure(exc)
-                    logger.exception("Jail booking ingest failed for %s", source["county_slug"])
-                    failed_counties[source["county_slug"]] = f"{failure_type}: {exact_error}"
-                    results[source["county_slug"]] = SyncStats()
-                    _record_run(
-                        conn,
-                        source_id=source["id"],
-                        run_type="scheduled" if not dry_run else "dry_run",
-                        status="failed",
-                        notes=f"{failure_type}: {exact_error}",
-                    )
-                    _mark_source_checked(
-                        conn,
-                        source["id"],
-                        success=False,
-                        notes=f"{failure_type}: {exact_error}",
-                        latest_error=exact_error,
-                    )
-                    conn.commit()
-                    continue
-
-            payload = _build_publisher_payload(
-                conn,
-                successful_source_ids=successful_source_ids,
-                failed_counties=failed_counties,
-            )
+    def _prefetch_records(sources: list[sqlite3.Row]) -> dict[str, tuple[list[JailBookingRecord] | None, tuple[str, str] | None]]:
+        """Fetch roster records outside the DB transaction so slow OCR/network ops don't hold DB locks."""
+        prefetched: dict[str, tuple[list[JailBookingRecord] | None, tuple[str, str] | None]] = {}
+        for source in sources:
+            county_slug = source["county_slug"]
+            roster_url = (source["roster_url"] or "").strip()
+            if county_slug == "hill" or county_slug in SKIPPED_SOURCES or county_slug not in SUPPORTED_ADAPTERS:
+                prefetched[county_slug] = (None, None)
+                continue
+            logger.info("Prefetching jail roster source: %s", source["county_name"])
             try:
-                _publish_payload_to_disk(payload)
+                records = _fetch_records_for_source(source, roster_url)
+                prefetched[county_slug] = (records, None)
+            except SourceTemporarilyUnavailable as exc:
+                prefetched[county_slug] = (None, ("temporary_unavailable", str(exc)))
             except Exception as exc:
-                logger.warning("Failed to write publisher payload: %s", exc)
-            return results
+                failure_type, exact_error = _classify_scraper_failure(exc)
+                logger.exception("Jail booking prefetch failed for %s", county_slug)
+                prefetched[county_slug] = (None, (failure_type, exact_error))
+        return prefetched
+
+    while True:
+        conn = _connect_db()
+        try:
+            sources = _load_sources(conn)
+            prefetched = _prefetch_records(sources)
+
+            with timed_db_transaction("ingest_jail_bookings"):
+                results: dict[str, SyncStats] = {}
+                successful_source_ids: list[int] = []
+                failed_counties: dict[str, str] = {}
+                for source in sources:
+                    county_slug = source["county_slug"]
+                    logger.info("Processing jail roster source: %s", source["county_name"])
+                    records, error = prefetched.get(county_slug, (None, None))
+                    if error:
+                        failure_type, exact_error = error
+                        failed_counties[county_slug] = f"{failure_type}: {exact_error}"
+                        results[county_slug] = SyncStats()
+                        _record_run(
+                            conn,
+                            source_id=source["id"],
+                            run_type="scheduled" if not dry_run else "dry_run",
+                            status="failed" if failure_type != "temporary_unavailable" else "skipped",
+                            notes=f"{failure_type}: {exact_error}",
+                        )
+                        _mark_source_checked(
+                            conn,
+                            source["id"],
+                            success=False,
+                            notes=f"{failure_type}: {exact_error}",
+                            latest_error=exact_error,
+                        )
+                        conn.commit()
+                        continue
+
+                    try:
+                        stats, run_status = _run_source(conn, source, dry_run=dry_run, records=records)
+                        results[county_slug] = stats
+                        if run_status == "success":
+                            successful_source_ids.append(int(source["id"]))
+                        conn.commit()
+                    except Exception as exc:
+                        failure_type, exact_error = _classify_scraper_failure(exc)
+                        logger.exception("Jail booking ingest failed for %s", county_slug)
+                        failed_counties[county_slug] = f"{failure_type}: {exact_error}"
+                        results[county_slug] = SyncStats()
+                        _record_run(
+                            conn,
+                            source_id=source["id"],
+                            run_type="scheduled" if not dry_run else "dry_run",
+                            status="failed",
+                            notes=f"{failure_type}: {exact_error}",
+                        )
+                        _mark_source_checked(
+                            conn,
+                            source["id"],
+                            success=False,
+                            notes=f"{failure_type}: {exact_error}",
+                            latest_error=exact_error,
+                        )
+                        conn.commit()
+                        continue
+
+                payload = _build_publisher_payload(
+                    conn,
+                    successful_source_ids=successful_source_ids,
+                    failed_counties=failed_counties,
+                )
+                try:
+                    _publish_payload_to_disk(payload)
+                except Exception as exc:
+                    logger.warning("Failed to write publisher payload: %s", exc)
+                return results
         except sqlite3.OperationalError as exc:
             if not _is_lock_error(exc) or attempt >= max_attempts:
                 raise

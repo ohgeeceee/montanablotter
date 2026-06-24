@@ -1,6 +1,10 @@
 const rawApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
 export const API_BASE_URL = (rawApiBaseUrl && rawApiBaseUrl.trim()) || 'https://montanablotter.com';
 
+/**
+ * Legacy color palette.
+ * Existing screens import this; new code should prefer `src/theme`.
+ */
 export const COLORS = {
   primary: '#0f172a',
   secondary: '#64748b',

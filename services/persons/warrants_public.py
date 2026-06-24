@@ -192,6 +192,8 @@ def _sort_clause(sort: str) -> str:
         return 'ORDER BY county ASC, person_name ASC, id ASC'
     if normalized_sort in {'recently_resolved', 'resolved_desc'}:
         return "ORDER BY CASE WHEN status = 'resolved' THEN 0 ELSE 1 END, datetime(resolved_at) DESC, datetime(updated_at) DESC, id DESC"
+    if normalized_sort == 'random':
+        return 'ORDER BY RANDOM()'
     return 'ORDER BY datetime(updated_at) DESC, id DESC'
 
 
@@ -218,6 +220,7 @@ def _fetch_warrant_rows(
     limit: int | None = None,
     offset: int = 0,
     with_photo: bool = False,
+    enforce_preview_limit: bool = False,
 ) -> list[sqlite3.Row]:
     where_sql, params = _build_where(status=status, q=q, county=county, city=city, with_photo=with_photo)
     sql = f'SELECT * FROM warrants WHERE {where_sql} {_sort_clause(sort)}'
@@ -254,6 +257,8 @@ def warrant_public_context(
     sort: str | None = None,
     offset: int = 0,
     limit: int = 50,
+    has_access: bool = True,
+    public_preview_limit: int = 0,
 ) -> dict[str, Any]:
     ensure_warrant_schema(conn)
     normalized_status = _single_line(status_filter or 'active', max_len=32).lower() or 'active'
@@ -262,7 +267,7 @@ def warrant_public_context(
     search_term = _single_line(q or '', max_len=120)
     county_term = _single_line(county or '', max_len=120)
     normalized_sort = _single_line(sort or 'updated_desc', max_len=32).lower()
-    if normalized_sort not in {'updated_desc', 'name_asc', 'county_asc', 'recently_resolved', 'resolved_desc'}:
+    if normalized_sort not in {'updated_desc', 'name_asc', 'county_asc', 'recently_resolved', 'resolved_desc', 'random'}:
         normalized_sort = 'updated_desc'
 
     where_sql, params = _build_where(
@@ -274,15 +279,20 @@ def warrant_public_context(
         f'SELECT COUNT(*) AS total FROM warrants WHERE {where_sql}',
         params,
     ).fetchone()['total']
-    rows = _fetch_warrant_rows(
-        conn,
-        status=normalized_status,
-        q=search_term,
-        county=county_term,
-        sort=normalized_sort,
-        limit=limit,
-        offset=offset,
-    )
+    # Warrant records are a paid product. Unauthenticated visitors may get a public preview,
+    # but the preview count is never larger than `public_preview_limit`.
+    rows: list[sqlite3.Row] = []
+    effective_limit = limit if has_access else max(0, int(public_preview_limit or 0))
+    if effective_limit:
+        rows = _fetch_warrant_rows(
+            conn,
+            status=normalized_status,
+            q=search_term,
+            county=county_term,
+            sort=normalized_sort,
+            limit=effective_limit,
+            offset=offset,
+        )
 
     active_count = conn.execute(
         "SELECT COUNT(*) AS total FROM warrants WHERE status = 'active'",
@@ -349,22 +359,27 @@ def warrant_detail_context(conn: sqlite3.Connection, slug: str) -> dict[str, Any
     return None
 
 
-def warrant_homepage_context(conn: sqlite3.Connection, *, limit: int = 6) -> dict[str, Any]:
+def warrant_homepage_context(
+    conn: sqlite3.Connection, *, limit: int = 6, has_access: bool = True
+) -> dict[str, Any]:
     ensure_warrant_schema(conn)
-    active_limit = max(limit // 2, 1)
-    resolved_limit = max(limit - active_limit, 1)
-    active_rows = _fetch_warrant_rows(
-        conn,
-        status=STATUS_ACTIVE,
-        sort='updated_desc',
-        limit=active_limit,
-    )
-    resolved_rows = _fetch_warrant_rows(
-        conn,
-        status=STATUS_RESOLVED,
-        sort='recently_resolved',
-        limit=resolved_limit,
-    )
+    active_rows: list[sqlite3.Row] = []
+    resolved_rows: list[sqlite3.Row] = []
+    if has_access:
+        active_limit = max(limit // 2, 1)
+        resolved_limit = max(limit - active_limit, 1)
+        active_rows = _fetch_warrant_rows(
+            conn,
+            status=STATUS_ACTIVE,
+            sort='random',
+            limit=active_limit,
+        )
+        resolved_rows = _fetch_warrant_rows(
+            conn,
+            status=STATUS_RESOLVED,
+            sort='random',
+            limit=resolved_limit,
+        )
     active_count = conn.execute(
         "SELECT COUNT(*) AS total FROM warrants WHERE status = 'active'",
     ).fetchone()['total']
@@ -398,19 +413,9 @@ def warrant_city_context(
     active_limit = max(limit // 2, 1)
     resolved_limit = max(limit - active_limit, 1)
 
-    if not has_access:
-        # Teaser for non-subscribers: photo-only records, no resolved history.
-        active_rows = _fetch_city_warrant_rows(
-            conn,
-            status=STATUS_ACTIVE,
-            city=city_term,
-            county=county_term,
-            sort='updated_desc',
-            limit=active_limit,
-            with_photo=True,
-        )
-        resolved_rows = []
-    else:
+    active_rows: list[sqlite3.Row] = []
+    resolved_rows: list[sqlite3.Row] = []
+    if has_access:
         active_rows = _fetch_city_warrant_rows(
             conn,
             status=STATUS_ACTIVE,
@@ -466,7 +471,6 @@ def warrant_county_context(
     *,
     limit: int = 100,
     has_access: bool = True,
-    teaser_limit: int = 5,
 ) -> dict[str, Any] | None:
     """Build context for a county-level wanted page.
 
@@ -474,9 +478,8 @@ def warrant_county_context(
     with warrant rows (possibly empty) plus source metadata even when no
     records exist — so the template can still render a useful page.
 
-    When ``has_access`` is False (no warrant subscription / ad grant), only
-    a small teaser of records that have a photo is returned, and resolved
-    rows are omitted. Counts always reflect the full dataset so the paywall
+    Warrant records are a paid product: when ``has_access`` is False, no
+    rows are returned. Counts always reflect the full dataset so the paywall
     card can advertise what's behind it.
     """
     ensure_warrant_schema(conn)
@@ -492,6 +495,8 @@ def warrant_county_context(
     source_url = source.get('url', '')
     has_live_source = bool(source_url)
 
+    active_rows: list[sqlite3.Row] = []
+    resolved_rows: list[sqlite3.Row] = []
     if has_access:
         active_rows = _fetch_warrant_rows(
             conn,
@@ -507,17 +512,6 @@ def warrant_county_context(
             sort='recently_resolved',
             limit=12,
         )
-    else:
-        # Teaser: only records with a photo, capped low. No resolved history.
-        active_rows = _fetch_warrant_rows(
-            conn,
-            status=STATUS_ACTIVE,
-            county=county_name,
-            sort='updated_desc',
-            limit=teaser_limit,
-            with_photo=True,
-        )
-        resolved_rows = []
 
     active_count = conn.execute(
         "SELECT COUNT(*) AS total FROM warrants WHERE county = ? AND status = 'active'",

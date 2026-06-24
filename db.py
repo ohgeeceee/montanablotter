@@ -1,9 +1,76 @@
 from __future__ import annotations
 
+import contextlib
+import logging
 import os
 import sqlite3
+import sys
+import time
 
 import config
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Lock-contention observability helper
+# ---------------------------------------------------------------------------
+
+def _process_label() -> str:
+    """Return a short identifier for the current process/job."""
+    argv = sys.argv
+    # rq worker processes include the queue name in their args
+    if len(argv) >= 3 and argv[1] == 'worker':
+        return f"rq-worker:{argv[2]}"
+    # gunicorn workers have a master arg list; fall back to the script name
+    script = os.path.basename(argv[0]) if argv else 'unknown'
+    if script == 'gunicorn':
+        return 'gunicorn-worker'
+    if script.endswith('.py'):
+        return script
+    return script
+
+
+@contextlib.contextmanager
+def timed_db_transaction(
+    operation_name: str,
+    *,
+    slow_threshold_seconds: float = 5.0,
+):
+    """Context manager that logs slow DB transactions and lock errors.
+
+    Wrap a block that holds a SQLite transaction, e.g.:
+
+        with timed_db_transaction('havre_ingest'):
+            ... do inserts ...
+            conn.commit()
+
+    Logs a warning if the block takes longer than ``slow_threshold_seconds``,
+    and logs the wait duration when a "database is locked" error occurs.
+    """
+    start = time.monotonic()
+    try:
+        yield
+    except sqlite3.OperationalError as exc:
+        if 'database is locked' in str(exc).lower():
+            logger.warning(
+                "SQLite lock error in %s after %.2fs (process=%s): %s",
+                operation_name,
+                time.monotonic() - start,
+                _process_label(),
+                exc,
+            )
+        raise
+    finally:
+        duration = time.monotonic() - start
+        if duration > slow_threshold_seconds:
+            logger.warning(
+                "Slow DB transaction in %s: %.2fs (process=%s)",
+                operation_name,
+                duration,
+                _process_label(),
+            )
+
 
 # ---------------------------------------------------------------------------
 # Turso / libsql support

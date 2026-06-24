@@ -18,9 +18,11 @@ BASH_ENV=/root/montanablotter/.env
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_worker --log /root/montanablotter/logs/mail.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py --mode queue
 
 # Image-based blotter ingestion — separate from the queue scan above because
-# it processes the 14-day inbox window for any image attachments missed by the
-# queue poll (Havre PDF blotters, etc.). Offset by 8 min to avoid stacking.
-8-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_image_blotter --log /root/montanablotter/logs/email_image_blotter.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_image_blotter.py --since-days 14
+# it processes a short inbox window for any image attachments missed by the
+# queue poll (Havre PDF blotters, etc.). A 2-day look-back is enough of a
+# safety net because email_worker polls UNSEEN every 15 minutes. Offset by
+# 8 min to avoid stacking.
+8-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_image_blotter --log /root/montanablotter/logs/email_image_blotter.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_image_blotter.py --since-days 2
 
 # Disposition watcher — link new jail bookings to court cases + detect outcome
 # changes for existing links. Every 15 min. Logs to logs/disposition_watcher.log.
@@ -58,7 +60,19 @@ BASH_ENV=/root/montanablotter/.env
 
 # Court refresh — pulls new court cases and dispositions. Every 6h at :50
 # so it runs after agendas_ingest and run_all_scrapers.
+# NOTE: COLJ portal (montana-colj-calendar) is behind WAF as of 2026-06-17.
+# If 138 login failures persist, set MB_HTTPS_PROXY in .env to a residential IP.
 50 */6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name court_refresh --log /root/montanablotter/logs/court_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.court.refresh
+
+# Supreme Court criminal outcomes backfill — parses Supreme Court opinions
+# for affirmed/reversed/remanded dispositions and maps to court_cases.
+# Runs daily at 04:20 (offset from court_refresh). Re-added 2026-06-17 after
+# WAL fix in supreme_court_outcome_scraper.py resolved database-is-locked crash.
+20 4 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name supreme_court_outcomes --log /root/montanablotter/logs/supreme_court_outcomes.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.court.supreme_court_outcome_scraper --batch 200
+
+# Morning briefing — daily digest email to all active subscribers.
+# 7:00am MT = 13:00 UTC. Sends county-filtered digest of overnight records.
+0 13 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name morning_briefing --log /root/montanablotter/logs/morning_briefing.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.morning_briefing
 
 # DB backup — daily at 03:00. Off-peak.
 0 3 * * * /usr/bin/nice -n 19 /bin/bash /root/montanablotter/scripts/ops/backup_db.sh
@@ -76,3 +90,74 @@ BASH_ENV=/root/montanablotter/.env
 
 # News editor — every 3h at :35
 35 */3 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name news_editor_agent --log /root/montanablotter/logs/news_editor.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.news_editor
+
+# --- Jail roster ingestion (re-enabled 2026-06-14) ---
+# Individual county adapters run every 2 hours, staggered to avoid stacking.
+# They share logs/jail_booking_ingest.log; watchdog monitors the combined log.
+
+# Flathead County jail roster — poll every 2 hours
+5 */2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_flathead --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county flathead
+
+# Jefferson County jail roster — poll every 2 hours
+15 */2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_jefferson --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county jefferson
+
+# Yellowstone County jail roster — poll every 2 hours
+20 */2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_yellowstone --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county yellowstone
+
+# Sanders County jail roster — poll every 2 hours
+35 */2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_sanders --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county sanders
+
+# Ravalli County jail roster (Zuercher portal) — poll every 2 hours
+45 */2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_ravalli --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county ravalli
+
+# Missoula County jail roster — poll every 2 hours
+50 */2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_missoula --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county missoula
+
+# Cascade County jail roster — daily at 06:05.
+# NOTE (2026-06-23): Cascade's current SharePoint roster link is behind
+# authentication. The scheduled run will record the failure cleanly and
+# resume ingesting once the county makes the PDF publicly accessible.
+5 6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_cascade --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county cascade
+
+# Remaining Zuercher portal counties (Gallatin, Madison, Carbon, Stillwater,
+# Meagher, Wheatland, Valley, Roosevelt, Broadwater) — poll every 4 hours.
+0 */4 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_all --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py
+
+# --- Official police blotter / call-log sources (re-enabled 2026-06-16) ---
+# These were accidentally dropped from the schedule in the 2026-06-11 rewrite.
+# They run hourly on staggered minute offsets to avoid stacking with the
+# quarter-hour email/disposition/ads workers.
+
+# Whitefish PD blotter PDFs — hourly at :25
+25 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name whitefish_fetcher --log /root/montanablotter/logs/whitefish_fetcher.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.whitefish
+
+# Bozeman PD calls for service — hourly at :40
+40 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bozeman_calls --log /root/montanablotter/logs/bozeman_calls.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.bozeman --dataset calls
+
+# Bozeman PD daily case reports — hourly at :55
+55 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bozeman_crime --log /root/montanablotter/logs/bozeman_crime.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.bozeman --dataset crime
+
+# Missoula City-County daily public report — hourly at :10
+10 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missoula_public_report --log /root/montanablotter/logs/missoula_fetcher.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ingestion.fetchers.missoula
+
+# --- Civic queue publisher (added 2026-06-17) ---
+# Safety net for the slash-command /approve and /reject path. Picks up any
+# items in agent-queue/civic/ that have been flipped to status=approved or
+# status=rejected but not yet processed — typically drafts whose session was
+# closed mid-approval, or items flipped via direct frontmatter edits.
+#
+# Runs every 10 minutes. The 10-min cadence is intentionally longer than the
+# slash-command path (which is interactive) to avoid the cron and the session
+# racing on the same item. The cron never force-publishes red-tier items,
+# and --skip-preflight avoids a redundant getMe call against the bot token.
+#
+# No --notify flag here: that path requires HERMES_BOT_TOKEN in the cron
+# environment, which is the Hermes bot's token (different from MB_TELEGRAM_BOT_TOKEN
+# which is the BailBot). The slash-command path replies in-session instead,
+# so the cron can run silent. Add --notify back once HERMES_BOT_TOKEN is
+# populated in /root/montanablotter/.env.
+*/10 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/bin/run_civic_publish.py --skip-preflight >> /var/log/civic-publish.log 2>&1
+
+# Cache and compress active warrant mugshots locally once per day.
+# Runs at 02:15 (off-peak) so wanted pages serve fast local images.
+15 2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/maintenance/compress_mugshots.py >> /root/montanablotter/logs/compress_mugshots.log 2>&1

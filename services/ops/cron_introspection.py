@@ -209,6 +209,76 @@ def well_known_jobs() -> dict[str, dict]:
             "max_age_hours": 5,
             "cadence": "every 3 hours",
         },
+        "jail_booking_ingest_flathead": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 5,
+            "cadence": "every 2 hours",
+        },
+        "jail_booking_ingest_jefferson": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 5,
+            "cadence": "every 2 hours",
+        },
+        "jail_booking_ingest_yellowstone": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 5,
+            "cadence": "every 2 hours",
+        },
+        "jail_booking_ingest_sanders": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 5,
+            "cadence": "every 2 hours",
+        },
+        "jail_booking_ingest_ravalli": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 5,
+            "cadence": "every 2 hours",
+        },
+        "jail_booking_ingest_missoula": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 5,
+            "cadence": "every 2 hours",
+        },
+        "jail_booking_ingest_all": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 8,
+            "cadence": "every 4 hours",
+        },
+        "morning_briefing": {
+            "log_path": f"{REPO_ROOT}/logs/morning_briefing.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
+        "run_civic_publish": {
+            "log_path": "/var/log/civic-publish.log",
+            "max_age_hours": 1,
+            "cadence": "every 10 minutes",
+        },
+        "supreme_court_outcomes": {
+            "log_path": f"{REPO_ROOT}/logs/supreme_court_outcomes.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
+        "whitefish_fetcher": {
+            "log_path": f"{REPO_ROOT}/logs/whitefish_fetcher.log",
+            "max_age_hours": 2,
+            "cadence": "hourly",
+        },
+        "bozeman_calls": {
+            "log_path": f"{REPO_ROOT}/logs/bozeman_calls.log",
+            "max_age_hours": 2,
+            "cadence": "hourly",
+        },
+        "bozeman_crime": {
+            "log_path": f"{REPO_ROOT}/logs/bozeman_crime.log",
+            "max_age_hours": 2,
+            "cadence": "hourly",
+        },
+        "missoula_public_report": {
+            "log_path": f"{REPO_ROOT}/logs/missoula_fetcher.log",
+            "max_age_hours": 2,
+            "cadence": "hourly",
+        },
     }
 
 

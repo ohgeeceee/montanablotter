@@ -45,13 +45,15 @@ def get_api_key():
 
 def check_credit_balance(api_key: str):
     """Check Anthropic API credit balance.
-    
+
     Returns:
         dict with keys: success (bool), balance (float or None), error (str or None)
     """
+    if not getattr(config, "USE_PAID_LLM", False):
+        return {"success": True, "balance": None, "error": None, "status": "disabled"}
     if not api_key:
         return {"success": False, "balance": None, "error": "No API key configured"}
-    
+
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)

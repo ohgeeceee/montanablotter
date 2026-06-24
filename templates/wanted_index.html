@@ -91,20 +91,31 @@
         {% include "includes/wanted_poster_card.html" %}
         {% endfor %}
     </div>
+    {% endif %}
 
     {% if not warrant_access %}
-    <!-- Paywall soft gate shown below the 5 preview records -->
-    <div class="relative mt-0">
-        <div class="pointer-events-none absolute -top-32 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-white" aria-hidden="true"></div>
+    <!-- Paywall gate: warrant records require subscription or ad unlock -->
+    <div class="relative mt-6">
+        {% if rows %}<div class="pointer-events-none absolute -top-32 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-white" aria-hidden="true"></div>{% endif %}
         <div class="group rounded-3xl border-2 border-red-200 bg-white px-6 py-10 shadow-xl text-center cursor-pointer" onclick="location.href='/wanted/subscribe'">
             <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
                 <i class="fas fa-lock text-2xl text-red-600"></i>
             </div>
             <h2 class="text-2xl font-black text-slate-900">
-                <a href="/wanted/subscribe" class="hover:text-red-700 transition-colors">{{ summary.active - rows|length }} more active warrants</a>
+                <a href="/wanted/subscribe" class="hover:text-red-700 transition-colors">
+                    {%- if rows -%}
+                        {{ summary.active - rows|length }} more active warrants
+                    {%- else -%}
+                        {{ summary.active }} active warrants are behind the paywall
+                    {%- endif -%}
+                </a>
             </h2>
             <p class="mt-2 text-sm text-slate-500 max-w-sm mx-auto">
-                You&rsquo;re seeing 5 of {{ summary.active }} active records. <a href="/wanted/subscribe" class="text-red-600 font-semibold hover:underline">Start the paid warrant trial</a> &mdash; updated daily from all 56 Montana counties.
+                {% if rows %}
+                You&rsquo;re seeing {{ rows|length }} of {{ summary.active }} active records. <a href="/wanted/subscribe" class="text-red-600 font-semibold hover:underline">Start the paid warrant trial</a> &mdash; updated daily from all 56 Montana counties.
+                {% else %}
+                Active warrant records require a subscription. <a href="/wanted/subscribe" class="text-red-600 font-semibold hover:underline">Start the paid warrant trial</a> &mdash; updated daily from all 56 Montana counties.
+                {% endif %}
             </p>
             <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <div class="rounded-2xl bg-red-50 border border-red-100 px-6 py-4 text-center min-w-[160px]">
@@ -121,9 +132,7 @@
             </div>
         </div>
     </div>
-    {% endif %}
-
-    {% else %}
+    {% elif not rows %}
     <div class="mt-6 rounded-3xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
         <p class="text-xl font-black text-slate-900">No warrant records match this search.</p>
         <p class="mt-3 text-sm text-slate-600">Try clearing filters or browse the <a href="/warrants" class="font-semibold text-red-700 hover:underline">county warrant guides</a>.</p>

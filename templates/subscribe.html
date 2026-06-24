@@ -94,6 +94,23 @@
                        class="public-form-input">
             </div>
 
+            <div>
+                <label class="public-form-label">
+                    County Preferences <span class="text-slate-400 font-normal">(optional — leave blank for all counties)</span>
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 p-3 rounded-xl border border-slate-200 bg-slate-50 max-h-48 overflow-y-auto">
+                    {% for county in counties %}
+                    {% if county and county != 'Unknown' and county != 'docx' %}
+                    <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-slate-900">
+                        <input type="checkbox" name="counties" value="{{ county }}" class="rounded border-slate-300 text-slate-900 focus:ring-slate-400">
+                        {{ county }}
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Select specific counties or leave empty for the full statewide digest.</p>
+            </div>
+
             <button type="submit"
                     class="subscribe-cta-track public-btn public-btn--primary w-full"
                     data-subscribe-source="{{ source or 'subscribe_page' }}">
@@ -110,10 +127,22 @@
                 <p class="font-black uppercase tracking-[0.14em] text-slate-500 mb-2">What You Get</p>
                 <p>Daily digest, top county highlights, and weekly Montana trend summaries.</p>
                 <p class="mt-2 text-slate-400">Free. No spam. Unsubscribe anytime.</p>
-                <p class="mt-2">
-                    Prefer one-time support?
-                    <a class="underline hover:text-slate-700" href="/donate?source=subscribe_page">Donate</a>.
-                </p>
+            </div>
+
+            <div class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-slate-800">
+                <p class="font-black uppercase tracking-[0.14em] text-amber-700 mb-2">Become a Supporter — $1/month</p>
+                <p class="mb-3">Help keep Montana Blotter independent and ad-free. Supporters get:</p>
+                <ul class="list-disc list-inside space-y-1 text-slate-700">
+                    <li>Instant county-specific alerts (not just daily digest)</li>
+                    <li>Priority access to new features</li>
+                    <li>Supporter badge on your profile</li>
+                </ul>
+                <form id="supporter-checkout-form" class="mt-3" onsubmit="event.preventDefault(); fetch('/supporter/checkout', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:document.querySelector('input[name=email]').value})}).then(r=>r.json()).then(d=>{if(d.checkout_url)window.location=d.checkout_url;})">
+                    <button type="submit" class="public-btn public-btn--primary w-full" style="background:#d97706;">
+                        <i class="fas fa-star mr-2"></i>Upgrade to Supporter
+                    </button>
+                </form>
+                <p class="text-[11px] text-slate-400 mt-2">Processed securely by Stripe. Cancel anytime.</p>
             </div>
         </form>
         </div>

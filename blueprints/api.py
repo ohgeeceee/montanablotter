@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import datetime
 import hmac
 import hashlib
 import json
 import os
 import secrets
+import sqlite3
 
 import stripe
 from flask import Blueprint, abort, current_app, jsonify, render_template, request
+from werkzeug.exceptions import HTTPException
 from werkzeug.utils import secure_filename
 
 from db import get_db
@@ -17,6 +20,44 @@ from blueprints.payments import (
     persist_donation_checkout,
 )
 from services.api.auth import require_api_key, validate_request
+import services.mobile_auth as mobile_auth
+from services.disposition.lookup import lookup_disposition
+from services.push.expo_sender import (
+    broadcast_expo_push,
+    deactivate_mobile_push_token,
+    register_mobile_push_token,
+)
+
+import functools
+
+
+# ---------------------------------------------------------------------------
+# Server-side response cache helper
+# ---------------------------------------------------------------------------
+
+def _api_cache():
+    """Return the Flask-Caching instance attached to the app, if any."""
+    app_module = _app()
+    return getattr(app_module, 'api_cache', None)
+
+
+def cached_api(timeout=300):
+    """Lightweight response cache keyed by request path + query string."""
+    def decorator(view):
+        @functools.wraps(view)
+        def wrapper(*args, **kwargs):
+            cache = _api_cache()
+            if cache is None or request.method != 'GET':
+                return view(*args, **kwargs)
+            cache_key = f"api:{request.full_path}"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+            response = view(*args, **kwargs)
+            cache.set(cache_key, response, timeout=timeout)
+            return response
+        return wrapper
+    return decorator
 
 
 api_bp = Blueprint('api', __name__)
@@ -65,6 +106,28 @@ def enforce_public_user_csrf():
     return None
 
 
+def _json_error_response(error):
+    """Return a JSON error response for a Werkzeug HTTP exception."""
+    response = jsonify({
+        "error": error.name.replace(" ", "_").lower(),
+        "message": error.description,
+    })
+    response.status_code = error.code
+    return response
+
+
+# Register JSON handlers for common HTTP status codes so that API routes return
+# machine-readable errors instead of Flask's default HTML error pages.
+for _code in (400, 401, 403, 404, 405, 429, 500, 503):
+    api_bp.register_error_handler(_code, _json_error_response)
+
+
+@api_bp.errorhandler(HTTPException)
+def handle_api_http_exception(error):
+    """Fallback JSON error handler for any remaining HTTP exceptions."""
+    return _json_error_response(error)
+
+
 # ---------------------------------------------------------------------------
 # Private helpers (thin wrappers that delegate to app.py helpers)
 # ---------------------------------------------------------------------------
@@ -72,6 +135,14 @@ def enforce_public_user_csrf():
 def _app():
     import app as _app_module
     return _app_module
+
+
+def _slugify(text: str) -> str:
+    import re as _re
+    text = (text or '').lower().strip()
+    text = _re.sub(r'[^\w\s-]', '', text)
+    text = _re.sub(r'[\s_-]+', '-', text)
+    return text[:80]
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +345,66 @@ def api_delete_alert_profile(profile_id):
     return jsonify({'message': 'Profile deleted'})
 
 
+@api_bp.route('/api/me/watchlist', methods=['GET'])
+@require_api_key(allow_anonymous=True)
+def api_get_watchlist():
+    user = _current_public_user()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    conn = get_db()
+    rows = conn.execute(
+        '''
+        SELECT p.*
+        FROM posts p
+        JOIN public_user_saved_posts s ON s.post_id = p.id
+        WHERE s.public_user_id = ? AND p.audit_status = 'clean'
+        ORDER BY s.created_at DESC
+        ''',
+        (user['id'],),
+    ).fetchall()
+    conn.close()
+    return jsonify({'posts': [_post_payload(r) for r in rows]})
+
+
+@api_bp.route('/api/me/watchlist', methods=['POST'])
+@require_api_key(allow_anonymous=True)
+def api_add_watchlist_item():
+    user = _current_public_user()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    data = request.get_json(force=True, silent=True) or {}
+    post_id = data.get('post_id')
+    if not post_id:
+        return jsonify({'error': 'post_id required'}), 400
+    conn = get_db()
+    conn.execute(
+        '''
+        INSERT OR IGNORE INTO public_user_saved_posts (public_user_id, post_id)
+        VALUES (?, ?)
+        ''',
+        (user['id'], int(post_id)),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Saved'}), 201
+
+
+@api_bp.route('/api/me/watchlist/<int:post_id>', methods=['DELETE'])
+@require_api_key(allow_anonymous=True)
+def api_remove_watchlist_item(post_id: int):
+    user = _current_public_user()
+    if not user:
+        return jsonify({'error': 'Authentication required'}), 401
+    conn = get_db()
+    conn.execute(
+        'DELETE FROM public_user_saved_posts WHERE public_user_id = ? AND post_id = ?',
+        (user['id'], post_id),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Removed'})
+
+
 def _alert_profile_payload(row):
     return {
         'id': row['id'],
@@ -298,14 +429,40 @@ def _alert_profile_payload(row):
 
 
 def _current_public_user():
-    from flask import session
+    """Return the currently authenticated public user from session or mobile token."""
+    from flask import g, session
+
+    cached = getattr(g, '_public_user', None)
+    if cached is not None:
+        return cached
+
     user_id = session.get('public_user_id')
-    if not user_id:
-        return None
-    conn = get_db()
-    row = conn.execute('SELECT * FROM public_users WHERE id=? AND is_active=1', (user_id,)).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    if user_id:
+        conn = get_db()
+        row = conn.execute('SELECT * FROM public_users WHERE id=? AND is_active=1', (user_id,)).fetchone()
+        conn.close()
+        user = dict(row) if row else None
+        g._public_user = user
+        return user
+
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token_str = auth_header[7:].strip()
+        conn = get_db()
+        token = mobile_auth.get_token_by_plaintext(conn, token_str)
+        if token:
+            user = mobile_auth.load_public_user(conn, token.public_user_id)
+            if user:
+                if not getattr(g, '_mobile_token_touched', False):
+                    mobile_auth.touch_mobile_user_token(conn, token.id)
+                    g._mobile_token_touched = True
+                g._public_user = user
+                conn.close()
+                return user
+        conn.close()
+
+    g._public_user = None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -314,6 +471,7 @@ def _current_public_user():
 
 @api_bp.route('/api/geo/incidents')
 @require_api_key(allow_anonymous=True, anonymous_quota=_GEO_QUOTA)
+@cached_api(timeout=120)
 def api_geo_incidents():
     bounds = request.args.get('bounds', '').strip()
     county = (request.args.get('county') or '').strip()[:60]
@@ -724,6 +882,91 @@ def api_blog_post_detail(slug: str):
     if not row:
         abort(404)
     return jsonify(_blog_payload(row))
+
+
+@api_bp.route('/api/blog/posts', methods=['POST'])
+@require_api_key()
+def api_blog_post_create():
+    """Create a new blog post. Intended for the autonomous content pipeline."""
+    data = request.get_json(force=True, silent=True) or {}
+
+    title = (data.get('title') or '').strip()
+    body = (data.get('body') or '').strip()
+    excerpt = (data.get('excerpt') or '').strip()
+    author = (data.get('author') or 'blotter.host').strip()[:120]
+    published = bool(data.get('published', True))
+    source_url = (data.get('source_url') or '').strip()[:500]
+    primary_category = (data.get('primary_category') or '').strip()[:120]
+
+    if not title or not body:
+        return jsonify({'error': 'title and body are required'}), 400
+
+    slug = _slugify(data.get('slug', '') or title)
+    if not slug:
+        return jsonify({'error': 'Could not generate a valid slug'}), 400
+
+    # Append source link to body if provided and not already present
+    if source_url and source_url not in body:
+        body += f"\n\n<p><a href=\"{source_url}\" target=\"_blank\" rel=\"noopener\">Read original source &rarr;</a></p>"
+
+    # Optional tags stored as JSON in a metadata column if it exists; harmless otherwise
+    tags_json = None
+    tags = data.get('tags') or []
+    if isinstance(tags, list) and tags:
+        tags_json = json.dumps(tags)
+
+    conn = get_db()
+    try:
+        # Ensure metadata column exists for pipeline posts
+        try:
+            conn.execute('ALTER TABLE blog_posts ADD COLUMN source_url TEXT')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute('ALTER TABLE blog_posts ADD COLUMN primary_category TEXT')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute('ALTER TABLE blog_posts ADD COLUMN tags_json TEXT')
+        except sqlite3.OperationalError:
+            pass
+
+        cursor = conn.execute(
+            '''
+            INSERT INTO blog_posts (title, slug, body, excerpt, author, published, source_url, primary_category, tags_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                title[:255],
+                slug,
+                body,
+                excerpt,
+                author,
+                1 if published else 0,
+                source_url,
+                primary_category,
+                tags_json,
+            ),
+        )
+        conn.commit()
+        post_id = cursor.lastrowid
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'A post with this slug already exists'}), 409
+    except Exception as exc:
+        conn.close()
+        return jsonify({'error': str(exc)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+    return jsonify({
+        'id': post_id,
+        'slug': slug,
+        'title': title,
+        'published': published,
+        'message': 'Post published' if published else 'Post saved as draft',
+    }), 201
 
 
 @api_bp.route('/api/pattern-click', methods=['POST'])
@@ -1216,6 +1459,261 @@ def api_whoami():
 
 
 # ---------------------------------------------------------------------------
+# Mobile user authentication — JSON endpoints for the Expo app
+# ---------------------------------------------------------------------------
+
+def _public_user_payload(user: dict) -> dict:
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "display_name": user["display_name"],
+        "subscription_counties": user.get("subscription_counties") or "",
+        "subscribe_digest": bool(user.get("subscribe_digest")),
+        "is_active": bool(user.get("is_active", 1)),
+        "created_at": user.get("created_at"),
+        "last_login_at": user.get("last_login_at"),
+    }
+
+
+@api_bp.route("/api/v1/auth/register", methods=["POST"])
+def api_v1_auth_register():
+    """Create a public user account and return a long-lived bearer token."""
+    data = request.get_json(force=True, silent=True) or {}
+    display_name = (data.get("display_name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+
+    errors = []
+    if len(display_name) < 2:
+        errors.append("Choose a display name with at least 2 characters.")
+    if not email or "@" not in email:
+        errors.append("Enter a valid email address.")
+    if len(password) < 8:
+        errors.append("Use a password with at least 8 characters.")
+    if errors:
+        return jsonify({"error": "validation_failed", "messages": errors}), 400
+
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM public_users WHERE email = ?",
+        (email,),
+    ).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({"error": "email_already_registered"}), 409
+
+    app_module = _app()
+    password_hash = app_module.bcrypt.generate_password_hash(password).decode("utf-8")
+    cursor = conn.execute(
+        """
+        INSERT INTO public_users (
+            email, password_hash, display_name, subscription_counties, subscribe_digest
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (email, password_hash, display_name[:120], "", 0),
+    )
+    user_id = cursor.lastrowid
+    conn.commit()
+
+    plaintext_token, _token_id = mobile_auth.create_mobile_user_token(
+        conn, user_id, name="mobile"
+    )
+    user = mobile_auth.load_public_user(conn, user_id)
+    conn.close()
+    return jsonify({"user": _public_user_payload(user), "token": plaintext_token}), 201
+
+
+@api_bp.route("/api/v1/auth/login", methods=["POST"])
+def api_v1_auth_login():
+    """Authenticate a public user and return a long-lived bearer token."""
+    data = request.get_json(force=True, silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+
+    if not email or not password:
+        return jsonify({"error": "email_and_password_required"}), 400
+
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM public_users WHERE email = ?",
+        (email,),
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "invalid_credentials"}), 401
+
+    app_module = _app()
+    password_valid = app_module.bcrypt.check_password_hash(row["password_hash"], password)
+    if not password_valid or not row["is_active"]:
+        conn.close()
+        return jsonify({"error": "invalid_credentials"}), 401
+
+    user_id = row["id"]
+    conn.execute(
+        "UPDATE public_users SET last_login_at = datetime('now') WHERE id = ?",
+        (user_id,),
+    )
+    conn.commit()
+
+    plaintext_token, _token_id = mobile_auth.create_mobile_user_token(
+        conn, user_id, name="mobile"
+    )
+    user = mobile_auth.load_public_user(conn, user_id)
+    conn.close()
+    return jsonify({"user": _public_user_payload(user), "token": plaintext_token})
+
+
+@api_bp.route("/api/v1/auth/me", methods=["GET"])
+def api_v1_auth_me():
+    """Return the authenticated public user's profile."""
+    user = _current_public_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+    return jsonify({"user": _public_user_payload(user)})
+
+
+@api_bp.route("/api/v1/auth/logout", methods=["POST"])
+def api_v1_auth_logout():
+    """Revoke the bearer token used for this request."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Authentication required"}), 401
+
+    token_str = auth_header[7:].strip()
+    conn = get_db()
+    token = mobile_auth.get_token_by_plaintext(conn, token_str)
+    if token:
+        mobile_auth.revoke_mobile_user_token(conn, token.id)
+    conn.close()
+    return jsonify({"message": "Signed out"})
+
+
+@api_bp.route("/api/v1/auth/forgot-password", methods=["POST"])
+def api_v1_auth_forgot_password():
+    """Request a password reset email (identical behaviour to the HTML form)."""
+    from blueprints.auth import (
+        _generate_reset_token,
+        _hash_reset_token,
+        _is_rate_limited,
+        _record_reset_request,
+        _send_reset_email,
+    )
+
+    data = request.get_json(force=True, silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        return jsonify({"error": "valid_email_required"}), 400
+
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id, email, is_active FROM public_users WHERE email = ?",
+        (email,),
+    ).fetchone()
+
+    if row and row["is_active"]:
+        public_user_id = row["id"]
+        if _is_rate_limited(conn, public_user_id):
+            conn.close()
+            return jsonify({"error": "rate_limited"}), 429
+
+        raw_token = _generate_reset_token()
+        token_hash = _hash_reset_token(raw_token)
+        _record_reset_request(conn, public_user_id, token_hash, request.remote_addr or "")
+        conn.commit()
+
+        reset_url = f"{config.BASE_URL.rstrip('/')}/reset-password/{raw_token}"
+        try:
+            _send_reset_email(row["email"], reset_url)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Failed to send password reset email to %s", email)
+
+    conn.close()
+    return jsonify({
+        "message": "If an account exists for that email, a reset link has been sent."
+    })
+
+
+@api_bp.route("/api/v1/auth/reset-password", methods=["POST"])
+def api_v1_auth_reset_password():
+    """Reset a password using a token from a reset email."""
+    from blueprints.auth import _hash_reset_token
+
+    data = request.get_json(force=True, silent=True) or {}
+    raw_token = (data.get("token") or "").strip()
+    new_password = data.get("new_password") or ""
+
+    if not raw_token:
+        return jsonify({"error": "token_required"}), 400
+    if len(new_password) < 8:
+        return jsonify({"error": "password_too_short"}), 400
+
+    conn = get_db()
+    token_hash = _hash_reset_token(raw_token)
+    row = conn.execute(
+        """
+        SELECT t.id, t.public_user_id, t.expires_at, t.used_at
+        FROM password_reset_tokens t
+        WHERE t.token_hash = ?
+        """,
+        (token_hash,),
+    ).fetchone()
+
+    from datetime import datetime
+    now = datetime.utcnow()
+    is_valid = bool(
+        row
+        and row["used_at"] is None
+        and datetime.fromisoformat(row["expires_at"]) > now
+    )
+    if not is_valid:
+        conn.close()
+        return jsonify({"error": "invalid_or_expired_token"}), 400
+
+    app_module = _app()
+    new_hash = app_module.bcrypt.generate_password_hash(new_password).decode("utf-8")
+    conn.execute(
+        "UPDATE public_users SET password_hash = ? WHERE id = ?",
+        (new_hash, row["public_user_id"]),
+    )
+    conn.execute(
+        "UPDATE password_reset_tokens SET used_at = ? WHERE id = ?",
+        (now.isoformat(), row["id"]),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Password updated. You can now log in."})
+
+
+@api_bp.route("/api/v1/purchases/verify", methods=["POST"])
+def api_v1_verify_purchase():
+    """Verify a RevenueCat purchase and activate premium server-side."""
+    from services.monetization import revenuecat
+
+    user = _current_public_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    data = request.get_json(force=True, silent=True) or {}
+    app_user_id = (data.get("app_user_id") or "").strip()
+    if not app_user_id:
+        return jsonify({"error": "app_user_id_required"}), 400
+
+    subscriber = revenuecat.fetch_subscriber(app_user_id)
+    is_premium = revenuecat.has_premium_entitlement(subscriber)
+
+    conn = get_db()
+    if is_premium:
+        conn.execute(
+            "UPDATE public_users SET subscriber_plan = 'insider' WHERE id = ?",
+            (user["id"],),
+        )
+    conn.commit()
+    conn.close()
+    return jsonify({"is_premium": is_premium})
+
+
+# ---------------------------------------------------------------------------
 # Maps & Data Expansion — new endpoints (2026)
 # ---------------------------------------------------------------------------
 
@@ -1418,3 +1916,321 @@ def api_geo_sex_offender_county_counts():
     ).fetchall()
     conn.close()
     return jsonify({'counts': [{'county': r['county'], 'count': int(r['count'])} for r in rows]})
+
+
+# ---------------------------------------------------------------------------
+# Health / ops
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/health')
+def api_health():
+    """Public health check for load balancers and monitoring."""
+    db_ok = False
+    try:
+        conn = get_db()
+        conn.execute('SELECT 1').fetchone()
+        conn.close()
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    return jsonify({
+        'status': 'ok' if db_ok else 'degraded',
+        'database': 'ok' if db_ok else 'error',
+        'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
+    }), 200 if db_ok else 503
+
+
+# ---------------------------------------------------------------------------
+# Mobile push notifications
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/v1/push/register', methods=['POST'])
+@require_api_key(allow_anonymous=True)
+def api_v1_push_register():
+    """Register an Expo push token for the authenticated or anonymous user."""
+    data = request.get_json(force=True, silent=True) or {}
+    token = (data.get('expo_push_token') or '').strip()
+    if not token or not token.startswith('ExponentPushToken['):
+        return jsonify({'error': 'valid_expo_push_token_required'}), 400
+
+    user = _current_public_user()
+    platform = (data.get('platform') or request.headers.get('X-Platform', '') or '').strip()[:40]
+    device_id = (data.get('device_id') or '').strip()[:255]
+    county_filter = (data.get('county_filter') or '').strip()[:80]
+    alert_types = data.get('alert_types') or ['all']
+
+    conn = get_db()
+    try:
+        token_id = register_mobile_push_token(
+            conn,
+            expo_push_token=token,
+            public_user_id=user['id'] if user else None,
+            platform=platform,
+            device_id=device_id,
+            county_filter=county_filter,
+            alert_types=alert_types if isinstance(alert_types, list) else ['all'],
+        )
+    except ValueError as exc:
+        conn.close()
+        return jsonify({'error': str(exc)}), 400
+    finally:
+        conn.close()
+
+    return jsonify({'registered': True, 'token_id': token_id})
+
+
+@api_bp.route('/api/v1/push/unregister', methods=['POST'])
+@require_api_key(allow_anonymous=True)
+def api_v1_push_unregister():
+    """Deactivate an Expo push token."""
+    data = request.get_json(force=True, silent=True) or {}
+    token = (data.get('expo_push_token') or '').strip()
+    if not token:
+        return jsonify({'error': 'expo_push_token_required'}), 400
+
+    conn = get_db()
+    try:
+        deactivate_mobile_push_token(conn, token)
+    finally:
+        conn.close()
+
+    return jsonify({'unregistered': True})
+
+
+@api_bp.route('/api/v1/push/broadcast', methods=['POST'])
+def api_v1_push_broadcast():
+    """Admin-only endpoint to broadcast a push notification to mobile devices."""
+    # Restrict to admin API key or authenticated admin user.
+    conn = get_db()
+    try:
+        api_user = validate_request(conn)
+        user = _current_public_user()
+        if not api_user and (not user or user.get('role') not in {'admin', 'superuser', 'owner'}):
+            return jsonify({'error': 'Forbidden'}), 403
+
+        data = request.get_json(force=True, silent=True) or {}
+        title = (data.get('title') or '').strip()[:120]
+        body = (data.get('body') or '').strip()[:240]
+        if not title or not body:
+            return jsonify({'error': 'title and body required'}), 400
+
+        push_data = data.get('data') or {}
+        county_filter = (data.get('county_filter') or '').strip()[:80] or None
+        result = broadcast_expo_push(conn, title, body, push_data, county_filter=county_filter)
+    finally:
+        conn.close()
+
+    return jsonify(result)
+
+
+# ---------------------------------------------------------------------------
+# Court / disposition lookup
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/api/v1/court/lookup')
+@require_api_key(allow_anonymous=True)
+@cached_api(timeout=300)
+def api_v1_court_lookup():
+    """Search criminal court cases by person name and/or case number."""
+    name = (request.args.get('name') or '').strip()[:160]
+    county = (request.args.get('county') or '').strip()[:80]
+    case_number = (request.args.get('case_number') or '').strip()[:80]
+    include_bookings = request.args.get('include_bookings', '1').strip() != '0'
+    limit = max(1, min(50, request.args.get('limit', 25, type=int)))
+
+    conn = get_db()
+    try:
+        result = lookup_disposition(
+            conn,
+            name=name or None,
+            county=county or None,
+            case_number=case_number or None,
+            include_bookings=include_bookings,
+            limit=limit,
+        )
+    finally:
+        conn.close()
+
+    return jsonify(result)
+
+
+# ---------------------------------------------------------------------------
+# Warrants
+# ---------------------------------------------------------------------------
+
+def _warrant_payload(row: sqlite3.Row) -> dict:
+    return {
+        'id': row['id'],
+        'source_record_id': row['source_record_id'],
+        'county': row['county'],
+        'city': row['city'],
+        'person_name': row['person_name'],
+        'dob': row['dob'],
+        'warrant_type': row['warrant_type'],
+        'charges_text': row['charges_text'],
+        'issued_by': row['issued_by'],
+        'issue_date': row['issue_date'],
+        'bond_amount': row['bond_amount'],
+        'bond_type': row['bond_type'],
+        'status': row['status'],
+        'source_url': row['source_url'],
+        'mugshot_url': row['mugshot_url'],
+        'photo_url': row['photo_url'],
+        'first_seen_at': row['first_seen_at'],
+        'updated_at': row['updated_at'],
+    }
+
+
+@api_bp.route('/api/v1/warrants')
+@require_api_key(allow_anonymous=True)
+@cached_api(timeout=120)
+def api_v1_warrants():
+    """List active warrant records with optional county and search filters."""
+    county = (request.args.get('county') or '').strip()[:80]
+    q = (request.args.get('q') or '').strip()[:120]
+    status = (request.args.get('status') or 'active').strip().lower()[:20]
+    warrant_type = (request.args.get('warrant_type') or '').strip()[:40]
+    limit = max(1, min(200, request.args.get('limit', 50, type=int)))
+
+    where = ['1 = 1']
+    params: list = []
+    if status:
+        where.append('status = ?')
+        params.append(status)
+    if county:
+        where.append('LOWER(county) = LOWER(?)')
+        params.append(county)
+    if warrant_type:
+        where.append('warrant_type = ?')
+        params.append(warrant_type)
+    if q:
+        like = f'%{q}%'
+        where.append(
+            '(person_name LIKE ? OR charges_text LIKE ? OR city LIKE ? OR issued_by LIKE ?)'
+        )
+        params.extend([like, like, like, like])
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            f'''
+            SELECT *
+            FROM warrants
+            WHERE {' AND '.join(where)}
+            ORDER BY datetime(COALESCE(updated_at, first_seen_at)) DESC, id DESC
+            LIMIT ?
+            ''',
+            params + [limit],
+        ).fetchall()
+        total_row = conn.execute(
+            'SELECT COUNT(*) FROM warrants WHERE status = ?',
+            (status or 'active',),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    return jsonify({
+        'warrants': [_warrant_payload(r) for r in rows],
+        'filters': {
+            'county': county or None,
+            'q': q or None,
+            'status': status,
+            'warrant_type': warrant_type or None,
+        },
+        'total': total_row[0] if total_row else 0,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Missing persons
+# ---------------------------------------------------------------------------
+
+def _missing_person_payload(item: dict) -> dict:
+    """Select mobile-safe fields from a decorated missing-person record."""
+    return {
+        'id': item.get('id'),
+        'full_name': item.get('full_name'),
+        'slug': item.get('slug'),
+        'status': item.get('status'),
+        'status_label': item.get('status_label'),
+        'age': item.get('age'),
+        'age_missing': item.get('age_missing'),
+        'gender': item.get('gender'),
+        'race': item.get('race'),
+        'hair_color': item.get('hair_color'),
+        'eye_color': item.get('eye_color'),
+        'height_label': item.get('height_label'),
+        'weight_lbs': item.get('weight_lbs'),
+        'height_weight': item.get('height_weight'),
+        'missing_from': item.get('missing_from'),
+        'last_seen_location': item.get('last_seen_location'),
+        'city': item.get('city'),
+        'county': item.get('county'),
+        'date_last_seen': item.get('date_last_seen'),
+        'last_seen_at_label': item.get('last_seen_at_label'),
+        'summary': item.get('summary'),
+        'case_number': item.get('case_number'),
+        'investigating_agency': item.get('investigating_agency'),
+        'photo_url': item.get('photo_url'),
+        'photos': item.get('photos', []),
+        'is_active': item.get('is_active'),
+        'is_indigenous': item.get('is_indigenous'),
+        'is_child': item.get('is_child'),
+        'public_href': item.get('public_href'),
+        'created_at': item.get('created_at'),
+        'updated_at': item.get('updated_at'),
+    }
+
+
+@api_bp.route('/api/v1/missing-persons')
+@require_api_key(allow_anonymous=True)
+@cached_api(timeout=120)
+def api_v1_missing_persons():
+    """List missing person records with optional status, county, and search filters."""
+    from services.persons.missing import (
+        STATUS_MISSING,
+        STATUS_LOCATED,
+        _fetch_missing_person_rows,
+        _decorate_person_row,
+        ensure_missing_person_schema,
+    )
+
+    status = (request.args.get('status') or '').strip().lower()[:20]
+    county = (request.args.get('county') or '').strip()[:80]
+    q = (request.args.get('q') or '').strip()[:120]
+    sort = (request.args.get('sort') or 'updated_desc').strip()[:32]
+    limit = max(1, min(200, request.args.get('limit', 50, type=int)))
+
+    if status not in {STATUS_MISSING, STATUS_LOCATED, ''}:
+        status = ''
+
+    conn = get_db()
+    try:
+        ensure_missing_person_schema(conn)
+        rows = _fetch_missing_person_rows(
+            conn,
+            status=status or None,
+            q=q,
+            county=county,
+            sort=sort,
+            limit=limit,
+        )
+        people = [_missing_person_payload(_decorate_person_row(r)) for r in rows]
+        total_active = conn.execute(
+            "SELECT COUNT(*) FROM missing_persons WHERE status = ?",
+            (STATUS_MISSING,),
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    return jsonify({
+        'people': people,
+        'filters': {
+            'status': status or None,
+            'county': county or None,
+            'q': q or None,
+            'sort': sort,
+        },
+        'total_active': total_active,
+    })

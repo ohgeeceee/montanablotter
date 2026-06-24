@@ -195,6 +195,75 @@ def ensure_public_engagement_schema(conn: sqlite3.Connection) -> None:
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_public_comments_user ON public_comments(public_user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_public_comments_status ON public_comments(status)')
 
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            public_user_id INTEGER NOT NULL,
+            token_hash TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            used_at TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            ip_address TEXT,
+            FOREIGN KEY (public_user_id) REFERENCES public_users(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash '
+        'ON password_reset_tokens(token_hash)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user '
+        'ON password_reset_tokens(public_user_id, created_at)'
+    )
+
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS public_user_api_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            public_user_id INTEGER NOT NULL,
+            token_hash TEXT UNIQUE NOT NULL,
+            name TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            last_used_at TEXT,
+            revoked_at TEXT,
+            FOREIGN KEY (public_user_id) REFERENCES public_users(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_user_api_tokens_hash '
+        'ON public_user_api_tokens(token_hash)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_user_api_tokens_user '
+        'ON public_user_api_tokens(public_user_id, is_active)'
+    )
+
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS public_user_saved_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            public_user_id INTEGER NOT NULL,
+            post_id INTEGER NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(public_user_id, post_id),
+            FOREIGN KEY (public_user_id) REFERENCES public_users(id) ON DELETE CASCADE,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_user_saved_posts_user '
+        'ON public_user_saved_posts(public_user_id, created_at)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_user_saved_posts_post '
+        'ON public_user_saved_posts(post_id)'
+    )
+
     for col, definition in [
         ('subscription_counties', "TEXT DEFAULT ''"),
         ('subscribe_digest', 'INTEGER NOT NULL DEFAULT 0'),
@@ -373,6 +442,10 @@ def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
     cursor.execute(
         'CREATE INDEX IF NOT EXISTS idx_jail_bookings_source_record_id '
         'ON jail_bookings(source_record_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_bookings_county_booking_at '
+        'ON jail_bookings(county_slug, booking_at)'
     )
 
     for col, definition in [
@@ -1980,6 +2053,29 @@ def migrate():
     ''')
     cursor.execute(
         'CREATE INDEX IF NOT EXISTS idx_push_subs_active ON push_subscriptions(active, county_filter)'
+    )
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS mobile_push_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            public_user_id INTEGER,
+            expo_push_token TEXT NOT NULL,
+            platform TEXT NOT NULL DEFAULT '',
+            device_id TEXT NOT NULL DEFAULT '',
+            county_filter TEXT DEFAULT '',
+            alert_types TEXT DEFAULT 'all',
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            last_sent_at TEXT,
+            UNIQUE(public_user_id, expo_push_token)
+        )
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_mobile_push_tokens_active ON mobile_push_tokens(is_active, public_user_id)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_mobile_push_tokens_token ON mobile_push_tokens(expo_push_token)'
     )
 
     cursor.execute('''

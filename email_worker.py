@@ -11,6 +11,7 @@ import logging
 import smtplib
 import re
 import contextlib
+import sqlite3
 import time
 from dataclasses import dataclass
 from datetime import datetime, UTC
@@ -432,6 +433,15 @@ class EmailWorker:
                     "Hill",
                 )
                 any_succeeded = True
+            except sqlite3.OperationalError as exc:
+                # Transient lock contention with another writer (e.g. court_refresh)
+                # should be decided by the caller. Re-raise so the email stays in
+                # the inbox and the caller can retry on the next tick.
+                if "database is locked" in str(exc).lower():
+                    raise
+                logging.exception(
+                    "Failed to ingest Havre roster DOCX %s: %s", filename, exc
+                )
             except Exception as exc:
                 logging.exception(
                     "Failed to ingest Havre roster DOCX %s: %s", filename, exc

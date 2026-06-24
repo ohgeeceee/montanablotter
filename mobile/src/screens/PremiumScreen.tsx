@@ -8,7 +8,12 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { getOfferings, purchasePackage, restorePurchases } from '../services/purchases';
+import {
+  getOfferings,
+  purchasePackage,
+  restorePurchases,
+  verifyPurchaseWithBackend,
+} from '../services/purchases';
 import { usePremium } from '../context/PremiumContext';
 import { COLORS } from '../constants';
 
@@ -38,6 +43,7 @@ export default function PremiumScreen() {
     try {
       setPurchasing(true);
       await purchasePackage(pkg);
+      await verifyPurchaseWithBackend();
       await refresh();
       Alert.alert('Welcome to Premium!', 'Your purchase was successful.');
     } catch (err: any) {
@@ -53,6 +59,7 @@ export default function PremiumScreen() {
     try {
       setPurchasing(true);
       await restorePurchases();
+      await verifyPurchaseWithBackend();
       await refresh();
       Alert.alert('Restored', 'Your purchases have been restored.');
     } catch (err: any) {

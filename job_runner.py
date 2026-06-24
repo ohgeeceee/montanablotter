@@ -66,6 +66,41 @@ def _output_excerpt(output: str, *, max_lines: int = 40, max_chars: int = 4000) 
     return excerpt
 
 
+# Known persistent failure modes that the system records correctly in
+# downstream tables (e.g. court_sources.last_error) but should NOT trigger
+# an email blast. Maps job_name -> tuple of substring patterns. When every
+# error line in the job's output excerpt matches at least one pattern in
+# the tuple, the failure email is suppressed.
+#
+# The dcportal|coljportal 'ERR_CONNECTION_RESET' lines are the WAF IP block
+# documented in project memory. The 'Request Rejected' pattern is the WAF
+# rejection path handled gracefully by 34b53690 (colj returns 0 events with
+# last_error set, but the per-source failure still bumps exit code to 1).
+_KNOWN_FAILURE_SIGNATURES = {
+    'court_refresh': (
+        'ERR_CONNECTION_RESET at https://dcportal.pubcourts.mt.gov/',
+        'ERR_CONNECTION_RESET at https://coljportal.pubcourts.mt.gov/',
+        'Request Rejected',
+    ),
+}
+
+
+def _is_known_failure(job_name: str, output: str) -> bool:
+    signatures = _KNOWN_FAILURE_SIGNATURES.get(job_name)
+    if not signatures:
+        return False
+    error_lines = [
+        line for line in (output or '').splitlines()
+        if 'Page.goto' in line
+        or 'Traceback' in line
+        or 'Unexpected' in line
+        or 'error' in line.lower()
+    ]
+    if not error_lines:
+        return False
+    return all(any(sig in line for sig in signatures) for line in error_lines)
+
+
 def _append_log(log_path: str | None, started_at: str, finished_at: str, command_text: str, output: str, status: str, exit_code: int | None) -> None:
     if not log_path:
         return
@@ -163,6 +198,13 @@ def _maybe_send_alert(conn, *, previous_state: dict | None, job_name: str, comma
     should_send_failure = status != 'ok' and previous_status != status
     should_send_recovery = status == 'ok' and previous_status and previous_status != 'ok'
     if not (should_send_failure or should_send_recovery):
+        return
+
+    if should_send_failure and _is_known_failure(job_name, output_excerpt):
+        # Persistent infrastructure condition (e.g., WAF IP block on
+        # dcportal|coljportal). The downstream source tables already record
+        # the failure with last_error, so the operator-visible signal is
+        # preserved; we just don't blast email on every state reset.
         return
 
     try:

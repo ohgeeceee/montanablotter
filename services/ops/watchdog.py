@@ -67,14 +67,28 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("news_planner", LOGS / "news_planner.log", 5, "every 3 hours"),
     MonitoredJob("news_writer_agent", LOGS / "news_writer.log", 5, "every 3 hours"),
     MonitoredJob("news_editor_agent", LOGS / "news_editor.log", 5, "every 3 hours"),
+    # Jail roster ingestion jobs share logs/jail_booking_ingest.log; the file
+    # mtime is updated whenever any county finishes, so a single threshold
+    # covers the whole fleet.
+    MonitoredJob("jail_booking_ingest_flathead", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
+    MonitoredJob("jail_booking_ingest_jefferson", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
+    MonitoredJob("jail_booking_ingest_yellowstone", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
+    MonitoredJob("jail_booking_ingest_sanders", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
+    MonitoredJob("jail_booking_ingest_ravalli", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
+    MonitoredJob("jail_booking_ingest_missoula", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
+    MonitoredJob("jail_booking_ingest_all", LOGS / "jail_booking_ingest.log", 8, "every 4 hours"),
+    MonitoredJob("morning_briefing", LOGS / "morning_briefing.log", 26, "daily"),
+    MonitoredJob("run_civic_publish", Path("/var/log/civic-publish.log"), 1, "every 10 minutes"),
+    MonitoredJob("supreme_court_outcomes", LOGS / "supreme_court_outcomes.log", 26, "daily"),
+    MonitoredJob("whitefish_fetcher", LOGS / "whitefish_fetcher.log", 2, "hourly"),
+    MonitoredJob("bozeman_calls", LOGS / "bozeman_calls.log", 2, "hourly"),
+    MonitoredJob("bozeman_crime", LOGS / "bozeman_crime.log", 2, "hourly"),
+    MonitoredJob("missoula_public_report", LOGS / "missoula_fetcher.log", 2, "hourly"),
 )
 
 # STATE_JOBS watches rows in the `scheduled_job_state` table — populated by
-# workers that explicitly record their own heartbeat. The jail booking source
-# poller used to do this but is no longer scheduled in cron (jail data flows
-# through the email pipeline + the cron-driven jail source scrapers in
-# services/ingestion). Keep this empty until something writes to that table
-# again.
+# workers that explicitly record their own heartbeat. Currently nothing writes
+# to that table.
 STATE_JOBS: tuple[MonitoredStateJob, ...] = ()
 
 SUCCESS_STATUSES = {"ok", "success"}

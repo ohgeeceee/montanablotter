@@ -119,7 +119,7 @@ REVIEW_SYSTEM = textwrap.dedent("""\
 
 
 def _review_with_claude(candidate: dict) -> dict:
-    if not _ANTHROPIC_AVAILABLE:
+    if not _ANTHROPIC_AVAILABLE or not getattr(config, "USE_PAID_LLM", False):
         return _fallback_review(candidate)
     try:
         api_key = getattr(config, "ANTHROPIC_API_KEY", None)

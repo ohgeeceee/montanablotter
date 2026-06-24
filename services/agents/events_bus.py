@@ -146,12 +146,38 @@ class RedisAgentEventHub:
     def load_recent_events(self, limit: int | None = None) -> list[dict[str, Any]]:
         limit = self.recent_limit if limit is None else max(1, int(limit))
         rows = self.redis.lrange(self.recent_key, 0, limit - 1)
-        return [deserialize_agent_event(row) for row in rows]
+        events = [deserialize_agent_event(row) for row in rows]
+        return self._deduplicate_events(events)
+
+    @staticmethod
+    def _deduplicate_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Collapse repeated identical agent messages to reduce feed noise.
+
+        Events are stored newest-first.  We keep only the newest event for each
+        (agent_id, normalized message) pair in the recent window.  This prevents
+        the workspace feed from being dominated by loops such as the news editor
+        rejecting the same draft dozens of times over many minutes.
+        """
+        seen: set[tuple[str, str]] = set()
+        deduped: list[dict[str, Any]] = []
+
+        for evt in events:
+            agent_id = str(evt.get("agent_id") or "").strip()
+            message = str(evt.get("message") or "").strip()
+            key = (agent_id, message)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(evt)
+
+        return deduped
 
     def load_agents(self) -> list[dict[str, Any]]:
         agent_ids = sorted(str(item) for item in self.redis.smembers(self.agent_index_key))
         agents: list[dict[str, Any]] = []
         for agent_id in agent_ids:
+            if not agent_id.strip():
+                continue
             state = self.redis.hgetall(f'{self.state_prefix}{agent_id}') or {}
             if not state:
                 continue

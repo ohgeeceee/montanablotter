@@ -67,6 +67,7 @@
 .hub-card__icon--offenders{ background: var(--amber-soft); color: var(--amber); }
 .hub-card__icon--missing  { background: var(--signal-soft); color: var(--signal); }
 .hub-card__icon--warrants { background: rgba(107, 64, 168, 0.12); color: #6b40a8; }
+.hub-card__icon--alerts { background: rgba(220, 38, 38, 0.10); color: #dc2626; }
 
 /* ── Hero snapshot (desktop right-column) ── */
 .hero-panel__snapshot { display: none; }
@@ -481,6 +482,18 @@
             </div>
         </section>
 
+        <section class="digest-signup" aria-label="Daily digest email signup" style="background:linear-gradient(135deg,#1e293b 0%,#334155 100%);border-radius:var(--radius-lg,16px);padding:1.75rem 2rem;margin:1.5rem 0;display:flex;flex-wrap:wrap;align-items:center;gap:1.25rem;justify-content:space-between;">
+            <div style="flex:1;min-width:220px;">
+                <h2 style="color:#fff;font-size:1.25rem;font-weight:800;margin:0 0 .25rem 0;">Get the Daily Digest</h2>
+                <p style="color:#94a3b8;font-size:.85rem;margin:0;">Montana's overnight blotters, summarized and PII-screened. Delivered at 7am MT.</p>
+            </div>
+            <form method="POST" action="/subscribe" style="display:flex;gap:.5rem;flex:1;min-width:280px;max-width:420px;" id="homepage-digest-form">
+                <input type="hidden" name="source" value="homepage_inline">
+                <input type="email" name="email" required placeholder="you@email.com" style="flex:1;padding:.6rem 1rem;border-radius:12px;border:1px solid #475569;background:#0f172a;color:#fff;font-size:.9rem;outline:none;" aria-label="Email for daily digest">
+                <button type="submit" style="padding:.6rem 1.25rem;border-radius:12px;border:none;background:#d97706;color:#fff;font-weight:800;font-size:.85rem;cursor:pointer;white-space:nowrap;text-transform:uppercase;letter-spacing:.05em;">Subscribe Free</button>
+            </form>
+        </section>
+
         {% if missing_persons_alert and missing_persons_alert.rows %}
         <section class="missing-spotlight" aria-label="Active missing persons alerts">
             <div class="missing-spotlight__header">
@@ -574,6 +587,28 @@
                     <a href="/courts">View all courts <i class="fas fa-arrow-right text-[10px]"></i></a>
                 </div>
             </article>
+
+            {% if recent_alerts %}
+            <article class="hub-card">
+                <div class="hub-card__header">
+                    <div class="hub-card__title-group">
+                        <div class="hub-card__icon hub-card__icon--alerts"><i class="fas fa-bell"></i></div>
+                        <span class="hub-card__name">Your Alerts</span>
+                    </div>
+                </div>
+                <div class="hub-card__list">
+                    {% for alert in recent_alerts %}
+                    <a href="{% if alert.record_id %}/record/{{ alert.record_id }}{% else %}#{% endif %}" class="hub-card__item">
+                        <strong>{{ alert.subject or 'New alert' }}</strong>
+                        <span>{{ alert.county or 'Montana' }}{% if alert.incident_type %} · {{ alert.incident_type }}{% endif %} · {{ alert.created_at or '' }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="hub-card__footer">
+                    <a href="/account">Manage alerts <i class="fas fa-arrow-right text-[10px]"></i></a>
+                </div>
+            </article>
+            {% endif %}
 
             <article class="hub-card">
                 <div class="hub-card__header">

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { getCustomerInfo, checkPremiumEntitlement } from '../services/purchases';
+import { getCustomerInfo, checkPremiumEntitlement, verifyPurchaseWithBackend } from '../services/purchases';
 
 interface PremiumContextValue {
   isPremium: boolean;
@@ -25,7 +25,11 @@ export function PremiumProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       const customerInfo = await getCustomerInfo();
-      setIsPremium(checkPremiumEntitlement(customerInfo));
+      const localPremium = checkPremiumEntitlement(customerInfo);
+      // Also verify server-side if the user is logged in; falls back to local
+      // entitlement if backend verification is unavailable.
+      const serverPremium = await verifyPurchaseWithBackend();
+      setIsPremium(serverPremium || localPremium);
     } catch (err) {
       console.error('[PremiumContext] Refresh failed:', err);
       setIsPremium(false);

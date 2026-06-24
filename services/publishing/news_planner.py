@@ -212,7 +212,18 @@ def _fetch_rss_packets(*, source_type: str, source_url: str, base_facts: dict[st
     try:
         response = requests.get(source_url, timeout=20)
         response.raise_for_status()
-        root = ET.fromstring(response.text)
+        # Stdlib XML parser is strict and rejects HTML entities like &nbsp;
+        # that some feeds leak through. Pre-decode common ones before parsing.
+        body = response.text
+        body = (
+            body.replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", '"')
+            .replace("&apos;", "'")
+        )
+        root = ET.fromstring(body)
     except (requests.RequestException, ET.ParseError) as exc:
         logger.warning("Skipping RSS newsroom source %s: %s", source_url, exc)
         return []

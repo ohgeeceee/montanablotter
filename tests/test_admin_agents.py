@@ -147,8 +147,23 @@ class AdminAgentsTests(unittest.TestCase):
 
         body = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Claw3D Office', body)
-        self.assertIn('iframe', body)
+        # Canvas office — verify the static file is served, not the iframe template.
+        self.assertIn('VPS Office', body)
+        self.assertIn('Montana Blotter', body)
+        self.assertIn('Blotter Host', body)
+        self.assertIn('OpenClaw Gateway', body)
+        # If the iframe template leaks back in, this catches it.
+        self.assertNotIn('<iframe', body)
+
+    def test_admin_office_3d_serves_iframe_template(self) -> None:
+        client = app_module.app.test_client()
+        self._login_admin_session(client)
+
+        response = client.get('/admin/office/3d', follow_redirects=False)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn('<iframe', body)
         self.assertIn(config.CLAW3D_OFFICE_URL, body)
 
     def test_admin_office_redirects_to_trailing_slash(self) -> None:

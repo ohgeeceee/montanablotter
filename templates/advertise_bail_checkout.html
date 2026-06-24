@@ -146,7 +146,7 @@
                 </label>
                 <label class="flex items-start gap-2 text-sm text-slate-700">
                     <input type="checkbox" name="contract_ack" value="yes" class="mt-1" required>
-                    <span>I reviewed and accept the <a href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %} class="font-semibold text-blue-700 underline">Affordable Bail Bonds advertising contract</a>.</span>
+                    <span>I reviewed and accept the <a href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %} class="font-semibold text-blue-700 underline">{{ contract_info.title }}</a>.</span>
                 </label>
                 <label class="flex items-start gap-2 text-sm text-slate-700">
                     <input type="checkbox" name="terms_ack" value="yes" class="mt-1" required>

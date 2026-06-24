@@ -219,7 +219,11 @@ class YellowstoneFetcherTests(unittest.TestCase):
             "Charge details available on the official Yellowstone County inmate page.",
         )
 
-    def test_fetch_bookings_with_charges(self) -> None:
+    @mock.patch(
+        "services.ingestion.fetchers.yellowstone_inmate._should_fetch_yellowstone_charge_detail",
+        return_value=True,
+    )
+    def test_fetch_bookings_with_charges(self, _mock_should_fetch) -> None:
         prompt_html = '<label for="Answer">1 + One = </label>'
         roster_html = (
             '<table class="table table-striped _table-sm caption-top data-table">'

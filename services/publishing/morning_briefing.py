@@ -329,12 +329,15 @@ def _update_crisis_banner(posts, conn=None):
         conn = get_db()
 
     try:
-        if not posts:
+        if not posts or not getattr(config, "USE_PAID_LLM", False):
             _save_app_setting(conn, "winter_storm_banner_enabled", "1")
             _save_app_setting(conn, "winter_storm_banner_headline", _CRISIS_BANNER_EVERGREEN_HEADLINE)
             _save_app_setting(conn, "winter_storm_banner_body", _CRISIS_BANNER_EVERGREEN_BODY)
             conn.commit()
-            print("Banner updated: no posts — wrote evergreen message.")
+            if not posts:
+                print("Banner updated: no posts — wrote evergreen message.")
+            else:
+                print("Banner update skipped: paid LLM disabled — wrote evergreen message.")
             return
 
         # Build compact text blob (cap at 3000 chars to stay within token budget)

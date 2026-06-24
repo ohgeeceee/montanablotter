@@ -2,6 +2,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import unittest.mock
 
 import app as app_module
 import config
@@ -209,6 +210,24 @@ class PublicApiTests(unittest.TestCase):
         self.assertEqual(row["event_type"], "cta_click")
         self.assertEqual(row["source"], "homepage_banner")
         self.assertEqual(row["page_path"], "/")
+
+    @unittest.mock.patch.dict(os.environ, {"MB_REQUIRE_SIGNIN": "true"})
+    def test_api_posts_is_exempt_from_signin_wall(self) -> None:
+        client = app_module.app.test_client()
+        response = client.get("/api/posts")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["posts"][0]["id"], self.clean_post_id)
+
+    def test_api_not_found_returns_json(self) -> None:
+        client = app_module.app.test_client()
+        response = client.get("/api/posts/999999")
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(response.content_type.startswith("application/json"))
+        payload = response.get_json()
+        self.assertIn("error", payload)
+        self.assertIn("message", payload)
 
 
 if __name__ == "__main__":

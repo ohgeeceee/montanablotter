@@ -5,6 +5,8 @@ node_modules/
 .env.*.local
 dist/
 build/
+android/
+ios/
 *.jks
 *.p8
 *.p12

@@ -10,18 +10,6 @@ from unittest.mock import MagicMock, patch
 # Minimal stubs so morning_briefing.py imports without real config/db
 # ---------------------------------------------------------------------------
 
-# Stub config
-config_stub = types.ModuleType("config")
-config_stub.DB_PATH = ":memory:"
-config_stub.ANTHROPIC_API_KEY = "test-key"
-config_stub.EMAIL_USER = "test@example.com"
-config_stub.EMAIL_PASSWORD = "password"
-config_stub.SMTP_USER = "test@example.com"
-config_stub.SMTP_PASSWORD = "password"
-config_stub.SMTP_SERVER = "smtp.example.com"
-config_stub.SMTP_PORT = 587
-sys.modules.setdefault("config", config_stub)
-
 # Stub services.alerts.legacy (morning_briefing imports collect_alert_recipients and
 # send_plaintext_email from there now, not from a top-level alerting module).
 alerting_stub = types.ModuleType("services.alerts.legacy")
@@ -35,6 +23,22 @@ alerting_legacy_alias.send_plaintext_email = lambda *a, **kw: None
 sys.modules.setdefault("alerting", alerting_legacy_alias)
 
 from services.publishing.morning_briefing import _update_crisis_banner  # noqa: E402
+import services.publishing.morning_briefing as _mb_module
+
+
+class _PaidLLMEnabledTestCase(unittest.TestCase):
+    """Base test case that forces the paid-LLM gate to True for Claude paths."""
+
+    def setUp(self):
+        self._orig_use_paid_llm = getattr(_mb_module.config, "USE_PAID_LLM", None)
+        _mb_module.config.USE_PAID_LLM = True
+
+    def tearDown(self):
+        if self._orig_use_paid_llm is None:
+            if hasattr(_mb_module.config, "USE_PAID_LLM"):
+                delattr(_mb_module.config, "USE_PAID_LLM")
+        else:
+            _mb_module.config.USE_PAID_LLM = self._orig_use_paid_llm
 
 
 def _make_db():
@@ -76,7 +80,7 @@ EVERGREEN_POSTS = [
 ]
 
 
-class TestUpdateCrisisBannerCrisisDetected(unittest.TestCase):
+class TestUpdateCrisisBannerCrisisDetected(_PaidLLMEnabledTestCase):
     def test_writes_crisis_headline_and_body(self):
         conn = _make_db()
         api_response = json.dumps({
@@ -143,7 +147,7 @@ class TestUpdateCrisisBannerCrisisDetected(unittest.TestCase):
         assert len(body) <= 160
 
 
-class TestUpdateCrisisBannerNoCrisis(unittest.TestCase):
+class TestUpdateCrisisBannerNoCrisis(_PaidLLMEnabledTestCase):
     def test_writes_evergreen_when_no_crisis(self):
         conn = _make_db()
         api_response = json.dumps({
@@ -180,7 +184,7 @@ class TestUpdateCrisisBannerNoCrisis(unittest.TestCase):
         assert headline == "Support Montana public safety journalism"
 
 
-class TestUpdateCrisisBannerApiFailure(unittest.TestCase):
+class TestUpdateCrisisBannerApiFailure(_PaidLLMEnabledTestCase):
     def test_leaves_settings_unchanged_on_api_error(self):
         conn = _make_db()
         conn.execute(
@@ -235,6 +239,19 @@ class TestUpdateCrisisBannerApiFailure(unittest.TestCase):
         assert _read_setting(conn, "winter_storm_banner_enabled") == "1"
         assert _read_setting(conn, "winter_storm_banner_headline") == "Keep this"
         assert _read_setting(conn, "winter_storm_banner_body") == "Keep this body"
+
+
+class TestUpdateCrisisBannerPaidLLMFlag(unittest.TestCase):
+    def test_writes_evergreen_when_paid_llm_disabled(self):
+        conn = _make_db()
+        with patch.object(_mb_module.config, "USE_PAID_LLM", False):
+            with patch("services.publishing.morning_briefing.anthropic") as mock_anthropic:
+                _update_crisis_banner(SAMPLE_POSTS, conn=conn)
+                mock_anthropic.Anthropic.assert_not_called()
+
+        assert _read_setting(conn, "winter_storm_banner_enabled") == "1"
+        headline = _read_setting(conn, "winter_storm_banner_headline")
+        assert headline == "Support Montana public safety journalism"
 
 
 if __name__ == "__main__":

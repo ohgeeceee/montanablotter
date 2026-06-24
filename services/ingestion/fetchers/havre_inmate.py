@@ -36,10 +36,14 @@ established jail_bookings orchestrator and is stable.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import fcntl
 import logging
+import os
 import re
 import sqlite3
 import sys
+import time
 import zipfile
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -48,10 +52,14 @@ from typing import Iterable
 
 sys.path.insert(0, "/root/montanablotter")
 
+from db import timed_db_transaction  # noqa: E402
 from services.ingestion.jail_bookings import (  # noqa: E402
+    DB_LOCK_RETRY_ATTEMPTS,
+    DB_LOCK_RETRY_SLEEP_SECONDS,
     SyncStats,
     _connect_db,
     _ensure_tracked_sources,
+    _is_lock_error,
     _mark_source_checked,
     _record_run,
     _sync_records,
@@ -73,6 +81,64 @@ HCSO_PHONE = "406-265-5481"
 # Kept as aliases for the slug (the only one this module actually uses)
 # so the import in ingest_havre_roster stays readable.
 HPD_COUNTY_SLUG = HCSO_COUNTY_SLUG  # legacy alias
+
+# Cross-process mutex for Havre roster ingestion. Both email_worker and
+# email_image_blotter can process Havre DOCX emails concurrently; this lock
+# ensures only one Havre ingest runs at a time, eliminating the most common
+# cause of SQLite "database is locked" errors for this pipeline.
+HAVRE_INGEST_LOCK_PATH = os.path.join(
+    os.environ.get("TMPDIR", "/tmp"),
+    "montanablotter_havre_ingest.lock",
+)
+HAVRE_INGEST_LOCK_TIMEOUT_SECONDS = 600
+
+
+class _HavreIngestLockTimeout(TimeoutError):
+    """Raised when we cannot acquire the Havre ingest lock in time."""
+
+
+@contextlib.contextmanager
+def _acquire_havre_ingest_lock():
+    """Acquire an exclusive flock on the Havre ingest lock file.
+
+    Blocks up to ``HAVRE_INGEST_LOCK_TIMEOUT_SECONDS``; raises
+    ``_HavreIngestLockTimeout`` if the lock is not available. The lock is
+    released automatically when the context exits.
+    """
+    os.makedirs(os.path.dirname(HAVRE_INGEST_LOCK_PATH), exist_ok=True)
+    lock_fd = os.open(HAVRE_INGEST_LOCK_PATH, os.O_CREAT | os.O_RDWR)
+    acquired = False
+    try:
+        deadline = time.monotonic() + HAVRE_INGEST_LOCK_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except BlockingIOError:
+                remaining = deadline - time.monotonic()
+                logger.info(
+                    "Waiting for Havre ingest lock (%.1fs remaining)...",
+                    max(0.0, remaining),
+                )
+                time.sleep(1.0)
+        if not acquired:
+            raise _HavreIngestLockTimeout(
+                f"Could not acquire Havre ingest lock at {HAVRE_INGEST_LOCK_PATH} "
+                f"within {HAVRE_INGEST_LOCK_TIMEOUT_SECONDS}s"
+            )
+        yield
+    finally:
+        if acquired:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            except OSError:
+                pass
+        try:
+            os.close(lock_fd)
+        except OSError:
+            pass
+
 
 # WordprocessingML XML namespace. Every tag in word/document.xml uses this.
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -504,6 +570,61 @@ def fetch_havre_bookings(
     return records
 
 
+def _ingest_havre_once(
+    path: Path,
+    records: list[JailBookingRecord],
+    *,
+    dry_run: bool = False,
+) -> SyncStats:
+    """Single DB transaction for Havre roster ingest.
+
+    Source metadata is refreshed and committed first so the write lock on
+    ``jail_booking_sources`` is released before the heavier
+    ``jail_bookings`` sync begins.
+    """
+    conn: sqlite3.Connection = _connect_db()
+    try:
+        with timed_db_transaction("ingest_havre_roster"):
+            _ensure_tracked_sources(conn, county_slug=HPD_COUNTY_SLUG)
+            source = conn.execute(
+                '''
+                SELECT * FROM jail_booking_sources WHERE county_slug = ?
+                ''',
+                (HPD_COUNTY_SLUG,),
+            ).fetchone()
+            if source is None:
+                raise RuntimeError(
+                    f"jail_booking_sources row missing for county_slug={HPD_COUNTY_SLUG} "
+                    f"after _ensure_tracked_sources; cannot ingest {path}"
+                )
+            stats = _sync_records(conn, source, records, dry_run=dry_run)
+            run_status = "success" if not dry_run else "dry_run"
+            _record_run(
+                conn,
+                source_id=source["id"],
+                run_type="email_docx",
+                status=run_status,
+                fetched_count=stats.fetched_count,
+                new_count=stats.new_count,
+                updated_count=stats.updated_count,
+                missing_count=stats.missing_count,
+                notes=f"Parsed {path.name}",
+            )
+            _mark_source_checked(
+                conn,
+                source["id"],
+                success=not dry_run,
+                notes=f"Email DOCX ingest: {path.name}",
+            )
+            conn.commit()
+            return stats
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def ingest_havre_roster(
     docx_path: str | Path, *, dry_run: bool = False, roster_date: str | None = None
 ) -> SyncStats:
@@ -529,46 +650,27 @@ def ingest_havre_roster(
         logger.warning("Havre docx parsed to 0 records: %s", path)
         return SyncStats()
 
-    conn: sqlite3.Connection = _connect_db()
-    try:
-        _ensure_tracked_sources(conn)
-        source = conn.execute(
-            '''
-            SELECT * FROM jail_booking_sources WHERE county_slug = ?
-            ''',
-            (HPD_COUNTY_SLUG,),
-        ).fetchone()
-        if source is None:
-            raise RuntimeError(
-                f"jail_booking_sources row missing for county_slug={HPD_COUNTY_SLUG} "
-                f"after _ensure_tracked_sources; cannot ingest {path}"
-            )
-        stats = _sync_records(conn, source, records, dry_run=dry_run)
-        run_status = "success" if not dry_run else "dry_run"
-        _record_run(
-            conn,
-            source_id=source["id"],
-            run_type="email_docx",
-            status=run_status,
-            fetched_count=stats.fetched_count,
-            new_count=stats.new_count,
-            updated_count=stats.updated_count,
-            missing_count=stats.missing_count,
-            notes=f"Parsed {path.name}",
-        )
-        _mark_source_checked(
-            conn,
-            source["id"],
-            success=not dry_run,
-            notes=f"Email DOCX ingest: {path.name}",
-        )
-        conn.commit()
-        return stats
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    # Serialize Havre ingestion across all workers/processes. The retry loop
+    # below is still kept for lock contention with non-Havre writers.
+    with _acquire_havre_ingest_lock():
+        max_attempts = max(1, DB_LOCK_RETRY_ATTEMPTS)
+        attempt = 1
+        while True:
+            try:
+                return _ingest_havre_once(path, records, dry_run=dry_run)
+            except sqlite3.OperationalError as exc:
+                if not _is_lock_error(exc) or attempt >= max_attempts:
+                    raise
+                logger.warning(
+                    "SQLite locked during Havre roster ingest (attempt %d/%d); "
+                    "retrying in %.1fs: %s",
+                    attempt,
+                    max_attempts,
+                    DB_LOCK_RETRY_SLEEP_SECONDS,
+                    exc,
+                )
+                time.sleep(max(0.0, DB_LOCK_RETRY_SLEEP_SECONDS))
+                attempt += 1
 
 
 # ---------------------------------------------------------------------------

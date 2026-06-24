@@ -60,6 +60,29 @@ function AgentSidebar({ agents, connected, wsUrl }) {
   `;
 }
 
+// Collapse repeated identical messages from the same agent.  Items are
+// newest-first; keep only the first (newest) occurrence of each unique
+// (agent_id, message) pair.
+const MAX_FEED_ITEMS = 100;
+
+function _feedDedupeKey(item) {
+  return `${item.agent_id || ''}|${(item.message || item.stage || '').trim()}`;
+}
+
+function dedupeFeedItems(items) {
+  const seen = new Set();
+  const deduped = [];
+  for (const item of items) {
+    const key = _feedDedupeKey(item);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(item);
+  }
+  return deduped.slice(0, MAX_FEED_ITEMS);
+}
+
 function FeedPanel({ items }) {
   const bottomRef = useRef(null);
   useEffect(() => {
@@ -68,14 +91,19 @@ function FeedPanel({ items }) {
     }
   }, [items.length]);
 
+  const displayItems = dedupeFeedItems(items);
+
   return html`
     <div class="hw-panel" style="padding:12px; height:100%; display:flex; flex-direction:column;">
       <div class="hw-sidebar-header">Live Feed</div>
+      <div style="font-size:0.6rem; color:#5C554C; margin-bottom:8px;">
+        Showing ${displayItems.length} of ${items.length} recent events
+      </div>
       <div class="hw-scroll" style="flex:1; display:flex; flex-direction:column; gap:4px;">
-        ${items.length === 0 && html`
+        ${displayItems.length === 0 && html`
           <div style="color:#5C554C; font-size:0.72rem; padding:8px;">Waiting for events...</div>
         `}
-        ${items.map((item, i) => html`
+        ${displayItems.map((item, i) => html`
           <div key=${i} class="hw-feed-item ${getFeedClass(item.stage)}">
             <div style="display:flex; justify-content:space-between; gap:8px;">
               <span style="color:#E8DFD0; font-weight:600;">${item.agent_name || item.agent_id || 'System'}</span>

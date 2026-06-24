@@ -24,6 +24,21 @@ _DATE_PARSE_FORMATS = [
     ('%b %d %Y',    '%m/%d/%y',  'Short month no comma: Mar 14 2026'),
 ]
 
+_DATE_PATTERNS = [
+    r'(\d{4}-\d{2}-\d{2})',                         # YYYY-MM-DD (before MM-DD to avoid partial match)
+    r'([A-Za-z]{3,})\s+(\d{1,2}),?\s+(\d{4})',     # Month DD, YYYY / Month DD YYYY
+    r'(\d{1,2}/\d{1,2}/\d{2,4})',                  # MM/DD/YY or MM/DD/YYYY
+    r'(\d{1,2}-\d{1,2}-\d{2,4})',                  # MM-DD-YY or MM-DD-YYYY
+]
+
+_RE_HELENA_FMT1 = re.compile(
+    r'^(\d{1,2}:\d{2}\s+[AP]M)\s+\S\s+(.+)$',
+    re.IGNORECASE | re.MULTILINE)
+
+_RE_HELENA_FMT2 = re.compile(
+    r'^(\d{4})\s+hours?,\s+(.+?)(?=^\d{4}\s+hours?|$)',
+    re.IGNORECASE | re.MULTILINE | re.DOTALL)
+
 
 def normalize_date(date_str: str) -> str | None:
     """
@@ -125,7 +140,7 @@ class BlotterParser:
                     full_text += text + "\n"
 
         if not full_text.strip():
-            # No embedded text — try OCR with EasyOCR (much faster than tesseract on this host).
+            # No embedded text — try OCR with EasyOCR (prefer GPU when available).
             try:
                 from pdf2image import convert_from_path
                 import easyocr
@@ -133,7 +148,14 @@ class BlotterParser:
 
                 # Lazy-load the model once per process
                 if not hasattr(BlotterParser, '_easyocr_reader'):
-                    BlotterParser._easyocr_reader = easyocr.Reader(['en'], gpu=False)
+                    try:
+                        import torch
+                        gpu = torch.cuda.is_available()
+                    except Exception:
+                        gpu = False
+                    BlotterParser._easyocr_reader = easyocr.Reader(
+                        ['en'], gpu=gpu
+                    )
                 reader = BlotterParser._easyocr_reader
 
                 pages = convert_from_path(self.pdf_path, dpi=150)
@@ -151,9 +173,14 @@ class BlotterParser:
                         for k in sorted(lines.keys())
                     )
                     full_text += page_text + '\n'
+            except FileNotFoundError as e:
+                raise RuntimeError(
+                    f"OCR prerequisites not installed for {self.pdf_path}: {e}"
+                )
             except Exception as e:
-                import logging
-                logging.warning(f"OCR failed for {self.pdf_path}: {e}")
+                raise RuntimeError(
+                    f"OCR failed for {self.pdf_path}: {type(e).__name__}: {e}"
+                )
 
         return full_text
 
@@ -205,6 +232,29 @@ class BlotterParser:
             return "Flathead"
         return None
 
+    # Words that should never be treated as county names, even if they appear
+    # immediately before "County" in free-form text (e.g. "docx county" from
+    # "filename=...docx county=Hill" in system notification emails).
+    _COUNTY_CANDIDATE_BLACKLIST = frozenset({
+        'docx', 'doc', 'pdf', 'xlsx', 'xls', 'csv', 'json', 'xml', 'html', 'zip',
+        'jpg', 'jpeg', 'png', 'gif', 'txt', 'rtf', 'mp3', 'mp4', 'avi', 'mov',
+    })
+
+    def _is_valid_county_candidate(self, candidate: str) -> bool:
+        """Return True if *candidate* looks like a real county name token."""
+        if not candidate:
+            return False
+        lower = candidate.lower()
+        if lower in self._COUNTY_CANDIDATE_BLACKLIST:
+            return False
+        # Reject pure numeric matches (e.g. "37" from "CFS 37-XXXX")
+        if candidate.isdigit():
+            return False
+        # Reject single-character candidates
+        if len(candidate) <= 1:
+            return False
+        return True
+
     def _detect_county(self, text: str) -> str:
         """Extract county name from PDF header"""
         # Helena Police Department is in Lewis and Clark County
@@ -231,6 +281,7 @@ class BlotterParser:
         county_patterns = [
             r"(\w+)\s+County\s+Sheriff",
             r"GCSO",  # Gallatin County Sheriff's Office
+            r"(?:county|county_name)\s*[=:]\s*(\w+)",  # metadata like county=Hill
             r"(\w+)\s+County",
         ]
 
@@ -240,8 +291,7 @@ class BlotterParser:
                 if pattern == r"GCSO":
                     return "Gallatin"
                 candidate = match.group(1)
-                # Reject pure numeric matches (e.g. "37" from "CFS 37-XXXX")
-                if candidate and not candidate.isdigit():
+                if self._is_valid_county_candidate(candidate):
                     return candidate
 
         # Filename-based fallback for PDFs where county isn't in the text body
@@ -254,10 +304,6 @@ class BlotterParser:
     def _parse_gcso_format(self, text: str) -> List[Dict]:
         """Parse GCSO-specific format with CFS numbers and command logs"""
         incidents = []
-        
-        # Pattern to find incident blocks
-        # GCSO format: MM/DD/YY HH:MM:SS CFS26-XXXXXX LOCATION CODE
-        # Pattern to find incident blocks
         # GCSO format: MM/DD/YY HH:MM:SS CFS26-XXXXXX LOCATION CODE
         # Accepts both 2-digit and 4-digit year dates
         incident_pattern = r'(\d{2}/\d{2}/\d{2,4}\s+\d{2}:\d{2}:\d{2})\s+(CFS\d{2}-\d+)\s+(.+?)\s+(\w+(?:\s+\w+)?)\s*$'
@@ -343,49 +389,11 @@ class BlotterParser:
         incidents = []
 
         # Extract date from email body using unified normalizer
-        date_str = None
-
-        # Try to find any date pattern in the text
-        all_date_patterns = [
-            r'\b(\d{2}/\d{2}/\d{2,4})\b',
-            r'\b(\d{2}-\d{2}-\d{2,4})\b',
-            r'\b(\d{4}-\d{2}-\d{2})\b',
-            r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b',
-            r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(\d{4})\b',
-        ]
-
-        for pattern in all_date_patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                # Group 1 = date string OR month name
-                if len(match.groups()) == 1:
-                    # Simple date string
-                    date_str = normalize_date(match.group(1))
-                else:
-                    # Month name format - build date string
-                    if match.group(1)[0].isdigit():
-                        # Numeric month format
-                        date_str = normalize_date(match.group(1))
-                    else:
-                        # Month name format
-                        try:
-                            month_str = match.group(1)
-                            day = match.group(2)
-                            year = match.group(3)
-                            # Try long month format first
-                            date_str = normalize_date(f"{month_str} {day}, {year}")
-                            if not date_str:
-                                date_str = normalize_date(f"{month_str} {day} {year}")
-                        except (ValueError, IndexError):
-                            pass
-                if date_str:
-                    break
+        date_str = self._extract_date(text)
 
         # Format 1: "8:20 AM – Description"
         # The dash separator may be en-dash, em-dash, or a replacement char
-        fmt1 = re.compile(
-            r'^(\d{1,2}:\d{2}\s+[AP]M)\s+\S\s+(.+)$',
-            re.IGNORECASE | re.MULTILINE)
+        fmt1 = _RE_HELENA_FMT1
         for m in fmt1.finditer(text):
             time_val = m.group(1).strip()
             description = m.group(2).strip()
@@ -402,8 +410,7 @@ class BlotterParser:
 
         # Format 2: "1008 hours, an Officer responded to..."  (military time bullets)
         if not incidents:
-            fmt2 = re.compile(r'^(\d{4})\s+hours?,\s+(.+?)(?=^\d{4}\s+hours?|$)',
-                              re.IGNORECASE | re.MULTILINE | re.DOTALL)
+            fmt2 = _RE_HELENA_FMT2
             for m in fmt2.finditer(text):
                 raw_time = m.group(1)
                 description = re.sub(r'\s+', ' ', m.group(2)).strip()
@@ -427,15 +434,40 @@ class BlotterParser:
         return incidents
 
     @staticmethod
+    def _extract_date(text: str) -> Optional[str]:
+        for pattern in _DATE_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if not match:
+                continue
+            if len(match.groups()) == 1:
+                return normalize_date(match.group(1))
+            if match.group(1)[0].isdigit():
+                return normalize_date(match.group(1))
+            try:
+                month_str = match.group(1)
+                day = match.group(2)
+                year = match.group(3)
+                date_str = normalize_date(f"{month_str} {day}, {year}")
+                if date_str:
+                    return date_str
+                return normalize_date(f"{month_str} {day} {year}")
+            except (ValueError, IndexError):
+                pass
+        return None
+
+    @staticmethod
     def _extract_hpd_location(description: str) -> str:
         """Pull 'XXXX block of Street' from HPD incident description."""
         m = re.search(
-            r'(?:near|to|at|around)\s+(?:the\s+)?(\d+\s+block\s+of\s+[\w\s]+?'
+            r'(?:near|to|at|around)\s+(?:the\s+)?'
+            r'(\d+\s+block\s+of\s+[\w\s]+?'
             r'(?:St|Ave|Blvd|Dr|Rd|Ln|Way|Circle|Gulch|Ct|Pl|Hwy|Highway)\.?)',
-            description, re.IGNORECASE)
+            description,
+            re.IGNORECASE,
+        )
         if m:
-            return m.group(1).strip()
-        return "Helena, MT"
+            return ' '.join(m.group(1).split())
+        return 'Helena, MT'
 
     @staticmethod
     def _classify_hpd_incident(description: str) -> str:
