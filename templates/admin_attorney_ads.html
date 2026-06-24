@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Attorney Ads — Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <h1>Attorney Directory &amp; Sponsorships</h1>
+
+  <div style="display:flex;gap:1.5rem;margin-bottom:2rem;flex-wrap:wrap;">
+    <div style="background:#f8fafc;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#0f172a;">{{ stats.total }}</div>
+      <div style="color:#64748b;font-size:.85rem;">Total Listings</div>
+    </div>
+    <div style="background:#f8fafc;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#0f172a;">{{ stats.active }}</div>
+      <div style="color:#64748b;font-size:.85rem;">Active</div>
+    </div>
+    <div style="background:#f8fafc;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#0f172a;">{{ stats.sponsored }}</div>
+      <div style="color:#64748b;font-size:.85rem;">Sponsored</div>
+    </div>
+    <div style="background:#f8fafc;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#0f172a;">{{ stats.counties }}</div>
+      <div style="color:#64748b;font-size:.85rem;">Counties</div>
+    </div>
+    <div style="background:#fefce8;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#a16207;">{{ pending_claims }}</div>
+      <div style="color:#854d0e;font-size:.85rem;">Pending Claims</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
+    <a href="{{ url_for('admin.admin_attorney_ads_listing_new') }}" class="btn btn-primary" style="padding:.5rem 1rem;background:#0f172a;color:#fff;border-radius:4px;text-decoration:none;">+ New Listing</a>
+    <form method="POST" action="{{ url_for('admin.admin_attorney_ads_import_csv') }}" enctype="multipart/form-data" style="display:flex;gap:.5rem;align-items:center;">
+      <input type="file" name="csv_file" accept=".csv" required style="font-size:.85rem;">
+      <button type="submit" class="btn btn-secondary" style="padding:.5rem 1rem;background:#64748b;color:#fff;border:none;border-radius:4px;cursor:pointer;">Import CSV</button>
+    </form>
+  </div>
+
+  <form method="GET" style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search name, firm, county..." style="padding:.5rem .75rem;border:1px solid #ccc;border-radius:4px;flex:1;min-width:200px;">
+    <select name="county" style="padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      <option value="">All counties</option>
+      {% for c in counties %}
+      <option value="{{ c.county_slug }}" {% if county_filter == c.county_slug %}selected{% endif %}>{{ c.county_name }}</option>
+      {% endfor %}
+    </select>
+    <select name="status" style="padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      <option value="" {% if not status_filter %}selected{% endif %}>All listings</option>
+      <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+      <option value="sponsored" {% if status_filter == 'sponsored' %}selected{% endif %}>Sponsored</option>
+    </select>
+    <button type="submit" style="padding:.5rem 1rem;background:#0f172a;color:#fff;border:none;border-radius:4px;cursor:pointer;">Filter</button>
+    {% if q or county_filter or status_filter %}
+    <a href="{{ url_for('admin.admin_attorney_ads') }}" style="padding:.5rem 1rem;color:#64748b;text-decoration:underline;">Clear</a>
+    {% endif %}
+  </form>
+
+  <h2 style="margin-top:2rem;">Directory Listings</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-bottom:2rem;">
+    <thead>
+      <tr style="border-bottom:2px solid #ddd;text-align:left;">
+        <th style="padding:.5rem;">Name / Firm</th>
+        <th>County</th>
+        <th>Tier</th>
+        <th>Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in listings %}
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:.6rem .5rem;">
+          <strong>{{ a.name }}</strong><br>
+          <small style="color:#64748b;">{{ a.firm or '—' }}</small>
+        </td>
+        <td>{{ a.county }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('admin.admin_attorney_ads_listing_tier', listing_id=a.id) }}" style="display:inline;">
+            <select name="sponsor_tier" onchange="this.form.submit()" style="font-size:.85rem;padding:.2rem;">
+              {% for tier_id, tier_label in tier_choices.items() %}
+              <option value="{{ tier_id }}" {% if a.sponsor_tier == tier_id or (not a.sponsor_tier and not tier_id) %}selected{% endif %}>{{ tier_label }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+        <td>
+          <form method="POST" action="{{ url_for('admin.admin_attorney_ads_listing_status', listing_id=a.id) }}" style="display:inline;">
+            <input type="checkbox" name="is_active" value="1" {% if a.is_active %}checked{% endif %} onchange="this.form.submit()">
+          </form>
+        </td>
+        <td>
+          <a href="{{ url_for('admin.admin_attorney_ads_listing_edit', listing_id=a.id) }}" style="color:#0f172a;font-size:.85rem;margin-right:.75rem;">Edit</a>
+          <form method="POST" action="{{ url_for('admin.admin_attorney_ads_listing_delete', listing_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete this listing?');">
+            <button type="submit" style="background:none;border:none;color:#dc2626;font-size:.85rem;cursor:pointer;padding:0;">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="padding:2rem;text-align:center;color:#64748b;">No listings found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:2rem;">Sponsorship Claims</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+    <thead>
+      <tr style="border-bottom:2px solid #ddd;text-align:left;">
+        <th style="padding:.5rem;">Firm / Contact</th>
+        <th>Counties</th>
+        <th>Tier</th>
+        <th>Status</th>
+        <th>Submitted</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for claim in claims %}
+      <tr style="border-bottom:1px solid #eee;">
+        <td style="padding:.6rem .5rem;">
+          <strong>{{ claim.firm_name }}</strong><br>
+          <small style="color:#64748b;">{{ claim.contact_name }} · {{ claim.contact_email }}</small>
+        </td>
+        <td>{{ claim.counties_served }}</td>
+        <td>{{ claim.tier_requested|capitalize }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('admin.admin_attorney_ads_claim_status', claim_id=claim.id) }}" style="display:inline;">
+            <select name="status" onchange="this.form.submit()" style="font-size:.85rem;padding:.2rem;">
+              {% for s in ['pending', 'approved', 'rejected'] %}
+              <option value="{{ s }}" {% if claim.status == s %}selected{% endif %}>{{ s|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </td>
+        <td style="font-size:.85rem;color:#64748b;">{{ claim.created_at[:10] if claim.created_at else '—' }}</td>
+        <td>
+          {% if claim.status == 'pending' %}
+          <form method="POST" action="{{ url_for('admin.admin_attorney_ads_claim_status', claim_id=claim.id) }}" style="display:inline;">
+            <input type="hidden" name="status" value="approved">
+            <button type="submit" style="background:none;border:none;color:#16a34a;font-size:.85rem;cursor:pointer;padding:0;margin-right:.5rem;">Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.admin_attorney_ads_claim_status', claim_id=claim.id) }}" style="display:inline;">
+            <input type="hidden" name="status" value="rejected">
+            <button type="submit" style="background:none;border:none;color:#dc2626;font-size:.85rem;cursor:pointer;padding:0;">Reject</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="padding:2rem;text-align:center;color:#64748b;">No claims found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
