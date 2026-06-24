@@ -55,6 +55,8 @@ def _slugify(text: str) -> str:
 
 
 def _anthropic_client():
+    if not getattr(config, "USE_PAID_LLM", False):
+        return None
     try:
         import anthropic
         api_key = getattr(config, "ANTHROPIC_API_KEY", None)

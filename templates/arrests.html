@@ -63,7 +63,7 @@
 
 {% block content %}
 <div class="public-route-layout public-route-layout--wide">
-    <aside class="public-sidebar-stack lg:sticky top-24">
+    <aside class="public-sidebar-stack lg:sticky top-24 hidden lg:block">
         <div class="public-form-card">
             <div class="public-form-card__body">
                 <h3 class="public-card__eyebrow mb-3">Filter</h3>
@@ -109,9 +109,51 @@
             </div>
         </div>
         {% endif %}
+
+        {% include "includes/attorney_referral.html" %}
     </aside>
 
+    <dialog id="arrest-filter-drawer" class="public-mobile-drawer">
+        <div class="public-mobile-drawer__header">
+            <span class="public-mobile-drawer__label">Filter arrests</span>
+            <button onclick="document.getElementById('arrest-filter-drawer').close()" class="public-mobile-drawer__close" aria-label="Close filters">&#x2715;</button>
+        </div>
+        <div class="public-mobile-drawer__body">
+            <form method="GET" action="/arrests" class="space-y-3" id="arrest-filter-form-mobile">
+                <div>
+                    <label class="public-form-label">Search</label>
+                    <input type="text" name="q" value="{{ q }}"
+                           placeholder="name, location..."
+                           class="public-form-input" id="arrest-search-input-mobile">
+                </div>
+                <div>
+                    <label class="public-form-label">County</label>
+                    <select name="county" class="public-form-select" id="arrest-county-select-mobile">
+                        <option value="">All Counties</option>
+                        {% for c in counties %}
+                        <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="submit" class="public-btn public-btn--primary flex-1">Filter</button>
+                    {% if county or q %}
+                    <a href="/arrests" class="public-btn public-btn--secondary inline-flex items-center justify-center" title="Clear filters">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="10" y2="10"/><line x1="10" y1="4" x2="4" y2="10"/></svg>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </dialog>
+
     <div class="public-main-stack">
+        <div class="lg:hidden mb-4">
+            <button type="button" onclick="document.getElementById('arrest-filter-drawer').showModal()" class="public-btn public-btn--secondary w-full">
+                <i class="fas fa-sliders-h mr-2"></i> Filters
+            </button>
+        </div>
+
         {% if county or q %}
         <div class="flex flex-wrap items-center gap-2 text-xs mb-4">
             <span class="text-slate-500 font-semibold">Filtered by:</span>
@@ -204,26 +246,29 @@
 {% block extra_scripts %}
 <script>
 (function() {
-    var form = document.getElementById('arrest-filter-form');
-    var countySelect = document.getElementById('arrest-county-select');
-    var searchInput = document.getElementById('arrest-search-input');
+    function wireForm(formId, countyId, searchId) {
+        var form = document.getElementById(formId);
+        var countySelect = document.getElementById(countyId);
+        var searchInput = document.getElementById(searchId);
 
-    // Auto-submit when county changes (desktop UX)
-    if (countySelect && form) {
-        countySelect.addEventListener('change', function() {
-            form.submit();
-        });
-    }
-
-    // Clear search on Escape
-    if (searchInput && form) {
-        searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                searchInput.value = '';
+        if (countySelect && form) {
+            countySelect.addEventListener('change', function() {
                 form.submit();
-            }
-        });
+            });
+        }
+
+        if (searchInput && form) {
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    searchInput.value = '';
+                    form.submit();
+                }
+            });
+        }
     }
+
+    wireForm('arrest-filter-form', 'arrest-county-select', 'arrest-search-input');
+    wireForm('arrest-filter-form-mobile', 'arrest-county-select-mobile', 'arrest-search-input-mobile');
 })();
 </script>
 {% endblock %}

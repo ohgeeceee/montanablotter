@@ -495,6 +495,8 @@ def execute_pending_admin_ai_action(
 
 
 def create_claude_client():
+    if not getattr(config, "USE_PAID_LLM", False):
+        raise RuntimeError("Paid LLM disabled via MB_USE_PAID_LLM.")
     import anthropic
     api_key = getattr(config, "ANTHROPIC_API_KEY", None) or os.getenv("ANTHROPIC_API_KEY", "").strip()
     if not api_key:

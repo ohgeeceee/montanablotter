@@ -77,6 +77,7 @@ class IngestionSourceTests(unittest.TestCase):
                 source_record_id TEXT,
                 hash_id TEXT,
                 raw_json TEXT,
+                name_slug TEXT,
                 booking_status TEXT,
                 is_current INTEGER,
                 release_at TEXT,
@@ -142,6 +143,7 @@ class IngestionSourceTests(unittest.TestCase):
                 source_record_id TEXT,
                 hash_id TEXT,
                 raw_json TEXT,
+                name_slug TEXT,
                 booking_status TEXT,
                 is_current INTEGER,
                 release_at TEXT,
@@ -367,8 +369,12 @@ class IngestionSourceTests(unittest.TestCase):
             url = yellowstone_fetcher.discover_roster_url("https://www.yellowstonecountymt.gov/sheriff/")
             self.assertEqual(url, "https://www.yellowstonecountymt.gov/Sheriff/Detention/dcsearch.asp")
 
+    @mock.patch(
+        "services.ingestion.fetchers.yellowstone_inmate._should_fetch_yellowstone_charge_detail",
+        return_value=True,
+    )
     @mock.patch("services.ingestion.fetchers.yellowstone_inmate.requests.Session")
-    def test_fetch_yellowstone_bookings_end_to_end(self, session_cls) -> None:
+    def test_fetch_yellowstone_bookings_end_to_end(self, session_cls, _mock_should_fetch) -> None:
         prompt_page = mock.Mock(
             raise_for_status=mock.Mock(),
             text='<label for="Answer">5 + 2 = </label>',
@@ -840,6 +846,11 @@ class IngestionSourceTests(unittest.TestCase):
         self.assertEqual(fetched, 1)
         self.assertEqual(normalized, 1)
         ensure_source_document.assert_not_called()
+
+    def test_extract_cascade_pdf_url_prefers_sharepoint_b_link(self) -> None:
+        html = '<p><a href="https://ccmtgov-my.sharepoint.com/:b:/g/personal/jailroster_cascadecountymt_gov/EbIMNOlpS-pNj2V6jtlc11YBzi2NN7EmcmLK4hRFY4pTGw?e=NvKMHS">Current Inmate Roster</a></p>'
+        url = jail_booking_ingest._extract_cascade_pdf_url(html)
+        self.assertEqual(url, "https://ccmtgov-my.sharepoint.com/:b:/g/personal/jailroster_cascadecountymt_gov/EbIMNOlpS-pNj2V6jtlc11YBzi2NN7EmcmLK4hRFY4pTGw?e=NvKMHS")
 
     def test_extract_cascade_pdf_url_finds_direct_link(self) -> None:
         html = '<a href="https://ccmtgov-my.sharepoint.com/personal/test/jailroster.pdf?e=abcd">Roster</a>'

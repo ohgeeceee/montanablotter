@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import base64
+import hmac
+import json
+import os
 import secrets
 from datetime import datetime, timedelta
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import flash, make_response, redirect, render_template, request, session, url_for
 from flask_bcrypt import check_password_hash
 from flask_login import current_user, login_required, login_user, logout_user
 
@@ -12,6 +16,73 @@ from db import get_db
 from utils.app_settings import _app_setting_int
 from utils.auth_constants import ADMIN_ACCESS_ROLES, ADMIN_MANAGEMENT_ROLES, ROLE_LABELS
 from blueprints.admin import admin_bp, _client_ip, _log_admin_action, require_role
+
+
+# ---------------------------------------------------------------------------
+# Shared ops-session helpers (used by Blotter Host and Claw3D Office)
+# ---------------------------------------------------------------------------
+
+OPS_SESSION_COOKIE = 'blotter_ops_session'
+STUDIO_ACCESS_COOKIE = 'studio_access'
+OPS_SESSION_TTL_SECONDS = 60 * 60 * 8
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
+
+
+def _b64url_decode(value: str) -> bytes:
+    padding = 4 - len(value) % 4
+    if padding != 4:
+        value += '=' * padding
+    return base64.urlsafe_b64decode(value.encode('ascii'))
+
+
+def _sign_jwt(payload: dict, secret: str) -> str:
+    header = _b64url_encode(json.dumps({'alg': 'HS256', 'typ': 'JWT'}, separators=(',', ':')).encode('utf-8'))
+    body = _b64url_encode(json.dumps(payload, separators=(',', ':')).encode('utf-8'))
+    sig = _b64url_encode(hmac.new(secret.encode('utf-8'), f'{header}.{body}'.encode('utf-8'), 'sha256').digest())
+    return f'{header}.{body}.{sig}'
+
+
+def _make_ops_session_payload(username: str, role: str, now_seconds: int | None = None) -> dict:
+    if now_seconds is None:
+        now_seconds = int(datetime.utcnow().timestamp())
+    return {
+        'sub': username,
+        'role': role,
+        'iat': now_seconds,
+        'exp': now_seconds + OPS_SESSION_TTL_SECONDS,
+    }
+
+
+def _shared_cookie_flags(max_age: int = OPS_SESSION_TTL_SECONDS) -> dict:
+    flags = {
+        'max_age': max_age,
+        'path': '/',
+        'httponly': True,
+        'samesite': 'Strict',
+    }
+    if os.environ.get('FLASK_ENV') == 'production' or config.IS_PRODUCTION:
+        flags['secure'] = True
+    return flags
+
+
+def _set_shared_admin_cookies(response, username: str, role: str) -> None:
+    ops_secret = os.environ.get('OPS_SESSION_SECRET')
+    studio_token = os.environ.get('STUDIO_ACCESS_TOKEN')
+    if ops_secret:
+        payload = _make_ops_session_payload(username, role)
+        token = _sign_jwt(payload, ops_secret)
+        response.set_cookie(OPS_SESSION_COOKIE, token, domain='montanablotter.com', **_shared_cookie_flags())
+    if studio_token:
+        response.set_cookie(STUDIO_ACCESS_COOKIE, studio_token, domain='montanablotter.com', **_shared_cookie_flags())
+
+
+def _clear_shared_admin_cookies(response) -> None:
+    for name in (OPS_SESSION_COOKIE, STUDIO_ACCESS_COOKIE):
+        response.set_cookie(name, '', domain='montanablotter.com', max_age=0, path='/', httponly=True, samesite='Strict')
+        response.set_cookie(name, '', max_age=0, path='/', httponly=True, samesite='Strict')
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +229,9 @@ def admin_login():
             session['_csrf_token'] = secrets.token_urlsafe(32)
             from app import User
             login_user(User.from_row(user_row))
-            return redirect(url_for('admin.admin_dashboard'))
+            response = make_response(redirect(url_for('admin.admin_hub')))
+            _set_shared_admin_cookies(response, user_row['username'], user_row['role'])
+            return response
 
         conn.close()
         if password_valid and not is_active_account:
@@ -169,6 +242,12 @@ def admin_login():
             flash('Invalid credentials')
 
     return render_template('admin_login.html')
+
+
+@admin_bp.route('/panel')
+def admin_panel_redirect():
+    """Legacy /admin/panel redirect to the 3D operator console."""
+    return redirect('/admin/office/')
 
 
 @admin_bp.route('/logout')
@@ -182,7 +261,9 @@ def admin_logout():
     )
     logout_user()
     session.clear()
-    return redirect(url_for('index'))
+    response = make_response(redirect(url_for('index')))
+    _clear_shared_admin_cookies(response)
+    return response
 
 
 @admin_bp.route('/security/users')

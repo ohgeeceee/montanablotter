@@ -306,6 +306,17 @@ class TestCountyDetection(unittest.TestCase):
         county = parser._detect_county(text)
         self.assertEqual(county, "Gallatin")
 
+    def test_docx_not_county(self):
+        """File extensions like docx must not be detected as counties."""
+        text = "hill_county_inmate_roster.docx\ncounty=Hill"
+        parser = BlotterParser.__new__(BlotterParser)
+        parser.pdf_path = None
+        parser.county = None
+        parser.incidents = []
+        parser.parser_slug = "generic"
+        county = parser._detect_county(text)
+        self.assertEqual(county, "Hill")
+
 
 class TestEdgeCases(unittest.TestCase):
     """Test edge cases and error handling."""

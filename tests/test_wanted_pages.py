@@ -10,6 +10,8 @@ from services.ingestion.warrants.scraper import resolve_stale_warrants, upsert_w
 from services.ingestion.warrants.models import WarrantRecord
 from services.persons.warrants_public import (
     warrant_city_context,
+    warrant_homepage_context,
+    warrant_public_context,
     warrant_slug,
 )
 
@@ -33,20 +35,26 @@ class WantedPagesTestCase(unittest.TestCase):
         self._original_get_db = app.view_functions["wanted_index"].__globals__["get_db"]
         app.view_functions["wanted_index"].__globals__["get_db"] = lambda: self.conn
         app.view_functions["wanted_detail"].__globals__["get_db"] = lambda: self.conn
-        # Bypass the warrant paywall: the test exercises the public detail
-        # page, not the gating logic (covered separately in test_paywall.py).
-        self._original_paywall = app.view_functions["wanted_detail"].__globals__.get(
+        # Reset the paywall function to the real implementation in case another
+        # test file left it patched.
+        from services.monetization.paywall import user_has_warrant_access as real_user_has_warrant_access
+
+        app.view_functions["wanted_index"].__globals__[
             "user_has_warrant_access"
-        )
-        app.view_functions["wanted_detail"].__globals__["user_has_warrant_access"] = lambda: True
+        ] = real_user_has_warrant_access
+        app.view_functions["wanted_detail"].__globals__[
+            "user_has_warrant_access"
+        ] = real_user_has_warrant_access
         # The detail route also calls _pick_attorneys_for_county which uses
         # the production DB — mock it to return an empty list so the test
-        # doesn't depend on attorney_referrals seed data.
-        from unittest.mock import patch
-        self._attorneys_patch = patch(
-            "app._pick_attorneys_for_county", return_value=[]
-        )
-        self._attorneys_patch.start()
+        # doesn't depend on attorney_referrals seed data. Patch the route's
+        # own globals to survive tests that reimport the app module.
+        self._original_pick_attorneys = app.view_functions[
+            "wanted_detail"
+        ].__globals__.get("_pick_attorneys_for_county")
+        app.view_functions["wanted_detail"].__globals__[
+            "_pick_attorneys_for_county"
+        ] = lambda *args, **kwargs: []
 
     def _insert_warrant(self, **kwargs):
         defaults = {
@@ -98,13 +106,56 @@ class WantedPagesTestCase(unittest.TestCase):
         self.conn.commit()
 
     def tearDown(self):
-        self._attorneys_patch.stop()
         app.view_functions["wanted_index"].__globals__["get_db"] = self._original_get_db
         app.view_functions["wanted_detail"].__globals__["get_db"] = self._original_get_db
+        if self._original_pick_attorneys is None:
+            app.view_functions["wanted_detail"].__globals__.pop(
+                "_pick_attorneys_for_county", None
+            )
+        else:
+            app.view_functions["wanted_detail"].__globals__[
+                "_pick_attorneys_for_county"
+            ] = self._original_pick_attorneys
         self.conn.close()
 
-    def test_wanted_index_renders_record(self):
+    def _with_warrant_access(self):
+        """Context manager that grants warrant access for the current request.
+
+        Patches the function object stored in the route handler globals so the
+        patch survives tests that reimport the app module.
+        """
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _grant():
+            targets = [
+                app.view_functions["wanted_index"].__globals__,
+                app.view_functions["wanted_detail"].__globals__,
+            ]
+            originals = []
+            for target in targets:
+                original = target.get("user_has_warrant_access")
+                originals.append((target, original))
+                target["user_has_warrant_access"] = lambda: True
+            try:
+                yield
+            finally:
+                for target, original in originals:
+                    if original is None:
+                        target.pop("user_has_warrant_access", None)
+                    else:
+                        target["user_has_warrant_access"] = original
+
+        return _grant()
+
+    def test_wanted_index_redirects_without_access(self):
         resp = self.client.get("/wanted?q=Jane")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/wanted/subscribe", resp.headers.get("Location", ""))
+
+    def test_wanted_index_renders_record_with_access(self):
+        with self._with_warrant_access():
+            resp = self.client.get("/wanted?q=Jane")
         self.assertEqual(resp.status_code, 200)
         body = resp.get_data(as_text=True)
         self.assertIn("Jane Doe", body)
@@ -116,26 +167,24 @@ class WantedPagesTestCase(unittest.TestCase):
             ("https://example.com/mugshot.jpg", "test-warrant:jane-doe"),
         )
         self.conn.commit()
-        resp = self.client.get("/wanted?q=Jane")
+        with self._with_warrant_access():
+            resp = self.client.get("/wanted?q=Jane")
         body = resp.get_data(as_text=True)
         self.assertIn("wanted-poster-card__photo", body)
         self.assertIn("https://example.com/mugshot.jpg", body)
         self.assertNotIn("No photo", body)
 
-    def test_wanted_index_paywall_card_labels_paid_trial(self):
-        from unittest.mock import patch
 
-        with patch("app.user_has_warrant_access", return_value=False):
-            resp = self.client.get("/wanted")
-        body = resp.get_data(as_text=True)
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn("Start the paid warrant trial", body)
-        self.assertIn("Start Paid Warrant Trial", body)
-        self.assertIn("Paid access to the warrant database", body)
+    def test_wanted_detail_redirects_without_access(self):
+        slug = warrant_slug("test-warrant:jane-doe")
+        resp = self.client.get(f"/wanted/{slug}")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/wanted/subscribe", resp.headers.get("Location", ""))
 
     def test_wanted_detail_renders_record(self):
         slug = warrant_slug("test-warrant:jane-doe")
-        resp = self.client.get(f"/wanted/{slug}")
+        with self._with_warrant_access():
+            resp = self.client.get(f"/wanted/{slug}")
         self.assertEqual(resp.status_code, 200)
         body = resp.get_data(as_text=True)
         self.assertIn("Jane Doe", body)
@@ -156,7 +205,8 @@ class WantedPagesTestCase(unittest.TestCase):
         )
         self.conn.commit()
         slug = warrant_slug("test-warrant:jane-doe")
-        resp = self.client.get(f"/wanted/{slug}")
+        with self._with_warrant_access():
+            resp = self.client.get(f"/wanted/{slug}")
         body = resp.get_data(as_text=True)
         self.assertIn("https://example.com/staff.jpg", body)
         self.assertIn("Staff-approved photo", body)
@@ -171,7 +221,8 @@ class WantedPagesTestCase(unittest.TestCase):
             (self.run_ts, "test-warrant:jane-doe"),
         )
         self.conn.commit()
-        resp = self.client.get("/wanted?status=all")
+        with self._with_warrant_access():
+            resp = self.client.get("/wanted?status=all")
         body = resp.get_data(as_text=True)
         self.assertIn("RESOLVED", body)
         self.assertIn("wanted-poster-card__stamp", body)
@@ -187,7 +238,8 @@ class WantedPagesTestCase(unittest.TestCase):
         )
         self.conn.commit()
         slug = warrant_slug("test-warrant:jane-doe")
-        resp = self.client.get(f"/wanted/{slug}")
+        with self._with_warrant_access():
+            resp = self.client.get(f"/wanted/{slug}")
         body = resp.get_data(as_text=True)
         self.assertIn("RESOLVED", body)
 
@@ -202,6 +254,30 @@ class WantedPagesTestCase(unittest.TestCase):
         context = warrant_city_context(self.conn, "Billings", "Yellowstone", limit=6)
         names = [row["person_name"] for row in context["rows"]]
         self.assertIn("County Person", names)
+
+    def test_warrant_public_context_hides_rows_without_access(self):
+        context = warrant_public_context(self.conn, has_access=False)
+        self.assertEqual(context["rows"], [])
+        self.assertEqual(context["pagination"]["total"], 1)
+
+    def test_warrant_homepage_context_hides_rows_without_access(self):
+        context = warrant_homepage_context(self.conn, has_access=False)
+        self.assertEqual(context["rows"], [])
+        self.assertEqual(context["active_rows"], [])
+        self.assertEqual(context["resolved_rows"], [])
+
+    def test_warrant_city_context_hides_rows_without_access(self):
+        self._insert_warrant(
+            source_record_id="test-warrant:city-only",
+            person_name="City Person",
+            county="Yellowstone",
+            city="Billings",
+            status="active",
+        )
+        context = warrant_city_context(
+            self.conn, "Billings", "Yellowstone", limit=6, has_access=False
+        )
+        self.assertEqual(context["rows"], [])
 
     def test_resolve_stale_warrants_marks_missing_active_records(self):
         self._insert_warrant(

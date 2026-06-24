@@ -31,6 +31,15 @@
   .badge{font-size:10px;padding:3px 8px;border-radius:999px;background:#0b1322;border:1px solid #223049;color:#9aa8bc}
   .canvas{flex:1;position:relative;min-height:0;border-radius:12px;background:#080d18;border:1px solid #19253b;overflow:hidden}
   canvas{display:block;width:100%;height:100%}
+  .room-link{display:flex;flex-direction:column;gap:8px;min-height:0;height:100%;text-decoration:none;color:inherit;border-radius:18px;transition:transform .12s ease, box-shadow .12s ease}
+  .room-link:hover{box-shadow:0 6px 24px rgba(96,165,250,.18)}
+  .room-link:active{transform:scale(.985)}
+  .room-link:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  .refresh-btn{background:#10172a;border:1px solid #223049;color:var(--ink);font-size:12px;padding:6px 10px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit}
+  .refresh-btn:hover{border-color:#36b5ff}
+  .refresh-btn:active{transform:scale(.96)}
+  .refresh-btn[aria-busy="true"]{opacity:.6;pointer-events:none}
+  .refresh-btn svg{width:12px;height:12px}
   .foot{display:flex;justify-content:space-between;align-items:center;color:#7c8ca0;font-size:10px}
   .foot a{color:#9aa8bc}
   .snack{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);padding:8px 12px;border-radius:12px;background:#0f1626;border:1px solid #223049;color:#e7edf3;font-size:12px;opacity:0;transition:opacity .2s}
@@ -46,7 +55,13 @@
 <main>
   <div class="toolbar">
     <div class="chip"><span id="net-dot" class="dot"></span><span id="net-label">Loading…</span></div>
-    <div class="chip" id="refresh-chip">Refresh in <b id="countdown">10</b>s</div>
+    <button class="refresh-btn" id="refresh-btn" type="button" aria-label="Refresh now">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5"/>
+        <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><path d="M3 21v-5h5"/>
+      </svg>
+      <span>Refresh</span>
+    </button>
     <div class="chip">Agents: <b id="agent-count">0</b></div>
   </div>
 
@@ -61,13 +76,13 @@
 
 <script>
 const AGENTS = {
-  'montanablotter-web': { name:'Montana Blotter', role:'Public Site', emoji:'📰', host:'127.0.0.1', ports:[5000], color:'#f5a623' },
-  'blotter-host':       { name:'Blotter Host', role:'Router', emoji:'🌐', host:'127.0.0.1', ports:[3000], color:'#60a5fa' },
-  'claw3d-office':      { name:'Claw3D Office', role:'3D Studio', emoji:'🧊', host:'127.0.0.1', ports:[3000], color:'#67e8f9' },
-  'openclaw-gateway':   { name:'OpenClaw Gateway', role:'Runtime Hub', emoji:'🧠', host:'127.0.0.1', ports:[18789], color:'#a78bfa' },
-  'agent-events':       { name:'Agent Events', role:'Observability', emoji:'📡', host:'0.0.0.0', ports:[8010], color:'#34d399' },
-  'redis':              { name:'Redis', role:'Queue / Cache', emoji:'🟥', host:'127.0.0.1', ports:[6379], color:'#f87171' },
-  'nginx':              { name:'Nginx', role:'Edge / TLS', emoji:'🟩', host:'127.0.0.1', ports:[80,443], color:'#4ade80' },
+  'montanablotter-web': { name:'Montana Blotter', role:'Public Site', emoji:'📰', host:'127.0.0.1', ports:[5000], color:'#f5a623', link:'/', external:false },
+  'blotter-host':       { name:'Blotter Host', role:'Router', emoji:'🌐', host:'127.0.0.1', ports:[3000], color:'#60a5fa', link:'https://blotter.host', external:true },
+  'claw3d-office':      { name:'Claw3D Office', role:'3D Studio', emoji:'🧊', host:'127.0.0.1', ports:[3000], color:'#67e8f9', link:'/admin/office/3d', external:false },
+  'openclaw-gateway':   { name:'OpenClaw Gateway', role:'Runtime Hub', emoji:'🧠', host:'127.0.0.1', ports:[18789], color:'#a78bfa', link:'/admin/agents', external:false },
+  'agent-events':       { name:'Agent Events', role:'Observability', emoji:'📡', host:'0.0.0.0', ports:[8010], color:'#34d399', link:'/admin/agents?panel=events', external:false },
+  'redis':              { name:'Redis', role:'Queue / Cache', emoji:'🟥', host:'127.0.0.1', ports:[6379], color:'#f87171', link:'/admin/agents?panel=redis', external:false },
+  'nginx':              { name:'Nginx', role:'Edge / TLS', emoji:'🟩', host:'127.0.0.1', ports:[80,443], color:'#4ade80', link:'/admin/command-center', external:false },
 };
 
 const ORDER = ['openclaw-gateway','claw3d-office','montanablotter-web','blotter-host','agent-events','redis','nginx'];
@@ -78,11 +93,13 @@ const agentsLive = new Map();
 
 function roomHtml(id){
   const a = AGENTS[id];
-  return `<article class="room" data-agent="${id}">
-    <div class="room-title"><h2>${a.emoji} ${a.name}</h2><span class="badge">${a.role}</span></div>
+  const target = a.external ? ' target="_blank" rel="noreferrer noopener"' : '';
+  const arrow = a.external ? ' <span aria-hidden="true" style="opacity:.6;font-size:10px">↗</span>' : '';
+  return `<a class="room-link" href="${a.link}"${target} data-agent="${id}">
+    <div class="room-title"><h2>${a.emoji} ${a.name}</h2><span class="badge">${a.role}${arrow}</span></div>
     <div class="canvas"><canvas id="canvas-${id}"></canvas></div>
     <div class="foot"><span class="status">—</span><span class="probe">${a.host}:${a.ports.join(',')}</span></div>
-  </article>`;
+  </a>`;
 }
 ORDER.forEach(id => grid.insertAdjacentHTML('beforeend', roomHtml(id)));
 
@@ -90,7 +107,6 @@ function setStatus(id,ok,detail){
   const el = document.querySelector(`[data-agent="${id}"] .status`);
   if (!el) return;
   el.textContent = detail;
-  const dot = el.closest('.room').querySelector('.room');
 }
 function setGlobalDot(count,total){}
 

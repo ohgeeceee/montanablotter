@@ -227,7 +227,7 @@ class MunicipalImpactProvider(MontanaScraper):
     )
 
     def _wait_for_listing(self, page) -> None:
-        page.wait_for_selector(self.link_selector(), state="attached", timeout=self.default_timeout_ms)
+        page.wait_for_selector(self.link_selector(), state="attached", timeout=self.timeout_ms)
 
     def link_selector(self) -> str:
         return str(self.config.selectors.get("link") or self.DEFAULT_LINK_SELECTOR)
@@ -325,8 +325,8 @@ class PrimeGovProvider(MontanaScraper):
     DEFAULT_ROW_SELECTOR = "table tbody tr"
 
     def _wait_for_listing(self, page) -> None:
-        page.wait_for_load_state("networkidle", timeout=self.default_timeout_ms)
-        page.wait_for_selector(self.DEFAULT_ROW_SELECTOR, state="attached", timeout=self.default_timeout_ms)
+        page.wait_for_load_state("networkidle", timeout=self.timeout_ms)
+        page.wait_for_selector(self.DEFAULT_ROW_SELECTOR, state="attached", timeout=self.timeout_ms)
 
     def extract_meetings(self, page) -> list[MeetingRecord]:
         rows = page.locator(self.DEFAULT_ROW_SELECTOR).all()
@@ -383,7 +383,7 @@ class CivicClerkProvider(MontanaScraper):
     DEFAULT_ALLOWED_KEYWORDS = ("commission", "council")
 
     def _wait_for_listing(self, page) -> None:
-        page.wait_for_load_state("networkidle", timeout=self.default_timeout_ms)
+        page.wait_for_load_state("networkidle", timeout=self.timeout_ms)
         page.wait_for_function(
             """
             selector => {
@@ -396,7 +396,7 @@ class CivicClerkProvider(MontanaScraper):
             }
             """,
             arg=self.DEFAULT_ROW_SELECTOR,
-            timeout=self.default_timeout_ms,
+            timeout=self.timeout_ms,
         )
 
     @classmethod
@@ -513,7 +513,7 @@ class CivicClerkProvider(MontanaScraper):
     def extract_nested_documents(self, context, url: str) -> list[AgendaDocument]:
         page = context.new_page()
         try:
-            page.goto(url, wait_until="networkidle", timeout=self.default_timeout_ms)
+            page.goto(url, wait_until="networkidle", timeout=self.timeout_ms)
             page.wait_for_timeout(1000)
             anchors = page.locator('[data-testid="itemAttachmentLink"]').all()
             documents: list[AgendaDocument] = []

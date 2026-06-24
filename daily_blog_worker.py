@@ -339,6 +339,9 @@ def _parse_json_block(raw_text: str) -> dict[str, str]:
 
 
 def _call_claude(context_payload: dict[str, object]) -> dict[str, str]:
+    if not getattr(config, "USE_PAID_LLM", False):
+        return {}
+
     try:
         import anthropic
     except ImportError:

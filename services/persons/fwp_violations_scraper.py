@@ -128,6 +128,8 @@ _SYSTEM = (
 
 
 def _extract(text: str) -> dict:
+    if not getattr(config, 'USE_PAID_LLM', False):
+        return {}
     api_key = getattr(config, 'ANTHROPIC_API_KEY', None)
     if not api_key:
         return {}

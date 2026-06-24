@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import Response, jsonify, redirect, render_template
+from flask import Response, current_app, jsonify, redirect, render_template, send_from_directory
 import config
 from flask import stream_with_context
 from flask_login import login_required
@@ -342,6 +342,15 @@ def admin_office():
 @admin_bp.route('/office/')
 @login_required
 def admin_office_view():
+    # VPS canvas office — live probes of every service on the box.
+    static_root = current_app.static_folder or 'static'
+    return send_from_directory(static_root, 'office/vps-office.html')
+
+
+@admin_bp.route('/office/3d')
+@login_required
+def admin_office_3d():
+    # Original iframe view: embeds the Claw3D Next.js 3D scene via nginx.
     return render_template('admin_office.html', claw3d_office_url=config.CLAW3D_OFFICE_URL)
 
 

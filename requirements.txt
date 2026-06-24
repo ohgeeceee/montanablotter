@@ -42,6 +42,7 @@ Markdown==3.10.2
 MarkupSafe==3.0.3
 numpy==2.4.4
 openai
+trimesh==4.8.0
 openpyxl==3.1.5
 packaging==26.0
 pandas==3.0.1
@@ -66,6 +67,7 @@ pyparsing==3.3.2
 pypdfium2==5.6.0
 pytesseract==0.3.13
 pytest==9.0.2
+pytest-forked==1.6.0
 python-dateutil==2.9.0.post0
 redis==7.4.0
 requests==2.33.0

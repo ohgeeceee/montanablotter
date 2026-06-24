@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,11 @@ import {
   Linking,
   TextInput,
   StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
-import { JailRoster } from '../types';
+import { JailBooking, JailBookingsResponse, JailRoster } from '../types';
+import { jailApi } from '../services/api';
 import { COLORS } from '../constants';
 
 const JAIL_ROSTERS: JailRoster[] = [
@@ -70,11 +73,57 @@ const JAIL_ROSTERS: JailRoster[] = [
   { name: 'Yellowstone', url: 'https://www.yellowstonecountymt.gov/sheriff/detention/dcsearch.asp', phone: '406-256-2929', hasOnline: true },
 ];
 
+const STATUS_FILTERS: { key: 'current' | 'recent' | 'released' | 'all'; label: string }[] = [
+  { key: 'current', label: 'Current' },
+  { key: 'recent', label: '24h' },
+  { key: 'released', label: 'Released' },
+  { key: 'all', label: 'All' },
+];
+
+type TabKey = 'live' | 'directory';
+
 export default function JailRostersScreen() {
-  const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<TabKey>('live');
+  const [directorySearch, setDirectorySearch] = useState('');
+  const [bookings, setBookings] = useState<JailBooking[]>([]);
+  const [summary, setSummary] = useState<JailBookingsResponse['summary'] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'current' | 'recent' | 'released' | 'all'>('current');
+  const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadBookings = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    setError(null);
+    try {
+      const response = await jailApi.getBookings({
+        status: statusFilter,
+        q: q.trim(),
+      });
+      setBookings(response.bookings);
+      setSummary(response.summary);
+    } catch (err) {
+      setError('Could not load jail bookings. Pull down to retry.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [statusFilter, q]);
+
+  useEffect(() => {
+    if (activeTab === 'live') {
+      loadBookings();
+    }
+  }, [activeTab, statusFilter, q, loadBookings]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadBookings(true);
+  };
 
   const filteredRosters = JAIL_ROSTERS.filter(roster =>
-    roster.name.toLowerCase().includes(search.toLowerCase())
+    roster.name.toLowerCase().includes(directorySearch.toLowerCase())
   );
   const onlineCount = JAIL_ROSTERS.filter((roster) => roster.hasOnline).length;
   const phoneOnlyCount = JAIL_ROSTERS.length - onlineCount;
@@ -86,6 +135,37 @@ export default function JailRostersScreen() {
   const callPhone = (phone: string) => {
     Linking.openURL(`tel:${phone}`).catch(err => console.error('Failed to make call:', err));
   };
+
+  const renderBooking = ({ item }: { item: JailBooking }) => (
+    <View style={styles.bookingCard}>
+      <View style={styles.bookingHeader}>
+        <Text style={styles.bookingName}>{item.person_name || 'Unknown'}</Text>
+        <View style={[styles.badge, item.is_current ? styles.badgeCurrent : styles.badgeReleased]}>
+          <Text style={[styles.badgeText, item.is_current ? styles.badgeTextCurrent : styles.badgeTextReleased]}>
+            {item.booking_status_label || item.booking_status}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.bookingMetaRow}>
+        <Text style={styles.bookingMeta}>{item.county_name} County</Text>
+        {item.age ? <Text style={styles.bookingMeta}>• Age {item.age}</Text> : null}
+        {item.is_new_24h ? <Text style={styles.newBadge}>NEW</Text> : null}
+      </View>
+      {item.charges_summary ? (
+        <Text style={styles.chargesText} numberOfLines={3}>
+          {item.charges_summary}
+        </Text>
+      ) : null}
+      <View style={styles.bookingFooter}>
+        <Text style={styles.bookingTime}>{item.booking_at_label || item.booking_at || ''}</Text>
+        {item.source_url ? (
+          <TouchableOpacity onPress={() => openUrl(item.source_url!)}>
+            <Text style={styles.sourceLink}>Official roster →</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
 
   const renderRoster = ({ item }: { item: JailRoster }) => (
     <View style={styles.card}>
@@ -117,67 +197,150 @@ export default function JailRostersScreen() {
     </View>
   );
 
+  const renderEmptyBookings = () => (
+    <View style={styles.emptyContainer}>
+      {error ? (
+        <Text style={styles.emptyText}>{error}</Text>
+      ) : (
+        <>
+          <Text style={styles.emptyText}>No bookings matched your filters.</Text>
+          <Text style={styles.emptySubtext}>Try a different status or search term.</Text>
+        </>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerEyebrow}>County Directory</Text>
         <Text style={styles.headerTitle}>Montana Jail Rosters</Text>
         <Text style={styles.headerSubtitle}>
-          Links to all 56 county jail rosters and inmate search pages
+          Live bookings and links to all 56 county jail rosters
         </Text>
-        <View style={styles.headerStats}>
-          <View style={styles.headerStatCard}>
-            <Text style={styles.headerStatValue}>{onlineCount}</Text>
-            <Text style={styles.headerStatLabel}>Online</Text>
-          </View>
-          <View style={styles.headerStatCard}>
-            <Text style={styles.headerStatValue}>{phoneOnlyCount}</Text>
-            <Text style={styles.headerStatLabel}>Phone only</Text>
-          </View>
+        <View style={styles.tabRow}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'live' && styles.tabActive]}
+            onPress={() => setActiveTab('live')}
+          >
+            <Text style={[styles.tabText, activeTab === 'live' && styles.tabTextActive]}>Live Bookings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'directory' && styles.tabActive]}
+            onPress={() => setActiveTab('directory')}
+          >
+            <Text style={[styles.tabText, activeTab === 'directory' && styles.tabTextActive]}>Directory</Text>
+          </TouchableOpacity>
         </View>
       </View>
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search county..."
-          value={search}
-          onChangeText={setSearch}
-          placeholderTextColor={COLORS.secondary}
-        />
-        <Text style={styles.resultsText}>
-          Showing {filteredRosters.length} of {JAIL_ROSTERS.length} counties
-        </Text>
-      </View>
-      <FlatList
-        data={filteredRosters}
-        keyExtractor={item => item.name}
-        renderItem={renderRoster}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <View style={styles.stateLinks}>
-            <TouchableOpacity
-              style={styles.stateLinkCard}
-              onPress={() => openUrl('https://offendersearch.mt.gov/conweb/')}
-            >
-              <Text style={styles.stateLinkTitle}>MT DOC Search</Text>
-              <Text style={styles.stateLinkSubtitle}>State offender lookup</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.stateLinkCard}
-              onPress={() => openUrl('https://vinelink.vineapps.com/state/mt')}
-            >
-              <Text style={styles.stateLinkTitle}>VINELink</Text>
-              <Text style={styles.stateLinkSubtitle}>Statewide custody alerts</Text>
-            </TouchableOpacity>
+
+      {activeTab === 'live' ? (
+        <>
+          <View style={styles.liveHeader}>
+            <View style={styles.summaryRow}>
+              {summary ? (
+                <>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryValue}>{summary.current_bookings}</Text>
+                    <Text style={styles.summaryLabel}>Current</Text>
+                  </View>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryValue}>{summary.new_24h}</Text>
+                    <Text style={styles.summaryLabel}>New 24h</Text>
+                  </View>
+                  <View style={styles.summaryItem}>
+                    <Text style={styles.summaryValue}>{summary.tracked_counties}</Text>
+                    <Text style={styles.summaryLabel}>Counties</Text>
+                  </View>
+                </>
+              ) : (
+                <ActivityIndicator color={COLORS.accent} />
+              )}
+            </View>
+            <View style={styles.filterRow}>
+              {STATUS_FILTERS.map((filter) => (
+                <TouchableOpacity
+                  key={filter.key}
+                  style={[styles.filterChip, statusFilter === filter.key && styles.filterChipActive]}
+                  onPress={() => setStatusFilter(filter.key)}
+                >
+                  <Text style={[styles.filterChipText, statusFilter === filter.key && styles.filterChipTextActive]}>
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search name, charges, county..."
+              value={q}
+              onChangeText={setQ}
+              placeholderTextColor={COLORS.secondary}
+              returnKeyType="search"
+            />
           </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No counties matched that search.</Text>
+          {loading && !refreshing ? (
+            <View style={styles.loader}>
+              <ActivityIndicator size="large" color={COLORS.accent} />
+            </View>
+          ) : (
+            <FlatList
+              data={bookings}
+              keyExtractor={item => `booking-${item.id}`}
+              renderItem={renderBooking}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+              ListEmptyComponent={renderEmptyBookings}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search county..."
+              value={directorySearch}
+              onChangeText={setDirectorySearch}
+              placeholderTextColor={COLORS.secondary}
+            />
+            <Text style={styles.resultsText}>
+              Showing {filteredRosters.length} of {JAIL_ROSTERS.length} counties
+            </Text>
           </View>
-        }
-      />
+          <FlatList
+            data={filteredRosters}
+            keyExtractor={item => item.name}
+            renderItem={renderRoster}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              <View style={styles.stateLinks}>
+                <TouchableOpacity
+                  style={styles.stateLinkCard}
+                  onPress={() => openUrl('https://offendersearch.mt.gov/conweb/')}
+                >
+                  <Text style={styles.stateLinkTitle}>MT DOC Search</Text>
+                  <Text style={styles.stateLinkSubtitle}>State offender lookup</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.stateLinkCard}
+                  onPress={() => openUrl('https://vinelink.vineapps.com/state/mt')}
+                >
+                  <Text style={styles.stateLinkTitle}>VINELink</Text>
+                  <Text style={styles.stateLinkSubtitle}>Statewide custody alerts</Text>
+                </TouchableOpacity>
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No counties matched that search.</Text>
+              </View>
+            }
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -210,33 +373,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94a3b8',
     lineHeight: 20,
+    marginBottom: 16,
   },
-  headerStats: {
+  tabRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 16,
   },
-  headerStatCard: {
-    minWidth: 100,
-    borderRadius: 12,
+  tab: {
+    flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
   },
-  headerStatValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORS.card,
-    marginBottom: 2,
+  tabActive: {
+    backgroundColor: COLORS.accent,
   },
-  headerStatLabel: {
-    fontSize: 11,
+  tabText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#cbd5e1',
+  },
+  tabTextActive: {
+    color: COLORS.card,
+  },
+  liveHeader: {
+    padding: 16,
+    backgroundColor: COLORS.card,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 14,
+  },
+  summaryItem: {
+    minWidth: 70,
+  },
+  summaryValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    color: COLORS.secondary,
     textTransform: 'uppercase',
     fontWeight: '700',
     letterSpacing: 0.6,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.secondary,
+  },
+  filterChipTextActive: {
+    color: COLORS.card,
   },
   searchContainer: {
     padding: 16,
@@ -255,6 +465,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 12,
     color: COLORS.secondary,
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   list: {
     padding: 16,
@@ -313,6 +528,12 @@ const styles = StyleSheet.create({
   badgePhone: {
     backgroundColor: '#f1f5f9',
   },
+  badgeCurrent: {
+    backgroundColor: '#dcfce7',
+  },
+  badgeReleased: {
+    backgroundColor: '#f1f5f9',
+  },
   badgeText: {
     fontSize: 11,
     fontWeight: '600',
@@ -321,6 +542,12 @@ const styles = StyleSheet.create({
     color: '#15803d',
   },
   badgeTextPhone: {
+    color: COLORS.secondary,
+  },
+  badgeTextCurrent: {
+    color: '#15803d',
+  },
+  badgeTextReleased: {
     color: COLORS.secondary,
   },
   subtext: {
@@ -366,6 +593,71 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.secondary,
   },
+  bookingCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  bookingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  bookingName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.primary,
+    flex: 1,
+    marginRight: 8,
+  },
+  bookingMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  bookingMeta: {
+    fontSize: 12,
+    color: COLORS.secondary,
+    fontWeight: '600',
+  },
+  newBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#c2410c',
+    backgroundColor: '#ffedd5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  chargesText: {
+    fontSize: 13,
+    color: COLORS.primary,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  bookingFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 10,
+  },
+  bookingTime: {
+    fontSize: 12,
+    color: COLORS.secondary,
+  },
+  sourceLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.accent,
+  },
   emptyContainer: {
     paddingVertical: 40,
     alignItems: 'center',
@@ -373,5 +665,11 @@ const styles = StyleSheet.create({
   emptyText: {
     color: COLORS.secondary,
     fontSize: 14,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    color: COLORS.secondary,
+    fontSize: 12,
+    marginTop: 6,
   },
 });

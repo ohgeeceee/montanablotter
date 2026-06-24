@@ -199,7 +199,7 @@
                 </label>
                 <label class="flex items-start gap-2 text-sm text-slate-700">
                     <input type="checkbox" name="contract_ack" value="yes" class="mt-1" required>
-                    <span>I reviewed the <a href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %} class="font-semibold text-blue-700 underline">Affordable Bail Bonds advertising contract</a> before submitting this inquiry.</span>
+                    <span>I reviewed the <a href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %} class="font-semibold text-blue-700 underline">{{ contract_info.title }}</a> before submitting this inquiry.</span>
                 </label>
 
                 <button type="submit" class="w-full inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black py-3 text-sm uppercase tracking-[0.12em]">
@@ -230,7 +230,7 @@
             <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
                 <h3 class="text-lg font-black text-slate-900">Legal</h3>
                 <p class="text-sm text-slate-600 mt-3">
-                    Review the <a class="underline hover:text-slate-700" href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %}>Affordable Bail Bonds advertising contract</a>,
+                    Review the <a class="underline hover:text-slate-700" href="{{ contract_info.url }}" {% if contract_info.external %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ contract_info.title }}</a>,
                     plus our
                     <a class="underline hover:text-slate-700" href="/terms-of-use">Terms of Use</a>
                     and

@@ -9,6 +9,7 @@ import logging
 import threading
 from typing import Optional
 import config
+from db import timed_db_transaction
 from services.blotter.parser import BlotterParser, parse_text_blotter
 import services.summarizer.engine as summarizer
 import services.blotter.auditor as blotter_auditor
@@ -27,6 +28,12 @@ from core.pipeline_state import (
 DB_PATH = config.DB_PATH
 DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
 DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
+
+# Number of records to insert per transaction in store_parsed_pdf. Smaller
+# batches release the SQLite write lock more often, reducing contention with
+# concurrent jail roster ingests and other writers.
+RECORD_INSERT_BATCH_SIZE = int(getattr(config, "BLOTTER_RECORD_INSERT_BATCH_SIZE", 100))
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
@@ -350,6 +357,27 @@ def _extract_date_from_subject(subject: str) -> Optional[str]:
     return None
 
 
+def _delete_partial_blotter(conn: sqlite3.Connection, blotter_id: int) -> None:
+    """Remove a blotter and all of its records/command_logs.
+
+    Used when batch-inserting a blotter fails partway through so the retry
+    path can re-create it cleanly.
+    """
+    try:
+        conn.execute(
+            "DELETE FROM command_logs WHERE record_id IN (SELECT id FROM records WHERE blotter_id = ?)",
+            (blotter_id,),
+        )
+        conn.execute("DELETE FROM records WHERE blotter_id = ?", (blotter_id,))
+        conn.execute("DELETE FROM blotters WHERE id = ?", (blotter_id,))
+        conn.commit()
+        logging.info(f"Cleaned up partial blotter #{blotter_id}")
+    except Exception as exc:
+        conn.rollback()
+        logging.error(f"Failed to clean up partial blotter #{blotter_id}: {exc}")
+        raise
+
+
 def store_parsed_pdf(
     pdf_path: str,
     parsed: dict,
@@ -424,101 +452,124 @@ def store_parsed_pdf(
 
     conn = _connect_db()
     cursor = conn.cursor()
+    batch_id: Optional[int] = None
 
     try:
-        incidents, skipped_duplicates = _filter_duplicate_incidents(
-            conn,
-            incidents,
-            parsed_county,
-        )
-        if skipped_duplicates:
-            logging.info(
-                f"Skipped {skipped_duplicates} duplicate incident(s) before insert for {filename}"
+        with timed_db_transaction("store_parsed_pdf"):
+            incidents, skipped_duplicates = _filter_duplicate_incidents(
+                conn,
+                incidents,
+                parsed_county,
             )
+            if skipped_duplicates:
+                logging.info(
+                    f"Skipped {skipped_duplicates} duplicate incident(s) before insert for {filename}"
+                )
 
-        if not incidents:
-            logging.info(f"All incidents already exist for {filename} — skipping batch creation")
+            if not incidents:
+                logging.info(f"All incidents already exist for {filename} — skipping batch creation")
+                if ingestion_job_id is not None:
+                    log_pipeline_event(
+                        ingestion_job_id,
+                        'ingest',
+                        'ok',
+                        {'message': 'duplicate-skip-all-incidents', 'source_filename': filename},
+                    )
+                    set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
+                conn.close()
+                return 0
+
+            has_source_column = _table_has_column(conn, 'blotters', 'source_document_id')
+            if has_source_column:
+                cursor.execute(
+                    'INSERT INTO blotters (filename, county, incident_count, file_path, source_document_id) VALUES (?, ?, ?, ?, ?)',
+                    (filename, parsed_county, len(incidents), pdf_path, source_document_id),
+                )
+            else:
+                cursor.execute(
+                    'INSERT INTO blotters (filename, county, incident_count, file_path) VALUES (?, ?, ?, ?)',
+                    (filename, parsed_county, len(incidents), pdf_path),
+                )
+            if cursor.lastrowid is None:
+                raise RuntimeError('Failed to create blotter row')
+            batch_id = int(cursor.lastrowid)
+            conn.commit()
+            logging.info(f"Created blotter batch #{batch_id}")
+
+            # Insert records in batches, committing each batch so the SQLite write
+            # lock is released frequently. This prevents a large blotter from
+            # monopolizing the database and blocking concurrent jail roster ingests.
+            inserted_count = 0
+            batch_size = max(1, RECORD_INSERT_BATCH_SIZE)
+            for i in range(0, len(incidents), batch_size):
+                chunk = incidents[i : i + batch_size]
+                for incident in chunk:
+                    incident_type_val = incident.get('incident_type') or ''
+                    cursor.execute(
+                        '''
+                        INSERT INTO records (
+                            blotter_id, cfs_number, date, time, incident_type,
+                            incident, location, details, county, officer, charge_category
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''',
+                        (
+                            batch_id,
+                            incident.get('cfs_number'),
+                            incident.get('date'),
+                            incident.get('time'),
+                            incident_type_val,
+                            incident_type_val,
+                            incident.get('location'),
+                            incident.get('details'),
+                            parsed_county,
+                            incident.get('officer'),
+                            classify_charge(incident_type_val),
+                        ),
+                    )
+                    record_id = cursor.lastrowid
+                    if not record_id:
+                        raise RuntimeError('Failed to insert record row — lastrowid is None')
+
+                    for log in incident.get('command_logs', []):
+                        cursor.execute(
+                            '''
+                            INSERT INTO command_logs (record_id, timestamp, officer, entry)
+                            VALUES (?, ?, ?, ?)
+                            ''',
+                            (record_id, log.get('timestamp'), log.get('officer'), log.get('entry')),
+                        )
+
+                conn.commit()
+                inserted_count += len(chunk)
+                logging.info(
+                    f"Batch #{batch_id}: inserted {inserted_count}/{len(incidents)} incidents"
+                )
+
+            # Normalize incident_count to the actual number inserted.
+            conn.execute(
+                'UPDATE blotters SET incident_count = ? WHERE id = ?',
+                (inserted_count, batch_id),
+            )
+            conn.commit()
+            logging.info(f"✅ Batch #{batch_id} complete: {inserted_count} incidents indexed")
             if ingestion_job_id is not None:
                 log_pipeline_event(
                     ingestion_job_id,
-                    'ingest',
+                    'normalize',
                     'ok',
-                    {'message': 'duplicate-skip-all-incidents', 'source_filename': filename},
+                    {
+                        'blotter_id': batch_id,
+                        'incident_count': inserted_count,
+                        'duplicate_incidents_skipped': skipped_duplicates,
+                    },
                 )
-                set_ingestion_job_status(ingestion_job_id, 'published', finished=True)
-            conn.close()
-            return 0
-
-        has_source_column = _table_has_column(conn, 'blotters', 'source_document_id')
-        if has_source_column:
-            cursor.execute(
-                'INSERT INTO blotters (filename, county, incident_count, file_path, source_document_id) VALUES (?, ?, ?, ?, ?)',
-                (filename, parsed_county, len(incidents), pdf_path, source_document_id),
-            )
-        else:
-            cursor.execute(
-                'INSERT INTO blotters (filename, county, incident_count, file_path) VALUES (?, ?, ?, ?)',
-                (filename, parsed_county, len(incidents), pdf_path),
-            )
-        if cursor.lastrowid is None:
-            raise RuntimeError('Failed to create blotter row')
-        batch_id = int(cursor.lastrowid)
-        logging.info(f"Created blotter batch #{batch_id}")
-
-        for incident in incidents:
-            incident_type_val = incident.get('incident_type') or ''
-            cursor.execute(
-                '''
-                INSERT INTO records (
-                    blotter_id, cfs_number, date, time, incident_type,
-                    incident, location, details, county, officer, charge_category
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    batch_id,
-                    incident.get('cfs_number'),
-                    incident.get('date'),
-                    incident.get('time'),
-                    incident_type_val,
-                    incident_type_val,
-                    incident.get('location'),
-                    incident.get('details'),
-                    parsed_county,
-                    incident.get('officer'),
-                    classify_charge(incident_type_val),
-                ),
-            )
-            record_id = cursor.lastrowid
-            if not record_id:
-                raise RuntimeError('Failed to insert record row — lastrowid is None')
-
-            for log in incident.get('command_logs', []):
-                cursor.execute(
-                    '''
-                    INSERT INTO command_logs (record_id, timestamp, officer, entry)
-                    VALUES (?, ?, ?, ?)
-                    ''',
-                    (record_id, log.get('timestamp'), log.get('officer'), log.get('entry')),
-                )
-
-        conn.commit()
-        logging.info(f"✅ Batch #{batch_id} complete: {len(incidents)} incidents indexed")
-        if ingestion_job_id is not None:
-            log_pipeline_event(
-                ingestion_job_id,
-                'normalize',
-                'ok',
-                {
-                    'blotter_id': batch_id,
-                    'incident_count': len(incidents),
-                    'duplicate_incidents_skipped': skipped_duplicates,
-                },
-            )
-            set_ingestion_job_status(ingestion_job_id, 'normalized')
-        return batch_id
+                set_ingestion_job_status(ingestion_job_id, 'normalized')
+            return batch_id
 
     except Exception:
         conn.rollback()
+        if batch_id is not None:
+            _delete_partial_blotter(_connect_db(), batch_id)
         raise
     finally:
         conn.close()

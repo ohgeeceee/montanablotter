@@ -238,6 +238,25 @@ def process_new_record(record_id: int) -> dict:
     return {"status": "ok", "enqueued": enqueued}
 
 
+def get_recent_alerts_for_user(user_id: int, limit: int = 5) -> List[dict]:
+    """Return recent alert notifications for a public user, joined to record context."""
+    conn = _connect()
+    rows = conn.execute(
+        """
+        SELECT nq.id, nq.subject, nq.created_at, nq.record_id,
+               r.county, r.incident_type
+        FROM notification_queue nq
+        LEFT JOIN records r ON nq.record_id = r.id
+        WHERE nq.user_id = ?
+        ORDER BY nq.created_at DESC
+        LIMIT ?
+        """,
+        (user_id, limit),
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
 def retry_failed_notifications(max_retries: int = 3) -> dict:
     conn = _connect()
     rows = conn.execute(

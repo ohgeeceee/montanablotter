@@ -17,6 +17,49 @@ def _generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def _send_verify_email(email: str, county: str, verify_url: str) -> None:
+    """Send a verification email for alert subscriptions via SMTP."""
+    import logging
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    import config
+
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['From'] = config.SMTP_USER
+        msg['To'] = email
+        msg['Subject'] = f'Verify your {county} County alerts — Montana Blotter'
+        msg['Reply-To'] = 'records@montanablotter.com'
+
+        plain = (
+            f"Verify your Montana Blotter alert subscription for {county} County.\n\n"
+            f"Click this link to confirm:\n{verify_url}\n\n"
+            f"If you didn't request this, ignore this email.\n"
+        )
+        html = f"""
+        <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;">
+            <h2 style="font-weight:800;color:#1e293b;">Verify your alert subscription</h2>
+            <p style="color:#475569;">You signed up for county alerts for <strong>{escape(county)}</strong> County.</p>
+            <a href="{verify_url}" style="display:inline-block;margin:1rem 0;padding:.75rem 1.5rem;background:#1e293b;color:#fff;border-radius:12px;text-decoration:none;font-weight:700;">Verify my email</a>
+            <p style="color:#94a3b8;font-size:.8rem;">If you didn't request this, just ignore this email.</p>
+            <p style="color:#94a3b8;font-size:.75rem;margin-top:2rem;">Montana Blotter · montanablotter.com</p>
+        </div>
+        """
+        msg.attach(MIMEText(plain, 'plain'))
+        msg.attach(MIMEText(html, 'html'))
+
+        smtp = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT)
+        try:
+            smtp.starttls()
+            smtp.login(config.SMTP_USER, config.SMTP_PASSWORD)
+            smtp.sendmail(config.SMTP_USER, [email], msg.as_string())
+        finally:
+            smtp.quit()
+    except Exception as exc:
+        logging.error("Failed to send alert verification email to %s: %s", email, exc)
+
+
 def _normalize_email(email: str) -> str:
     return (email or '').strip().lower()
 
@@ -74,8 +117,9 @@ def alert_subscribe():
     conn.commit()
     conn.close()
 
-    # TODO: send verification email
+    # Send verification email
     verify_url = url_for('alerts.alert_verify', token=token, _external=True)
+    _send_verify_email(email, county, verify_url)
 
     return jsonify({
         'success': True,

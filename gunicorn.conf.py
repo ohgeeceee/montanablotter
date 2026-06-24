@@ -1,10 +1,11 @@
 preload_app = True
 worker_class = "gthread"
-workers = 2
-threads = 4
-max_requests = 500
-max_requests_jitter = 50
+workers = 4
+threads = 8
+max_requests = 10000
+max_requests_jitter = 1000
 worker_tmp_dir = "/dev/shm"
 timeout = 90
 graceful_timeout = 30
 keepalive = 5
+backlog = 2048

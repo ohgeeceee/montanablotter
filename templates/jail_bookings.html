@@ -49,7 +49,13 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-10 space-y-8">
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="lg:hidden">
+        <button type="button" onclick="document.getElementById('jail-filter-drawer').showModal()" class="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800 transition">
+            <i class="fas fa-sliders-h mr-2"></i> Filters
+        </button>
+    </div>
+
+    <div class="hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:block">
         <form method="get" class="grid gap-4 lg:grid-cols-[1.3fr_0.8fr_0.8fr_auto]">
             <div>
                 <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">Search</label>
@@ -87,6 +93,51 @@
             </div>
         </form>
     </div>
+
+    <dialog id="jail-filter-drawer" class="public-mobile-drawer">
+        <div class="public-mobile-drawer__header">
+            <span class="public-mobile-drawer__label">Filter bookings</span>
+            <button onclick="document.getElementById('jail-filter-drawer').close()" class="public-mobile-drawer__close" aria-label="Close filters">&#x2715;</button>
+        </div>
+        <div class="public-mobile-drawer__body">
+            <form method="get" class="grid gap-4" id="jail-filter-form-mobile">
+                <div>
+                    <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">Search</label>
+                    <input type="text" name="q" value="{{ q }}" placeholder="Name, charge, county, booking number"
+                           class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">County</label>
+                    {% if county_locked and selected_source %}
+                    <div class="flex h-[50px] items-center rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                        {{ selected_source.county_name }}
+                    </div>
+                    <input type="hidden" name="county" value="{{ selected_source.county_slug }}">
+                    {% else %}
+                    <select name="county" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                        <option value="">All tracked counties</option>
+                        {% for source in featured_sources %}
+                        <option value="{{ source.county_slug }}" {% if county_filter == source.county_slug %}selected{% endif %}>{{ source.county_name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-2">Status</label>
+                    <select name="status" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+                        <option value="current" {% if status_filter == 'current' %}selected{% endif %}>Current</option>
+                        <option value="recent" {% if status_filter == 'recent' %}selected{% endif %}>New in 24 hours</option>
+                        <option value="released" {% if status_filter == 'released' %}selected{% endif %}>Released / archived</option>
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All entries</option>
+                    </select>
+                </div>
+                <div class="flex items-end gap-3">
+                    <button type="submit" class="inline-flex flex-1 items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800 transition">Apply</button>
+                    <a href="{{ reset_href|default('/jail-bookings') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">{% if county_locked %}County{% else %}Reset{% endif %}</a>
+                </div>
+            </form>
+        </div>
+    </dialog>
 
     <div class="grid gap-6 lg:grid-cols-[1.45fr_0.55fr]">
         <div class="space-y-4">

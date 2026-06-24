@@ -559,7 +559,7 @@ def audit_post(
     if client is None:
         try:
             api_key = getattr(config, "ANTHROPIC_API_KEY", None)
-            client = anthropic.Anthropic(api_key=api_key) if api_key else None
+            client = anthropic.Anthropic(api_key=api_key) if api_key and getattr(config, "USE_PAID_LLM", False) else None
         except Exception:
             client = None
 
@@ -644,7 +644,7 @@ def audit_post_by_id(post_id: int, db_path: Optional[str] = None) -> AuditResult
     client = None
     try:
         api_key = getattr(config, "ANTHROPIC_API_KEY", None)
-        client = anthropic.Anthropic(api_key=api_key) if api_key else None
+        client = anthropic.Anthropic(api_key=api_key) if api_key and getattr(config, "USE_PAID_LLM", False) else None
     except Exception:
         pass
 
@@ -678,7 +678,7 @@ def audit_blotter_posts(blotter_id: int, db_path: Optional[str] = None) -> list[
     client = None
     try:
         api_key = getattr(config, "ANTHROPIC_API_KEY", None)
-        client = anthropic.Anthropic(api_key=api_key) if api_key else None
+        client = anthropic.Anthropic(api_key=api_key) if api_key and getattr(config, "USE_PAID_LLM", False) else None
     except Exception:
         pass
 
@@ -826,7 +826,7 @@ def backfill_seo(db_path: Optional[str] = None, batch_size: int = 50, force: boo
     client = None
     try:
         api_key = getattr(config, "ANTHROPIC_API_KEY", None)
-        client = anthropic.Anthropic(api_key=api_key) if api_key else None
+        client = anthropic.Anthropic(api_key=api_key) if api_key and getattr(config, "USE_PAID_LLM", False) else None
     except Exception:
         pass
 
@@ -1048,7 +1048,7 @@ def main() -> None:
         client = None
         try:
             api_key = getattr(config, "ANTHROPIC_API_KEY", None)
-            client = anthropic.Anthropic(api_key=api_key) if api_key else None
+            client = anthropic.Anthropic(api_key=api_key) if api_key and getattr(config, "USE_PAID_LLM", False) else None
         except Exception:
             pass
 

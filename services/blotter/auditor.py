@@ -303,6 +303,50 @@ def scan_for_pii(text: str) -> list[PiiFlag]:
 
 
 # ---------------------------------------------------------------------------
+# Free local tone check — no API cost
+# ---------------------------------------------------------------------------
+
+_SENSATIONALISM_WORDS = re.compile(
+    r'(?i)\b(?:shocking|horrific|terrifying|dramatic|outrageous|insane|crazy|wild|'
+    r'appalling|disgusting|disturbing|unbelievable|nightmare|tragic|devastating|'
+    r'massive|huge|explosive|bombshell|breaking|urgent|alert|panic|fear|terror|'
+    r'savage|brutal|merciless|cold[- ]blooded|heartless|evil|monster|predator|'
+    r'lowlife|scum|thug|criminal mastermind)\b'
+)
+
+_BIAS_WORDS = re.compile(
+    r'(?i)\b(?:obviously|clearly|certainly|definitely|undoubtedly|surely|'
+    r'without a doubt|no doubt|alleged(?=\s+(?:criminal|thug|monster))?)\b'
+)
+
+
+def _check_tone_local(text: str) -> tuple[bool, str]:
+    """
+    Lightweight, local tone scan. Flags sensationalism or loaded language that
+    could expose the site to liability. This is intentionally conservative:
+    individual matches are warnings; several matches in one post become a flag.
+    """
+    sensational_matches = list(_SENSATIONALISM_WORDS.finditer(text))
+    bias_matches = list(_BIAS_WORDS.finditer(text))
+    total = len(sensational_matches) + len(bias_matches)
+    if total == 0:
+        return True, ""
+
+    notes = []
+    if sensational_matches:
+        examples = sorted({m.group(0).lower() for m in sensational_matches})
+        notes.append(f"sensational language ({', '.join(examples[:3])})")
+    if bias_matches:
+        examples = sorted({m.group(0).lower() for m in bias_matches})
+        notes.append(f"potentially biased phrasing ({', '.join(examples[:3])})")
+
+    # One or two loaded words is a warning; three+ blocks auto-publication.
+    if total >= 3:
+        return False, "; ".join(notes)
+    return True, "; ".join(notes)
+
+
+# ---------------------------------------------------------------------------
 # Claude audit — public summary, tone, and SEO meta
 # ---------------------------------------------------------------------------
 
@@ -479,7 +523,7 @@ def _save_audit_result(conn: sqlite3.Connection, result: AuditResult) -> None:
         UPDATE posts
            SET audit_status     = ?,
                pii_flags        = ?,
-               meta_description = ?,
+               meta_description = CASE WHEN ? != '' THEN ? ELSE meta_description END,
                audited_at       = ?,
                summary          = CASE WHEN ? != '' THEN ? ELSE summary END
          WHERE id = ?
@@ -487,6 +531,7 @@ def _save_audit_result(conn: sqlite3.Connection, result: AuditResult) -> None:
         (
             status,
             flags_json,
+            result.meta_description,
             result.meta_description,
             result.audited_at,
             result.public_summary,
@@ -514,7 +559,8 @@ def audit_post(
     Full audit pipeline for a single post.
 
     1. Regex PII scan on both raw_text and existing_summary.
-    2. Claude audit for missed PII, public summary rewrite, tone, and SEO meta.
+    2. Paid Claude audit (only when MB_USE_PAID_LLM=1) for missed PII, rewrite,
+       tone, and SEO meta; otherwise a free local tone check is used.
     3. Return AuditResult (does NOT write to DB — caller handles persistence).
     """
     combined = f"{raw_text}\n\n{existing_summary}"
@@ -523,7 +569,10 @@ def audit_post(
     high_flags = [f for f in pii_flags if f.severity == "high"]
     issues = []
 
-    if client is None:
+    use_paid_llm = getattr(config, "USE_PAID_LLM", False)
+
+    # Only build a paid client when the operator has explicitly opted in.
+    if use_paid_llm and client is None:
         try:
             api_key = getattr(config, "ANTHROPIC_API_KEY", None)
             client = anthropic.Anthropic(api_key=api_key) if api_key else None
@@ -531,14 +580,16 @@ def audit_post(
             client = None
 
     claude_result: dict = {}
-    if client:
+    if use_paid_llm and client:
         claude_result = _call_claude_audit(
             client, raw_text, existing_summary,
             agency_name, incident_date, county, pii_flags,
         )
-    else:
-        logger.error("No Anthropic client — Claude audit skipped. Running in regex-only mode. Posts with HIGH severity PII flags will NOT be auto-cleared.")
-        issues.append("Claude audit skipped (no API key configured)")
+    elif not use_paid_llm:
+        logger.info(
+            "Using free local audit path for post %s (set MB_USE_PAID_LLM=1 to use Claude)",
+            post_id,
+        )
 
     # Merge missed PII from Claude into our flag list
     for missed in claude_result.get("missed_pii", []):
@@ -550,16 +601,22 @@ def audit_post(
         ))
         high_flags.append(pii_flags[-1])
 
-    public_summary = claude_result.get("public_summary", existing_summary)
-    public_summary = append_historical_perspective(
-        public_summary,
-        raw_text=raw_text,
-        county=county,
-        agency_name=agency_name,
-    )
-    tone_ok        = bool(claude_result.get("tone_ok", True))
-    tone_notes     = claude_result.get("tone_notes", "")
-    meta_desc      = claude_result.get("meta_description", "")
+    if use_paid_llm:
+        public_summary = claude_result.get("public_summary", existing_summary)
+        public_summary = append_historical_perspective(
+            public_summary,
+            raw_text=raw_text,
+            county=county,
+            agency_name=agency_name,
+        )
+        tone_ok = bool(claude_result.get("tone_ok", True))
+        tone_notes = claude_result.get("tone_notes", "")
+        meta_desc = claude_result.get("meta_description", "")
+    else:
+        # Free path: keep the existing local summary and run a local tone scan.
+        public_summary = existing_summary
+        tone_ok, tone_notes = _check_tone_local(combined)
+        meta_desc = ""
 
     if not tone_ok and tone_notes:
         issues.append(f"Tone issue: {tone_notes}")

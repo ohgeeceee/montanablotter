@@ -259,6 +259,7 @@ def main() -> int:
     conn = sqlite3.connect(config.DB_PATH, timeout=db_timeout)
     conn.row_factory = sqlite3.Row
     _configure_sqlite(conn)
+    conn.execute('PRAGMA journal_mode = WAL')
     conn.execute(f'PRAGMA busy_timeout = {int(db_timeout * 1000)}')
     try:
         result = run_supreme_court_outcome_backfill(conn, batch=args.batch, dry_run=args.dry_run)

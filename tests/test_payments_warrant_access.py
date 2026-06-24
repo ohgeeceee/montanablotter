@@ -71,7 +71,14 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         self._original_get_db = payments.get_db
         payments.get_db = lambda: self.conn
 
+        self._original_weekly_price = getattr(config, 'WARRANT_WEEKLY_PRICE_ID', None)
+        self._original_monthly_price = getattr(config, 'WARRANT_MONTHLY_PRICE_ID', None)
+        config.WARRANT_WEEKLY_PRICE_ID = 'price_test_weekly'
+        config.WARRANT_MONTHLY_PRICE_ID = 'price_test_monthly'
+
     def tearDown(self):
+        config.WARRANT_WEEKLY_PRICE_ID = self._original_weekly_price
+        config.WARRANT_MONTHLY_PRICE_ID = self._original_monthly_price
         payments.get_db = self._original_get_db
         self.conn.close()
         config.DB_PATH = self.previous_db_path
@@ -80,7 +87,7 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         if os.path.exists(self.db_path):
             os.unlink(self.db_path)
 
-    def test_checkout_redirects_to_stripe_checkout_session(self):
+    def test_checkout_defaults_to_monthly_plan(self):
         with self.client.session_transaction() as session_:
             session_['public_user_id'] = 7
 
@@ -99,32 +106,49 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         self.assertEqual(kwargs['customer_email'], 'trial-user@example.com')
         self.assertEqual(kwargs['metadata']['flow'], 'warrant_access')
         self.assertEqual(kwargs['metadata']['public_user_id'], '7')
-        self.assertEqual(kwargs['subscription_data']['trial_period_days'], 7)
-        self.assertEqual(kwargs['line_items'][0]['price'], 'price_1Td9jmGL8T8btZcumpWLuzLf')
-        self.assertEqual(kwargs['line_items'][1]['price'], 'price_1Td9jmGL8T8btZcu5OXZzr9g')
+        self.assertEqual(kwargs['metadata']['plan'], 'monthly')
+        self.assertEqual(len(kwargs['line_items']), 1)
+        self.assertEqual(kwargs['line_items'][0]['price'], 'price_test_monthly')
 
-    def test_checkout_uses_price_ids_from_environment(self):
+    def test_checkout_weekly_plan(self):
         with self.client.session_transaction() as session_:
             session_['public_user_id'] = 7
 
         fake_session = Mock()
         fake_session.url = 'https://checkout.stripe.com/c/pay/test_session'
 
-        env_overrides = {
-            'MB_WARRANT_TRIAL_FEE_PRICE_ID': 'price_trial_env_override',
-            'MB_WARRANT_MONTHLY_PRICE_ID': 'price_monthly_env_override',
-        }
-        with patch.dict(os.environ, env_overrides, clear=False):
-            with patch('blueprints.payments.stripe.checkout.Session.create', return_value=fake_session) as create_mock:
-                response = self.client.post('/checkout/warrant-access', follow_redirects=False)
+        with patch('blueprints.payments.stripe.checkout.Session.create', return_value=fake_session) as create_mock:
+            response = self.client.post('/checkout/warrant-access?plan=weekly', follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.headers['Location'], fake_session.url)
         kwargs = create_mock.call_args.kwargs
-        self.assertEqual(kwargs['line_items'][0]['price'], env_overrides['MB_WARRANT_TRIAL_FEE_PRICE_ID'])
-        self.assertEqual(kwargs['line_items'][1]['price'], env_overrides['MB_WARRANT_MONTHLY_PRICE_ID'])
+        self.assertEqual(kwargs['metadata']['plan'], 'weekly')
+        self.assertEqual(len(kwargs['line_items']), 1)
+        self.assertEqual(kwargs['line_items'][0]['price'], 'price_test_weekly')
 
-    def test_wanted_subscribe_page_labels_paid_trial(self):
+    def test_checkout_uses_price_ids_from_config(self):
+        with self.client.session_transaction() as session_:
+            session_['public_user_id'] = 7
+
+        fake_session = Mock()
+        fake_session.url = 'https://checkout.stripe.com/c/pay/test_session'
+
+        original_weekly = getattr(config, 'WARRANT_WEEKLY_PRICE_ID', None)
+        original_monthly = getattr(config, 'WARRANT_MONTHLY_PRICE_ID', None)
+        config.WARRANT_WEEKLY_PRICE_ID = 'price_weekly_config_override'
+        config.WARRANT_MONTHLY_PRICE_ID = 'price_monthly_config_override'
+        try:
+            with patch('blueprints.payments.stripe.checkout.Session.create', return_value=fake_session) as create_mock:
+                response = self.client.post('/checkout/warrant-access?plan=weekly', follow_redirects=False)
+
+            self.assertEqual(response.status_code, 302)
+            kwargs = create_mock.call_args.kwargs
+            self.assertEqual(kwargs['line_items'][0]['price'], 'price_weekly_config_override')
+        finally:
+            config.WARRANT_WEEKLY_PRICE_ID = original_weekly
+            config.WARRANT_MONTHLY_PRICE_ID = original_monthly
+
+    def test_wanted_subscribe_page_shows_both_plans(self):
         with self.client.session_transaction() as session_:
             session_['public_user_id'] = 7
 
@@ -133,7 +157,10 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('This is the paid warrant access plan.', html)
-        self.assertIn('Start Paid 7-Day Trial', html)
+        self.assertIn('$1', html)
+        self.assertIn('/week', html)
+        self.assertIn('$8', html)
+        self.assertIn('/month', html)
         self.assertIn('Secure Stripe checkout for paid warrant access', html)
 
 

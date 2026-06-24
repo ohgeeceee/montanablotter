@@ -16,6 +16,7 @@ import email
 import email.policy
 import os
 import re
+import sqlite3
 import sys
 import tempfile
 from datetime import datetime
@@ -364,7 +365,7 @@ class ImageBlotterWorker(EmailWorker):
             print(f"[email_image_blotter] DB check failed for message_id: {e}")
             return False
 
-    def fetch_and_process_emails(self, since_days: int = 7):
+    def fetch_and_process_emails(self, since_days: int = 2):
         """Process blotter emails (PDF or image) from every configured IMAP
         account.
 
@@ -379,7 +380,7 @@ class ImageBlotterWorker(EmailWorker):
         Gmail's own read-receipts) still get picked up.
 
         Args:
-            since_days: Search for emails from the last N days (default 7).
+            since_days: Search for emails from the last N days (default 2).
         """
         config_error = self._validate_accounts()
         if config_error:
@@ -394,23 +395,26 @@ class ImageBlotterWorker(EmailWorker):
         total_processed = 0
         total_skipped = 0
         total_failed = 0
+        total_lock_deferred = 0
 
         for account in self.accounts:
             print(f"[email_image_blotter] Scanning account={account.label} since={since_date}")
             try:
-                processed, skipped, failed = self._fetch_and_process_for_account(
+                processed, skipped, failed, lock_deferred = self._fetch_and_process_for_account(
                     account, search_criteria
                 )
                 total_processed += processed
                 total_skipped += skipped
                 total_failed += failed
+                total_lock_deferred += lock_deferred
             except Exception as e:
                 # One bad account must not block the others.
                 print(f"[email_image_blotter] Critical error on account {account.label!r}: {e}")
 
         print(
             f"[email_image_blotter] Complete across {len(self.accounts)} account(s): "
-            f"{total_processed} processed, {total_skipped} skipped, {total_failed} failed"
+            f"{total_processed} processed, {total_skipped} skipped, {total_failed} failed, "
+            f"{total_lock_deferred} lock-deferred"
         )
         return total_failed
 
@@ -418,8 +422,10 @@ class ImageBlotterWorker(EmailWorker):
         self,
         account,
         search_criteria: str,
-    ) -> tuple[int, int, int]:
-        """Run the per-account scan/ingest pipeline. Returns (processed, skipped, failed)."""
+    ) -> tuple[int, int, int, int]:
+        """Run the per-account scan/ingest pipeline.
+
+        Returns (processed, skipped, failed, lock_deferred)."""
         mail = self._connect_imap(account)
         try:
             mail.select("INBOX")
@@ -428,7 +434,7 @@ class ImageBlotterWorker(EmailWorker):
             status, messages = mail.search(None, search_criteria)
             if status != "OK" or not messages[0]:
                 print(f"[email_image_blotter] No emails found (account={account.label})")
-                return 0, 0, 0
+                return 0, 0, 0, 0
 
             email_ids = messages[0].split()
             print(f"[email_image_blotter] Found {len(email_ids)} emails (account={account.label})")
@@ -436,6 +442,7 @@ class ImageBlotterWorker(EmailWorker):
             processed_count = 0
             skipped_count = 0
             failed_count = 0
+            lock_deferred_count = 0
 
             for num in email_ids:
                 try:
@@ -566,12 +573,23 @@ class ImageBlotterWorker(EmailWorker):
                             else:
                                 print(f"[email_image_blotter] No content found: {subject}")
 
+                except sqlite3.OperationalError as e:
+                    if "database is locked" in str(e).lower():
+                        lock_deferred_count += 1
+                        subj = locals().get("subject", "<unknown>")
+                        print(
+                            f"[email_image_blotter] DB locked while processing email {num} "
+                            f"({subj!r}); leaving it in the inbox for retry: {e}"
+                        )
+                    else:
+                        print(f"[email_image_blotter] SQLite error processing email {num}: {e}")
+                    continue
                 except Exception as e:
                     print(f"[email_image_blotter] Error processing email {num}: {e}")
                     continue
 
             mail.expunge()
-            return processed_count, skipped_count, failed_count
+            return processed_count, skipped_count, failed_count, lock_deferred_count
         finally:
             with contextlib.suppress(Exception):
                 mail.close()
@@ -579,7 +597,7 @@ class ImageBlotterWorker(EmailWorker):
                 mail.logout()
 
 
-def run_image_blotter(since_days: int = 14) -> int:
+def run_image_blotter(since_days: int = 2) -> int:
     """Run the image blotter worker. Returns number of failed emails."""
     worker = ImageBlotterWorker()
     failed = worker.fetch_and_process_emails(since_days=since_days)
@@ -589,7 +607,7 @@ def run_image_blotter(since_days: int = 14) -> int:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Process blotter emails with image/PDF attachments")
-    parser.add_argument("--since-days", type=int, default=14, help="Days back to search (default: 14)")
+    parser.add_argument("--since-days", type=int, default=2, help="Days back to search (default: 2)")
     args = parser.parse_args()
     failed = run_image_blotter(since_days=args.since_days)
     if failed > 0:

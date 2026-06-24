@@ -202,6 +202,8 @@ def _slugify(text: str) -> str:
 def _generate_fetcher(candidate: dict, sample: str) -> str:
     if not _ANTHROPIC_AVAILABLE:
         raise RuntimeError("anthropic package not available")
+    if not getattr(config, "USE_PAID_LLM", False):
+        raise RuntimeError("Paid LLM disabled via MB_USE_PAID_LLM")
     api_key = getattr(config, "ANTHROPIC_API_KEY", None)
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY not configured")

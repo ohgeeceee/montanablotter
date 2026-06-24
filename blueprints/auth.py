@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import secrets
+import smtplib
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
 from flask_login import current_user
@@ -17,6 +21,94 @@ import requests
 auth_bp = Blueprint('auth', __name__)
 
 FACEBOOK_LOGIN_DISABLED_MESSAGE = 'Facebook login is temporarily unavailable.'
+
+# Password reset tokens expire after 1 hour.
+RESET_TOKEN_TTL_MINUTES = 60
+# Rate-limit: max 3 reset requests per email per hour.
+_RESET_RATE_LIMIT_MINUTES = 60
+_RESET_RATE_LIMIT_COUNT = 3
+
+
+def _hash_reset_token(token: str) -> str:
+    """Return a SHA-256 hex digest of the raw reset token."""
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+
+def _generate_reset_token() -> str:
+    """Generate a URL-safe random token for password reset emails."""
+    return secrets.token_urlsafe(32)
+
+
+def _record_reset_request(conn, public_user_id: int, token_hash: str, ip_address: str) -> None:
+    """Store a new password reset token."""
+    expires_at = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_TTL_MINUTES)
+    conn.execute(
+        '''
+        INSERT INTO password_reset_tokens (public_user_id, token_hash, expires_at, ip_address)
+        VALUES (?, ?, ?, ?)
+        ''',
+        (public_user_id, token_hash, expires_at.isoformat(), ip_address),
+    )
+
+
+def _is_rate_limited(conn, public_user_id: int) -> bool:
+    """Return True if this user has requested >= 3 tokens in the last hour."""
+    since = (datetime.utcnow() - timedelta(minutes=_RESET_RATE_LIMIT_MINUTES)).isoformat()
+    row = conn.execute(
+        '''
+        SELECT COUNT(*) AS c FROM password_reset_tokens
+        WHERE public_user_id = ? AND created_at > ?
+        ''',
+        (public_user_id, since),
+    ).fetchone()
+    return bool(row and row['c'] >= _RESET_RATE_LIMIT_COUNT)
+
+
+def _send_reset_email(to_address: str, reset_url: str) -> None:
+    """Send the password reset email via project SMTP config."""
+    smtp_user = getattr(config, 'SMTP_USER', config.EMAIL_USER)
+    smtp_password = getattr(config, 'SMTP_PASSWORD', config.EMAIL_PASSWORD)
+    if not smtp_user or not smtp_password:
+        raise RuntimeError('SMTP is not configured')
+
+    subject = 'Reset your Montana Blotter password'
+    text_body = (
+        f"Someone requested a password reset for your Montana Blotter account.\n\n"
+        f"If this was you, use this link to set a new password:\n{reset_url}\n\n"
+        f"This link expires in {RESET_TOKEN_TTL_MINUTES} minutes and can only be used once.\n\n"
+        f"If you did not request a reset, you can safely ignore this email."
+    )
+    html_body = f'''
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+        <p>Someone requested a password reset for your Montana Blotter account.</p>
+        <p>If this was you, click the button below to set a new password:</p>
+        <p>
+            <a href="{reset_url}" style="display: inline-block; padding: 12px 20px; background: #b45309; color: #fff; text-decoration: none; border-radius: 6px;">Reset password</a>
+        </p>
+        <p style="font-size: 13px; color: #666;">
+            Or copy and paste this link into your browser:<br>
+            <a href="{reset_url}">{reset_url}</a>
+        </p>
+        <p style="font-size: 13px; color: #666;">
+            This link expires in {RESET_TOKEN_TTL_MINUTES} minutes and can only be used once.<br>
+            If you did not request a reset, you can safely ignore this email.
+        </p>
+    </body>
+    </html>
+    '''
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = smtp_user
+    msg['To'] = to_address
+    msg.attach(MIMEText(text_body, 'plain'))
+    msg.attach(MIMEText(html_body, 'html'))
+
+    with smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT, timeout=20) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.sendmail(smtp_user, to_address, msg.as_string())
 
 
 def _facebook_app_id() -> str:
@@ -318,6 +410,151 @@ def public_login():
         canonical_url=f'{m.BASE_URL}/login',
         og_title='Log In | Montana Blotter',
         og_description='Log in to your Montana Blotter account to comment and manage subscriptions.',
+        active_nav='login',
+        current_year=datetime.now().year,
+    )
+
+
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def public_forgot_password():
+    m = _app()
+    if m._get_public_user():
+        return redirect('/')
+
+    email_value = (request.form.get('email') or '').strip().lower()
+    if request.method == 'POST':
+        recaptcha_token = request.form.get('g-recaptcha-response', '')
+        if not m.verify_recaptcha(recaptcha_token, action='forgot_password'):
+            flash('Security verification failed. Please try again.', 'error')
+            return render_template(
+                'forgot_password.html',
+                email_value=email_value,
+                recaptcha_site_key=config.RECAPTCHA_SITE_KEY if config.RECAPTCHA_ENABLED else '',
+                page_title='Forgot Password',
+                meta_description='Reset your Montana Blotter account password.',
+                canonical_url=f'{m.BASE_URL}/forgot-password',
+                og_title='Forgot Password | Montana Blotter',
+                og_description='Reset your Montana Blotter account password.',
+                active_nav='login',
+                current_year=datetime.now().year,
+            )
+
+        email = email_value
+        conn = get_db()
+        row = conn.execute(
+            'SELECT id, email, is_active FROM public_users WHERE email = ?',
+            (email,),
+        ).fetchone()
+
+        if row and row['is_active']:
+            public_user_id = row['id']
+            if _is_rate_limited(conn, public_user_id):
+                conn.close()
+                flash('Too many reset requests. Please wait before trying again.', 'error')
+                return redirect(url_for('.public_forgot_password'))
+
+            raw_token = _generate_reset_token()
+            token_hash = _hash_reset_token(raw_token)
+            ip_address = request.remote_addr or ''
+            _record_reset_request(conn, public_user_id, token_hash, ip_address)
+            conn.commit()
+            conn.close()
+
+            reset_url = f"{config.BASE_URL.rstrip('/')}/reset-password/{raw_token}"
+            try:
+                _send_reset_email(row['email'], reset_url)
+            except Exception:
+                # Don't expose whether the email failed vs succeeded.
+                # Log the failure so ops can investigate.
+                import logging
+                logging.getLogger(__name__).exception('Failed to send password reset email to %s', email)
+
+        # Same message regardless of whether the email exists — don't leak registered emails.
+        flash('If an account exists for that email, a reset link has been sent.', 'success')
+        return redirect(url_for('.public_forgot_password'))
+
+    return render_template(
+        'forgot_password.html',
+        email_value=email_value,
+        recaptcha_site_key=config.RECAPTCHA_SITE_KEY if config.RECAPTCHA_ENABLED else '',
+        page_title='Forgot Password',
+        meta_description='Reset your Montana Blotter account password.',
+        canonical_url=f'{m.BASE_URL}/forgot-password',
+        og_title='Forgot Password | Montana Blotter',
+        og_description='Reset your Montana Blotter account password.',
+        active_nav='login',
+        current_year=datetime.now().year,
+    )
+
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def public_reset_password(token: str):
+    m = _app()
+    if m._get_public_user():
+        return redirect('/')
+
+    conn = get_db()
+    token_hash = _hash_reset_token(token)
+    row = conn.execute(
+        '''
+        SELECT t.id, t.public_user_id, t.expires_at, t.used_at, u.email
+        FROM password_reset_tokens t
+        JOIN public_users u ON u.id = t.public_user_id
+        WHERE t.token_hash = ?
+        ''',
+        (token_hash,),
+    ).fetchone()
+
+    now = datetime.utcnow()
+    is_valid = bool(
+        row
+        and row['used_at'] is None
+        and datetime.fromisoformat(row['expires_at']) > now
+    )
+
+    if request.method == 'POST':
+        if not is_valid:
+            conn.close()
+            flash('This reset link is invalid or has expired. Please request a new one.', 'error')
+            return redirect(url_for('.public_forgot_password'))
+
+        new_password = request.form.get('new_password') or ''
+        confirm_password = request.form.get('confirm_password') or ''
+
+        if len(new_password) < 8:
+            conn.close()
+            flash('Password must be at least 8 characters.', 'error')
+            return redirect(request.url)
+        if new_password != confirm_password:
+            conn.close()
+            flash('Passwords do not match.', 'error')
+            return redirect(request.url)
+
+        new_hash = m.bcrypt.generate_password_hash(new_password).decode('utf-8')
+        conn.execute('UPDATE public_users SET password_hash = ? WHERE id = ?', (new_hash, row['public_user_id']))
+        conn.execute(
+            'UPDATE password_reset_tokens SET used_at = ? WHERE id = ?',
+            (now.isoformat(), row['id']),
+        )
+        conn.commit()
+        conn.close()
+
+        flash('Your password has been updated. You can now log in.', 'success')
+        return redirect(url_for('.public_login'))
+
+    conn.close()
+    if not is_valid:
+        flash('This reset link is invalid or has expired. Please request a new one.', 'error')
+        return redirect(url_for('.public_forgot_password'))
+
+    return render_template(
+        'reset_password.html',
+        token=token,
+        page_title='Reset Password',
+        meta_description='Set a new password for your Montana Blotter account.',
+        canonical_url=f'{m.BASE_URL}/reset-password/{token}',
+        og_title='Reset Password | Montana Blotter',
+        og_description='Set a new password for your Montana Blotter account.',
         active_nav='login',
         current_year=datetime.now().year,
     )

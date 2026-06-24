@@ -98,7 +98,16 @@ def main() -> int:
                 )
             else:
                 print(f"{result['slug']}: error - {result['error']}")
-    return 0 if all(item['status'] == 'ok' for item in results) else 1
+
+    # A single flaky city/site should not fail the whole batch. Only treat the
+    # run as failed if every source failed or we got no results at all.
+    ok_count = sum(1 for item in results if item['status'] == 'ok')
+    error_count = len(results) - ok_count
+    if not results or ok_count == 0:
+        return 1
+    if error_count:
+        print(f"\nWARNING: {error_count}/{len(results)} source(s) failed, but at least one succeeded. Run considered OK.")
+    return 0
 
 
 if __name__ == '__main__':

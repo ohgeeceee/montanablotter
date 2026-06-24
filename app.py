@@ -46,6 +46,8 @@ from blueprints.government_spending import register_government_spending_blueprin
 from blueprints.watchdog import register_watchdog_blueprint
 from blueprints.recovery_ads import recovery_ads_bp
 from blueprints.attorney_ads import attorney_ads_bp
+from blueprints.threedhub import threedhub_bp
+from blueprints.chat_agent import chat_agent_bp
 from services.court.tracker import (
     court_admin_context,
     court_case_detail,
@@ -56,6 +58,7 @@ from services.court.tracker import (
 )
 from services.disposition.lookup import lookup_disposition
 from db import connect_db, connect_page_views, get_db
+from services.alerts.engine import get_recent_alerts_for_user
 from core.dedupe import incident_key_set
 from services.publishing.morning_briefing import (
     build_html as build_morning_briefing_html,
@@ -101,6 +104,16 @@ except Exception:
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 BASE_URL = config.BASE_URL
+
+# Server-side response cache for expensive read-only API endpoints.
+from flask_caching import Cache
+cache_config = {
+    'CACHE_TYPE': config.CACHE_TYPE,
+    'CACHE_DEFAULT_TIMEOUT': config.CACHE_DEFAULT_TIMEOUT,
+}
+if config.CACHE_REDIS_URL:
+    cache_config['CACHE_REDIS_URL'] = config.CACHE_REDIS_URL
+api_cache = Cache(app, config=cache_config)
 WINTER_STORM_SUPPORT_BANNER_DEFAULTS = {
     'enabled': False,
     'label': 'Public Safety Alert',
@@ -1100,6 +1113,77 @@ def enforce_admin_access():
     session.clear()
     flash('Your account is not authorized for the admin panel.', 'error')
     return redirect(url_for('admin.admin_login'))
+
+
+# Paths that anonymous visitors may access even when the sign-in wall is on.
+_SIGNIN_WALL_EXEMPT_PREFIXES = (
+    '/static/',
+    '/api/',
+    '/admin/',
+    '/login',
+    '/register',
+    '/logout',
+    '/forgot-password',
+    '/reset-password',
+    '/webhooks/',
+    '/supporter/',
+    '/donate/',
+    '/checkout/',
+    '/advertise/',
+    '/wanted/subscribe',
+    '/health',
+    '/ping',
+)
+_SIGNIN_WALL_EXEMPT_EXACT = {
+    '/',
+    '/favicon.ico',
+    '/robots.txt',
+    '/sitemap.xml',
+    '/manifest.json',
+    '/ads.txt',
+    '/api/subscribe-event',
+    '/advertise',
+}
+
+
+def _is_signin_exempt_path(path: str) -> bool:
+    if path in _SIGNIN_WALL_EXEMPT_EXACT:
+        return True
+    for prefix in _SIGNIN_WALL_EXEMPT_PREFIXES:
+        if path.startswith(prefix):
+            return True
+    return False
+
+
+def _is_signin_wall_enabled() -> bool:
+    """Check the runtime sign-in-wall toggle.
+
+    The environment variable takes precedence so that tests can reliably
+    disable the wall via ``MB_REQUIRE_SIGNIN=false`` even when import-order
+    quirks leave the app holding a different ``config`` module object.
+    """
+    env_value = os.environ.get('MB_REQUIRE_SIGNIN', '')
+    if env_value:
+        return env_value.lower() in {'1', 'true', 'yes', 'on'}
+    return getattr(config, 'REQUIRE_SIGNIN_WALL', False)
+
+
+@app.before_request
+def enforce_signin_wall():
+    """Redirect anonymous visitors to login for every page except the homepage and exempt flows."""
+    if not _is_signin_wall_enabled():
+        return
+    if current_user.is_authenticated:
+        return
+    if session.get('public_user_id'):
+        return
+    if _is_signin_exempt_path(request.path):
+        return
+    # Allow only GET on the homepage.
+    if request.path == '/' and request.method == 'GET':
+        return
+    flash('Please sign in or create a free account to continue.', 'info')
+    return redirect(url_for('auth.public_login', next=request.path))
 
 
 @app.after_request
@@ -2370,8 +2454,8 @@ def _bail_ad_contract_context(onboarding_token: str | None = None):
     if not contract_url and safe_token:
         contract_url = url_for('payments.advertise_bail_private_contract', token=safe_token)
     return {
-        'title': "Affordable Bail Bonds Advertising Contract",
-        'partner_name': "Affordable Bail Bonds",
+        'title': "Montana Blotter Contract",
+        'partner_name': "Montana Blotter",
         'url': contract_url,
         'external': bool(configured_url),
         'updated_label': 'Updated March 19, 2026',
@@ -4078,6 +4162,54 @@ def _apply_disposition_api_stripe_event(conn, event):
             )
 
 
+def _apply_supporter_stripe_event(conn, event):
+    """Handle Stripe webhook events for $1/month supporter subscriptions."""
+    event_type = (event.get('type') or '').strip()
+    data_object = (event.get('data') or {}).get('object') or {}
+    metadata = data_object.get('metadata') or {}
+    email = (metadata.get('email') or '').strip().lower()
+    subscription_id = (data_object.get('subscription') or data_object.get('id') or '').strip()
+
+    if not email:
+        # Try to extract email from customer_details on checkout.session.completed
+        customer_details = data_object.get('customer_details') or {}
+        email = (customer_details.get('email') or '').strip().lower()
+
+    if not email:
+        return
+
+    if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
+        # Activate: insert or update subscriber as supporter
+        conn.execute(
+            '''
+            UPDATE subscribers
+            SET subscriber_plan = 'supporter',
+                subscription_status = 'active',
+                updated_at = datetime('now')
+            WHERE email = ?
+            ''',
+            (email,),
+        )
+        conn.commit()
+        app.logger.info('supporter webhook: activated for email=%s subscription=%s', email, subscription_id)
+
+    elif event_type in {'customer.subscription.deleted', 'customer.subscription.updated'}:
+        status = (data_object.get('status') or '').strip()
+        if status in {'canceled', 'past_due', 'unpaid'}:
+            conn.execute(
+                '''
+                UPDATE subscribers
+                SET subscriber_plan = 'free',
+                    subscription_status = 'cancelled',
+                    updated_at = datetime('now')
+                WHERE email = ? AND subscriber_plan = 'supporter'
+                ''',
+                (email,),
+            )
+            conn.commit()
+            app.logger.info('supporter webhook: deactivated for email=%s status=%s', email, status)
+
+
 def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_hash='', event_referrer=''):
     event_type = (event.get('type') or '').strip()
     data_object = (event.get('data') or {}).get('object') or {}
@@ -4092,6 +4224,9 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
         return
     if (metadata.get('flow') or '').strip() == 'disposition_api':
         _apply_disposition_api_stripe_event(conn, event)
+        return
+    if (metadata.get('tier') or '').strip() == 'supporter':
+        _apply_supporter_stripe_event(conn, event)
         return
     if not event_type:
         return
@@ -6649,6 +6784,7 @@ def inject_public_nav():
             'items': [
                 {'id': 'crime_atlas', 'href': '/crime-atlas', 'label': 'Crime Map'},
                 {'id': 'crime_data', 'href': '/crime-data', 'label': 'Crime Data'},
+                {'id': 'leaderboard', 'href': '/leaderboard', 'label': 'Leaderboard'},
             ],
         },
         {
@@ -7007,6 +7143,7 @@ def _ensure_subscriber_schema(conn):
         ('counties_of_interest', "TEXT NOT NULL DEFAULT '[]'"),
         ('charge_types_of_interest', "TEXT NOT NULL DEFAULT '[\"all\"]'"),
         ('subscription_status', "TEXT NOT NULL DEFAULT 'active'"),
+        ('subscriber_plan', "TEXT NOT NULL DEFAULT 'free'"),
         ('wants_notifications', 'INTEGER NOT NULL DEFAULT 0'),
         ('notification_channels', "TEXT NOT NULL DEFAULT 'email'"),
     ]:
@@ -8219,7 +8356,11 @@ def index():
     featured_new_cities = []
     weekly_snapshot = _weekly_snapshot(conn)
     missing_persons_alert = missing_person_homepage_context(conn, limit=3)
-    wanted_spotlight = warrant_homepage_context(conn, limit=6)
+    wanted_spotlight = (
+        warrant_homepage_context(conn, limit=6, has_access=user_has_warrant_access())
+        if user_has_warrant_access()
+        else None
+    )
     newsroom_context = _homepage_newsroom_context(
         conn,
         county=county,
@@ -8318,6 +8459,9 @@ def index():
         'blog': conn.execute("SELECT COUNT(*) FROM blog_posts WHERE published = 1").fetchone()[0],
     }
 
+    public_user = _get_public_user()
+    recent_alerts = get_recent_alerts_for_user(public_user.id, limit=5) if public_user else None
+
     conn.close()
 
     return render_template('index.html',
@@ -8348,6 +8492,7 @@ def index():
                            havre_current_count=havre_current_count,
                            recent_blog_posts=recent_blog_posts,
                            hub_counts=hub_counts,
+                           recent_alerts=recent_alerts,
                            page_title='Real-Time Public Record Reporting',
                            meta_description='Real-time Montana public record reporting with recent incident cards, jurisdiction directories, and statewide trend visibility.',
                            canonical_url=f'{BASE_URL}/',
@@ -9054,7 +9199,9 @@ def missing_person_detail(slug):
 
 @app.route('/wanted')
 def wanted_index():
-    has_access = user_has_warrant_access()
+    has_access = bool(user_has_warrant_access())
+    if not has_access:
+        return redirect(url_for('payments.wanted_subscribe', next=request.path))
     conn = get_db()
     try:
         offset = max(int(request.args.get('offset') or 0), 0)
@@ -9067,9 +9214,13 @@ def wanted_index():
         county=request.args.get('county'),
         sort=request.args.get('sort'),
         offset=offset,
-        limit=5 if not has_access else 50,
+        limit=50,
+        has_access=has_access,
+        public_preview_limit=5,
     )
     conn.close()
+    if not has_access and offset > 0:
+        return redirect(url_for('payments.wanted_subscribe', next=request.path))
     return render_template(
         'wanted_index.html',
         active_nav='wanted',
@@ -9111,6 +9262,8 @@ def wanted_detail(slug):
 
 @app.route('/wanted/counties')
 def wanted_counties():
+    if not user_has_warrant_access():
+        return redirect(url_for('payments.wanted_subscribe', next=request.path))
     from services.ingestion.warrants.source_registry import COUNTY_SOURCES
     conn = get_db()
     counts = {
@@ -9146,8 +9299,10 @@ def wanted_counties():
 
 @app.route('/wanted/county/<slug>')
 def wanted_county(slug):
+    if not user_has_warrant_access():
+        return redirect(url_for('payments.wanted_subscribe', next=request.path))
+    has_access = True
     conn = get_db()
-    has_access = user_has_warrant_access()
     context = warrant_county_context(conn, slug, has_access=has_access)
     conn.close()
     if not context:
@@ -9239,12 +9394,13 @@ def _send_warrant_clear_notifications(warrant_id: int):
 
 @app.route('/wanted/notify-when-cleared', methods=['GET', 'POST'])
 def wanted_notify_when_cleared():
-    """Public form: register to be emailed when a warrant is cleared.
+    """Register to be emailed when a warrant is cleared.
 
-    Anyone can submit a name + email + (optional) DOB. When the matching
-    warrant moves to 'cleared' or 'resolved' status, an email is queued.
-    No login required, no paywall.
+    Requires warrant access. When the matching warrant moves to 'cleared'
+    or 'resolved' status, an email is queued.
     """
+    if not user_has_warrant_access():
+        return redirect(url_for('payments.wanted_subscribe', next=request.path))
     if request.method == 'POST':
         person_name = (request.form.get('person_name') or '').strip()[:120]
         dob = (request.form.get('dob') or '').strip()[:20]
@@ -9990,12 +10146,15 @@ def arrests():
         ) ORDER BY county
     """).fetchall()]
 
+    attorneys = _pick_attorneys_for_county(county, limit=2) if county else []
+
     conn.close()
     return render_template('arrests.html',
                            records=rows, total=total,
                            total_pages=total_pages, page=page,
                            counties=counties, county=county,
                            q=search_query,
+                           attorneys=attorneys,
                            current_year=datetime.now().year)
 
 
@@ -13837,6 +13996,46 @@ def dui_leaderboard():
     )
 
 
+@app.route('/leaderboard')
+def recidivism_leaderboard():
+    from services.persons.recidivism import recidivism_leaderboard_context
+    county = request.args.get('county', '').strip().lower()
+    conn = get_db()
+    context = recidivism_leaderboard_context(conn, limit=10, county_slug=county)
+    conn.close()
+
+    county_label = ''
+    if county and context['counties']:
+        for c in context['counties']:
+            if c['county_slug'] == county:
+                county_label = c['county_name']
+                break
+
+    page_title = 'Montana Repeat Booking Leaderboard — Top 10 Frequent Arrests'
+    meta_description = 'See the top 10 people with the most repeat jail bookings in Montana — only counting those who were released and booked again.'
+    if county_label:
+        page_title = f'{county_label} County Repeat Booking Leaderboard — Top 10'
+        meta_description = f'See the top 10 people with the most repeat jail bookings in {county_label} County — only counting those who were released and booked again.'
+
+    canonical_url = f'{BASE_URL}/leaderboard'
+    if county:
+        canonical_url += f'?county={county}'
+
+    return render_template(
+        'recidivism_leaderboard.html',
+        **context,
+        county_label=county_label,
+        current_year=datetime.now().year,
+        canonical_url=canonical_url,
+        page_title=page_title,
+        meta_description=meta_description,
+        og_title=page_title,
+        og_description=meta_description,
+        og_image=f'{BASE_URL}/static/icons/og-default.png',
+        active_nav='leaderboard',
+    )
+
+
 # ==========================================
 # WARRANT PAGES
 # ==========================================
@@ -13850,6 +14049,8 @@ _WARRANT_COUNTIES = [
 
 @app.route('/warrants')
 def warrants_hub():
+    if not user_has_warrant_access():
+        return redirect(url_for('payments.wanted_subscribe', next=request.path))
     counties = [COUNTY_DATA[s] for s in _WARRANT_COUNTIES if s in COUNTY_DATA]
     return render_template(
         'warrants_hub.html',
@@ -13862,6 +14063,8 @@ def warrants_hub():
 
 @app.route('/warrants/<slug>')
 def warrant_county(slug):
+    if not user_has_warrant_access():
+        return redirect(url_for('payments.wanted_subscribe', next=request.path))
     county = COUNTY_DATA.get(slug)
     if not county:
         return render_template('404.html'), 404
@@ -14520,6 +14723,8 @@ app.register_blueprint(recovery_ads_bp)
 app.register_blueprint(attorney_ads_bp)
 from blueprints.admin_geocode import admin_geocode_bp
 app.register_blueprint(admin_geocode_bp)
+app.register_blueprint(threedhub_bp)
+app.register_blueprint(chat_agent_bp)
 app.after_request(after_api_request)
 
 
@@ -14818,7 +15023,11 @@ def serve_upload(filename):
     """
     if filename.lower().endswith('.docx'):
         abort(403)
-    return send_from_directory(config.UPLOAD_DIR, filename)
+    response = send_from_directory(config.UPLOAD_DIR, filename)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.pdf'}:
+        response.headers['Cache-Control'] = 'public, max-age=604800'
+    return response
 
 
 # ==========================================

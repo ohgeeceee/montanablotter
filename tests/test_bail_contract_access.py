@@ -104,7 +104,7 @@ class BailContractAccessTests(unittest.TestCase):
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Affordable Bail Bonds Advertising Contract", html)
+        self.assertIn("Montana Blotter Contract", html)
         self.assertIn("Agreement Summary", html)
 
     def test_public_advertiser_pages_do_not_expose_contract_route(self) -> None:

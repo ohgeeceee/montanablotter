@@ -96,20 +96,6 @@ def generate_posts(
     sender_email: Optional[str] = None,
     ingestion_job_id: Optional[int] = None,
 ) -> int:
-    openai_api_key = os.getenv("OPENAI_API_KEY") or getattr(config, "OPENAI_API_KEY", None)
-    openai_model = os.getenv("OPENAI_MODEL") or getattr(config, "OPENAI_MODEL", "gpt-4o-mini")
-
-    anthropic_client = None
-    try:
-        import anthropic
-        api_key = getattr(config, "ANTHROPIC_API_KEY", None)
-        anthropic_client = anthropic.Anthropic(api_key=api_key) if api_key else None
-    except ImportError:
-        anthropic_client = None
-
-    if not openai_api_key and anthropic_client is None:
-        logger.warning("No LLM API key configured (OPENAI_API_KEY/ANTHROPIC_API_KEY) – using fallback digest")
-
     conn = _connect_db()
     cursor = conn.cursor()
 
@@ -275,23 +261,58 @@ def generate_posts(
 
     post_data = {}
     summary_method = {'method': 'fallback', 'provider': 'fallback', 'generated': False}
-    if openai_api_key:
-        post_data = _call_openai(
-            api_key=openai_api_key,
-            model=openai_model,
-            county=county,
-            date=incident_date,
-            agency_type=agency_type,
-            agency_name=agency_name,
-            filename=blotter_filename,
-            incident_lines=incident_lines,
-        )
-        if post_data:
-            summary_method = {'method': 'ai_generated', 'provider': 'openai', 'generated': True}
 
-    if not post_data and anthropic_client is not None:
-        post_data = _call_claude(
-            client=anthropic_client,
+    # Paid LLM path is opt-in only. Default to the free, local digest path to
+    # avoid Claude/OpenAI costs.
+    if getattr(config, 'USE_PAID_LLM', False):
+        openai_api_key = os.getenv("OPENAI_API_KEY") or getattr(config, "OPENAI_API_KEY", None)
+        openai_model = os.getenv("OPENAI_MODEL") or getattr(config, "OPENAI_MODEL", "gpt-4o-mini")
+
+        anthropic_client = None
+        try:
+            import anthropic
+            api_key = getattr(config, "ANTHROPIC_API_KEY", None)
+            anthropic_client = anthropic.Anthropic(api_key=api_key) if api_key else None
+        except ImportError:
+            anthropic_client = None
+
+        if not openai_api_key and anthropic_client is None:
+            logger.warning("No LLM API key configured (OPENAI_API_KEY/ANTHROPIC_API_KEY) – trying Ollama fallback")
+
+        if openai_api_key:
+            post_data = _call_openai(
+                api_key=openai_api_key,
+                model=openai_model,
+                county=county,
+                date=incident_date,
+                agency_type=agency_type,
+                agency_name=agency_name,
+                filename=blotter_filename,
+                incident_lines=incident_lines,
+            )
+            if post_data:
+                summary_method = {'method': 'ai_generated', 'provider': 'openai', 'generated': True}
+
+        if not post_data and anthropic_client is not None:
+            post_data = _call_claude(
+                client=anthropic_client,
+                county=county,
+                date=incident_date,
+                agency_type=agency_type,
+                agency_name=agency_name,
+                filename=blotter_filename,
+                incident_lines=incident_lines,
+            )
+            if post_data:
+                summary_method = {'method': 'ai_generated', 'provider': 'anthropic', 'generated': True}
+
+    # If paid LLM disabled or failed, try local Ollama (free, on-VPS)
+    if not post_data:
+        ollama_model = getattr(config, 'OLLAMA_MODEL', 'llama3.2')
+        ollama_host = getattr(config, 'OLLAMA_HOST', 'http://127.0.0.1:11434')
+        post_data = _call_ollama(
+            model=ollama_model,
+            host=ollama_host,
             county=county,
             date=incident_date,
             agency_type=agency_type,
@@ -300,7 +321,12 @@ def generate_posts(
             incident_lines=incident_lines,
         )
         if post_data:
-            summary_method = {'method': 'ai_generated', 'provider': 'anthropic', 'generated': True}
+            summary_method = {'method': 'ai_generated', 'provider': 'ollama', 'generated': True}
+        else:
+            logger.info(
+                "Using template fallback digest for blotter %s (Ollama unavailable or disabled)",
+                blotter_id,
+            )
 
     city = post_data.get("city") or ""
     final_agency_name, final_agency_type = normalize_agency_identity(
@@ -317,7 +343,7 @@ def generate_posts(
         city=city,
         agency_type=final_agency_type,
     )
-    raw_summary = post_data.get("summary") or _fallback_summary(final_agency_name, rows)
+    raw_summary = post_data.get("summary") or _fallback_summary(final_agency_name, rows, incident_date)
     # Convert sqlite3.Row list to plain dicts for append_historical_perspective
     _rows_as_dicts = [dict(r) for r in rows]
     final_summary = append_historical_perspective(
@@ -498,9 +524,47 @@ def _call_claude(client, county, date, agency_type, agency_name, filename, incid
         return {}
 
 
-def _fallback_summary(agency_name: str, rows) -> str:
-    """Plain-text digest when Claude/OpenAI is unavailable."""
-    lines = [f"The {agency_name or 'agency'} responded to the following incidents:"]
+def _call_ollama(model, host, county, date, agency_type, agency_name, filename, incident_lines) -> dict:
+    """
+    Call local Ollama API to produce a daily digest post.
+    Returns dict with keys: title, summary, city, agency_type, agency_name.
+    """
+    user_content = _llm_user_prompt(county, date, agency_type, agency_name, filename, incident_lines)
+    try:
+        resp = requests.post(
+            f"{host}/api/generate",
+            json={
+                "model": model,
+                "prompt": user_content,
+                "system": (
+                    "You are a journalist writing daily police activity summaries for a public news site. "
+                    "Write clearly and factually. Respond with valid JSON only."
+                ),
+                "stream": False,
+                "options": {"temperature": 0.2},
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        raw = payload.get("response", "").strip()
+        parsed = _parse_json_block(raw)
+        if parsed.get("title") and parsed.get("summary"):
+            return parsed
+        logger.warning("Ollama response missing required fields (title/summary), using fallback digest")
+        return {}
+    except Exception as e:
+        logger.error(f"Ollama API error: {e} – using fallback digest")
+        return {}
+
+
+def _fallback_summary(agency_name: str, rows, incident_date: str = "") -> str:
+    """Free, local digest when Claude/OpenAI is unavailable or disabled."""
+    incident_count = len(rows)
+    date_clause = f" on {incident_date}" if incident_date else ""
+    lines = [
+        f"The {agency_name or 'agency'} responded to {incident_count} incident{'s' if incident_count != 1 else ''}{date_clause}. Below is the full log:"
+    ]
     for r in rows:
         # sqlite3.Row supports dict-style access via __getitem__ but not .get()
         time_str = r["time"] or ""

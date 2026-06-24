@@ -182,6 +182,9 @@ def redact_record(record: dict) -> dict:
     Run the compliance agent on a single blotter record.
     Returns a new dict with all required redactions applied.
     """
+    if not getattr(config, "USE_PAID_LLM", False):
+        logger.warning("redact_record skipped: paid LLM disabled via MB_USE_PAID_LLM")
+        return {**record, "redaction_applied": record.get("redaction_applied", False)}
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
     working = copy.deepcopy(record)
     any_changed = False

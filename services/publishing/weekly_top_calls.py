@@ -104,7 +104,7 @@ Write the post body only — no title, no byline, no markdown headers."""
 
 
 def _generate_body(prompt: str) -> str | None:
-    if anthropic is None:
+    if anthropic is None or not getattr(config, "USE_PAID_LLM", False):
         return None
     try:
         client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
