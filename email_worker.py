@@ -269,6 +269,14 @@ class EmailWorker:
 
     def _looks_like_blotter_email(self, subject: str, sender: str, body: str) -> bool:
         text = " ".join([subject or "", sender or "", body[:4000] or ""]).lower()
+        # Self-sent pipeline notifications (cron failure/recovery alerts) must
+        # never be ingested as blotter content — their bodies are worker logs,
+        # not police activity. Subjects like "[Montana Blotter] Scheduled job ..."
+        # and bodies mentioning "Missoula public report" would otherwise trip
+        # the positive markers below.
+        if sender and 'montanablotter' in sender.lower():
+            return False
+
         negative_markers = (
             'unsubscribe',
             'manage preferences',
@@ -288,6 +296,10 @@ class EmailWorker:
             'trusted data sources',
             'microsoft azure',
             'product announcement',
+            'scheduled job',
+            'job recovered',
+            'pipeline',
+            'cron',
         )
         if any(marker in text for marker in negative_markers):
             return False
