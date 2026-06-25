@@ -238,6 +238,7 @@ class BlotterParser:
     _COUNTY_CANDIDATE_BLACKLIST = frozenset({
         'docx', 'doc', 'pdf', 'xlsx', 'xls', 'csv', 'json', 'xml', 'html', 'zip',
         'jpg', 'jpeg', 'png', 'gif', 'txt', 'rtf', 'mp3', 'mp4', 'avi', 'mov',
+        'unknown', 'pending', 'tbd', 'n/a', 'na', 'none',
     })
 
     def _is_valid_county_candidate(self, candidate: str) -> bool:
