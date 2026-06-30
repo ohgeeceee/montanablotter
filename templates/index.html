@@ -884,65 +884,34 @@
                     <div class="report-stack">
                         {% for post in posts %}
                         {% set lead = post.lead_record %}
-                        <article class="report-card report-card--{{ post.case_status or 'pending' }}">
+                        <article class="report-card">
                             <div class="report-card__header">
-                                <div class="report-card__meta">
-                                    <span class="status-pill status-pill--{{ post.case_status or 'pending' }}">
-                                        {{ (post.case_status or 'pending') | capitalize }}
-                                    </span>
-                                    {% if lead %}
-                                    <span class="report-card__timestamp">
-                                        {{ lead.date or 'Date pending' }}{% if lead.time %} · {{ lead.time }}{% endif %}
-                                    </span>
-                                    {% endif %}
-                                </div>
-                                {% if post.confidence_badge %}
-                                <span class="confidence-pill confidence-pill--{{ post.confidence_badge.tone }}">
-                                    {{ post.confidence_badge.label }}
+                                <span class="report-card__timestamp">
+                                    {% if lead %}{{ lead.date or 'Date pending' }}{% if lead.time %} · {{ lead.time }}{% endif %}{% else %}{{ post.created_at[:10] if post.created_at else 'Date pending' }}{% endif %}
                                 </span>
+                                {% if post.county %}
+                                <a href="/?county={{ post.county | urlencode }}" class="report-card__county-link">{{ post.county }} County</a>
                                 {% endif %}
                             </div>
 
                             <div class="report-card__body">
-                                <div class="report-card__lead">
-                                    <p class="report-card__eyebrow">Incident Type</p>
-                                    <h3 class="report-card__title">
-                                        {{ lead.incident_label if lead else (post.title or 'Daily incident report') }}
-                                    </h3>
-                                    <span class="location-badge">
-                                        {% if lead and lead.location %}
-                                            {{ lead.location }}
-                                        {% elif post.city %}
-                                            {{ post.city }}
-                                        {% elif post.county %}
-                                            {{ post.county }} County
-                                        {% else %}
-                                            Location pending
-                                        {% endif %}
-                                    </span>
-                                </div>
-
-                                <div class="report-card__content">
-                                    <p class="report-card__source">
-                                        {{ post.agency_name or 'Unknown agency' }}{% if post.county %} · {{ post.county }} County{% endif %}
-                                    </p>
-                                    {% if post.title and lead and post.title != lead.incident_label %}
-                                    <p class="report-card__headline">{{ post.title }}</p>
-                                    {% endif %}
-                                    {% if post.summary %}
-                                    <p class="report-card__summary">{{ post.summary | striptags | truncate(280, True, '…') }}</p>
+                                <h3 class="report-card__title">
+                                    {% if lead and lead.incident_label %}
+                                        {{ lead.incident_label }}{% if lead.location %} at {{ lead.location }}{% endif %}
+                                    {% elif post.title %}
+                                        {{ post.title }}
                                     {% else %}
-                                    <p class="report-card__summary">Source-linked incident reporting with jurisdiction and report detail pages.</p>
+                                        Daily incident report
                                     {% endif %}
-                                    <div class="card-links">
-                                        {% if lead and lead.id %}
-                                        <a href="/record/{{ lead.id }}" class="card-link card-link--primary">Incident record</a>
-                                        {% endif %}
-                                        <a href="/post/{{ post.id }}" class="card-link">Full report</a>
-                                        {% if post.county %}
-                                        <a href="/?county={{ post.county | urlencode }}" class="card-link">{{ post.county }} County</a>
-                                        {% endif %}
-                                    </div>
+                                </h3>
+                                <p class="report-card__source">
+                                    {{ post.agency_name or 'Unknown agency' }}{% if post.city %} · {{ post.city }}{% elif post.county %} · {{ post.county }} County{% endif %}
+                                </p>
+                                {% if post.summary %}
+                                <p class="report-card__summary">{{ post.summary | striptags | truncate(200, True, '…') }}</p>
+                                {% endif %}
+                                <div class="report-card__action">
+                                    <a href="/post/{{ post.id }}" class="card-link card-link--primary">Read report <span aria-hidden="true">→</span></a>
                                 </div>
                             </div>
                         </article>
