@@ -479,10 +479,6 @@ body > .public-masthead {
   border-bottom: 0;
 }
 
-.public-mobile-drawer__item.active {
-  color: var(--public-amber);
-}
-
 .public-mobile-drawer__item--muted {
   color: var(--public-muted);
 }
