@@ -449,8 +449,10 @@
                 </div>
             </div>
 
-            <div class="ticker-rail" aria-label="Breaking and recent incidents">
-                <span class="ticker-rail__label">Breaking / Recent</span>
+            <div class="ticker-rail" aria-label="Recent incidents">
+                <span class="ticker-rail__label">
+                    {% if ticker_records %}Recent activity{% else %}Breaking / Recent{% endif %}
+                </span>
                 <div class="ticker-rail__viewport">
                     <div class="ticker-rail__track">
                         {% if ticker_records %}
