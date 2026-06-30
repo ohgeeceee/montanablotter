@@ -986,6 +986,7 @@
                             </div>
                         </div>
 
+                        {% if featured_new_cities %}
                         <div>
                             <p class="jurisdiction-groups__label">Featured cities</p>
                             <div class="chip-grid">
@@ -994,11 +995,10 @@
                                     <span>{{ item.name }}</span>
                                     <strong>{{ item.record_count }}</strong>
                                 </a>
-                                {% else %}
-                                <span class="jurisdiction-chip jurisdiction-chip--static">New city pages will appear here as local coverage expands.</span>
                                 {% endfor %}
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 </section>
             </section>
