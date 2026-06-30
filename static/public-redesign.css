@@ -93,7 +93,7 @@ body > .public-masthead {
 .public-topband__stat,
 .public-utility-link,
 .public-utility-dot {
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -179,7 +179,7 @@ body > .public-masthead {
 .public-brand__tag {
   margin-top: 0.22rem;
   color: var(--public-steel);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.55rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -203,7 +203,7 @@ body > .public-masthead {
 .public-chip,
 .public-filter-pill,
 .public-inline-link {
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -250,7 +250,7 @@ body > .public-masthead {
 
 .public-nav-divider {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.5rem;
   user-select: none;
 }
@@ -370,7 +370,7 @@ body > .public-masthead {
   background: none;
   color: var(--public-dim);
   cursor: pointer;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.42rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -455,7 +455,7 @@ body > .public-masthead {
 
 .public-mobile-drawer__label {
   color: var(--public-amber);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.55rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -467,7 +467,7 @@ body > .public-masthead {
   padding: 0.9rem 0;
   border-bottom: 1px solid var(--public-border);
   color: var(--public-text);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -477,6 +477,10 @@ body > .public-masthead {
 
 .public-mobile-drawer__item:last-child {
   border-bottom: 0;
+}
+
+.public-mobile-drawer__item.active {
+  color: var(--public-amber);
 }
 
 .public-mobile-drawer__item--muted {
@@ -519,7 +523,7 @@ body > .public-masthead {
 }
 
 .public-dialog__link--mono {
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.7rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -537,7 +541,7 @@ body > .public-masthead {
   border-radius: 16px;
   background: #ffffff;
   color: var(--public-text);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.72rem;
   box-sizing: border-box;
   outline: none;
@@ -552,7 +556,7 @@ body > .public-masthead {
   padding: 0.8rem 1.25rem;
   border-bottom: 1px solid var(--public-border);
   color: var(--public-muted);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.68rem;
   line-height: 1.65;
 }
@@ -563,7 +567,7 @@ body > .public-masthead {
 
 .public-dialog__muted {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.66rem;
 }
 
@@ -571,7 +575,7 @@ body > .public-masthead {
   padding-top: 0.85rem;
   padding-bottom: 0.85rem;
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -636,7 +640,7 @@ body > .public-masthead {
 
 .public-official-banner__eyebrow {
   color: var(--public-steel);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.55rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -692,7 +696,7 @@ body > .public-masthead {
 
 .public-official-pill__label {
   color: var(--public-steel);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.52rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -711,7 +715,7 @@ body > .public-masthead {
   justify-content: center;
   border-radius: 999px;
   padding: 0.58rem 0.9rem;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -737,7 +741,7 @@ body > .public-masthead {
   background: transparent;
   color: var(--public-steel);
   cursor: pointer;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -848,7 +852,7 @@ body > .public-masthead {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.66);
   color: var(--public-steel);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -900,7 +904,7 @@ body > .public-masthead {
 
 .public-footer__eyebrow {
   color: var(--public-amber);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -963,7 +967,7 @@ body > .public-masthead {
 
 .public-footer__legal {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.56rem;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -1073,7 +1077,7 @@ body > .public-masthead {
   border: 1px solid var(--public-border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--public-muted);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1138,7 +1142,7 @@ body > .public-masthead {
 
 .public-rail-link__eyebrow {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.54rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -1182,7 +1186,7 @@ body > .public-masthead {
 .public-form-label {
   display: block;
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -1242,7 +1246,7 @@ body > .public-masthead {
   background: var(--public-amber-soft);
   border: 1px solid var(--public-border-strong);
   color: var(--public-amber);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.68rem;
   font-weight: 700;
 }
@@ -1286,7 +1290,7 @@ body > .public-masthead {
 
 .public-eyebrow {
   color: var(--public-amber);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -1344,7 +1348,7 @@ body > .public-masthead {
 
 .public-card__eyebrow {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.54rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -1401,7 +1405,7 @@ body > .public-masthead {
 
 .public-sidebar-card__eyebrow {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -1441,7 +1445,7 @@ body > .public-masthead {
 
 .public-link-tile__eyebrow {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.55rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -1529,7 +1533,7 @@ body > .public-masthead {
 
 .public-status-row__label {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -1556,7 +1560,7 @@ body > .public-masthead {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.028);
   color: var(--public-muted);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -1667,7 +1671,7 @@ body > .public-masthead {
 
 .public-stat-label {
   color: var(--public-dim);
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.54rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -1694,7 +1698,7 @@ body > .public-masthead {
   padding: 0.9rem 1.05rem;
   border-radius: 999px;
   border: 1px solid transparent;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -2139,7 +2143,7 @@ body.public-app--home #live-bar {
 }
 
 .public-nav-more__title {
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -2180,4 +2184,84 @@ body.public-app--home #live-bar {
     right: -1rem;
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Simplified homepage report cards ── */
+.report-card {
+  background: var(--public-panel-strong);
+  border: 1px solid var(--public-border);
+  border-left: 4px solid var(--public-steel);
+  border-radius: var(--public-radius-sm);
+  padding: 1.1rem 1.25rem 1.25rem;
+  margin-bottom: 1rem;
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.report-card:hover {
+  box-shadow: var(--public-shadow);
+  border-color: var(--public-border-strong);
+}
+
+.report-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.72rem;
+  color: var(--public-dim);
+}
+
+.report-card__timestamp {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.report-card__county-link {
+  color: var(--public-steel);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.report-card__county-link:hover {
+  text-decoration: underline;
+}
+
+.report-card__title {
+  font-size: clamp(1.05rem, 1.1rem + 0.25vw, 1.3rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--public-text);
+  margin: 0 0 0.35rem 0;
+}
+
+.report-card__source {
+  font-size: 0.82rem;
+  color: var(--public-muted);
+  margin: 0 0 0.65rem 0;
+}
+
+.report-card__summary {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--public-text);
+  margin: 0 0 0.85rem 0;
+}
+
+.report-card__action {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.report-card__action .card-link--primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 700;
+  color: var(--public-steel);
+}
+
+.report-card__action .card-link--primary:hover {
+  color: var(--public-text);
 }
