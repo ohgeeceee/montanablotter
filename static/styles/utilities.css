@@ -193,6 +193,7 @@ a:focus-visible {
 .u-grid { display: grid; }
 .u-inline-grid { display: inline-grid; }
 .u-hidden { display: none; }
+.u-relative { position: relative; }
 
 .u-flex-col { flex-direction: column; }
 .u-flex-row { flex-direction: row; }
