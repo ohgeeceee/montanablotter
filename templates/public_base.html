@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111111">
+  <meta name="facebook-domain-verification" content="hov8m0bh6slqwz6y1guh07p5cect0h" />
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}{% if page_title is defined %}{{ page_title }} | Montana Blotter{% else %}Montana Blotter{% endif %}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{% if meta_description is defined %}{{ meta_description }}{% else %}Real-time Montana public records: incidents, arrests, courts, jails, and county blotters.{% endif %}{% endblock %}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* System-font fallback to reduce layout shift while web fonts load */
+    .font-fallback {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+  </style>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/utilities.css', v='20260704b') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/shell.css', v='20260704b') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='public-redesign.css', v='20260704b') }}">
+  {% block extra_head %}{% endblock %}
+
+  {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+  {% for pr in pagination_rels %}
+  <link rel="{{ pr.rel }}" href="{{ pr.href }}">
+  {% endfor %}
+
+  <meta property="og:site_name" content="Montana Blotter">
+  <meta property="og:title" content="{{ og_title or (page_title ~ ' | Montana Blotter') if page_title is defined else og_title or 'Montana Blotter' }}">
+  <meta property="og:description" content="{{ og_description or meta_description if meta_description is defined else og_description or 'Real-time Montana public records.' }}">
+  <meta property="og:type" content="{{ og_type or 'website' }}">
+  {% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+  <meta name="twitter:card" content="{{ twitter_card or 'summary_large_image' }}">
+  <meta property="og:image" content="{{ og_image or 'https://montanablotter.com/static/icons/og-default.png' }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:image" content="{{ og_image or 'https://montanablotter.com/static/icons/og-default.png' }}">
+  <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
+  {% include "includes/google_analytics.html" %}
+  <link rel="manifest" href="/manifest.json">
+  <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
+  <script>
+  (function(){
+    var VAPID_KEY = '{{ config.VAPID_PUBLIC_KEY }}';
+    function urlB64ToUint8Array(b) {
+      var p = (b + '==='.slice((b.length + 3) % 4)).replace(/-/g,'+').replace(/_/g,'/');
+      var r = atob(p), o = new Uint8Array(r.length);
+      for (var i=0;i<r.length;i++) o[i]=r.charCodeAt(i);
+      return o;
+    }
+    function initPushButton() {
+      var btn = document.getElementById('mb-push-btn');
+      if (!btn || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        if (btn) btn.style.display = 'none';
+        return;
+      }
+      navigator.serviceWorker.ready.then(function(reg) {
+        reg.pushManager.getSubscription().then(function(sub) {
+          btn.style.display = 'inline-flex';
+          btn.setAttribute('data-subscribed', sub ? '1' : '0');
+          btn.textContent = sub ? '🔔 Notifications on' : '🔔 Get alerts';
+        });
+      });
+      btn.addEventListener('click', function() {
+        navigator.serviceWorker.ready.then(function(reg) {
+          reg.pushManager.getSubscription().then(function(existing) {
+            if (existing) {
+              existing.unsubscribe().then(function() {
+                fetch('/api/push/unsubscribe', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:existing.endpoint})});
+                btn.textContent = '🔔 Get alerts';
+                btn.setAttribute('data-subscribed','0');
+              });
+            } else {
+              Notification.requestPermission().then(function(perm) {
+                if (perm !== 'granted') return;
+                reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8Array(VAPID_KEY)}).then(function(sub) {
+                  var k = sub.getKey ? sub.getKey('p256dh') : null;
+                  var a = sub.getKey ? sub.getKey('auth') : null;
+                  fetch('/api/push/subscribe', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+                    endpoint: sub.endpoint,
+                    p256dh: k ? btoa(String.fromCharCode.apply(null,new Uint8Array(k))) : '',
+                    auth:   a ? btoa(String.fromCharCode.apply(null,new Uint8Array(a))) : '',
+                    county: document.body.dataset.county || ''
+                  })});
+                  btn.textContent = '🔔 Notifications on';
+                  btn.setAttribute('data-subscribed','1');
+                });
+              });
+            }
+          });
+        });
+      });
+    }
+    document.addEventListener('DOMContentLoaded', initPushButton);
+  })();
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "NewsMediaOrganization",
+    "name": "Montana Blotter",
+    "alternateName": "The Montana Blotter",
+    "url": "https://montanablotter.com/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://montanablotter.com/static/icons/og-default.png",
+      "width": 1200,
+      "height": 630
+    },
+    "foundingDate": "2023",
+    "description": "Montana Blotter is a statewide public records directory covering arrests, jail bookings, court activity, and civic records across Montana counties.",
+    "areaServed": {
+      "@type": "State",
+      "name": "Montana",
+      "containsPlace": {
+        "@type": "City",
+        "name": "Great Falls",
+        "containedInPlace": {"@type": "AdministrativeArea", "name": "Cascade County"}
+      }
+    },
+    "masthead": "https://montanablotter.com/about",
+    "publishingPrinciples": "https://montanablotter.com/about",
+    "sameAs": ["https://www.facebook.com/montanablotter"]
+  }
+  </script>
+  {% if recaptcha_site_key and not request.args.get('noads') %}
+  <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
+  {% endif %}
+</head>
+<body class="public-app {% block body_class %}{% endblock %}" data-county="{{ county.slug if county is defined and county else '' }}">
+  <a href="#main" class="u-skip-link">Skip to content</a>
+
+  {% include "includes/public_official_banner.html" %}
+
+  {% block pre_header %}{% endblock %}
+
+  <header class="mb-shell-header" role="banner">
+    <div class="u-container mb-shell-header__inner">
+      <a href="/" class="mb-shell-header__brand" data-nav-track="1" data-nav-location="header_brand" data-short-label="Home" data-full-label="Montana Blotter">
+        <span class="mb-shell-header__mark" aria-hidden="true">//</span>
+        <span class="mb-shell-header__wordmark">Montana Blotter</span>
+      </a>
+
+      <nav aria-label="Primary" class="mb-shell-header__nav">
+        {% for item in public_primary_nav_items %}
+        {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
+        <a href="{{ item.href }}" class="mb-nav-link {% if is_active %}mb-nav-link--active{% endif %}" data-nav-track="1" data-nav-location="header_primary" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
+        {% endfor %}
+
+        {% if public_more_nav_groups %}
+        <div class="u-relative">
+          <button type="button" class="mb-more-trigger" id="mb-more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="mb-more-dropdown">
+            {{ public_action_labels.more }}
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="mb-more-dropdown u-hidden" id="mb-more-dropdown" role="menu" hidden>
+            {% for group in public_more_nav_groups %}
+            <div class="mb-more-dropdown__group">
+              <p class="mb-more-dropdown__title">{{ group.title }}</p>
+              {% for item in group['items'] %}
+              {% set is_active = active_nav == item.id %}
+              <a href="{{ item.href }}" class="mb-more-dropdown__link {% if is_active %}mb-more-dropdown__link--active{% endif %}" role="menuitem" data-nav-track="1" data-nav-location="header_more" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </nav>
+
+      <div class="mb-shell-header__actions">
+        <a href="/subscribe" class="u-button u-button-primary u-hidden u-md-inline-flex" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
+
+        {% if public_user %}
+        <div class="u-relative">
+          <button id="mb-user-chip-btn" type="button" class="mb-user-chip" aria-haspopup="true" aria-expanded="false" aria-controls="mb-user-dropdown">
+            <span class="mb-user-chip__avatar">{{ public_user.display_name[:1].upper() }}</span>
+            <span class="u-hidden u-md-inline">{{ public_user.display_name }}</span>
+            <svg class="u-hidden u-md-inline" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="mb-user-dropdown" class="mb-user-menu u-hidden" role="menu" hidden>
+            <a href="/account" class="mb-user-menu__link" role="menuitem" data-nav-track="1" data-nav-location="user_dropdown">My Account</a>
+            <a href="/account#digest" class="mb-user-menu__link" role="menuitem" data-nav-track="1" data-nav-location="user_dropdown">Email Alerts</a>
+            <a href="/account#password-settings" class="mb-user-menu__link" role="menuitem" data-nav-track="1" data-nav-location="user_dropdown">Change Password</a>
+            <a href="/logout?next={{ request.full_path | urlencode }}" class="mb-user-menu__link u-status-error" role="menuitem" data-nav-track="1" data-nav-location="user_dropdown">{{ public_action_labels.sign_out }}</a>
+          </div>
+        </div>
+        {% else %}
+        <a href="/login?next={{ request.full_path | urlencode }}" class="mb-shell-header__action-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
+        <a href="/register?next={{ request.full_path | urlencode }}" class="mb-shell-header__action-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
+        {% endif %}
+
+        <button id="mb-mobile-toggle" type="button" class="mb-mobile-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mb-mobile-sheet">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div id="mb-mobile-sheet" class="mb-mobile-sheet" aria-hidden="true">
+    <div class="mb-mobile-sheet__backdrop" id="mb-mobile-sheet-backdrop"></div>
+    <div class="mb-mobile-sheet__panel" role="dialog" aria-modal="true" aria-label="Main menu">
+      <div class="mb-mobile-sheet__header">
+        <a href="/" class="mb-mobile-sheet__brand">Montana Blotter</a>
+        <button id="mb-mobile-sheet-close" type="button" class="mb-mobile-sheet__close" aria-label="Close menu">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="mb-mobile-sheet__body">
+        <div class="mb-mobile-sheet__section">
+          <p class="mb-mobile-sheet__label">Main pages</p>
+          {% for item in public_primary_nav_items %}
+          {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
+          <a href="{{ item.href }}" class="mb-mobile-sheet__link {% if is_active %}mb-mobile-sheet__link--active{% endif %}" data-nav-track="1" data-nav-location="mobile_main" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
+          {% endfor %}
+        </div>
+
+        {% if public_more_nav_groups %}
+        {% for group in public_more_nav_groups %}
+        <div class="mb-mobile-sheet__section">
+          <p class="mb-mobile-sheet__label">{{ group.title }}</p>
+          {% for item in group['items'] %}
+          {% set is_active = active_nav == item.id %}
+          <a href="{{ item.href }}" class="mb-mobile-sheet__link {% if is_active %}mb-mobile-sheet__link--active{% endif %}" data-nav-track="1" data-nav-location="mobile_secondary" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
+          {% endfor %}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="mb-mobile-sheet__section">
+          <p class="mb-mobile-sheet__label">{{ public_action_labels.account }}</p>
+          {% if public_user %}
+          <a href="/account" class="mb-mobile-sheet__link" data-nav-track="1" data-nav-location="mobile_account">{{ public_user.display_name }}</a>
+          <a href="/logout?next={{ request.full_path | urlencode }}" class="mb-mobile-sheet__link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.sign_out }}</a>
+          {% else %}
+          <a href="/login?next={{ request.full_path | urlencode }}" class="mb-mobile-sheet__link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.sign_in }}</a>
+          <a href="/register?next={{ request.full_path | urlencode }}" class="mb-mobile-sheet__link" data-nav-track="1" data-nav-location="mobile_account">{{ public_action_labels.join }}</a>
+          {% endif %}
+        </div>
+
+        <div class="mb-mobile-sheet__cta">
+          <a href="/subscribe" class="u-button u-button-primary" data-nav-track="1" data-nav-location="mobile_cta" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="public-breadcrumb-bar">
+    <div class="public-breadcrumb max-w-7xl mx-auto px-4 sm:px-6">
+      <a href="/">Montana Blotter</a>
+      {% block breadcrumb %}{% endblock %}
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="u-container u-px-2 u-md-px-3 u-pt-3">
+    <div class="u-space-y-2">
+      {% for category, message in messages %}
+      <div class="u-px-3 u-py-2 u-text-sm {% if category == 'error' %}u-bg-status-error u-status-error{% elif category == 'warning' %}u-bg-status-pending u-status-pending{% else %}u-bg-status-active u-status-active{% endif %}" role="alert">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  {% block hero %}{% endblock %}
+
+  <main id="main" class="u-shell-main" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="mb-shell-footer" role="contentinfo">
+    <div class="u-container mb-shell-footer__inner">
+      <div class="mb-footer-grid">
+        <div class="mb-footer-column">
+          <p class="mb-footer-column__title">The Montana Blotter</p>
+          <p class="mb-footer-column__text">
+            Statewide public-records access for Montana blotters, jail rosters, warrants, and related safety resources.
+          </p>
+          <div class="mb-status-badge" style="margin-top: 16px;">
+            {% set _ps = public_status or {'ok': True, 'uptime_ratio': None, 'monitored_by': 'none'} %}
+            {% if _ps.ok %}
+            <span class="mb-status-badge__dot mb-status-badge__dot--active" aria-hidden="true"></span>
+            <span>All systems operational</span>
+            {% else %}
+            <span class="mb-status-badge__dot mb-status-badge__dot--error" aria-hidden="true"></span>
+            <span>Issue detected</span>
+            {% endif %}
+            {% if _ps.uptime_ratio %}
+            <span aria-hidden="true">·</span>
+            <span>{{ _ps.uptime_ratio }}% uptime</span>
+            {% endif %}
+            <a href="/status" style="color: var(--u-accent); margin-left: 4px;">status &rarr;</a>
+          </div>
+        </div>
+
+        <div class="mb-footer-column">
+          <p class="mb-footer-column__heading">Records</p>
+          <ul class="mb-footer-column__list">
+            <li class="mb-footer-column__item"><a href="/arrests" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_records">Arrests</a></li>
+            <li class="mb-footer-column__item"><a href="/courts" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_records">Courts</a></li>
+            <li class="mb-footer-column__item"><a href="/jail-bookings" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_records">Jail Bookings</a></li>
+            <li class="mb-footer-column__item"><a href="/missing-persons" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_records">Missing Persons</a></li>
+            <li class="mb-footer-column__item"><a href="/wanted" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_records">Active Warrants</a></li>
+          </ul>
+        </div>
+
+        <div class="mb-footer-column">
+          <p class="mb-footer-column__heading">Resources</p>
+          <ul class="mb-footer-column__list">
+            <li class="mb-footer-column__item"><a href="/counties" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_resources">Counties</a></li>
+            <li class="mb-footer-column__item"><a href="/datacenter" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_resources">Data Center</a></li>
+            <li class="mb-footer-column__item"><a href="/blog" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_resources">Blog</a></li>
+            <li class="mb-footer-column__item"><a href="/support" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_resources">Support</a></li>
+            <li class="mb-footer-column__item"><a href="/status" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_resources">Status</a></li>
+          </ul>
+        </div>
+
+        <div class="mb-footer-column">
+          <p class="mb-footer-column__heading">Company</p>
+          <ul class="mb-footer-column__list">
+            <li class="mb-footer-column__item"><a href="/about" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_company">About</a></li>
+            <li class="mb-footer-column__item"><a href="/standards" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_company">Editorial Standards</a></li>
+            <li class="mb-footer-column__item"><a href="/corrections" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_company">Corrections Policy</a></li>
+            <li class="mb-footer-column__item"><a href="/privacy" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_company">Privacy Policy</a></li>
+            <li class="mb-footer-column__item"><a href="/terms-of-use" class="mb-footer-column__link" data-nav-track="1" data-nav-location="footer_company">Terms of Use</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mb-footer-bottom">
+        <p class="mb-footer-bottom__copy">
+          &copy; {{ current_year }} Montana Blotter &middot; Free Public Records
+        </p>
+        <div class="mb-footer-bottom__links">
+          <a href="https://www.facebook.com/montanablotter" class="mb-footer-bottom__link" target="_blank" rel="noopener" data-nav-track="1" data-nav-location="footer_social">Facebook</a>
+          <a href="/status" class="mb-footer-bottom__link" data-nav-track="1" data-nav-location="footer_social">Status</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  {% include "includes/mobile_tab_bar.html" %}
+
+  <script>
+  (function(){
+    function sendSubscribeEvent(eventType, source, pagePath) {
+      try {
+        var payload = JSON.stringify({
+          event_type: eventType,
+          source: source || '',
+          page_path: pagePath || window.location.pathname
+        });
+        if (navigator.sendBeacon) {
+          var blob = new Blob([payload], {type: 'application/json'});
+          navigator.sendBeacon('/api/subscribe-event', blob);
+        } else {
+          fetch('/api/subscribe-event', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: payload,
+            keepalive: true
+          });
+        }
+      } catch (e) {}
+    }
+
+    function sendDonateEvent(eventType, source) {
+      try {
+        var payload = JSON.stringify({
+          event_type: eventType,
+          source: source || '',
+          page_path: window.location.pathname
+        });
+        if (navigator.sendBeacon) {
+          var blob = new Blob([payload], {type: 'application/json'});
+          navigator.sendBeacon('/api/donate-event', blob);
+        } else {
+          fetch('/api/donate-event', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: payload,
+            keepalive: true
+          });
+        }
+      } catch (e) {}
+    }
+
+    var bannerBtn = document.getElementById('banner-expand-btn');
+    var bannerDetail = document.getElementById('banner-detail');
+    var bannerChevron = document.getElementById('banner-chevron');
+    if (bannerBtn && bannerDetail && bannerChevron) {
+      bannerBtn.addEventListener('click', function(){
+        var hidden = bannerDetail.classList.toggle('hidden');
+        bannerBtn.setAttribute('aria-expanded', String(!hidden));
+        bannerChevron.style.transform = hidden ? '' : 'rotate(180deg)';
+      });
+    }
+
+    // Mobile sheet
+    var mobileToggle = document.getElementById('mb-mobile-toggle');
+    var mobileSheet = document.getElementById('mb-mobile-sheet');
+    var mobileBackdrop = document.getElementById('mb-mobile-sheet-backdrop');
+    var mobileClose = document.getElementById('mb-mobile-sheet-close');
+    var mobilePanel = mobileSheet ? mobileSheet.querySelector('.mb-mobile-sheet__panel') : null;
+
+    function openMobileSheet() {
+      if (!mobileSheet) return;
+      mobileSheet.classList.add('mb-mobile-sheet--open');
+      mobileSheet.setAttribute('aria-hidden', 'false');
+      mobileToggle.setAttribute('aria-expanded', 'true');
+      if (mobileClose) mobileClose.focus();
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileSheet() {
+      if (!mobileSheet) return;
+      mobileSheet.classList.remove('mb-mobile-sheet--open');
+      mobileSheet.setAttribute('aria-hidden', 'true');
+      mobileToggle.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+      if (mobileToggle) mobileToggle.focus();
+    }
+
+    if (mobileToggle && mobileSheet) {
+      mobileToggle.addEventListener('click', openMobileSheet);
+    }
+    if (mobileClose && mobileSheet) {
+      mobileClose.addEventListener('click', closeMobileSheet);
+    }
+    if (mobileBackdrop && mobileSheet) {
+      mobileBackdrop.addEventListener('click', closeMobileSheet);
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && mobileSheet && mobileSheet.classList.contains('mb-mobile-sheet--open')) {
+        closeMobileSheet();
+      }
+    });
+
+    // More dropdown
+    var moreBtn = document.getElementById('mb-more-btn');
+    var morePanel = document.getElementById('mb-more-dropdown');
+    if (moreBtn && morePanel) {
+      morePanel.classList.remove('u-hidden');
+      morePanel.hidden = true;
+      moreBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var isOpen = morePanel.hidden;
+        morePanel.hidden = !isOpen;
+        moreBtn.setAttribute('aria-expanded', String(isOpen));
+      });
+      document.addEventListener('click', function(e) {
+        if (morePanel.hidden) return;
+        if (e.target.closest('#mb-more-btn') || e.target.closest('#mb-more-dropdown')) return;
+        morePanel.hidden = true;
+        moreBtn.setAttribute('aria-expanded', 'false');
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !morePanel.hidden) {
+          morePanel.hidden = true;
+          moreBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    // User dropdown
+    var chipBtn = document.getElementById('mb-user-chip-btn');
+    var chipDropdown = document.getElementById('mb-user-dropdown');
+    if (chipBtn && chipDropdown) {
+      chipDropdown.classList.remove('u-hidden');
+      chipDropdown.hidden = true;
+      chipBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var isOpen = chipDropdown.hidden;
+        chipDropdown.hidden = !isOpen;
+        chipBtn.setAttribute('aria-expanded', String(isOpen));
+      });
+      document.addEventListener('click', function() {
+        chipDropdown.hidden = true;
+        chipBtn.setAttribute('aria-expanded', 'false');
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !chipDropdown.hidden) {
+          chipDropdown.hidden = true;
+          chipBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+
+    document.addEventListener('click', function (event) {
+      var link = event.target.closest('a[href*="/subscribe"]');
+      if (!link) return;
+      var source = link.getAttribute('data-subscribe-source') || '';
+      if (!source) {
+        var href = link.getAttribute('href') || '';
+        if (href.indexOf('source=') !== -1) {
+          try {
+            source = new URL(href, window.location.origin).searchParams.get('source') || '';
+          } catch (e) {}
+        }
+      }
+      sendSubscribeEvent('cta_click', source || 'subscribe_link');
+    });
+
+    document.addEventListener('click', function (event) {
+      var link = event.target.closest('a[href*="/donate"]');
+      if (!link) return;
+      var source = link.getAttribute('data-donate-source') || '';
+      if (!source) {
+        var href = link.getAttribute('href') || '';
+        if (href.indexOf('source=') !== -1) {
+          try {
+            source = new URL(href, window.location.origin).searchParams.get('source') || '';
+          } catch (e) {}
+        }
+      }
+      sendDonateEvent('cta_click', source || 'donate_link');
+    });
+
+    document.querySelectorAll('form[action="/subscribe"]').forEach(function (form) {
+      form.addEventListener('submit', function () {
+        var sourceInput = form.querySelector('input[name="source"]');
+        var source = (form.getAttribute('data-subscribe-source') || (sourceInput && sourceInput.value) || 'subscribe_form');
+        sendSubscribeEvent('form_submit', source);
+      });
+    });
+  })();
+  </script>
+  {% block extra_scripts %}{% endblock %}
+
+<!-- ═══════════════════════════ FOOTER MODALS ═══ -->
+
+<!-- Standards modal -->
+<dialog id="modal-standards" class="public-dialog" style="max-width:600px; width:90%;">
+  <div class="public-dialog__header">
+    <span class="public-dialog__title">Editorial Standards</span>
+    <button onclick="document.getElementById('modal-standards').close()" class="public-dialog__close" aria-label="Close editorial standards">&#x2715;</button>
+  </div>
+  <div class="public-dialog__body">
+    <p>Montana Blotter is designed to make public records and public meeting information easier to access. It is not a government office, and it does not replace official notice, clerk records, court files, or agency databases.</p>
+    <p><strong>1. Primary Source Rule</strong><br>We prefer direct links to official county, city, court, sheriff, police, and state judiciary pages. Where possible, each page should point readers back to the original public record, agenda, minutes page, or official document listing.</p>
+    <p><strong>2. What We Standardize</strong><br>Date and time formatting &mdash; location and body-name labeling &mdash; document labels such as agenda, packet, or minutes &mdash; searchable statewide filters and metadata.</p>
+    <p><strong>3. What We Do Not Claim</strong><br>We do not claim to be the official keeper of public records. We do not guarantee that a third-party government site is complete, current, or correctly maintained. We do not treat summaries or extracted text as a substitute for the official source file.</p>
+    <p><strong>4. Update Cadence</strong><br>Automated sources are checked on a recurring basis. If a source is stale, broken, or moved, the originating public body remains the authoritative reference until the source is repaired.</p>
+    <p><strong>5. Provenance and Visibility</strong><br>We aim to show where information came from, when it was last refreshed, and how users can verify it.</p>
+    <p><strong>6. Redactions and Sensitive Material</strong><br>We may review records for obvious sensitivity, legal restrictions, or redaction issues. The existence of a public record does not automatically mean every field or derivative presentation should be amplified without review.</p>
+    <p><strong>7. Corrections</strong><br>If a source link breaks, a meeting is mislabeled, a record is duplicated, or a page needs clarification, see the <a href="/corrections" class="public-dialog__link">Corrections Policy</a> for the reporting workflow.</p>
+    <p><strong>8. Government and Clerk Communications</strong><br>If you work for a Montana public body and need a source updated, corrected, or removed, contact us directly. We prefer exact URLs, dates, and a brief explanation of the change.</p>
+    <p><strong>9. Contact</strong><br>Montana Blotter &mdash; <a href="mailto:records@montanablotter.com?subject=Montana%20Blotter%20source%20update" class="public-dialog__link">records@montanablotter.com</a></p>
+    <p><a href="/standards" class="public-dialog__link public-dialog__link--mono">Read full standards &rarr;</a></p>
+  </div>
+</dialog>
+
+<!-- Corrections modal -->
+<dialog id="modal-corrections" class="public-dialog" style="max-width:600px; width:90%;">
+  <div class="public-dialog__header">
+    <span class="public-dialog__title">Corrections Policy</span>
+    <button onclick="document.getElementById('modal-corrections').close()" class="public-dialog__close" aria-label="Close corrections policy">&#x2715;</button>
+  </div>
+  <div class="public-dialog__body">
+    <p>We want corrections requests to be specific, easy to verify, and fast to act on. The more concrete the report, the faster it can be reviewed.</p>
+    <p><strong>1. What To Report</strong><br>Broken official source links &mdash; moved agenda or minutes pages &mdash; incorrect meeting date, body name, or location label &mdash; duplicate records or meetings &mdash; stale source pages &mdash; material factual errors in a summary or description.</p>
+    <p><strong>2. What To Include</strong><br>The exact Montana Blotter URL &mdash; the exact official source URL that should be used &mdash; a short description of what is wrong &mdash; if timing matters, the date and time the official source changed.</p>
+    <p><strong>3. Where To Send It</strong><br>Email <a href="mailto:records@montanablotter.com?subject=Correction%20Request" class="public-dialog__link">records@montanablotter.com</a> with subject line <strong>Correction Request</strong> or <strong>Source Update</strong>. If you represent a government office, say so in the message.</p>
+    <p><strong>4. Review Standard</strong><br>We review corrections against the official source when available. If a report cannot be verified, we may ask for a clarifying URL, screenshot, or exact document reference before changing the page.</p>
+    <p><strong>5. Response Goal</strong><br>Our goal is to review straightforward source labeling issues within two business days. Complex disputes, legal issues, and record-sensitivity questions may take longer.</p>
+    <p><strong>6. How Fixes Are Handled</strong><br>Broken or moved source URLs are updated at the source-config level when possible. Mislabeled dates, titles, or locations are corrected in the public presentation. If a government source removes or replaces a document, the official source controls.</p>
+    <p><strong>7. Limits</strong><br>A correction request does not automatically guarantee removal. Montana Blotter may preserve accurate public-record references while updating labels, links, timestamps, or explanatory text.</p>
+    <p><a href="/corrections" class="public-dialog__link public-dialog__link--mono">Read full corrections &rarr;</a></p>
+  </div>
+</dialog>
+
+<!-- Laws modal -->
+<dialog id="modal-laws" class="public-dialog" style="max-width:700px; width:92%;">
+  <div class="public-dialog__header">
+    <span class="public-dialog__title">Montana Laws Reference</span>
+    <button onclick="document.getElementById('modal-laws').close()" class="public-dialog__close" aria-label="Close laws reference">&#x2715;</button>
+  </div>
+  <div class="public-dialog__search-wrap">
+    <input id="modal-laws-search" type="search" placeholder="Search statutes…" oninput="filterLawsModal(this.value)"
+      class="public-dialog__search">
+  </div>
+  <div id="modal-laws-list" style="padding:8px 0 24px; max-height:60vh; overflow-y:auto;">
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-201</span> Assault
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-101 to 103</span> Homicide
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-6-301</span> Theft
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-6-204</span> Burglary
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-9</span> Drug Offenses
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-401</span> DUI / Impaired Driving
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-502</span> Sexual Assault
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-206</span> Domestic Violence
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-303</span> Speed Limits
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-9-409</span> Seat Belt Law
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-1011</span> Distracted Driving
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-301</span> Reckless Driving
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-6-301</span> Insurance Requirements
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-460</span> Open Container
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 61-8-316</span> Fleeing or Eluding
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-2-102</span> Hunting / Fishing License Requirements
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-414</span> Hunter Orange
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-206</span> Trespassing to Hunt
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-901</span> Poaching
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-209</span> Baiting &amp; Feeding Wildlife
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-3-101</span> Fishing Regulations
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 87-6-401</span> Firearm Use While Hunting
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">Art. II §12</span> Right to Keep and Bear Arms (Montana Constitution)
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-8-316</span> Concealed Carry (Constitutional Carry)
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-3-102</span> Self-Defense / Stand Your Ground
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-6-203</span> Trespassing
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-5-624</span> Public Intoxication
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 45-8-213</span> Montana Privacy Law
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 16-12</span> Marijuana Laws
+    </div>
+    <div data-law-row class="public-dialog__row">
+      <span style="color:var(--public-red); margin-right:8px;">§ 81-4-101</span> Property Rights &amp; Open Range
+    </div>
+    <p class="public-dialog__muted" style="padding:12px 24px;">
+      Full reference at <a href="/laws" class="public-dialog__link">/laws</a>.
+    </p>
+  </div>
+</dialog>
+
+<script>
+/* Open modal from URL hash (e.g. /#modal-standards) */
+(function () {
+  var MODALS = ['modal-standards', 'modal-corrections', 'modal-laws'];
+  function openFromHash() {
+    var id = location.hash.replace('#', '');
+    if (MODALS.indexOf(id) !== -1) {
+      var el = document.getElementById(id);
+      if (el && el.showModal) { el.showModal(); }
+    }
+  }
+  openFromHash();
+  window.addEventListener('hashchange', openFromHash);
+
+  /* Close on backdrop click (click outside dialog box) */
+  MODALS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', function(e) {
+      var r = el.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+        el.close();
+      }
+    });
+  });
+})();
+
+function filterLawsModal(query) {
+  var list = document.getElementById('modal-laws-list');
+  if (!list) return;
+  var rows = list.querySelectorAll('[data-law-row]');
+  var q = query.toLowerCase();
+  rows.forEach(function(row) {
+    row.style.display = (!q || row.textContent.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+</script>
+<!-- ═══════════════════════════ END FOOTER MODALS ═══ -->
+
+<script src="{{ url_for('static', filename='js/chat-agent.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/records-table.js') }}" defer></script>
+</body>
+</html>
