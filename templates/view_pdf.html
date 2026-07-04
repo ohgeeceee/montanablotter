@@ -1,0 +1,59 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = (record_title or 'Source Document') ~ ' — PDF' %}
+{% set meta_description = "Original source PDF for public record #" ~ (record_id or 'unknown') ~ " on Montana Blotter." %}
+
+{% block body_class %}source-viewer-page{% endblock %}
+
+{% block title %}{{ page_title }} | Montana Blotter{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block extra_head %}
+
+{% endblock %}
+
+
+
+{% block content %}
+<span class="mx-2">/</span>
+{% if back_url %}
+<a href="{{ back_url }}">Record</a>
+<span class="mx-2">/</span>
+{% endif %}
+<span>Source PDF</span>
+
+
+<main class="source-viewer" aria-labelledby="source-title">
+    <header class="source-viewer__header">
+        <div>
+            <h1 id="source-title" class="source-viewer__title">{{ record_title or 'Source Document' }}</h1>
+            <p class="source-viewer__meta">Record #{{ record_id or 'unknown' }} &middot; Original agency PDF</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            {% if pdf_url %}
+            <a class="source-viewer__back" href="{{ pdf_url }}" download>
+                <i class="fas fa-download mr-1" aria-hidden="true"></i> Download
+            </a>
+            {% endif %}
+            <a class="source-viewer__back" href="{{ back_url or '/' }}">
+                <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i> Back to Record
+            </a>
+        </div>
+    </header>
+
+    {% if pdf_url %}
+    <div class="source-viewer__frame">
+        <object data="{{ pdf_url }}" type="application/pdf" title="Source PDF for record {{ record_id }}">
+            <iframe src="{{ pdf_url }}" title="Source PDF for record {{ record_id }}"></iframe>
+        </object>
+    </div>
+    {% else %}
+    <div class="source-viewer__frame" style="display: flex; align-items: center; justify-content: center; background: #f4f1ea;">
+        <div style="text-align: center; color: var(--source-muted); font-family: "Inter", system-ui, sans-serif; padding: 2rem;">
+            <p style="font-weight: 700; color: var(--source-ink); margin-bottom: 0.5rem;">Source PDF not available</p>
+            <p>The original document for this record could not be located.</p>
+        </div>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

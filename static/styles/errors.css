@@ -1,0 +1,276 @@
+/* ==========================================================================
+   Error & Empty-State Components — Diagnostic Terminal Aesthetic
+   Relies entirely on tokens from utilities.css.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Full-page error shell (404, 500)
+   -------------------------------------------------------------------------- */
+.error-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  padding: var(--u-space-6) var(--u-space-4);
+}
+
+.error-card {
+  width: 100%;
+  max-width: 640px;
+  border: var(--u-border-width) solid var(--u-border-strong);
+  background-color: var(--u-elevated);
+}
+
+.error-register {
+  display: flex;
+  align-items: center;
+  gap: var(--u-space-3);
+  padding: var(--u-space-3) var(--u-space-4);
+  border-bottom: var(--u-border-width) solid var(--u-border);
+  background-color: var(--u-surface);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.error-register__code {
+  flex: 1 1 auto;
+  color: var(--u-text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.error-register__timestamp {
+  flex: 0 0 auto;
+  color: var(--u-muted);
+}
+
+.error-status {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.error-status--error {
+  background-color: var(--u-status-error);
+}
+
+.error-status--info {
+  background-color: var(--u-status-info);
+}
+
+.error-body {
+  padding: var(--u-space-5) var(--u-space-4);
+}
+
+.error-code-large {
+  font-size: clamp(56px, 12vw, 96px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--u-text);
+  margin-bottom: var(--u-space-3);
+}
+
+.error-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--u-space-3);
+}
+
+.error-copy {
+  font-size: 14px;
+  line-height: 1.45;
+  margin-bottom: var(--u-space-5);
+  max-width: 54ch;
+}
+
+.error-trace {
+  padding: var(--u-space-4);
+  border: var(--u-border-width) solid var(--u-border);
+  background-color: var(--u-surface);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: var(--u-space-5);
+}
+
+.error-trace__line {
+  display: flex;
+  gap: var(--u-space-3);
+}
+
+.error-trace__line + .error-trace__line {
+  margin-top: var(--u-space-1);
+}
+
+.error-trace__key {
+  flex: 0 0 auto;
+  min-width: 7.5em;
+  color: var(--u-muted);
+}
+
+.error-trace__value {
+  flex: 1 1 auto;
+  color: var(--u-text);
+  word-break: break-word;
+}
+
+.error-trace__value--error {
+  color: var(--u-status-error);
+  font-weight: 600;
+}
+
+.error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--u-space-3);
+  margin-bottom: var(--u-space-4);
+}
+
+.error-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 var(--u-space-5);
+  border: var(--u-border-width) solid var(--u-border-strong);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
+}
+
+.error-btn--primary {
+  background-color: var(--u-text);
+  color: var(--u-bg);
+  border-color: var(--u-text);
+}
+
+.error-btn--primary:hover,
+.error-btn--primary:focus {
+  background-color: var(--u-text-secondary);
+  border-color: var(--u-text-secondary);
+  color: var(--u-bg);
+}
+
+.error-btn--secondary {
+  background-color: transparent;
+  color: var(--u-text);
+}
+
+.error-btn--secondary:hover,
+.error-btn--secondary:focus {
+  background-color: var(--u-surface);
+}
+
+.error-note {
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------------------------------
+   2. Inline empty-state variant
+   -------------------------------------------------------------------------- */
+.empty-shell {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: var(--u-space-6) var(--u-space-4);
+  border: var(--u-border-width) dashed var(--u-border);
+  background-color: transparent;
+}
+
+.empty-register {
+  display: flex;
+  align-items: center;
+  gap: var(--u-space-3);
+  margin-bottom: var(--u-space-4);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.empty-register__code {
+  color: var(--u-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: var(--u-space-3);
+}
+
+.empty-query {
+  display: flex;
+  gap: var(--u-space-3);
+  padding: var(--u-space-3) var(--u-space-4);
+  border: var(--u-border-width) solid var(--u-border);
+  background-color: var(--u-surface);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: var(--u-space-4);
+}
+
+.empty-query__label {
+  flex: 0 0 auto;
+  color: var(--u-muted);
+}
+
+.empty-query__value {
+  flex: 1 1 auto;
+  color: var(--u-text);
+  word-break: break-word;
+}
+
+.empty-suggestions {
+  list-style: none;
+  margin-bottom: var(--u-space-5);
+}
+
+.empty-suggestion {
+  position: relative;
+  padding-left: var(--u-space-5);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--u-text-secondary);
+}
+
+.empty-suggestion + .empty-suggestion {
+  margin-top: var(--u-space-2);
+}
+
+.empty-suggestion::before {
+  content: "›";
+  position: absolute;
+  left: 0;
+  color: var(--u-accent);
+  font-weight: 700;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--u-space-3);
+}
+
+/* --------------------------------------------------------------------------
+   3. Medium+ breakpoint adjustments
+   -------------------------------------------------------------------------- */
+@media (min-width: 720px) {
+  .error-body,
+  .empty-shell {
+    padding: var(--u-space-6);
+  }
+
+  .error-title {
+    font-size: 24px;
+  }
+
+  .empty-title {
+    font-size: 18px;
+  }
+}

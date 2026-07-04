@@ -1,0 +1,404 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Havre Jail Roster & Hill County Detention | Montana Blotter" %}
+{% set meta_description = "Current Havre jail roster and Hill County detention center inmate search. Daily updated from Havre Police Department. View current bookings, recent releases, and 7-day history for Hill County, Montana." %}
+{% set canonical_url = "https://montanablotter.com/jail-bookings/hill" %}
+{% set og_title = "Havre Jail Roster - Hill County Montana | Montana Blotter" %}
+{% set og_description = "Search Havre jail roster and Hill County detention center inmate records. Updated daily from Havre Police Department." %}
+{% set active_nav = "jail_rosters" %}
+
+{% block extra_head %}
+{# Enhanced schema for CorrectionalFacility #}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Havre Jail Roster - Hill County Detention Center",
+  "description": "Current jail roster and detention records for Hill County, Montana including Havre Police Department bookings",
+  "url": "https://montanablotter.com/jail-bookings/hill",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  },
+  "about": {
+    "@type": "GovernmentService",
+    "name": "Hill County Detention Center",
+    "description": "Jail roster and inmate lookup for Hill County, Montana",
+    "url": "https://montanablotter.com/jail-bookings/hill",
+    "provider": {
+      "@type": "GovernmentOrganization",
+      "name": "Hill County Sheriff's Office",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Havre",
+        "addressRegion": "MT",
+        "addressCountry": "US"
+      },
+      "telephone": "+1-406-265-4321"
+    },
+    "serviceType": "Jail Booking Lookup",
+    "jurisdiction": {
+      "@type": "AdministrativeArea",
+      "name": "Hill County, Montana"
+    }
+  },
+  "mainEntity": {
+    "@type": "ItemList",
+    "name": "Current Jail Bookings",
+    "description": "Currently booked inmates at Hill County Detention Center",
+    "numberOfItems": {{ currently_booked|length }},
+    "itemListOrder": "https://schema.org/ItemListOrderDescending",
+    "dateModified": "{{ last_run_at or '' }}"
+  },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://montanablotter.com/jail-bookings/hill?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+
+{# FAQ Schema for "People also ask" #}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [{
+    "@type": "Question",
+    "name": "How do I search the Havre jail roster?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Montana Blotter provides a free, searchable Havre jail roster updated daily from the Havre Police Department. Visit /jail-bookings/hill to view current bookings, recent releases, and 7-day history."
+    }
+  }, {
+    "@type": "Question",
+    "name": "What information is on the Hill County jail roster?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "The Havre jail roster includes inmate name, age, booking date/time, charges, and bond amount. Records are sourced directly from the Havre Police Department daily email."
+    }
+  }, {
+    "@type": "Question",
+    "name": "Is the Havre jail roster free to search?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Yes, Montana Blotter provides free access to the Havre jail roster and all Hill County detention records. No account or subscription required."
+    }
+  }, {
+    "@type": "Question",
+    "name": "How often is the Havre jail roster updated?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "The Havre jail roster is updated daily, typically each morning when the Havre Police Department emails their daily detention roster."
+    }
+  }, {
+    "@type": "Question",
+    "name": "How do I post bail in Hill County Montana?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "To post bail in Hill County, contact a local bail bondsman. Visit our Hill County bail bonds directory at /bail-bonds/hill for licensed bail agents serving Havre and Hill County."
+    }
+  }]
+}
+</script>
+
+{# BreadcrumbList schema #}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [{
+    "@type": "ListItem",
+    "position": 1,
+    "name": "Montana Blotter",
+    "item": "https://montanablotter.com/"
+  }, {
+    "@type": "ListItem",
+    "position": 2,
+    "name": "Jail Rosters",
+    "item": "https://montanablotter.com/jail-rosters"
+  }, {
+    "@type": "ListItem",
+    "position": 3,
+    "name": "Hill County Jail Roster",
+    "item": "https://montanablotter.com/jail-bookings/hill"
+  }]
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/jail-rosters" class="hover:text-slate-700">Jail Rosters</a>
+<span class="mx-2">/</span>
+<span class="text-slate-900 font-semibold">Hill County (Havre)</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="public-eyebrow mb-4" style="color: var(--public-amber);">
+                <i class="fas fa-building-columns mr-2"></i>Hill County Detention Center
+            </div>
+            <h1 class="public-title public-title--medium mx-auto">Havre Jail Roster</h1>
+            <p class="public-copy max-w-2xl mx-auto">
+                Official daily jail roster from the Havre Police Department. Search current 
+                bookings, recent releases, and 7-day booking history for Hill County, Montana.
+            </p>
+
+            {# Freshness badge #}
+            <div class="mt-6 inline-flex items-center gap-3 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.14em]
+                {% if freshness_state == 'fresh' %}bg-emerald-50 border-emerald-200 text-emerald-700
+                {% elif freshness_state == 'stale' %}bg-amber-50 border-amber-200 text-amber-700
+                {% else %}bg-slate-50 border-slate-200 text-slate-600{% endif %}">
+                <i class="fas fa-circle text-[8px]"></i>
+                <span>{% if last_run_at %}Updated {{ last_run_at }}{% else %}Awaiting first roster{% endif %}</span>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block body_class %}hill-county-jail-page{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8 space-y-10">
+
+    {# ================================================================ #}
+    {# QUICK LINKS - Internal Linking Silo (SEO BOOST)                 #}
+    {# ================================================================ #}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a href="/bail-bonds/hill" class="group block bg-blue-600 hover:bg-blue-700 rounded-xl p-4 text-white transition">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 rounded-lg p-2">
+                    <i class="fas fa-handcuffs"></i>
+                </div>
+                <div>
+                    <span class="block font-black text-sm uppercase tracking-wide">Need a Bail Bondsman?</span>
+                    <span class="block text-xs text-blue-100">Hill County licensed agents</span>
+                </div>
+            </div>
+        </a>
+        <a href="/wanted/hill" class="group block bg-amber-600 hover:bg-amber-700 rounded-xl p-4 text-white transition">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 rounded-lg p-2">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div>
+                    <span class="block font-black text-sm uppercase tracking-wide">Warrants in Hill County</span>
+                    <span class="block text-xs text-amber-100">Active warrants & fugitives</span>
+                </div>
+            </div>
+        </a>
+        <a href="/arrests?county=hill" class="group block bg-emerald-600 hover:bg-emerald-700 rounded-xl p-4 text-white transition">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/20 rounded-lg p-2">
+                    <i class="fas fa-gavel"></i>
+                </div>
+                <div>
+                    <span class="block font-black text-sm uppercase tracking-wide">Hill County Arrests</span>
+                    <span class="block text-xs text-emerald-100">Full arrest records</span>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    {# ================================================================ #}
+    {# SEARCH BOX - High visibility                                       #}
+    {# ================================================================ #}
+    <div class="bg-slate-900 rounded-2xl p-6">
+        <form action="/jail-bookings/hill" method="get" class="flex flex-col md:flex-row gap-3">
+            <div class="flex-1">
+                <label for="q" class="sr-only">Search inmates</label>
+                <input type="text" name="q" id="q" placeholder="Search by name..." 
+                       class="w-full px-4 py-3 rounded-xl border-0 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3 rounded-xl uppercase tracking-wide transition">
+                <i class="fas fa-search mr-2"></i>Search
+            </button>
+        </form>
+    </div>
+
+    {# ================================================================ #}
+    {# CURRENTLY BOOKED                                                 #}
+    {# ================================================================ #}
+    <section>
+        <div class="flex items-center gap-3 mb-4">
+            <div class="bg-slate-900 text-white p-2 rounded-lg">
+                <i class="fas fa-users"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-slate-900">Currently Booked</h2>
+                <p class="text-sm text-slate-500">
+                    {{ currently_booked|length }} inmate{{ '' if currently_booked|length == 1 else 's' }} at Hill County Detention
+                    {% if last_run_at %} · as of {{ last_run_at }}{% endif %}
+                </p>
+            </div>
+        </div>
+
+        {% if currently_booked %}
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
+                    <tr>
+                        <th class="text-left px-5 py-3">Name</th>
+                        <th class="text-left px-5 py-3">Age</th>
+                        <th class="text-left px-5 py-3">Booked</th>
+                        <th class="text-left px-5 py-3">Charges</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in currently_booked %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-4">
+                            <a href="/booking/{{ row.id }}" class="font-black text-slate-900 hover:text-orange-700">
+                                {{ row.person_name }}
+                            </a>
+                        </td>
+                        <td class="px-5 py-4 text-slate-700">{{ row.age or '—' }}</td>
+                        <td class="px-5 py-4 text-slate-600 font-mono text-xs">
+                            {{ row.booking_at_label|default(row.booking_at or '—') }}
+                        </td>
+                        <td class="px-5 py-4 text-slate-700">
+                            <span class="line-clamp-2">{{ row.charges_summary or 'Charge details pending from HPD.' }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-10 text-center">
+            <i class="fas fa-user-slash text-3xl text-slate-300 mb-3"></i>
+            <p class="text-base font-black text-slate-700">No active bookings at Hill County Detention</p>
+            <p class="mt-2 text-sm text-slate-500">Check back later for the latest Havre jail roster.</p>
+        </div>
+        {% endif %}
+    </section>
+
+    {# ================================================================ #}
+    {# LAST 7 DAYS ACTIVITY                                              #}
+    {# ================================================================ #}
+    <section>
+        <div class="flex items-center gap-3 mb-4">
+            <div class="bg-blue-600 text-white p-2 rounded-lg">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black text-slate-900">Last 7 Days Activity</h2>
+                <p class="text-sm text-slate-500">Daily booking and release counts for Havre jail</p>
+            </div>
+        </div>
+
+        {% if daily_diff %}
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+            {% for day in daily_diff %}
+            <div class="bg-white border border-slate-200 rounded-xl p-3 text-center shadow-sm">
+                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{{ day.label }}</p>
+                <div class="mt-2 flex items-baseline justify-center gap-2">
+                    <span class="text-2xl font-black {% if day.new_count > 0 %}text-emerald-700{% else %}text-slate-300{% endif %}">
+                        +{{ day.new_count }}
+                    </span>
+                    <span class="text-[10px] font-bold uppercase text-slate-400">new</span>
+                </div>
+                <div class="mt-1 flex items-baseline justify-center gap-2">
+                    <span class="text-sm font-black {% if day.released_count > 0 %}text-amber-700{% else %}text-slate-300{% endif %}">
+                        −{{ day.released_count }}
+                    </span>
+                    <span class="text-[9px] font-bold uppercase text-slate-400">released</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center mb-6">
+            <p class="text-sm text-slate-500">No Hill County jail activity recorded in the last 7 days.</p>
+        </div>
+        {% endif %}
+
+        {# Recent new entries #}
+        {% if recent_new_entries %}
+        <h3 class="text-sm font-black uppercase tracking-[0.14em] text-slate-500 mb-3">Recent bookings (last 7 days)</h3>
+        <div class="space-y-2">
+            {% for row in recent_new_entries %}
+            <div class="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-center gap-3 shadow-sm">
+                <a href="/booking/{{ row.id }}" class="font-black text-slate-900 hover:text-orange-700 flex-1 min-w-0 truncate">
+                    {{ row.person_name }}
+                </a>
+                <span class="text-xs font-mono text-slate-500">{{ row.booking_at_label|default(row.booking_at or '—') }}</span>
+                <span class="text-xs text-slate-600 truncate max-w-md">{{ row.charges_summary or '—' }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+
+    {# ================================================================ #}
+    {# ABOUT & CONTACT                                                   #}
+    {# ================================================================ #}
+    <section class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-sm text-amber-900">
+        <p class="font-black mb-2"><i class="fas fa-building-columns mr-2"></i>Hill County Detention Center</p>
+        <p class="leading-6 mb-4">
+            This Havre jail roster is built from the daily roster emailed by the 
+            <a href="{{ hpd_public_url }}" target="_blank" rel="noopener" class="underline font-bold hover:text-amber-700">
+                Havre Police Department
+            </a>. The Hill County Sheriff's Office maintains the detention facility.
+        </p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+                <p class="font-bold">Hill County Sheriff</p>
+                <p class="text-amber-800">108 9th Street<br>Havre, MT 59501</p>
+                <p class="text-amber-800 mt-1">Phone: (406) 265-4321</p>
+            </div>
+            <div>
+                <p class="font-bold">Havre Police Department</p>
+                <p class="text-amber-800">400 3rd Avenue<br>Havre, MT 59501</p>
+                <p class="text-amber-800 mt-1">Phone: (406) 265-4321</p>
+            </div>
+        </div>
+        
+        <p class="mt-4 text-xs text-amber-700">
+            <i class="fas fa-info-circle mr-1"></i>
+            Montana Blotter aggregates public records for informational purposes. 
+            For official inmate information, contact the Hill County Sheriff directly.
+        </p>
+    </section>
+
+    {# ================================================================ #}
+    {# SEO CONTENT - "People also search for"                           #}
+    {# ================================================================ #}
+    <section class="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+        <h3 class="text-lg font-black text-slate-900 mb-4">Related Searches</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <a href="/jail-bookings" class="flex items-center gap-2 text-slate-700 hover:text-blue-700">
+                <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                <span>All Montana jail rosters</span>
+            </a>
+            <a href="/bail-bonds/hill" class="flex items-center gap-2 text-slate-700 hover:text-blue-700">
+                <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                <span>Bail bonds in Hill County</span>
+            </a>
+            <a href="/wanted" class="flex items-center gap-2 text-slate-700 hover:text-blue-700">
+                <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                <span>Montana warrants</span>
+            </a>
+            <a href="/arrests?county=hill" class="flex items-center gap-2 text-slate-700 hover:text-blue-700">
+                <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                <span>Hill County arrest records</span>
+            </a>
+            <a href="/jail-bookings/yellowstone" class="flex items-center gap-2 text-slate-700 hover:text-blue-700">
+                <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                <span>Yellowstone County jail roster</span>
+            </a>
+            <a href="/jail-bookings/cascade" class="flex items-center gap-2 text-slate-700 hover:text-blue-700">
+                <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                <span>Cascade County jail roster (Great Falls)</span>
+            </a>
+        </div>
+    </section>
+
+</div>
+{% endblock %}
