@@ -1,0 +1,54 @@
+{#
+  Empty state — reusable include for zero-result searches, lists, and filters.
+
+  Expected context (all optional):
+    - title: str            Heading text. Default: "No results found"
+    - query: str            The query string to echo back. Default: None
+    - suggestions: list     List of suggestion strings.
+                            Defaults to spelling + county updates.
+    - primary_url: str      Default: "/"
+    - primary_label: str    Default: "Back to feed"
+    - secondary_url: str    Default: "/counties"
+    - secondary_label: str  Default: "Browse counties"
+#}
+
+{% set title = title|default("No results found") %}
+{% set query = query|default(none) %}
+{% set suggestions = suggestions|default([
+  "Check spelling or try a broader term.",
+  "View recent county updates.",
+  "Remove filters to see all records."
+]) %}
+{% set primary_url = primary_url|default("/") %}
+{% set primary_label = primary_label|default("Back to feed") %}
+{% set secondary_url = secondary_url|default("/counties") %}
+{% set secondary_label = secondary_label|default("Browse counties") %}
+
+<div class="empty-shell" role="status" aria-labelledby="empty-heading">
+  <div class="empty-register">
+    <span class="error-status error-status--info" aria-hidden="true"></span>
+    <span class="empty-register__code u-font-mono">STATUS_EMPTY_SET</span>
+  </div>
+
+  <div class="empty-body">
+    <h2 id="empty-heading" class="empty-title">{{ title }}</h2>
+
+    {% if query is not none %}
+      <p class="empty-query u-font-mono">
+        <span class="empty-query__label">query:</span>
+        <span class="empty-query__value">{{ query }}</span>
+      </p>
+    {% endif %}
+
+    <ul class="empty-suggestions" aria-label="Suggestions">
+      {% for suggestion in suggestions %}
+        <li class="empty-suggestion">{{ suggestion }}</li>
+      {% endfor %}
+    </ul>
+
+    <div class="empty-actions">
+      <a href="{{ primary_url }}" class="error-btn error-btn--primary">{{ primary_label }}</a>
+      <a href="{{ secondary_url }}" class="error-btn error-btn--secondary">{{ secondary_label }}</a>
+    </div>
+  </div>
+</div>

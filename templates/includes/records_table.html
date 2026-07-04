@@ -1,0 +1,138 @@
+{% macro records_table(records, caption=None, compact=False, filters=None, pagination=None, empty_message='No records found.', county=None) %}
+{% set has_location = records | selectattr('location') | list | length > 0 %}
+{% set has_details = (not compact) and (records | selectattr('details') | list | length > 0) %}
+{% set has_cfs = (not compact) and (records | selectattr('cfs_number') | list | length > 0) %}
+{% set has_officer = (not compact) and (records | selectattr('officer') | list | length > 0) %}
+{% set ns = namespace(idx=0) %}
+<figure class="records-table-wrapper" data-records-table role="region" aria-label="Incident records table" tabindex="0">
+  {% if records %}
+  <div class="records-table-toolbar">
+    <input type="search"
+           class="records-table-search"
+           placeholder="Filter incidents…"
+           aria-label="Filter incidents">
+    <span class="records-table-live" aria-live="polite"></span>
+  </div>
+  {% endif %}
+
+  {% if filters %}
+  <div class="records-filter-row">
+    <span class="records-filter-row__label">Filter</span>
+    {% for f in filters %}
+      {% set label = f.label if f.label is defined else f.incident_type %}
+      {% set count = f.count if f.count is defined else f.n %}
+      {% if county %}
+      <a class="records-filter-row__chip" href="/?county={{ county.name | urlencode }}&q={{ label | urlencode }}">
+        {{ label }} <span class="records-filter-row__count">{{ count }}</span>
+      </a>
+      {% else %}
+      <span class="records-filter-row__chip">
+        {{ label }} <span class="records-filter-row__count">{{ count }}</span>
+      </span>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if records %}
+  <table class="records-table">
+    {% if caption %}<caption>{{ caption }}</caption>{% endif %}
+    <thead>
+      <tr>
+        <th scope="col" data-sort="{{ ns.idx }}" data-sort-type="text">
+          <button type="button" class="records-table__sort">Time</button>
+        </th>
+        {% set ns.idx = ns.idx + 1 %}
+        <th scope="col" data-sort="{{ ns.idx }}" data-sort-type="text">
+          <button type="button" class="records-table__sort">Type</button>
+        </th>
+        {% set ns.idx = ns.idx + 1 %}
+        {% if has_location %}
+        <th scope="col" data-sort="{{ ns.idx }}" data-sort-type="text">
+          <button type="button" class="records-table__sort">Location</button>
+        </th>
+        {% set ns.idx = ns.idx + 1 %}
+        {% endif %}
+        {% if has_details %}
+        <th scope="col" data-sort="{{ ns.idx }}" data-sort-type="text">
+          <button type="button" class="records-table__sort">Details</button>
+        </th>
+        {% set ns.idx = ns.idx + 1 %}
+        {% endif %}
+        {% if has_cfs %}
+        <th scope="col" data-sort="{{ ns.idx }}" data-sort-type="text">
+          <button type="button" class="records-table__sort">CFS#</button>
+        </th>
+        {% set ns.idx = ns.idx + 1 %}
+        {% endif %}
+        {% if has_officer %}
+        <th scope="col" data-sort="{{ ns.idx }}" data-sort-type="text">
+          <button type="button" class="records-table__sort">Officer</button>
+        </th>
+        {% set ns.idx = ns.idx + 1 %}
+        {% endif %}
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rec in records %}
+      {% set details_text = (rec.details[:300] ~ ('…' if rec.details | length > 300 else '')) if rec.details else '' %}
+      <tr>
+        <th scope="row" class="records-table__primary" data-sort-value="{{ rec.time or '' }}">
+          <span class="records-table__time">{{ rec.time or '—' }}</span>
+          <span class="records-badge"
+                data-incident="{{ rec.incident_label | lower }}">
+            {{ rec.incident_label }}
+          </span>
+        </th>
+        <td class="records-table__type" data-sort-value="{{ rec.incident_label or '' }}">{{ rec.incident_label }}</td>
+        {% if has_location %}
+        <td class="records-table__location" data-sort-value="{{ rec.location or '' }}">{{ rec.location or '—' }}</td>
+        {% endif %}
+        {% if has_details %}
+        <td class="records-table__details" data-sort-value="{{ rec.details or '' }}">
+          {% if details_text %}
+            {% if rec.details | length > 120 %}
+            <span class="records-table__details-truncated">{{ rec.details[:120] }}…</span>
+            <span class="records-table__details-full" hidden>{{ details_text }}</span>
+            <button type="button" class="records-table__expand" aria-expanded="false">Show more</button>
+            {% else %}
+            {{ details_text }}
+            {% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        {% endif %}
+        {% if has_cfs %}
+        <td class="records-table__cfs" data-sort-value="{{ rec.cfs_number or '' }}">{{ rec.cfs_number or '—' }}</td>
+        {% endif %}
+        {% if has_officer %}
+        <td class="records-table__officer" data-sort-value="{{ rec.officer or '' }}">{{ rec.officer or '—' }}</td>
+        {% endif %}
+        <td class="records-table__actions">
+          {% if rec.id %}<a href="/record/{{ rec.id }}">View</a>{% endif %}
+          {% if rec.post_id %}<a href="/post/{{ rec.post_id }}">Source</a>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if pagination %}
+  <nav class="records-pagination" aria-label="Records pagination">
+    {% if pagination.page > 1 %}
+      <a href="{{ pagination.base_url }}?page={{ pagination.page - 1 }}">← Previous</a>
+    {% endif %}
+    <span>Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.page < pagination.total_pages %}
+      <a href="{{ pagination.base_url }}?page={{ pagination.page + 1 }}">Next →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <p class="records-table-empty">{{ empty_message }}</p>
+  {% endif %}
+</figure>
+{% endmacro %}

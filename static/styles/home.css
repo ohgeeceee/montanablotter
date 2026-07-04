@@ -1,0 +1,180 @@
+/* ==========================================================================
+   Homepage components — High-Traffic Multi-County Grid & Global Search
+   Tight, terminal-inspired, zero-fluff. Relies on utilities.css tokens.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Terminal-style global search
+   -------------------------------------------------------------------------- */
+.home-search {
+  display: flex;
+  align-items: stretch;
+  border: var(--u-border-width) solid var(--u-border-strong);
+  background-color: var(--u-elevated);
+}
+
+.home-search:focus-within {
+  border-color: var(--u-accent);
+}
+
+.home-search-prompt {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 var(--u-space-3);
+  color: var(--u-accent);
+  font-size: 16px;
+  font-weight: 700;
+  border-right: var(--u-border-width) solid var(--u-border);
+  user-select: none;
+}
+
+.home-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--u-space-3) var(--u-space-4);
+  border: none;
+  background: transparent;
+  color: var(--u-text);
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.home-search-input::placeholder {
+  color: var(--u-muted);
+  opacity: 1;
+}
+
+.home-search-input:focus {
+  outline: none;
+}
+
+.home-search-submit {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .home-search-submit {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--u-space-5);
+    border: none;
+    border-left: var(--u-border-width) solid var(--u-border);
+    background-color: var(--u-surface);
+    color: var(--u-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .home-search-submit:hover,
+  .home-search-submit:focus {
+    color: var(--u-text);
+    background-color: var(--u-border);
+  }
+}
+
+.home-search-hint {
+  line-height: 1.3;
+}
+
+/* --------------------------------------------------------------------------
+   2. County grid / list
+   -------------------------------------------------------------------------- */
+.county-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--u-space-2);
+}
+
+/* Compact two-up as soon as there is room */
+@media (min-width: 480px) {
+  .county-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 720px) {
+  .county-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .county-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.county-item {
+  border: var(--u-border-width) solid var(--u-border);
+  background-color: var(--u-elevated);
+  transition: border-color 0.08s ease, background-color 0.08s ease;
+}
+
+.county-item:hover,
+.county-item:focus-within {
+  border-color: var(--u-border-strong);
+  background-color: var(--u-surface);
+}
+
+.county-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u-space-2);
+  padding: var(--u-space-3);
+  color: var(--u-text);
+  text-decoration: none;
+}
+
+.county-link:focus-visible {
+  outline: none;
+}
+
+.county-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.county-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--u-space-3);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.county-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--u-space-1);
+}
+
+.county-metric-records {
+  color: var(--u-status-active);
+}
+
+.county-metric-zero {
+  color: var(--u-muted);
+}
+
+.county-metric-label {
+  color: var(--u-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.county-metric-updated {
+  color: var(--u-muted);
+  font-size: 10px;
+}
+
+.county-empty {
+  padding: var(--u-space-6);
+  border: var(--u-border-width) dashed var(--u-border);
+}

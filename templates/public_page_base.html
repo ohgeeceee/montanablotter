@@ -158,7 +158,7 @@
 
     {% block hero %}{% endblock %}
 
-    <div class="pb-16 md:pb-0">
+    <div class="{% if request.path == '/' %}pb-4 md:pb-0{% else %}pb-16 md:pb-0{% endif %}">
     {% block content %}{% endblock %}
     </div>
 

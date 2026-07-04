@@ -1,68 +1,70 @@
-<header class="public-shell-header">
-    <div class="public-topband">
-        <div class="public-topband__inner max-w-7xl mx-auto px-4 sm:px-6">
-            <p class="public-shell-note">Free public records for Montana</p>
-            <p class="public-shell-note public-shell-note--accent">Arrests, courts, jails, meetings &amp; county lookup</p>
+<header class="mb-header">
+    <div class="mb-topband">
+        <div class="mb-container mb-topband__inner">
+            <span class="mb-topband__label">Montana Public Records Directory</span>
+            <div class="mb-topband__links">
+                <a href="/support">Support</a>
+                <a href="/corrections">Corrections</a>
+            </div>
         </div>
     </div>
-    <div class="public-shell-core max-w-7xl mx-auto px-4 sm:px-6">
-        <a href="/" class="public-brand">
-            <div class="public-brand__mark">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-            <div>
-                <div class="public-brand__title">The Montana Blotter</div>
-                <div class="public-brand__tag">Montana Public Records Directory</div>
-            </div>
-        </a>
+    <div class="mb-navbar">
+        <div class="mb-container mb-navbar__inner">
+            <a href="/" class="mb-brand">
+                <span class="mb-brand__mark">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </span>
+                <span class="mb-brand__title">Montana Blotter</span>
+            </a>
 
-        <nav class="public-nav hidden md:flex" aria-label="Main navigation">
-            <div class="public-nav__links">
+        <nav class="mb-nav hidden md:flex" aria-label="Main navigation">
+            <div class="mb-nav__primary">
                 {% for item in public_primary_nav_items %}
                 {% set is_active = active_nav == item.id or (item.id == 'home' and request.path == '/') %}
-                <a href="{{ item.href }}" class="public-nav-link {% if is_active %}active{% endif %}" data-nav-track="1" data-nav-location="header_primary" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
+                <a href="{{ item.href }}" class="mb-nav__link {% if is_active %}mb-nav__link--active{% endif %}" {% if is_active %}aria-current="page"{% endif %} data-nav-track="1" data-nav-location="header_primary" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
                 {% endfor %}
 
                 {% if public_more_nav_groups %}
-                <div class="public-nav-more" id="public-nav-more">
-                    <button type="button" class="public-nav-link public-nav-more__trigger" id="public-nav-more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="public-nav-more-panel">
+                <div class="mb-nav__more" id="public-nav-more">
+                    <button type="button" class="mb-nav__link mb-nav__more-trigger" id="public-nav-more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="public-nav-more-panel">
                         More
-                        <svg class="public-nav-more__caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        <svg class="mb-nav__caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
-                    <div class="public-nav-more__panel" id="public-nav-more-panel" hidden>
-                        {% for group in public_more_nav_groups %}
-                        <div class="public-nav-more__group">
-                            <p class="public-nav-more__title">{{ group.title }}</p>
-                            {% for item in group['items'] %}
-                            {% set is_active = active_nav == item.id %}
-                            <a href="{{ item.href }}" class="public-nav-more__link {% if is_active %}active{% endif %}" data-nav-track="1" data-nav-location="header_more" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
+                    <div class="mb-nav__more-panel" id="public-nav-more-panel" hidden>
+                        <div class="mb-nav__more-grid">
+                            {% for group in public_more_nav_groups %}
+                            <div class="mb-nav__more-group">
+                                <p class="mb-nav__more-title">{{ group.title }}</p>
+                                {% for item in group['items'] %}
+                                {% set is_active = active_nav == item.id %}
+                                <a href="{{ item.href }}" class="mb-nav__more-link {% if is_active %}mb-nav__more-link--active{% endif %}" data-nav-track="1" data-nav-location="header_more" data-short-label="{{ item.label }}" data-full-label="{{ item.label }}">{{ item.label }}</a>
+                                {% endfor %}
+                            </div>
                             {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}
             </div>
-
-            <div class="public-nav__actions">
-                <a href="/subscribe" class="public-nav-link public-nav-link--cta" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
+            <div class="mb-nav__actions">
+                <a href="/subscribe" class="mb-btn mb-btn--primary" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
                 {% if public_user %}
-                <div class="public-user-chip" id="user-chip-wrap">
-                    <button class="public-user-chip__btn" id="user-chip-btn" aria-haspopup="true" aria-expanded="false" type="button">
-                        <span class="public-user-avatar">{{ public_user.display_name[:1].upper() }}</span>
-                        <span class="public-user-chip__name">{{ public_user.display_name }}</span>
-                        <svg class="public-user-chip__caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                <div class="mb-user-chip" id="user-chip-wrap">
+                    <button class="mb-user-chip__btn" id="user-chip-btn" aria-haspopup="true" aria-expanded="false" type="button">
+                        <span class="mb-user-chip__avatar">{{ public_user.display_name[:1].upper() }}</span>
+                        <span class="mb-user-chip__name">{{ public_user.display_name }}</span>
+                        <svg class="mb-nav__caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
-                    <div class="public-user-dropdown" id="user-dropdown" hidden>
-                        <a href="/account" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">My Account</a>
-                        <a href="/account#digest" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">Email Alerts</a>
-                        <a href="/account#password-settings" class="public-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">Change Password</a>
-                        <a href="/logout?next={{ request.full_path | urlencode }}" class="public-user-dropdown__item public-user-dropdown__item--danger" data-nav-track="1" data-nav-location="user_dropdown">{{ public_action_labels.sign_out }}</a>
+                    <div class="mb-user-dropdown" id="user-dropdown" hidden>
+                        <a href="/account" class="mb-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">My Account</a>
+                        <a href="/account#digest" class="mb-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">Email Alerts</a>
+                        <a href="/account#password-settings" class="mb-user-dropdown__item" data-nav-track="1" data-nav-location="user_dropdown">Change Password</a>
+                        <a href="/logout?next={{ request.full_path | urlencode }}" class="mb-user-dropdown__item mb-user-dropdown__item--danger" data-nav-track="1" data-nav-location="user_dropdown">{{ public_action_labels.sign_out }}</a>
                     </div>
                 </div>
                 {% else %}
-                <a href="/login?next={{ request.full_path | urlencode }}" class="public-nav-link public-nav-link--ghost" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
-                <a href="/register?next={{ request.full_path | urlencode }}" class="public-nav-link public-nav-link--ghost" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
+                <a href="/login?next={{ request.full_path | urlencode }}" class="mb-nav__action-link" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.sign_in }}</a>
+                <a href="/register?next={{ request.full_path | urlencode }}" class="mb-btn mb-btn--secondary" data-nav-track="1" data-nav-location="header_action">{{ public_action_labels.join }}</a>
                 {% endif %}
             </div>
         </nav>
