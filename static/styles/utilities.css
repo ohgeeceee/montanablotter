@@ -1,0 +1,565 @@
+/* ==========================================================================
+   Master Utility Stylesheet — High-Density Utility Infrastructure
+   No gradients, no blurs, no drop-shadows. System fonts only.
+   Supports dark/light system preferences via CSS custom properties.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Design tokens
+   -------------------------------------------------------------------------- */
+:root {
+  color-scheme: light dark;
+
+  /* Light palette (default) */
+  --u-bg: #ffffff;
+  --u-surface: #f7f7f7;
+  --u-elevated: #ffffff;
+  --u-text: #0a0a0a;
+  --u-text-secondary: #4a4a4a;
+  --u-muted: #666666;
+  --u-border: #d0d0d0;
+  --u-border-strong: #0a0a0a;
+  --u-accent: #005fcc;
+  --u-accent-text: #ffffff;
+
+  /* Status colors — high contrast against both themes */
+  --u-status-active: #007a35;
+  --u-status-active-bg: #e6f5ec;
+  --u-status-pending: #b86e00;
+  --u-status-pending-bg: #fff5e0;
+  --u-status-error: #c7001b;
+  --u-status-error-bg: #ffebed;
+  --u-status-info: #005fcc;
+  --u-status-info-bg: #e6f2ff;
+
+  /* Typography */
+  --u-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --u-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Compact spacing scale (mobile-first, sub-720p optimized) */
+  --u-space-0: 0;
+  --u-space-px: 1px;
+  --u-space-1: 2px;
+  --u-space-2: 4px;
+  --u-space-3: 6px;
+  --u-space-4: 8px;
+  --u-space-5: 12px;
+  --u-space-6: 16px;
+  --u-space-7: 20px;
+  --u-space-8: 24px;
+  --u-space-9: 32px;
+
+  /* Layout */
+  --u-max-width: 1280px;
+  --u-header-height: 56px;
+
+  /* Borders */
+  --u-border-width: 1px;
+  --u-radius: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --u-bg: #111111;
+    --u-surface: #1a1a1a;
+    --u-elevated: #222222;
+    --u-text: #f2f2f2;
+    --u-text-secondary: #c2c2c2;
+    --u-muted: #a0a0a0;
+    --u-border: #404040;
+    --u-border-strong: #f2f2f2;
+    --u-accent: #4d9fff;
+    --u-accent-text: #0a0a0a;
+
+    --u-status-active: #00b050;
+    --u-status-active-bg: #062b14;
+    --u-status-pending: #ff9f1c;
+    --u-status-pending-bg: #2b1d00;
+    --u-status-error: #ff2e43;
+    --u-status-error-bg: #2a0508;
+    --u-status-info: #2e9fff;
+    --u-status-info-bg: #001e3d;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. Reset & base
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-tab-size: 4;
+  tab-size: 4;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--u-bg);
+  color: var(--u-text);
+  font-family: var(--u-font-sans);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--u-accent);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: var(--u-border-width) solid var(--u-accent);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   3. Layout shell
+   -------------------------------------------------------------------------- */
+.u-layout-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.u-shell-header {
+  flex: 0 0 auto;
+  min-height: var(--u-header-height);
+  background-color: var(--u-surface);
+}
+
+.u-shell-main {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.u-shell-footer {
+  flex: 0 0 auto;
+  background-color: var(--u-surface);
+}
+
+.u-container {
+  width: 100%;
+  max-width: var(--u-max-width);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* --------------------------------------------------------------------------
+   4. Display & flex/grid utilities
+   -------------------------------------------------------------------------- */
+.u-block { display: block; }
+.u-inline { display: inline; }
+.u-inline-block { display: inline-block; }
+.u-flex { display: flex; }
+.u-inline-flex { display: inline-flex; }
+.u-grid { display: grid; }
+.u-inline-grid { display: inline-grid; }
+.u-hidden { display: none; }
+
+.u-flex-col { flex-direction: column; }
+.u-flex-row { flex-direction: row; }
+.u-flex-wrap { flex-wrap: wrap; }
+.u-flex-nowrap { flex-wrap: nowrap; }
+
+.u-items-start { align-items: flex-start; }
+.u-items-center { align-items: center; }
+.u-items-end { align-items: flex-end; }
+.u-items-baseline { align-items: baseline; }
+.u-items-stretch { align-items: stretch; }
+
+.u-justify-start { justify-content: flex-start; }
+.u-justify-center { justify-content: center; }
+.u-justify-end { justify-content: flex-end; }
+.u-justify-between { justify-content: space-between; }
+
+.u-flex-1 { flex: 1 1 0%; }
+.u-flex-auto { flex: 1 1 auto; }
+.u-flex-none { flex: none; }
+
+/* Grid columns */
+.u-grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.u-grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.u-grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.u-grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.u-grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.u-grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+
+.u-col-span-1 { grid-column: span 1 / span 1; }
+.u-col-span-2 { grid-column: span 2 / span 2; }
+.u-col-span-3 { grid-column: span 3 / span 3; }
+.u-col-span-4 { grid-column: span 4 / span 4; }
+.u-col-span-6 { grid-column: span 6 / span 6; }
+.u-col-span-12 { grid-column: span 12 / span 12; }
+
+/* --------------------------------------------------------------------------
+   5. Spacing utilities
+   -------------------------------------------------------------------------- */
+/* Padding */
+.u-p-0 { padding: var(--u-space-0); }
+.u-p-px { padding: var(--u-space-px); }
+.u-p-1 { padding: var(--u-space-1); }
+.u-p-2 { padding: var(--u-space-2); }
+.u-p-3 { padding: var(--u-space-3); }
+.u-p-4 { padding: var(--u-space-4); }
+.u-p-5 { padding: var(--u-space-5); }
+.u-p-6 { padding: var(--u-space-6); }
+
+.u-px-1 { padding-left: var(--u-space-1); padding-right: var(--u-space-1); }
+.u-px-2 { padding-left: var(--u-space-2); padding-right: var(--u-space-2); }
+.u-px-3 { padding-left: var(--u-space-3); padding-right: var(--u-space-3); }
+.u-px-4 { padding-left: var(--u-space-4); padding-right: var(--u-space-4); }
+.u-px-5 { padding-left: var(--u-space-5); padding-right: var(--u-space-5); }
+.u-px-6 { padding-left: var(--u-space-6); padding-right: var(--u-space-6); }
+
+.u-py-1 { padding-top: var(--u-space-1); padding-bottom: var(--u-space-1); }
+.u-py-2 { padding-top: var(--u-space-2); padding-bottom: var(--u-space-2); }
+.u-py-3 { padding-top: var(--u-space-3); padding-bottom: var(--u-space-3); }
+.u-py-4 { padding-top: var(--u-space-4); padding-bottom: var(--u-space-4); }
+.u-py-5 { padding-top: var(--u-space-5); padding-bottom: var(--u-space-5); }
+.u-py-6 { padding-top: var(--u-space-6); padding-bottom: var(--u-space-6); }
+
+/* Margin */
+.u-m-0 { margin: var(--u-space-0); }
+.u-m-1 { margin: var(--u-space-1); }
+.u-m-2 { margin: var(--u-space-2); }
+.u-m-3 { margin: var(--u-space-3); }
+.u-m-4 { margin: var(--u-space-4); }
+.u-m-5 { margin: var(--u-space-5); }
+.u-m-6 { margin: var(--u-space-6); }
+
+.u-mx-auto { margin-left: auto; margin-right: auto; }
+
+.u-mt-1 { margin-top: var(--u-space-1); }
+.u-mt-2 { margin-top: var(--u-space-2); }
+.u-mt-3 { margin-top: var(--u-space-3); }
+.u-mt-4 { margin-top: var(--u-space-4); }
+.u-mt-5 { margin-top: var(--u-space-5); }
+.u-mt-6 { margin-top: var(--u-space-6); }
+
+.u-mb-1 { margin-bottom: var(--u-space-1); }
+.u-mb-2 { margin-bottom: var(--u-space-2); }
+.u-mb-3 { margin-bottom: var(--u-space-3); }
+.u-mb-4 { margin-bottom: var(--u-space-4); }
+.u-mb-5 { margin-bottom: var(--u-space-5); }
+.u-mb-6 { margin-bottom: var(--u-space-6); }
+
+.u-space-y-2 > * + * { margin-top: var(--u-space-2); }
+
+.u-gap-0 { gap: var(--u-space-0); }
+.u-gap-1 { gap: var(--u-space-1); }
+.u-gap-2 { gap: var(--u-space-2); }
+.u-gap-3 { gap: var(--u-space-3); }
+.u-gap-4 { gap: var(--u-space-4); }
+.u-gap-5 { gap: var(--u-space-5); }
+.u-gap-6 { gap: var(--u-space-6); }
+
+/* --------------------------------------------------------------------------
+   6. Typography utilities
+   -------------------------------------------------------------------------- */
+.u-font-sans { font-family: var(--u-font-sans); }
+.u-font-mono { font-family: var(--u-font-mono); }
+
+.u-text-xs { font-size: 11px; }
+.u-text-sm { font-size: 12px; }
+.u-text-base { font-size: 14px; }
+.u-text-lg { font-size: 16px; }
+.u-text-xl { font-size: 18px; }
+.u-text-2xl { font-size: 22px; }
+.u-text-3xl { font-size: 28px; }
+
+.u-weight-normal { font-weight: 400; }
+.u-weight-medium { font-weight: 500; }
+.u-weight-semibold { font-weight: 600; }
+.u-weight-bold { font-weight: 700; }
+
+.u-leading-none { line-height: 1; }
+.u-leading-tight { line-height: 1.2; }
+.u-leading-base { line-height: 1.35; }
+.u-leading-relaxed { line-height: 1.5; }
+
+.u-tracking-tight { letter-spacing: -0.01em; }
+.u-tracking-normal { letter-spacing: 0; }
+.u-tracking-wide { letter-spacing: 0.04em; }
+
+.u-uppercase { text-transform: uppercase; }
+.u-lowercase { text-transform: lowercase; }
+.u-capitalize { text-transform: capitalize; }
+
+.u-text-left { text-align: left; }
+.u-text-center { text-align: center; }
+.u-text-right { text-align: right; }
+
+.u-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.u-break-all { word-break: break-all; }
+.u-whitespace-nowrap { white-space: nowrap; }
+
+/* --------------------------------------------------------------------------
+   7. Color & surface utilities
+   -------------------------------------------------------------------------- */
+.u-bg { background-color: var(--u-bg); }
+.u-bg-surface { background-color: var(--u-surface); }
+.u-bg-elevated { background-color: var(--u-elevated); }
+
+.u-text { color: var(--u-text); }
+.u-color-secondary { color: var(--u-text-secondary); }
+.u-color-muted { color: var(--u-muted); }
+.u-color-accent { color: var(--u-accent); }
+
+/* --------------------------------------------------------------------------
+   8. Border utilities — stark, 1px only
+   -------------------------------------------------------------------------- */
+.u-border { border: var(--u-border-width) solid var(--u-border); }
+.u-border-0 { border-width: 0; }
+.u-border-t { border-top: var(--u-border-width) solid var(--u-border); }
+.u-border-r { border-right: var(--u-border-width) solid var(--u-border); }
+.u-border-b { border-bottom: var(--u-border-width) solid var(--u-border); }
+.u-border-l { border-left: var(--u-border-width) solid var(--u-border); }
+
+.u-border-strong { border-color: var(--u-border-strong); }
+.u-border-dashed { border-style: dashed; }
+.u-border-dotted { border-style: dotted; }
+
+/* --------------------------------------------------------------------------
+   9. Status utilities
+   -------------------------------------------------------------------------- */
+.u-status-active { color: var(--u-status-active); }
+.u-bg-status-active { background-color: var(--u-status-active-bg); }
+
+.u-status-pending { color: var(--u-status-pending); }
+.u-bg-status-pending { background-color: var(--u-status-pending-bg); }
+
+.u-status-error { color: var(--u-status-error); }
+.u-color-error { color: var(--u-status-error); }
+.u-bg-status-error { background-color: var(--u-status-error-bg); }
+
+.u-status-info { color: var(--u-status-info); }
+.u-bg-status-info { background-color: var(--u-status-info-bg); }
+
+.u-status-dot {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   10. Component primitives
+   -------------------------------------------------------------------------- */
+.u-card {
+  background-color: var(--u-elevated);
+  border: var(--u-border-width) solid var(--u-border);
+}
+
+.u-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.u-table th,
+.u-table td {
+  padding: var(--u-space-2) var(--u-space-3);
+  border-bottom: var(--u-border-width) solid var(--u-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.u-table th {
+  color: var(--u-muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.u-table tbody tr:hover {
+  background-color: var(--u-surface);
+}
+
+.u-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--u-space-2);
+  padding: var(--u-space-2) var(--u-space-4);
+  border: var(--u-border-width) solid var(--u-border-strong);
+  background-color: var(--u-elevated);
+  color: var(--u-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.u-button:hover {
+  background-color: var(--u-surface);
+}
+
+.u-button:active {
+  background-color: var(--u-border);
+}
+
+.u-button-primary {
+  background-color: var(--u-accent);
+  border-color: var(--u-accent);
+  color: var(--u-accent-text);
+}
+
+.u-button-primary:hover {
+  filter: brightness(1.1);
+}
+
+.u-input {
+  width: 100%;
+  padding: var(--u-space-2) var(--u-space-3);
+  border: var(--u-border-width) solid var(--u-border);
+  background-color: var(--u-elevated);
+  color: var(--u-text);
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.u-input:focus {
+  border-color: var(--u-accent);
+  outline: none;
+}
+
+.u-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--u-space-1);
+  padding: var(--u-space-1) var(--u-space-2);
+  font-family: var(--u-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border: var(--u-border-width) solid currentColor;
+}
+
+/* --------------------------------------------------------------------------
+   11. Accessibility helpers
+   -------------------------------------------------------------------------- */
+.u-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.u-skip-link:focus {
+  position: fixed;
+  left: var(--u-space-4);
+  top: var(--u-space-4);
+  z-index: 9999;
+  width: auto;
+  height: auto;
+  padding: var(--u-space-3) var(--u-space-5);
+  background-color: var(--u-accent);
+  color: var(--u-accent-text);
+  font-weight: 600;
+}
+
+.u-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.u-antialiased {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --------------------------------------------------------------------------
+   12. Medium+ breakpoint adjustments (>= 720px)
+   -------------------------------------------------------------------------- */
+@media (min-width: 720px) {
+  body {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .u-md-block { display: block; }
+  .u-md-inline { display: inline; }
+  .u-md-inline-block { display: inline-block; }
+  .u-md-flex { display: flex; }
+  .u-md-inline-flex { display: inline-flex; }
+  .u-md-grid { display: grid; }
+  .u-md-hidden { display: none; }
+
+  .u-md-px-3 { padding-left: var(--u-space-6); padding-right: var(--u-space-6); }
+  .u-md-gap-2 { gap: var(--u-space-4); }
+  .u-md-grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .u-md-grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .u-md-grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .u-md-grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .u-md-grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+}
+
+/* --------------------------------------------------------------------------
+   13. Print
+   -------------------------------------------------------------------------- */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .u-shell-header,
+  .u-shell-footer,
+  .u-skip-link {
+    display: none;
+  }
+}
