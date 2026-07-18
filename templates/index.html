@@ -1,4 +1,4 @@
-{% extends "public_page_base.html" %}
+{% extends "public_page_base_v2.html" %}
 
 {% set page_title = "Montana Blotter — Real-Time Public Record Reporting" %}
 {% set meta_description = "Track recent Montana incident records, browse county and city blotters, view jail rosters, and follow statewide public record trends. Updated daily from official sources." %}
@@ -8,377 +8,6 @@
 {% block body_class %}newsroom-body{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='homepage-newsroom.css') }}">
-{% include "includes/wanted_posters_head.html" %}
-<style>
-.hub-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
-    margin: 2.5rem 0;
-}
-@media (max-width: 1024px) {
-    .hub-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 640px) {
-    .hub-grid { grid-template-columns: 1fr; }
-}
-
-.hub-card {
-    background: var(--paper-strong);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    padding: 1.5rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-.hub-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow);
-    border-color: var(--line-strong);
-}
-
-.hub-card__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-.hub-card__title-group {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-}
-.hub-card__icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    flex-shrink: 0;
-}
-.hub-card__icon--courts   { background: var(--steel-soft); color: var(--steel); }
-.hub-card__icon--jails    { background: rgba(14, 36, 50, 0.08); color: var(--navy); }
-.hub-card__icon--sanctions{ background: var(--signal-soft); color: var(--signal); }
-.hub-card__icon--offenders{ background: var(--amber-soft); color: var(--amber); }
-.hub-card__icon--missing  { background: var(--signal-soft); color: var(--signal); }
-.hub-card__icon--warrants { background: rgba(107, 64, 168, 0.12); color: #6b40a8; }
-.hub-card__icon--alerts { background: rgba(220, 38, 38, 0.10); color: #dc2626; }
-
-/* ── Hero snapshot (desktop right-column) ── */
-.hero-panel__snapshot { display: none; }
-.hero-snapshot__item {
-    padding: .85rem .7rem;
-    border-radius: var(--radius-sm);
-    background: rgba(14,36,50,.04);
-    border: 1px solid var(--line);
-    display: grid;
-    gap: .2rem;
-}
-.hero-snapshot__label {
-    font-size: .55rem;
-    font-weight: 700;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-}
-.hero-snapshot__value {
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--ink);
-    line-height: 1.15;
-}
-
-@media (min-width: 1024px) {
-    /* Two-column hero on desktop */
-    .hero-panel--hub {
-        display: grid;
-        grid-template-columns: 1fr 210px;
-        grid-template-rows: auto auto;
-        column-gap: 2rem;
-        align-items: start;
-    }
-    .hero-panel--hub .hero-panel__intro { grid-column: 1; grid-row: 1; }
-    .hero-panel--hub .hero-panel__snapshot {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: .6rem;
-        grid-column: 2;
-        grid-row: 1;
-        align-self: center;
-    }
-    .hero-panel--hub .ticker-rail {
-        grid-column: 1 / -1;
-        grid-row: 2;
-        margin-top: 1.3rem;
-    }
-}
-
-.hub-card__name {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: -0.01em;
-}
-.hub-card__count {
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--ink-soft);
-}
-
-.hub-card__list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-.hub-card__item {
-    display: block;
-    padding: 0.55rem 0.7rem;
-    border-radius: 12px;
-    background: rgba(20, 33, 43, 0.025);
-    font-size: 0.78rem;
-    line-height: 1.45;
-    color: var(--ink-soft);
-    transition: background 0.15s ease;
-}
-.hub-card__item:hover {
-    background: rgba(20, 33, 43, 0.06);
-}
-.hub-card__item strong {
-    display: block;
-    color: var(--ink);
-    font-weight: 600;
-    font-size: 0.8rem;
-    margin-bottom: 0.15rem;
-}
-.hub-card__item span {
-    color: var(--ink-muted);
-    font-size: 0.72rem;
-}
-.hub-card__item--featured {
-    margin-top: 0.4rem;
-    padding-top: 0.75rem;
-    border-top: 1px dashed rgba(234, 88, 12, 0.35);
-    background: rgba(234, 88, 12, 0.06);
-}
-.hub-card__item--featured strong {
-    color: #b45309;
-}
-.hub-card__item--featured:hover {
-    background: rgba(234, 88, 12, 0.12);
-}
-
-.hub-card__footer {
-    margin-top: auto;
-    padding-top: 0.25rem;
-}
-.hub-card__footer a {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--steel);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-.hub-card__footer a:hover {
-    text-decoration: underline;
-}
-
-.hero-panel--hub {
-    padding-bottom: 0.5rem;
-}
-.hero-hub-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: 1.25rem;
-}
-.hero-hub-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.4rem 0.85rem;
-    border-radius: 100px;
-    background: rgba(20, 33, 43, 0.04);
-    border: 1px solid var(--line);
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--ink-soft);
-    transition: background 0.15s ease;
-}
-.hero-hub-pill:hover {
-    background: rgba(20, 33, 43, 0.08);
-}
-.hero-hub-pill strong {
-    font-family: "IBM Plex Mono", monospace;
-    color: var(--ink);
-}
-
-/* ── Missing Person Spotlight ── */
-.missing-spotlight {
-    margin: 2rem 0 0;
-    background: rgba(195, 66, 63, 0.04);
-    border: 1px solid rgba(195, 66, 63, 0.18);
-    border-left: 4px solid var(--signal);
-    border-radius: var(--radius-md);
-    padding: 1.5rem;
-}
-.missing-spotlight__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-}
-.missing-spotlight__badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--signal);
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-}
-.missing-spotlight__count {
-    background: var(--signal);
-    color: #fff;
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 0.15rem 0.5rem;
-    border-radius: 100px;
-}
-.missing-spotlight__cta {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--steel);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.missing-spotlight__cta:hover { text-decoration: underline; }
-.missing-spotlight__grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-}
-@media (max-width: 1024px) {
-    .missing-spotlight__grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 640px) {
-    .missing-spotlight__grid { grid-template-columns: 1fr; }
-}
-.missing-spotlight__card {
-    display: block;
-    background: var(--paper-strong);
-    border: 1px solid rgba(195, 66, 63, 0.15);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    text-decoration: none;
-    color: inherit;
-}
-.missing-spotlight__card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-}
-.missing-spotlight__card-banner {
-    background: var(--signal);
-    color: #fff;
-    padding: 0.45rem 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-}
-.missing-spotlight__card-banner-text {
-    font-size: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    flex-shrink: 0;
-}
-.missing-spotlight__card-banner-loc {
-    font-size: 0.62rem;
-    opacity: 0.82;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 60%;
-}
-.missing-spotlight__card-body {
-    display: grid;
-    grid-template-columns: 90px 1fr;
-}
-.missing-spotlight__card-media {
-    width: 90px;
-    aspect-ratio: 3 / 4;
-    overflow: hidden;
-    background: rgba(195, 66, 63, 0.06);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.missing-spotlight__card-media img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.missing-spotlight__card-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    color: rgba(195, 66, 63, 0.35);
-    font-size: 0.62rem;
-}
-.missing-spotlight__card-placeholder i { font-size: 1.5rem; }
-.missing-spotlight__card-info {
-    padding: 0.65rem 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-.missing-spotlight__card-name {
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--ink);
-    line-height: 1.25;
-    margin: 0;
-}
-.missing-spotlight__card-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.12rem;
-}
-.missing-spotlight__card-detail {
-    font-size: 0.68rem;
-    color: var(--ink-muted);
-    line-height: 1.3;
-}
-.missing-spotlight__card-detail strong {
-    color: var(--ink-soft);
-    font-weight: 600;
-}
-.missing-spotlight__card-action {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: var(--signal);
-    margin-top: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-</style>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -395,703 +24,223 @@
   "name": "Montana Blotter",
   "url": "https://montanablotter.com/",
   "logo": "https://montanablotter.com/static/icons/og-default.png",
-  "sameAs": [
-    "https://www.facebook.com/montanablotter"
-  ]
+  "sameAs": ["https://www.facebook.com/montananablotter"]
 }
 </script>
+<style>
+.mb-rss-ticker {
+  width: 100%;
+  min-height: 60px;
+  overflow: hidden;
+  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
+  background-color: var(--surface-page);
+}
+.mb-rss-ticker iframe {
+  display: block;
+  width: 100%;
+  height: 60px;
+  border: 0;
+}
+</style>
 {% endblock %}
 
 {% block content %}
-{% set weekly_total = weekly_snapshot.total_records if weekly_snapshot else 0 %}
-{% set weekly_window = weekly_snapshot.start_date ~ ' to ' ~ weekly_snapshot.end_date if weekly_snapshot else 'Latest reporting window' %}
+<main class="mb-main">
 
-<div class="newsroom-shell">
-    <main class="newsroom-container page-content">
-        <section class="hero-panel hero-panel--hub">
-            <div class="hero-panel__intro">
-                <div>
-                    <p class="section-kicker">Statewide Public Records Hub</p>
-                    <h1 class="hero-title">Montana Blotter</h1>
-                </div>
-                <p class="hero-copy">
-                    Real-time incident reports, court hearings, jail bookings, professional sanctions, and statewide public safety data — all in one place.
-                </p>
+  {% if missing_persons_alert and missing_persons_alert.rows %}
+  {% set alert_person = missing_persons_alert.rows[0] %}
+  <div class="mb-alert mb-alert--alert" role="alert" id="homepage-missing-alert">
+    <div>
+      <div class="mb-alert__title">Active missing-person alert — {{ alert_person.last_seen_location or 'Montana' }}</div>
+      <div class="mb-alert__body">
+        {{ alert_person.full_name }} last seen {{ alert_person.last_seen_at_label or 'recently' }}.
+        Anyone with information should contact the {{ alert_person.source_agency or 'local sheriff\'s office' }}.
+      </div>
+    </div>
+    <button type="button" class="mb-alert__dismiss" aria-label="Dismiss alert" onclick="this.parentElement.remove()">&times;</button>
+  </div>
+  {% endif %}
 
-                <div class="hero-hub-bar">
-                    <a href="/crime-data" class="hero-hub-pill"><strong>{{ "{:,}".format(total_records | default(0)) }}</strong> Police Records</a>
-                    <a href="/courts" class="hero-hub-pill"><strong>{{ hub_counts.courts }}</strong> Court Events</a>
-                    <a href="/detention" class="hero-hub-pill"><strong>{{ hub_counts.jails }}</strong> Jail Bookings</a>
-                    <a href="/license-sanctions" class="hero-hub-pill"><strong>{{ hub_counts.sanctions }}</strong> Sanctions</a>
-                    <a href="/sex-offender-updates" class="hero-hub-pill"><strong>{{ hub_counts.sex_offenders }}</strong> Registry</a>
-                    <a href="/missing-persons" class="hero-hub-pill"><strong>{{ hub_counts.missing_persons }}</strong> Missing</a>
-                    <a href="/wanted" class="hero-hub-pill"><strong>{{ hub_counts.warrants_active }}</strong> Warrants</a>
-                    <a href="/blog" class="hero-hub-pill"><strong>{{ hub_counts.blog }}</strong> Blog Posts</a>
-                </div>
-            </div>
+  <div class="mb-rss-ticker">
+    <iframe
+      src="https://rss.app/embed/v1/ticker/t9giebudER6tUys4"
+      width="100%"
+      height="60"
+      frameborder="0"
+      loading="lazy"
+      title="Recent headlines"
+    ></iframe>
+  </div>
 
-            <div class="hero-panel__snapshot" aria-hidden="true">
-                <div class="hero-snapshot__item">
-                    <span class="hero-snapshot__label">Total Records</span>
-                    <span class="hero-snapshot__value">{{ total_records | default(0) }}</span>
-                </div>
-                <div class="hero-snapshot__item">
-                    <span class="hero-snapshot__label">Bookings</span>
-                    <span class="hero-snapshot__value">{{ hub_counts.jails }}</span>
-                </div>
-                <div class="hero-snapshot__item">
-                    <span class="hero-snapshot__label">Sanctions</span>
-                    <span class="hero-snapshot__value">{{ hub_counts.sanctions }}</span>
-                </div>
-                <div class="hero-snapshot__item">
-                    <span class="hero-snapshot__label">Missing</span>
-                    <span class="hero-snapshot__value">{{ hub_counts.missing_persons }}</span>
-                </div>
-            </div>
+  <div class="mb-layout-grid mb-layout-grid--2">
+    <div>
+      {% if posts %}
+      {% set lead = posts[0] %}
+      {% set lead_record = lead.lead_record %}
+      <article class="mb-lead-report">
+        <div class="mb-lead-report__kicker">Lead Report</div>
+        <h1 class="mb-lead-report__headline">
+          {% if lead_record and lead_record.incident_label %}
+            {{ lead_record.incident_label }}{% if lead_record.location %} at {{ lead_record.location }}{% endif %}
+          {% else %}
+            {{ lead.title or 'Daily incident report' }}
+          {% endif %}
+        </h1>
+        <p class="mb-lead-report__summary">
+          {{ (lead.summary or '') | striptags | truncate(260, True, '…') }}
+        </p>
+        <div class="mb-lead-report__meta">
+          <span>Source: {{ lead.agency_name or 'Montana law enforcement' }}</span>
+          <time datetime="{{ lead.incident_date or lead.created_at }}">{{ lead.incident_date or (lead.created_at[:10] if lead.created_at else 'Date pending') }}</time>
+        </div>
+        <div style="margin-top: var(--space-4);">
+          <a href="/post/{{ lead.id }}" class="mb-button mb-button--secondary mb-button--sm">Read the full report</a>
+        </div>
+      </article>
+      {% endif %}
 
-            <div class="ticker-rail" aria-label="Recent incidents">
-                <span class="ticker-rail__label">
-                    {% if ticker_records %}Recent activity{% else %}Breaking / Recent{% endif %}
-                </span>
-                <div class="ticker-rail__viewport">
-                    <div class="ticker-rail__track">
-                        {% if ticker_records %}
-                            {% for _ in range(2) %}
-                                {% for record in ticker_records %}
-                                <a href="/record/{{ record.id }}" class="ticker-rail__item">
-                                    <span class="ticker-rail__incident">{{ record.incident_label }}</span>
-                                    <span class="ticker-rail__meta">
-                                        {{ record.county or 'Montana' }}{% if record.time %} · {{ record.time }}{% endif %}
-                                    </span>
-                                </a>
-                                {% endfor %}
-                            {% endfor %}
-                        {% else %}
-                            <span class="ticker-rail__empty">Recent incident records will populate here as statewide reporting updates arrive.</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </section>
+      <header class="mb-section-header" style="margin-top: var(--space-10);">
+        <div>
+          <div class="mb-section-header__kicker">Statewide · Updated hourly</div>
+          <h2 class="mb-section-header__title">Today&rsquo;s blotter</h2>
+        </div>
+        <a href="/blotter" class="mb-section-header__action">Full blotter &rarr;</a>
+      </header>
 
-        <section class="digest-signup" aria-label="Daily digest email signup" style="background:linear-gradient(135deg,#1e293b 0%,#334155 100%);border-radius:var(--radius-lg,16px);padding:1.75rem 2rem;margin:1.5rem 0;display:flex;flex-wrap:wrap;align-items:center;gap:1.25rem;justify-content:space-between;">
-            <div style="flex:1;min-width:220px;">
-                <h2 style="color:#fff;font-size:1.25rem;font-weight:800;margin:0 0 .25rem 0;">Get the Daily Digest</h2>
-                <p style="color:#94a3b8;font-size:.85rem;margin:0;">Montana's overnight blotters, summarized and PII-screened. Delivered at 7am MT.</p>
-            </div>
-            <form method="POST" action="/subscribe" style="display:flex;gap:.5rem;flex:1;min-width:280px;max-width:420px;" id="homepage-digest-form">
-                <input type="hidden" name="source" value="homepage_inline">
-                <input type="email" name="email" required placeholder="you@email.com" style="flex:1;padding:.6rem 1rem;border-radius:12px;border:1px solid #475569;background:#0f172a;color:#fff;font-size:.9rem;outline:none;" aria-label="Email for daily digest">
-                <button type="submit" style="padding:.6rem 1.25rem;border-radius:12px;border:none;background:#d97706;color:#fff;font-weight:800;font-size:.85rem;cursor:pointer;white-space:nowrap;text-transform:uppercase;letter-spacing:.05em;">Subscribe Free</button>
-            </form>
-        </section>
-
-        {% if missing_persons_alert and missing_persons_alert.rows %}
-        <section class="missing-spotlight" aria-label="Active missing persons alerts">
-            <div class="missing-spotlight__header">
-                <span class="missing-spotlight__badge">
-                    <i class="fas fa-triangle-exclamation"></i>
-                    Active Missing Persons
-                    <span class="missing-spotlight__count">{{ hub_counts.missing_persons }}</span>
-                </span>
-                <a href="/missing-persons" class="missing-spotlight__cta">
-                    View all alerts <i class="fas fa-arrow-right text-[10px]"></i>
-                </a>
-            </div>
-            <div class="missing-spotlight__grid">
-                {% for person in missing_persons_alert.rows %}
-                <a href="/missing-persons/{{ person.slug }}" class="missing-spotlight__card">
-                    <div class="missing-spotlight__card-banner">
-                        <span class="missing-spotlight__card-banner-text">MISSING</span>
-                        <span class="missing-spotlight__card-banner-loc">{{ person.last_seen_location or 'Montana' }}</span>
-                    </div>
-                    <div class="missing-spotlight__card-body">
-                        <div class="missing-spotlight__card-media">
-                            {% if person.photos and person.photos|length > 0 %}
-                            <img src="{{ person.photos[0].url }}" alt="{{ person.full_name }}" loading="lazy">
-                            {% elif person.photo_url %}
-                            <img src="{{ person.photo_url }}" alt="{{ person.full_name }}" loading="lazy">
-                            {% else %}
-                            <div class="missing-spotlight__card-placeholder">
-                                <i class="fas fa-user"></i>
-                                <span>No photo</span>
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="missing-spotlight__card-info">
-                            <h3 class="missing-spotlight__card-name">{{ person.full_name }}</h3>
-                            <div class="missing-spotlight__card-details">
-                                {% if person.age %}<span class="missing-spotlight__card-detail"><strong>Age</strong> {{ person.age }}</span>{% endif %}
-                                {% if person.height_label or person.weight_lbs %}
-                                <span class="missing-spotlight__card-detail"><strong>Ht</strong> {{ person.height_label or '—' }}{% if person.weight_lbs %} · {{ person.weight_lbs }} lbs{% endif %}</span>
-                                {% endif %}
-                                <span class="missing-spotlight__card-detail"><strong>Last seen</strong> {{ person.last_seen_at_label or 'Unknown' }}</span>
-                            </div>
-                            <span class="missing-spotlight__card-action">View alert <i class="fas fa-arrow-right"></i></span>
-                        </div>
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
-
-        {% if wanted_spotlight and wanted_spotlight.rows %}
-        <section class="wanted-spotlight" aria-label="Active and resolved warrant posters">
-            <div class="wanted-spotlight__header">
-                <span class="wanted-spotlight__badge">
-                    <i class="fas fa-gavel"></i>
-                    Active Warrants
-                    <span class="wanted-spotlight__count">{{ hub_counts.warrants_active }}</span>
-                </span>
-                <a href="/wanted" class="wanted-spotlight__cta">
-                    View all warrants <i class="fas fa-arrow-right text-[10px]"></i>
-                </a>
-            </div>
-            <div class="wanted-spotlight__grid">
-                {% for record in wanted_spotlight.rows %}
-                {% include "includes/wanted_poster_card.html" %}
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
-
-        <section class="hub-grid" aria-label="Data hubs">
-            <article class="hub-card">
-                <div class="hub-card__header">
-                    <div class="hub-card__title-group">
-                        <div class="hub-card__icon hub-card__icon--courts"><i class="fas fa-gavel"></i></div>
-                        <span class="hub-card__name">Courts</span>
-                    </div>
-                    <span class="hub-card__count">{{ hub_counts.courts }}</span>
-                </div>
-                <div class="hub-card__list">
-                    {% for event in recent_court_events[:3] %}
-                    <a href="/court-case/{{ event.name_slug }}" class="hub-card__item">
-                        <strong>{{ event.event_title or 'Hearing' }}</strong>
-                        <span>{{ event.event_date or 'Date pending' }}{% if event.event_time %} · {{ event.event_time }}{% endif %} — {{ event.case_caption or event.case_number or 'Case pending' }}</span>
-                    </a>
-                    {% else %}
-                    <div class="hub-card__item"><span>Court events will appear here as hearings are indexed.</span></div>
-                    {% endfor %}
-                </div>
-                <div class="hub-card__footer">
-                    <a href="/courts">View all courts <i class="fas fa-arrow-right text-[10px]"></i></a>
-                </div>
-            </article>
-
-            {% if recent_alerts %}
-            <article class="hub-card">
-                <div class="hub-card__header">
-                    <div class="hub-card__title-group">
-                        <div class="hub-card__icon hub-card__icon--alerts"><i class="fas fa-bell"></i></div>
-                        <span class="hub-card__name">Your Alerts</span>
-                    </div>
-                </div>
-                <div class="hub-card__list">
-                    {% for alert in recent_alerts %}
-                    <a href="{% if alert.record_id %}/record/{{ alert.record_id }}{% else %}#{% endif %}" class="hub-card__item">
-                        <strong>{{ alert.subject or 'New alert' }}</strong>
-                        <span>{{ alert.county or 'Montana' }}{% if alert.incident_type %} · {{ alert.incident_type }}{% endif %} · {{ alert.created_at or '' }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-                <div class="hub-card__footer">
-                    <a href="/account">Manage alerts <i class="fas fa-arrow-right text-[10px]"></i></a>
-                </div>
-            </article>
+      <div class="mb-blotter-list">
+        {% for post in posts[:6] %}
+        {% set rec = post.lead_record %}
+        <article class="mb-blotter-item mb-blotter-item--link" onclick="window.location.href='/post/{{ post.id }}'">
+          <span class="mb-blotter-item__time">{{ rec.time if rec and rec.time else (post.created_at[11:16] if post.created_at else '—') }}</span>
+          <span class="mb-blotter-item__county">{{ post.county or 'Montana' }}</span>
+          <span class="mb-blotter-item__text">
+            {% if rec and rec.incident_label %}
+              {{ rec.incident_label }}{% if rec.location %} at {{ rec.location }}{% endif %}
+            {% else %}
+              {{ post.title or 'Daily incident report' }}
             {% endif %}
+          </span>
+        </article>
+        {% else %}
+        <div class="mb-empty-state">No reports have been published yet today.</div>
+        {% endfor %}
+      </div>
+    </div>
 
-            <article class="hub-card">
-                <div class="hub-card__header">
-                    <div class="hub-card__title-group">
-                        <div class="hub-card__icon hub-card__icon--jails"><i class="fas fa-lock"></i></div>
-                        <span class="hub-card__name">Jails</span>
-                    </div>
-                    <span class="hub-card__count">{{ hub_counts.jails }}</span>
-                </div>
-                <div class="hub-card__list">
-                    {% for b in recent_jail_bookings[:3] %}
-                    <a href="/detention" class="hub-card__item">
-                        <strong>{{ b.person_name }}</strong>
-                        <span>{{ b.county_name }} · {{ b.booking_at or 'Date pending' }} — {{ b.charges_summary or 'Charges pending' }}</span>
-                    </a>
-                    {% else %}
-                    <div class="hub-card__item"><span>Jail booking data will appear here as rosters are refreshed.</span></div>
-                    {% endfor %}
-                    <a href="/jail-bookings/hill" class="hub-card__item hub-card__item--featured">
-                        <i class="fas fa-building-shield text-orange-600 mr-2"></i>
-                        <strong>Havre Daily Roster</strong>
-                        <span>{{ havre_current_count }} currently booked · Hill County</span>
-                    </a>
-                </div>
-                <div class="hub-card__footer">
-                    <a href="/detention">View all jails <i class="fas fa-arrow-right text-[10px]"></i></a>
-                </div>
-            </article>
+    <aside style="display:flex; flex-direction:column; gap:var(--space-4);">
+      <header class="mb-section-header mb-section-header--light">
+        <h2 class="mb-section-header__title">Missing</h2>
+        <a href="/missing-persons" class="mb-section-header__action">See all &rarr;</a>
+      </header>
 
-            <article class="hub-card">
-                <div class="hub-card__header">
-                    <div class="hub-card__title-group">
-                        <div class="hub-card__icon hub-card__icon--sanctions"><i class="fas fa-scale-balanced"></i></div>
-                        <span class="hub-card__name">Sanctions</span>
-                    </div>
-                    <span class="hub-card__count">{{ hub_counts.sanctions }}</span>
-                </div>
-                <div class="hub-card__list">
-                    {% for s in recent_license_sanctions[:3] %}
-                    <a href="{% if s.name_slug %}/license-sanctions/{{ s.name_slug }}{% else %}/license-sanctions{% endif %}" class="hub-card__item">
-                        <strong>{{ s.name or s.person_name or 'Unknown' }}</strong>
-                        <span>{{ s.board }} · {{ s.action_taken or 'Action' }} — {{ s.effective_date or 'Date pending' }}</span>
-                    </a>
-                    {% else %}
-                    <div class="hub-card__item"><span>License sanctions will appear here as board actions are indexed.</span></div>
-                    {% endfor %}
-                </div>
-                <div class="hub-card__footer">
-                    <a href="/license-sanctions">View all sanctions <i class="fas fa-arrow-right text-[10px]"></i></a>
-                </div>
-            </article>
-
-            <article class="hub-card">
-                <div class="hub-card__header">
-                    <div class="hub-card__title-group">
-                        <div class="hub-card__icon hub-card__icon--offenders"><i class="fas fa-user-shield"></i></div>
-                        <span class="hub-card__name">Registry</span>
-                    </div>
-                    <span class="hub-card__count">{{ hub_counts.sex_offenders }}</span>
-                </div>
-                <div class="hub-card__list">
-                    <div class="hub-card__item">
-                        <strong>Montana Sex & Violent Offender Registry</strong>
-                        <span>Active registrants tracked statewide with address, tier, and conviction data.</span>
-                    </div>
-                </div>
-                <div class="hub-card__footer">
-                    <a href="/sex-offender-updates">View registry <i class="fas fa-arrow-right text-[10px]"></i></a>
-                </div>
-            </article>
-
-            <article class="hub-card hub-card--missing-poster">
-                <div class="hub-card__header">
-                    <div class="hub-card__title-group">
-                        <div class="hub-card__icon hub-card__icon--missing"><i class="fas fa-magnifying-glass"></i></div>
-                        <span class="hub-card__name">Missing</span>
-                    </div>
-                    <span class="hub-card__count">{{ hub_counts.missing_persons }}</span>
-                </div>
-                <div class="hub-card__list">
-                    {% for person in (missing_persons_alert.rows if missing_persons_alert else [])[:3] %}
-                    <a href="/missing-persons/{{ person.slug }}" class="hub-card__item">
-                        <strong>{{ person.full_name }}</strong>
-                        <span>Last seen {{ person.last_seen_at_label or 'date unknown' }} · {{ person.last_seen_location or 'Montana' }}</span>
-                    </a>
-                    {% else %}
-                    <div class="hub-card__item"><span>No active missing person alerts at this time.</span></div>
-                    {% endfor %}
-                </div>
-                <div class="hub-card__footer">
-                    <a href="/missing-persons">View missing persons <i class="fas fa-arrow-right text-[10px]"></i></a>
-                </div>
-            </article>
-
-            <article class="hub-card">
-                <div class="hub-card__header">
-                    <div class="hub-card__title-group">
-                        <div class="hub-card__icon hub-card__icon--warrants"><i class="fas fa-bolt"></i></div>
-                        <span class="hub-card__name">Warrants</span>
-                    </div>
-                    <span class="hub-card__count">{{ hub_counts.warrants_active }}</span>
-                </div>
-                <div class="hub-card__list">
-                    {% for record in (wanted_spotlight.rows[:3] if wanted_spotlight else []) %}
-                    <a href="{{ record.public_href }}" class="hub-card__item">
-                        <strong>{{ record.person_name }}</strong>
-                        <span>{{ record.county }} County{% if record.charges_text %} · {{ record.charges_text[:60] }}{% if record.charges_text|length > 60 %}…{% endif %}{% endif %}</span>
-                    </a>
-                    {% else %}
-                    <div class="hub-card__item">
-                        <strong>Montana Active Warrant Database</strong>
-                        <span>Search sheriff-posted warrant lists by county and charge statewide.</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="hub-card__footer">
-                    <a href="/wanted">View active warrants <i class="fas fa-arrow-right text-[10px]"></i></a>
-                </div>
-            </article>
-        </section>
-
-        <!-- ── Mobile sidebar strip (visible < 1024px) ── -->
-        <div class="mobile-strip-wrapper" aria-label="Quick access">
-
-            <div class="mobile-strip-card">
-                <p class="section-kicker">Live Activity</p>
-                {% for record in live_activity[:3] %}
-                <a href="/record/{{ record.id }}" class="mobile-strip-item">
-                    <strong>{{ record.incident_label }}</strong>
-                    <span>{{ record.location or record.county or 'Montana' }}</span>
-                </a>
-                {% else %}
-                <p class="mobile-strip-empty">No recent activity yet.</p>
-                {% endfor %}
-            </div>
-
-            <div class="mobile-strip-card">
-                <p class="section-kicker">Most Viewed</p>
-                {% for item in most_viewed_pages[:3] %}
-                <a href="{{ item.href }}" class="mobile-strip-item">
-                    <strong>{{ item.label }}</strong>
-                    <span>{{ item.view_count }} views &middot; {{ item.kind }}</span>
-                </a>
-                {% else %}
-                <p class="mobile-strip-empty">Traffic data populates after activity is recorded.</p>
-                {% endfor %}
-            </div>
-
-            <div class="mobile-strip-card">
-                <p class="section-kicker">Latest Posts</p>
-                {% for post in recent_blog_posts[:3] %}
-                <a href="/blog/{{ post.slug }}" class="mobile-strip-item">
-                    <strong>{{ post.title }}</strong>
-                    <span>{{ post.created_at[:10] if post.created_at else 'Date pending' }}</span>
-                </a>
-                {% else %}
-                <p class="mobile-strip-empty">Blog posts will appear here when published.</p>
-                {% endfor %}
-            </div>
-
+      {% if missing_persons_alert and missing_persons_alert.rows %}
+        {% for person in missing_persons_alert.rows[:2] %}
+        <a href="/missing-persons/{{ person.slug }}" class="mb-record-card" style="text-decoration:none;">
+          <div class="mb-record-card__header">
+            <span class="mb-record-card__kicker">Missing Person · {{ person.last_seen_location or 'Montana' }}</span>
+            <span class="mb-badge mb-badge--alert">Missing</span>
+          </div>
+          <h3 class="mb-record-card__headline">{{ person.full_name }}</h3>
+          <p class="mb-record-card__summary">
+            {% if person.age %}Age {{ person.age }}. {% endif %}
+            Last seen {{ person.last_seen_at_label or 'date unknown' }}.
+          </p>
+          <div class="mb-record-card__meta">
+            <span>{{ person.source_agency or 'Montana' }}</span>
+            <span>{{ person.last_seen_at_label or '' }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      {% else %}
+        <div class="mb-record-card">
+          <div class="mb-record-card__kicker">Missing Persons</div>
+          <p class="mb-record-card__summary">No active missing-person alerts at this time.</p>
         </div>
+      {% endif %}
 
-        <div class="content-grid">
-            <section class="main-column">
-                <section id="search-records" class="panel panel--search">
-                    <div class="panel__header">
-                        <div>
-                            <p class="section-kicker">Search Records</p>
-                            <h2 class="panel__title">Search and filter the statewide feed.</h2>
-                        </div>
-                        <p class="panel__copy">
-                            Use location, status, or a keyword to narrow the newsroom feed without leaving the homepage.
-                        </p>
-                    </div>
-
-                    <form method="GET" action="/" class="search-form">
-                        {% if agency %}
-                        <input type="hidden" name="agency" value="{{ agency }}">
-                        {% endif %}
-                        <label class="field-group field-group--full">
-                            <span>Keyword</span>
-                            <input type="text" name="q" value="{{ q }}" placeholder="Incident type, address, or report keyword">
-                        </label>
-                        <label class="field-group">
-                            <span>County</span>
-                            <select name="county">
-                                <option value="">All counties</option>
-                                {% for c in counties %}
-                                <option value="{{ c }}" {% if c == county %}selected{% endif %}>{{ c }}</option>
-                                {% endfor %}
-                            </select>
-                        </label>
-                        <label class="field-group">
-                            <span>City</span>
-                            <select name="city">
-                                <option value="">All cities</option>
-                                {% for c in cities %}
-                                <option value="{{ c }}" {% if c == city %}selected{% endif %}>{{ c }}</option>
-                                {% endfor %}
-                            </select>
-                        </label>
-                        <label class="field-group">
-                            <span>Status</span>
-                            <select name="status">
-                                <option value="">All statuses</option>
-                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-                                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
-                                <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
-                            </select>
-                        </label>
-                        <label class="field-group">
-                            <span>Date</span>
-                            <input type="date" name="date" value="{{ date_filter }}">
-                        </label>
-                        <label class="field-group">
-                            <span>Agency Type</span>
-                            <select name="agency_type">
-                                <option value="">All agencies</option>
-                                <option value="sheriff" {% if agency_type == 'sheriff' %}selected{% endif %}>Sheriff</option>
-                                <option value="police" {% if agency_type == 'police' %}selected{% endif %}>Police</option>
-                                <option value="other" {% if agency_type == 'other' %}selected{% endif %}>Other</option>
-                            </select>
-                        </label>
-                        <div class="search-form__actions">
-                            <button type="submit" class="button button--primary">Search records</button>
-                            <a href="/" class="button button--ghost">Reset</a>
-                        </div>
-                    </form>
-
-                        {% if weekly_snapshot and weekly_snapshot.top_incidents %}
-                    <div class="trend-strip">
-                        <div class="trend-strip__header">
-                            <span class="trend-strip__title">Trending Incidents</span>
-                            <span class="trend-strip__window">{{ weekly_window }}</span>
-                        </div>
-                        <div class="trend-strip__chips">
-                            {% for item in weekly_snapshot.top_incidents[:6] %}
-                            <a href="/trends" class="trend-chip">
-                                <span>{{ item.name }}</span>
-                                <strong>{{ item.count }}</strong>
-                            </a>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %}
-                </section>
-
-                <section class="panel">
-                    <div class="panel__header panel__header--stack">
-                        <div>
-                            <p class="section-kicker">Recent Blotter Reports</p>
-                            <h2 class="panel__title">Cards built around the latest incident in each report.</h2>
-                        </div>
-                        <div class="panel__summary">
-                            <span>{{ total }} result{{ 's' if total != 1 else '' }}</span>
-                            <span>Page {{ page }} of {{ total_pages }}</span>
-                        </div>
-                    </div>
-
-                    {% if date_filter or county or city or agency_type or agency or q or status_filter %}
-                    <div class="filter-pills">
-                        {% if q %}<span class="filter-pill">Keyword: "{{ q }}"</span>{% endif %}
-                        {% if county %}<span class="filter-pill">{{ county }} County</span>{% endif %}
-                        {% if city %}<span class="filter-pill">{{ city }}</span>{% endif %}
-                        {% if agency_type %}<span class="filter-pill">{{ agency_type | capitalize }}</span>{% endif %}
-                        {% if agency %}<span class="filter-pill">{{ agency }}</span>{% endif %}
-                        {% if date_filter %}<span class="filter-pill">{{ date_filter }}</span>{% endif %}
-                        {% if status_filter %}<span class="filter-pill">{{ status_filter | capitalize }}</span>{% endif %}
-                    </div>
-                    {% endif %}
-
-                    {% if posts %}
-                    <div class="report-stack">
-                        {% for post in posts %}
-                        {% set lead = post.lead_record %}
-                        <article class="report-card">
-                            <div class="report-card__header">
-                                <span class="report-card__timestamp">
-                                    {% if lead %}{{ lead.date or 'Date pending' }}{% if lead.time %} · {{ lead.time }}{% endif %}{% else %}{{ post.created_at[:10] if post.created_at else 'Date pending' }}{% endif %}
-                                </span>
-                                {% if post.county %}
-                                <a href="/?county={{ post.county | urlencode }}" class="report-card__county-link">{{ post.county }} County</a>
-                                {% endif %}
-                            </div>
-
-                            <div class="report-card__body">
-                                <h3 class="report-card__title">
-                                    {% if lead and lead.incident_label %}
-                                        {{ lead.incident_label }}{% if lead.location %} at {{ lead.location }}{% endif %}
-                                    {% elif post.title %}
-                                        {{ post.title }}
-                                    {% else %}
-                                        Daily incident report
-                                    {% endif %}
-                                </h3>
-                                <p class="report-card__source">
-                                    {{ post.agency_name or 'Unknown agency' }}{% if post.city %} · {{ post.city }}{% elif post.county %} · {{ post.county }} County{% endif %}
-                                </p>
-                                {% if post.summary %}
-                                <p class="report-card__summary">{{ post.summary | striptags | truncate(200, True, '…') }}</p>
-                                {% endif %}
-                                <div class="report-card__action">
-                                    <a href="/post/{{ post.id }}" class="card-link card-link--primary">Read report <span aria-hidden="true">→</span></a>
-                                </div>
-                            </div>
-                        </article>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="empty-state">
-                        <p class="section-kicker">No Matching Reports</p>
-                        <h3>Adjust the filters or clear the search to return to the statewide desk.</h3>
-                        <a href="/" class="button button--primary">Clear filters</a>
-                    </div>
-                    {% endif %}
-
-                    {% if total_pages > 1 %}
-                    <nav class="pagination" aria-label="Pagination">
-                        {% if page > 1 %}
-                        <a
-                            href="?county={{ county | urlencode }}&city={{ city | urlencode }}&agency_type={{ agency_type | urlencode }}&agency={{ agency | urlencode }}&q={{ q | urlencode }}&date={{ date_filter | urlencode }}&status={{ status_filter | urlencode }}&page={{ page - 1 }}"
-                            class="button button--ghost"
-                        >
-                            Previous
-                        </a>
-                        {% endif %}
-                        {% if page < total_pages %}
-                        <a
-                            href="?county={{ county | urlencode }}&city={{ city | urlencode }}&agency_type={{ agency_type | urlencode }}&agency={{ agency | urlencode }}&q={{ q | urlencode }}&date={{ date_filter | urlencode }}&status={{ status_filter | urlencode }}&page={{ page + 1 }}"
-                            class="button button--primary"
-                        >
-                            Next
-                        </a>
-                        {% endif %}
-                    </nav>
-                    {% endif %}
-                </section>
-
-                {% if leaderboard %}
-                <section class="panel">
-                    <div class="panel__header">
-                        <div>
-                            <p class="section-kicker">Leaderboard</p>
-                            <h2 class="panel__title">Most active counties this week.</h2>
-                        </div>
-                    </div>
-                    <div class="leaderboard-list">
-                        {% for item in leaderboard %}
-                        <a href="/county/{{ item.slug }}" class="leaderboard-item">
-                            <span class="leaderboard-item__rank">{{ loop.index }}</span>
-                            <span class="leaderboard-item__body">
-                                <strong>{{ item.county }}</strong>
-                                <span>{{ item.count }} records · {{ item.trend_label }}</span>
-                            </span>
-                            <span class="leaderboard-item__trend leaderboard-item__trend--{{ item.trend }}">
-                                {% if item.trend == 'up' %}▲{% elif item.trend == 'down' %}▼{% else %}—{% endif %}
-                            </span>
-                        </a>
-                        {% endfor %}
-                    </div>
-                </section>
-                {% endif %}
-
-                <section class="panel">
-                    <div class="panel__header">
-                        <div>
-                            <p class="section-kicker">Jurisdictions</p>
-                            <h2 class="panel__title">Move quickly into counties and city desks.</h2>
-                        </div>
-                        <a href="/counties" class="button button--ghost">Browse all</a>
-                    </div>
-
-                    <div class="jurisdiction-groups">
-                        <div>
-                            <p class="jurisdiction-groups__label">High-traffic counties</p>
-                            <div class="chip-grid">
-                                {% for item in top_counties[:6] %}
-                                <a href="/county/{{ item.slug }}" class="jurisdiction-chip">
-                                    <span>{{ item.name }}</span>
-                                    <strong>{{ item.record_count }}</strong>
-                                </a>
-                                {% else %}
-                                <span class="jurisdiction-chip jurisdiction-chip--static">County coverage will appear here as records are indexed.</span>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        {% if featured_new_cities %}
-                        <div>
-                            <p class="jurisdiction-groups__label">Featured cities</p>
-                            <div class="chip-grid">
-                                {% for item in featured_new_cities[:6] %}
-                                <a href="/city/{{ item.slug }}" class="jurisdiction-chip">
-                                    <span>{{ item.name }}</span>
-                                    <strong>{{ item.record_count }}</strong>
-                                </a>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </section>
-            </section>
-
-            <aside class="sidebar-column">
-                <section class="panel sidebar-panel">
-                    <div class="panel__header panel__header--compact">
-                        <div>
-                            <p class="section-kicker">Live Activity</p>
-                            <h2 class="panel__title">Newest incident movement across the feed.</h2>
-                        </div>
-                    </div>
-                    <div class="activity-list">
-                        {% for record in live_activity %}
-                        <a href="/record/{{ record.id }}" class="activity-item">
-                            <span class="activity-item__timestamp">
-                                {{ record.date or 'Date pending' }}{% if record.time %} · {{ record.time }}{% endif %}
-                            </span>
-                            <strong class="activity-item__title">{{ record.incident_label }}</strong>
-                            <span class="location-badge">{{ record.location or 'Location pending' }}</span>
-                            <span class="activity-item__meta">{{ record.agency_name }}{% if record.county %} · {{ record.county }} County{% endif %}</span>
-                        </a>
-                        {% else %}
-                        <p class="sidebar-empty">Live activity will populate here as source-linked incident records are processed.</p>
-                        {% endfor %}
-                    </div>
-                </section>
-
-                <section class="panel sidebar-panel">
-                    <div class="panel__header panel__header--compact">
-                        <div>
-                            <p class="section-kicker">Most Viewed This Week</p>
-                            <h2 class="panel__title">Public pages drawing the most traffic.</h2>
-                        </div>
-                    </div>
-                    <ol class="ranking-list">
-                        {% for item in most_viewed_pages %}
-                        <li class="ranking-item">
-                            <a href="{{ item.href }}" class="ranking-item__link">
-                                <span class="ranking-item__index">{{ loop.index }}</span>
-                                <span class="ranking-item__body">
-                                    <strong>{{ item.label }}</strong>
-                                    <span>{{ item.kind }} · {{ item.meta }}</span>
-                                </span>
-                                <span class="ranking-item__count">{{ item.view_count }}</span>
-                            </a>
-                        </li>
-                        {% else %}
-                        <li class="ranking-item ranking-item--empty">Traffic rankings will populate after enough public activity is recorded this week.</li>
-                        {% endfor %}
-                    </ol>
-                </section>
-
-                <section class="panel sidebar-panel sidebar-panel--accent">
-                    <p class="section-kicker">Support</p>
-                    <h2 class="panel__title">Keep the statewide desk funded and visible.</h2>
-                    <p class="panel__copy">
-                        Need sponsorships, business placement, or paid lead products? See support options for the current monetization paths.
-                    </p>
-                    <div class="card-links">
-                        <a href="/support?source=homepage_top" class="card-link card-link--primary">See support options</a>
-                        <a href="/subscribe" class="card-link">Subscribe</a>
-                    </div>
-                </section>
-
-                <section class="panel sidebar-panel">
-                    <div class="panel__header panel__header--compact">
-                        <div>
-                            <p class="section-kicker">Latest Posts</p>
-                            <h2 class="panel__title">Recent coverage.</h2>
-                        </div>
-                    </div>
-                    <div class="activity-list">
-                        {% for post in recent_blog_posts %}
-                        <a href="/blog/{{ post.slug }}" class="activity-item">
-                            <span class="activity-item__timestamp">{{ post.created_at[:10] if post.created_at else 'Date pending' }}</span>
-                            <strong class="activity-item__title">{{ post.title }}</strong>
-                            {% if post.excerpt %}<span class="activity-item__meta">{{ post.excerpt[:80] }}</span>{% endif %}
-                        </a>
-                        {% else %}
-                        <p class="sidebar-empty">Blog posts will appear here as they are published.</p>
-                        {% endfor %}
-                    </div>
-                    {% if hub_counts.blog > 0 %}
-                    <div style="margin-top:.75rem;">
-                        <a href="/blog" class="button button--ghost" style="width:100%;justify-content:center;">View all {{ hub_counts.blog }} posts</a>
-                    </div>
-                    {% endif %}
-                </section>
-            </aside>
+      {% if wanted_spotlight and wanted_spotlight.rows %}
+      <header class="mb-section-header mb-section-header--light" style="margin-top:var(--space-4);">
+        <h2 class="mb-section-header__title">Active Warrants</h2>
+        <a href="/wanted" class="mb-section-header__action">See all &rarr;</a>
+      </header>
+      {% for record in wanted_spotlight.rows[:2] %}
+      <a href="{{ record.public_href }}" class="mb-record-card" style="text-decoration:none;">
+        <div class="mb-record-card__header">
+          <span class="mb-record-card__kicker">Warrant · {{ record.county }} County</span>
+          <span class="mb-badge mb-badge--alert">Active</span>
         </div>
-    </main>
-</div>
+        <h3 class="mb-record-card__headline">{{ record.person_name }}</h3>
+        <p class="mb-record-card__summary">{{ record.charges_text | default('', true) | truncate(120, True, '…') }}</p>
+      </a>
+      {% endfor %}
+      {% elif not has_warrant_access %}
+      <header class="mb-section-header mb-section-header--light" style="margin-top:var(--space-4);">
+        <h2 class="mb-section-header__title">Active Warrants</h2>
+        <a href="/wanted" class="mb-section-header__action">See all &rarr;</a>
+      </header>
+      <a href="/wanted/subscribe" class="mb-record-card" style="text-decoration:none;">
+        <div class="mb-record-card__header">
+          <span class="mb-record-card__kicker">Warrant Watch</span>
+          <span class="mb-badge mb-badge--alert">Subscriber Only</span>
+        </div>
+        <h3 class="mb-record-card__headline">View Montana's Wanted List</h3>
+        <p class="mb-record-card__summary">
+          {% if wanted_spotlight and wanted_spotlight.total_active %}{{ wanted_spotlight.total_active }} active warrant{{ 's' if wanted_spotlight.total_active != 1 }} across Montana counties.{% else %}Active warrants across all Montana counties.{% endif %}
+          Subscribe to see names, charges, and details.
+        </p>
+        <div class="mb-record-card__meta">
+          <span class="mb-button mb-button--primary mb-button--sm">Subscribe to View</span>
+        </div>
+      </a>
+      {% endif %}
+
+      <div class="mb-dark-cta" style="margin-top:var(--space-2);">
+        <h3 class="mb-dark-cta__title">Records by county</h3>
+        <p class="mb-dark-cta__text">Blotters, bookings, and warrants for all 56 Montana counties.</p>
+        <a href="/counties" class="mb-button mb-button--inverse mb-button--sm">Browse counties</a>
+      </div>
+    </aside>
+  </div>
+
+  <header class="mb-section-header" style="margin-top: var(--space-12);">
+    <div>
+      <div class="mb-section-header__kicker">From county detention records</div>
+      <h2 class="mb-section-header__title">Latest jail bookings</h2>
+    </div>
+    <a href="/detention" class="mb-section-header__action">All bookings &rarr;</a>
+  </header>
+
+  <div style="overflow-x:auto;">
+    <table class="mb-data-table">
+      <thead class="mb-data-table__head">
+        <tr>
+          <th>Name</th>
+          <th>County</th>
+          <th>Charge</th>
+          <th>Booked</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in recent_jail_bookings[:5] %}
+        <tr class="mb-data-table__row" onclick="window.location.href='/detention'">
+          <td class="mb-data-table__cell">{{ b.person_name }}</td>
+          <td class="mb-data-table__cell">{{ b.county_name }}</td>
+          <td class="mb-data-table__cell">{{ b.charges_summary or 'Charges pending' }}</td>
+          <td class="mb-data-table__cell mb-data-table__cell--mono">{{ b.booking_at or '—' }}</td>
+          <td class="mb-data-table__cell"><span class="mb-badge mb-badge--pending">Booked</span></td>
+        </tr>
+        {% else %}
+        <tr>
+          <td class="mb-data-table__cell" colspan="5">Jail booking data will appear here as rosters are refreshed.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="mb-note">An arrest is not a determination of guilt. All persons are presumed innocent until proven guilty in a court of law.</p>
+
+</main>
 {% endblock %}
