@@ -52,6 +52,17 @@ find "$BACKUP_DIR" -maxdepth 1 -type f \
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting backup..." >> "$LOG"
 
+# Pre-flight: the backup stages a full uncompressed copy of the DB before
+# gzip, so bail out loudly (instead of dying mid-copy with exit 120) when the
+# volume can't hold DB size + 10% margin.
+DB_SIZE_BYTES=$(stat -c %s "$DB_PATH")
+FREE_BYTES=$(df -PB1 "$BACKUP_DIR" | awk 'NR==2 {print $4}')
+NEEDED_BYTES=$(( DB_SIZE_BYTES + DB_SIZE_BYTES / 10 ))
+if [ "$FREE_BYTES" -lt "$NEEDED_BYTES" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: only $((FREE_BYTES/1024/1024)) MB free, need $((NEEDED_BYTES/1024/1024)) MB (DB $((DB_SIZE_BYTES/1024/1024)) MB + 10%). Backup aborted." >> "$LOG"
+    exit 1
+fi
+
 # Copy the live SQLite database in batches so web traffic keeps winning
 # write contention. The source connection stays read-only and the destination
 # copy runs at idle I/O priority.
@@ -77,7 +88,7 @@ else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: AWS credentials not configured. Skipping S3 upload. Local backup kept at $BACKUP_FILE" >> "$LOG"
 fi
 
-# Remove local backup copies older than 14 days
-find "$BACKUP_DIR" -name "blotter_*.db.gz" -mtime +14 -delete
+# Remove local backup copies older than 7 days (documented rolling 7-day chain)
+find "$BACKUP_DIR" -name "blotter_*.db.gz" -mtime +7 -delete
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Done." >> "$LOG"
