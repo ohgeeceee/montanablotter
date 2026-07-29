@@ -1,0 +1,154 @@
+{% extends "public_page_base_v2.html" %}
+
+{% set page_title = "Lawyer Listing Checkout" %}
+{% set canonical_url = "https://montanablotter.com/advertise/lawyers/checkout" %}
+
+{% block body_class %}advertise-lawyers-checkout-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/lawyers" style="color: var(--text-body);">Advertise</a>
+<span class="mx-2">/</span>
+<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">Checkout</span>
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div style="max-width: 44rem; margin: 0 auto; padding: var(--space-10) var(--page-gutter);">
+
+    <header style="margin-bottom: var(--space-6);">
+      <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0 0 var(--space-2);">
+        Secure Checkout
+      </p>
+      <h1 style="font-family: var(--font-serif-display); font-size: var(--text-headline-lg); font-weight: var(--weight-display); line-height: var(--leading-headline); color: var(--text-headline); margin: 0 0 var(--space-2);">
+        Complete Your Lawyer Listing
+      </h1>
+      <p style="color: var(--text-secondary); font-size: var(--text-body-sm); margin: 0;">
+        Secure checkout powered by Stripe. Cancel anytime.
+      </p>
+    </header>
+
+    {% if not checkout_ready %}
+    <div class="mb-alert mb-alert--alert" role="status" style="margin-bottom: var(--space-5);">
+      <div class="mb-alert__body">
+        Secure checkout is not configured. Please contact
+        <a href="mailto:advertising@montanablotter.com" style="color: inherit; text-decoration: underline;">advertising@montanablotter.com</a>
+        to set up your listing.
+      </div>
+    </div>
+    {% endif %}
+
+    {% if form_errors %}
+    <div class="mb-alert mb-alert--alert" role="status" style="margin-bottom: var(--space-5);">
+      <div class="mb-alert__body">
+        <ul style="margin: 0; padding-left: var(--space-5);">
+          {% for e in form_errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="POST" style="display: flex; flex-direction: column; gap: var(--space-5);">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <fieldset class="mb-record-card">
+        <legend style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); padding: 0 var(--space-2);">Firm details</legend>
+
+        <div class="mb-form-field">
+          <label class="mb-form-field__label" for="firm_name">Firm Name *</label>
+          <input id="firm_name" type="text" name="firm_name" value="{{ form_data.firm_name }}" required maxlength="200" class="mb-input">
+        </div>
+
+        <div class="mb-form-field" style="margin-top: var(--space-3);">
+          <label class="mb-form-field__label" for="contact_name">Contact Name *</label>
+          <input id="contact_name" type="text" name="contact_name" value="{{ form_data.contact_name }}" required maxlength="160" class="mb-input">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3);">
+          <div class="mb-form-field">
+            <label class="mb-form-field__label" for="email">Email *</label>
+            <input id="email" type="email" name="email" value="{{ form_data.email }}" required maxlength="160" class="mb-input">
+          </div>
+          <div class="mb-form-field">
+            <label class="mb-form-field__label" for="phone">Phone *</label>
+            <input id="phone" type="tel" name="phone" value="{{ form_data.phone }}" required maxlength="40" class="mb-input">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3);">
+          <div class="mb-form-field">
+            <label class="mb-form-field__label" for="website">Website</label>
+            <input id="website" type="url" name="website" value="{{ form_data.website }}" maxlength="300" placeholder="https://" class="mb-input">
+          </div>
+          <div class="mb-form-field">
+            <label class="mb-form-field__label" for="bar_number">Montana Bar # *</label>
+            <input id="bar_number" type="text" name="bar_number" value="{{ form_data.bar_number }}" maxlength="40" required class="mb-input">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mb-record-card">
+        <legend style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); padding: 0 var(--space-2);">Coverage</legend>
+
+        <div class="mb-form-field">
+          <label class="mb-form-field__label" for="counties_served">Counties served *</label>
+          <input id="counties_served" type="text" name="counties_served" value="{{ form_data.counties_served }}" required maxlength="600" placeholder="Gallatin, Yellowstone, Park" class="mb-input">
+          <p style="margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--text-secondary);">Comma-separated list. We scope your listing to these counties.</p>
+        </div>
+
+        <div class="mb-form-field" style="margin-top: var(--space-3);">
+          <label class="mb-form-field__label" for="practice_areas">Practice areas</label>
+          <input id="practice_areas" type="text" name="practice_areas" value="{{ form_data.practice_areas }}" maxlength="600" placeholder="Criminal Defense, DUI, Family Law" class="mb-input">
+          <p style="margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--text-secondary);">Comma-separated. Up to 6 areas.</p>
+        </div>
+      </fieldset>
+
+      <fieldset class="mb-record-card">
+        <legend style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); padding: 0 var(--space-2);">Package</legend>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3);">
+          {% for pkg in packages %}
+          <label class="mb-checkbox" style="padding: var(--space-3); border: {% if form_data.package_id == pkg.id %}2px solid #b8860b{% else %}var(--rule-light){% endif %}; border-radius: var(--radius-md); background: {% if form_data.package_id == pkg.id %}#fffdf0{% else %}var(--surface-card){% endif %}; align-items: flex-start;">
+            <input type="radio" name="package_id" value="{{ pkg.id }}" {% if form_data.package_id == pkg.id %}checked{% endif %} required style="margin-top: 0.2rem;">
+            <span style="display: flex; flex-direction: column; gap: var(--space-1);">
+              <strong style="color: var(--text-headline);">{{ pkg.name }} — {{ pkg.price_label }}</strong>
+              <span style="font-size: var(--text-caption); color: var(--text-secondary);">{{ pkg.short_description }}</span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
+          <label class="mb-checkbox">
+            <input type="radio" name="billing_cycle" value="monthly" {% if form_data.billing_cycle != 'annual' %}checked{% endif %}>
+            <span>Monthly</span>
+          </label>
+          <label class="mb-checkbox">
+            <input type="radio" name="billing_cycle" value="annual">
+            <span>Annual (save ~15%)</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <div style="background: var(--surface-page); border: var(--rule-light); border-radius: var(--radius-md); padding: var(--space-3);">
+        <label class="mb-checkbox">
+          <input type="checkbox" name="terms_ack" value="yes" required>
+          <span style="font-size: var(--text-body-sm);">
+            I accept the Montana Blotter advertising terms and authorize recurring billing
+            for the selected package. Listing content must comply with Montana State Bar
+            advertising rules.
+          </span>
+        </label>
+      </div>
+
+      <button type="submit" class="mb-button mb-button--primary mb-button--md" style="width: 100%;">
+        Continue to Secure Payment &rarr;
+      </button>
+    </form>
+
+    <p style="text-align: center; margin-top: var(--space-5);">
+      <a href="{{ url_for('lawyer_ads.advertise_lawyers') }}" style="color: var(--action-primary); text-decoration: underline;">&larr; Back to packages</a>
+    </p>
+  </div>
+</main>
+{% endblock %}

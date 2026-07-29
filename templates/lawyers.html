@@ -1,0 +1,416 @@
+{% extends "public_page_base_v2.html" %}
+
+{% set page_title = page_title or "Montana Lawyers Directory" %}
+{% set meta_description = meta_description or "Paid listings from licensed Montana attorneys. Tap-to-call, tap-to-text, and free intake form routing." %}
+{% set canonical_url = canonical_url or 'https://montanablotter.com/lawyers' %}
+
+{% block body_class %}lawyers-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Montana Lawyers Directory",
+  "url": "https://montanablotter.com/lawyers",
+  "description": "Paid listings from licensed Montana attorneys organized by county."
+}
+</script>
+<style>
+  .lawyer-tier-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: var(--text-kicker);
+    font-weight: 800;
+    letter-spacing: var(--tracking-kicker);
+    text-transform: uppercase;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-full);
+    color: var(--text-inverse);
+  }
+  .lawyer-tier-badge--gold   { background: #b8860b; }
+  .lawyer-tier-badge--silver { background: var(--ink-500, #475569); }
+  .lawyer-tier-badge--bronze { background: #92400e; }
+  .lawyer-county-pills a:hover { background: var(--surface-card); }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">Lawyers</span>
+{% endblock %}
+
+{% block hero %}
+<section style="background: linear-gradient(135deg, var(--ink-900) 0%, var(--ink-800) 100%); color: var(--text-inverse); padding: var(--space-12) var(--page-gutter); border-bottom: var(--rule-heavy);">
+  <div style="max-width: 80rem; margin: 0 auto;">
+    <span style="display: inline-flex; align-items: center; background: rgba(252, 211, 77, 0.18); color: #fcd34d; font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); padding: var(--space-2) var(--space-4); border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin-bottom: var(--space-5);">
+      Advertiser Directory
+    </span>
+    <h1 style="font-family: var(--font-serif-display); font-size: clamp(2rem, 4vw, var(--text-display)); font-weight: var(--weight-display); line-height: var(--leading-display); letter-spacing: var(--tracking-display); margin: 0 0 var(--space-4); color: var(--text-inverse);">
+      {% if selected_county %}{{ selected_county }} County Lawyers
+      {% else %}Montana Lawyers Directory{% endif %}
+    </h1>
+    <p style="color: #cbd5e1; font-size: var(--text-body-md); line-height: var(--leading-body); max-width: 56ch; margin: 0;">
+      Paid placements from licensed Montana attorneys with tap-to-call, tap-to-text,
+      and free intake form routing. Pick a county below to scope results.
+    </p>
+  </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div style="max-width: 80rem; margin: 0 auto; padding: var(--space-10) var(--page-gutter); display: flex; flex-direction: column; gap: var(--space-8);">
+
+    <div style="background: var(--surface-page); border-left: 3px solid #b8860b; padding: var(--space-3) var(--space-4); font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-secondary);">
+      Advertiser disclosure: Montana Blotter receives payment for placements on this page.
+      Listings are paid; ordering is determined by package tier. Not legal advice.
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+      <div class="mb-alert mb-alert--{{ 'alert' if category == 'error' else ('pending' if category == 'warning' else 'info') }}" role="status">
+        <div class="mb-alert__body">{{ message }}</div>
+      </div>
+      {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% if request.args.get('submitted') == '1' and not get_flashed_messages() %}
+    <div style="background: #ecfdf5; border-left: 3px solid #047857; padding: var(--space-3) var(--space-4); font-family: var(--font-mono); font-size: var(--text-caption); color: #047857;">
+      Your request was received. Eligible attorneys covering your county were notified.
+    </div>
+    {% endif %}
+
+    <section style="display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-6);" id="intake">
+
+      <article class="mb-record-card">
+        <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: #1e40af; text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+          Free Intake
+        </p>
+        <h2 style="font-family: var(--font-serif-display); font-size: var(--text-headline-md); font-weight: var(--weight-display); color: var(--text-headline); margin: var(--space-2) 0 var(--space-3);">
+          Need a lawyer right now?
+        </h2>
+        <p style="color: var(--text-body); font-size: var(--text-body-sm); margin: 0 0 var(--space-4); line-height: var(--leading-body);">
+          Tell us where you are and what kind of help you need. We route it to active
+          advertisers covering your county — usually within minutes during business hours.
+        </p>
+        <form method="post" action="/lawyers/intake" style="display: flex; flex-direction: column; gap: var(--space-3);">
+          <input type="hidden" name="source" value="{{ 'lawyers_directory' if not selected_county else 'lawyers_directory:' ~ (selected_county|lower|replace(' ', '-')|replace('&', '-and-')) }}">
+          <input type="hidden" name="return_path" value="{{ request.path }}">
+          <input type="text" name="fax_number" tabindex="-1" autocomplete="off"
+                 style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
+
+          <div class="mb-form-field">
+            <label class="mb-form-field__label" for="full_name">Your name *</label>
+            <input id="full_name" type="text" name="full_name" required placeholder="Full name" class="mb-input">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+            <div class="mb-form-field">
+              <label class="mb-form-field__label" for="phone">Best phone *</label>
+              <input id="phone" type="tel" name="phone" required placeholder="(406) 555-0123" class="mb-input">
+            </div>
+            <div class="mb-form-field">
+              <label class="mb-form-field__label" for="email">Email (optional)</label>
+              <input id="email" type="email" name="email" placeholder="you@example.com" class="mb-input">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+            <div class="mb-form-field">
+              <label class="mb-form-field__label" for="county">County *</label>
+              <select id="county" name="county" required class="mb-select">
+                <option value="">Select county *</option>
+                {% for county in available_counties %}<option value="{{ county }}" {% if selected_county == county %}selected{% endif %}>{{ county }}{% if county in counties_with_coverage %} ({{ counties_with_coverage[county] }}){% endif %}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="mb-form-field">
+              <label class="mb-form-field__label" for="case_type">Case type</label>
+              <select id="case_type" name="case_type" class="mb-select">
+                <option value="">No preference</option>
+                <option value="Criminal Defense">Criminal Defense</option>
+                <option value="DUI / Traffic">DUI / Traffic</option>
+                <option value="Family Law">Family Law</option>
+                <option value="Personal Injury">Personal Injury</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-form-field">
+            <label class="mb-form-field__label" for="notes">Briefly describe your situation (optional)</label>
+            <textarea id="notes" name="notes" rows="3" placeholder="Avoid privileged details. A short summary is enough." class="mb-input"></textarea>
+          </div>
+
+          <div style="background: var(--surface-page); border: var(--rule-light); border-radius: var(--radius-md); padding: var(--space-3);">
+            <label class="mb-checkbox" style="align-items: flex-start;">
+              <input type="checkbox" name="consent_ack" value="yes" required>
+              <span style="font-size: var(--text-caption); color: var(--text-body); line-height: var(--leading-body);">
+                I authorize Montana Blotter to share this form, including my contact information,
+                with paid attorney advertisers serving the selected county so they may contact me.
+                Submission does not create an attorney-client relationship. See the
+                <a href="/privacy" style="color: var(--text-link);">Privacy Policy</a>.
+              </span>
+            </label>
+          </div>
+
+          <button type="submit" class="mb-button mb-button--primary mb-button--md" style="width: 100%;">
+            Request a Callback
+          </button>
+        </form>
+      </article>
+
+      <aside style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <article class="mb-record-card" style="background: #ecfdf5; border-color: #a7e0c1;">
+          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: #047857; text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+            How routing works
+          </p>
+          <h3 style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: #064e3b; margin: var(--space-2) 0 var(--space-3);">
+            Your request goes to every active attorney covering your county.
+          </h3>
+          <ol style="margin: 0; padding-left: var(--space-5); color: #065f46; font-size: var(--text-body-sm); line-height: var(--leading-body);">
+            <li>Pick your county and submit the form.</li>
+            <li>Active advertisers in that county are notified instantly.</li>
+            <li>Gold-tier attorneys get the lead first.</li>
+            <li>Most people hear back within minutes during business hours.</li>
+          </ol>
+        </article>
+
+        <article class="mb-record-card">
+          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+            For attorneys
+          </p>
+          <h3 style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); margin: var(--space-2) 0 var(--space-3);">
+            Get in front of Montana families at the moment they search.
+          </h3>
+          <p style="font-size: var(--text-body-sm); color: var(--text-body); margin: 0 0 var(--space-4); line-height: var(--leading-body);">
+            Bronze $149/mo · Silver $299/mo · Gold $599/mo.
+            Lead capture, tap-to-call, county targeting, monthly reporting.
+          </p>
+          <a href="/advertise/lawyers" class="mb-button mb-button--secondary mb-button--sm">
+            See packages &amp; buy a placement &rarr;
+          </a>
+        </article>
+
+        <article class="mb-record-card" style="background: var(--surface-page);">
+          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+            Free directory
+          </p>
+          <h3 style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); margin: var(--space-2) 0 var(--space-3);">
+            Don't need a paid placement?
+          </h3>
+          <p style="font-size: var(--text-body-sm); color: var(--text-body); margin: 0 0 var(--space-3); line-height: var(--leading-body);">
+            The free <a href="/attorneys" style="color: var(--text-link);">/attorneys</a> directory is opt-in for licensed Montana attorneys.
+          </p>
+        </article>
+      </aside>
+    </section>
+
+    {% if by_county %}
+    <article class="mb-record-card">
+      <header class="mb-section-header">
+        <div>
+          <p class="mb-section-header__kicker">Coverage by county</p>
+          <h2 class="mb-section-header__title">Pick your county</h2>
+        </div>
+        {% if selected_county %}
+        <a href="/lawyers" class="mb-section-header__action">View all counties</a>
+        {% endif %}
+      </header>
+      <div class="lawyer-county-pills" style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+        {% for county in by_county.keys()|sort %}
+        <a href="/lawyers/{{ county|lower|replace('&', '-and-')|replace(' ', '-') }}" style="display: inline-block; padding: var(--space-2) var(--space-4); border: var(--rule-light); border-radius: var(--radius-full); font-family: var(--font-mono); font-size: var(--text-caption); text-decoration: none; color: var(--text-secondary); background: var(--surface-page);">{{ county }} ({{ by_county[county]|length }})</a>
+        {% endfor %}
+      </div>
+    </article>
+    {% endif %}
+
+    {% if not listings %}
+    <article class="mb-record-card" style="text-align: center; padding: var(--space-10);">
+      <h2 style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); margin: 0 0 var(--space-3);">
+        No active listings yet
+      </h2>
+      <p style="color: var(--text-body); font-size: var(--text-body-sm); margin: 0;">
+        Attorneys interested in a paid placement can apply at
+        <a href="/advertise/lawyers" style="color: var(--text-link);">/advertise/lawyers</a>.
+        The free directory remains at <a href="/attorneys" style="color: var(--text-link);">/attorneys</a>.
+      </p>
+    </article>
+    {% endif %}
+
+    {% for county, county_listings in by_county.items() %}
+    <section>
+      <header class="mb-section-header">
+        <div>
+          <p class="mb-section-header__kicker">Sponsored placements</p>
+          <h2 class="mb-section-header__title">{{ county }} County</h2>
+        </div>
+        <a href="/lawyers/{{ county|lower|replace('&', '-and-')|replace(' ', '-') }}" class="mb-section-header__action">All listings &rarr;</a>
+      </header>
+
+      {% for lst in county_listings %}
+      <script type="application/ld+json">{
+        "@context": "https://schema.org",
+        "@type": "LegalService",
+        "name": {{ lst.firm_name|tojson }},
+        "areaServed": {{ county|tojson }},
+        "telephone": {{ (lst.phone or '')|tojson if lst.phone else 'null' }},
+        "url": {{ lst.website|tojson if lst.website else 'null' }},
+        "image": {{ ((lst.logo_path or lst.photo_path) or '')|tojson if (lst.logo_path or lst.photo_path) else 'null' }}
+      }</script>
+      <article class="mb-record-card"
+               data-lawyer-order-id="{{ lst.order_id }}"
+               data-lawyer-county="{{ county }}"
+               style="margin-bottom: var(--space-3);">
+        <div class="mb-record-card__header">
+          <span class="lawyer-tier-badge lawyer-tier-badge--{{ lst.package_id }}">
+            {% if lst.package_id == 'gold' %}🏆 Priority Placement
+            {% elif lst.package_id == 'silver' %}⭐ Featured
+            {% else %}Sponsored{% endif %}
+          </span>
+          {% if lst.logo_path %}
+          <img src="{{ lst.logo_path }}" loading="lazy" alt="{{ lst.firm_name }} logo" style="width: 56px; height: 56px; object-fit: contain; border-radius: var(--radius-sm); background: #FAF8F4; border: var(--rule-light);">
+          {% endif %}
+        </div>
+        {% if lst.tagline %}
+        <p style="font-family: var(--font-mono); font-size: var(--text-kicker); color: #a16207; text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: var(--space-3) 0 var(--space-1);">{{ lst.tagline }}</p>
+        {% endif %}
+        <h3 class="mb-record-card__headline">{{ lst.firm_name }}</h3>
+        {% if lst.practice_areas %}
+        <p style="font-size: var(--text-caption); color: var(--text-secondary); margin: var(--space-2) 0 0;"><strong>Practice:</strong> {{ lst.practice_areas }}</p>
+        {% endif %}
+        {% if lst.description %}
+        <p class="mb-record-card__summary">{{ lst.description }}</p>
+        {% endif %}
+
+        <div style="display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-3);">
+          {% for c in lst.counties_served.split(',') if c.strip() %}
+            <span style="font-family: var(--font-mono); font-size: var(--text-caption); background: var(--surface-page); border: var(--rule-light); border-radius: var(--radius-full); padding: 0.2rem 0.55rem; color: var(--text-secondary);">{{ c.strip() }} County</span>
+          {% endfor %}
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4);">
+          {% if lst.phone %}
+            <a href="tel:{{ lst.phone|replace(' ', '')|replace('(', '')|replace(')', '')|replace('-', '') }}"
+               class="mb-button mb-button--primary mb-button--sm lawyer-call"
+               data-lawyer-order-id="{{ lst.order_id }}"
+               data-lawyer-county="{{ county }}">
+              📞 {{ lst.phone }}
+            </a>
+            <a href="sms:{{ lst.phone|replace(' ', '')|replace('(', '')|replace(')', '')|replace('-', '') }}"
+               class="mb-button mb-button--secondary mb-button--sm lawyer-text"
+               data-lawyer-order-id="{{ lst.order_id }}"
+               data-lawyer-county="{{ county }}">
+              ✉️ Text
+            </a>
+          {% endif %}
+          {% if lst.target_url %}
+            <a href="{{ lst.target_url }}" target="_blank" rel="noopener noreferrer"
+               class="mb-button mb-button--secondary mb-button--sm lawyer-click"
+               data-lawyer-order-id="{{ lst.order_id }}"
+               data-lawyer-county="{{ county }}">
+              {{ lst.cta_text or 'Visit Website' }}
+            </a>
+          {% elif lst.website %}
+            <a href="{{ lst.website }}" target="_blank" rel="noopener noreferrer"
+               class="mb-button mb-button--secondary mb-button--sm lawyer-click"
+               data-lawyer-order-id="{{ lst.order_id }}"
+               data-lawyer-county="{{ county }}">
+              Visit Website
+            </a>
+          {% endif %}
+        </div>
+
+        <p style="font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-caption); margin: var(--space-3) 0 0;">
+          Paid placement · Montana Blotter receives compensation for this listing.
+          Not legal advice. Choosing an attorney is a personal decision.
+        </p>
+      </article>
+      {% endfor %}
+    </section>
+    {% endfor %}
+
+    <article class="mb-record-card">
+      <header class="mb-section-header">
+        <div>
+          <p class="mb-section-header__kicker">Help</p>
+          <h2 class="mb-section-header__title">Frequently asked questions</h2>
+        </div>
+      </header>
+      <div style="display: grid; gap: var(--space-4); font-size: var(--text-body-sm); color: var(--text-body); line-height: var(--leading-body);">
+        <article>
+          <p style="font-weight: var(--weight-bold); color: var(--text-headline); margin: 0 0 var(--space-1);">How fast will I hear back?</p>
+          <p style="margin: 0;">Most intake submissions are routed immediately to active advertisers and reviewed throughout the day. Gold-tier attorneys respond first.</p>
+        </article>
+        <article>
+          <p style="font-weight: var(--weight-bold); color: var(--text-headline); margin: 0 0 var(--space-1);">Do I have to pay to submit a request?</p>
+          <p style="margin: 0;">No. Submitting the intake form is free. The attorneys pay for the placement; you don't pay to send the request.</p>
+        </article>
+        <article>
+          <p style="font-weight: var(--weight-bold); color: var(--text-headline); margin: 0 0 var(--space-1);">Are listings vetted?</p>
+          <p style="margin: 0;">All paid advertisers must provide a Montana State Bar number. Montana Blotter reserves the right to reject listings that don't meet basic standards.</p>
+        </article>
+        <article>
+          <p style="font-weight: var(--weight-bold); color: var(--text-headline); margin: 0 0 var(--space-1);">Does Montana Blotter give legal advice?</p>
+          <p style="margin: 0;">No. The directory is a starting point, not a recommendation. The <a href="https://www.montanabar.org" target="_blank" rel="noopener" style="color: var(--text-link);">Montana State Bar lawyer referral service</a> is another resource.</p>
+        </article>
+      </div>
+    </article>
+
+  </div>
+</main>
+
+<script>
+(function () {
+  function sendJson(url, payload) {
+    try {
+      var raw = JSON.stringify(payload || {});
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([raw], {type: 'application/json'}));
+        return;
+      }
+      fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: raw, keepalive: true });
+    } catch (e) {}
+  }
+
+  function sendAdEvent(eventType, orderId, county) {
+    sendJson('/api/lawyer-ads/event', {
+      event_type: eventType,
+      order_id: orderId || null,
+      county: county || '',
+      source: 'lawyers_directory'
+    });
+  }
+
+  document.querySelectorAll('[data-lawyer-order-id]').forEach(function (card) {
+    var orderId = Number(card.getAttribute('data-lawyer-order-id') || 0);
+    var county = card.getAttribute('data-lawyer-county') || '';
+    if (orderId) sendAdEvent('impression', orderId, county);
+  });
+
+  document.querySelectorAll('.lawyer-click').forEach(function (link) {
+    link.addEventListener('click', function () {
+      var orderId = Number(link.getAttribute('data-lawyer-order-id') || 0);
+      var county = link.getAttribute('data-lawyer-county') || '';
+      if (orderId) sendAdEvent('click', orderId, county);
+    });
+  });
+  document.querySelectorAll('.lawyer-call').forEach(function (link) {
+    link.addEventListener('click', function () {
+      var orderId = Number(link.getAttribute('data-lawyer-order-id') || 0);
+      var county = link.getAttribute('data-lawyer-county') || '';
+      if (orderId) sendAdEvent('call', orderId, county);
+    });
+  });
+  document.querySelectorAll('.lawyer-text').forEach(function (link) {
+    link.addEventListener('click', function () {
+      var orderId = Number(link.getAttribute('data-lawyer-order-id') || 0);
+      var county = link.getAttribute('data-lawyer-county') || '';
+      if (orderId) sendAdEvent('text', orderId, county);
+    });
+  });
+})();
+</script>
+{% endblock %}

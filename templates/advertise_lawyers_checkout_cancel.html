@@ -1,0 +1,35 @@
+{% extends "public_page_base_v2.html" %}
+
+{% set page_title = "Checkout Cancelled" %}
+{% set canonical_url = "https://montanablotter.com/advertise/lawyers/checkout/cancel" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/lawyers" style="color: var(--text-body);">Advertise</a>
+<span class="mx-2">/</span>
+<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">Cancelled</span>
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div style="max-width: 42rem; margin: 0 auto; padding: var(--space-12) var(--page-gutter); text-align: center;">
+    <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0 0 var(--space-4);">
+      Checkout
+    </p>
+    <h1 style="font-family: var(--font-serif-display); font-size: var(--text-headline-lg); font-weight: var(--weight-display); line-height: var(--leading-display); color: var(--text-secondary); margin: 0 0 var(--space-3);">
+      Checkout Cancelled
+    </h1>
+    <p style="color: var(--text-body); font-size: var(--text-body-md); margin: 0 0 var(--space-6);">
+      No charge was made. You can review packages and try again whenever you're ready.
+    </p>
+    <div style="display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap;">
+      <a href="{{ url_for('lawyer_ads.advertise_lawyers') }}" class="mb-button mb-button--primary mb-button--md">
+        View Packages
+      </a>
+      <a href="{{ url_for('lawyer_ads.lawyers_directory') }}" class="mb-button mb-button--secondary mb-button--md">
+        View Directory
+      </a>
+    </div>
+  </div>
+</main>
+{% endblock %}

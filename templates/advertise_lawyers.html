@@ -1,0 +1,131 @@
+{% extends "public_page_base_v2.html" %}
+
+{% set page_title = page_title or "Advertise Your Law Firm on Montana Blotter" %}
+{% set meta_description = meta_description or "Reach Montana families at the moment they search for a lawyer. Bronze $149/mo, Silver $299/mo, Gold $599/mo." %}
+{% set canonical_url = "https://montanablotter.com/advertise/lawyers" %}
+
+{% block body_class %}advertise-lawyers-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/lawyers" style="color: var(--text-body);">Lawyers</a>
+<span class="mx-2">/</span>
+<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">Advertise</span>
+{% endblock %}
+
+{% block hero %}
+<section style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color: var(--text-inverse); padding: var(--space-12) var(--page-gutter); border-bottom: var(--rule-heavy);">
+  <div style="max-width: 80rem; margin: 0 auto;">
+    <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: #fbbf24; text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+      For Montana Attorneys
+    </p>
+    <h1 style="margin-top: var(--space-4); font-family: var(--font-serif-display); font-size: clamp(2rem, 4vw, var(--text-display)); font-weight: var(--weight-display); line-height: var(--leading-display); letter-spacing: var(--tracking-display); color: var(--text-inverse);">
+      Reach Montana families at the moment they search for a lawyer.
+    </h1>
+    <p style="margin-top: var(--space-4); color: #cbd5e1; font-size: var(--text-body-md); line-height: var(--leading-body); max-width: 56ch;">
+      Montana Blotter serves tens of thousands of Montanans each month — people navigating
+      arrests, custody issues, injuries, and life events who actively need a lawyer. Get in
+      front of them with tap-to-call, lead capture intake, and county-targeted placement.
+    </p>
+  </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div style="max-width: 80rem; margin: 0 auto; padding: var(--space-10) var(--page-gutter); display: flex; flex-direction: column; gap: var(--space-8);">
+
+    <article class="mb-record-card">
+      <header class="mb-section-header">
+        <div>
+          <p class="mb-section-header__kicker">Pricing</p>
+          <h2 class="mb-section-header__title">Choose your package</h2>
+        </div>
+      </header>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); margin-top: var(--space-4);">
+        {% for pkg in packages %}
+        <article style="border: {% if pkg.featured %}3px solid #b8860b{% else %}var(--rule-light){% endif %}; border-radius: var(--radius-md); padding: var(--space-5); background: {% if pkg.featured %}linear-gradient(180deg, #fffdf0 0%, #fff 70%){% else %}var(--surface-card){% endif %}; position: relative; {% if pkg.featured %}box-shadow: 0 6px 18px rgba(184, 134, 11, 0.15);{% endif %}">
+          {% if pkg.featured %}
+          <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #b8860b; color: var(--text-inverse); padding: var(--space-1) var(--space-4); border-radius: var(--radius-full); font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); letter-spacing: var(--tracking-kicker); text-transform: uppercase;">RECOMMENDED</div>
+          {% endif %}
+          <h3 style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); margin: 0 0 var(--space-2);">{{ pkg.name }}</h3>
+          <p style="font-family: var(--font-serif-display); font-size: 1.5rem; font-weight: var(--weight-display); margin: var(--space-2) 0; color: {% if pkg.featured %}#b8860b{% else %}#1e3a8a{% endif %};">{{ pkg.price_label }}</p>
+          <p style="font-size: var(--text-caption); color: var(--text-secondary); margin-bottom: var(--space-4);">or {{ pkg.price_label_annual }} billed annually</p>
+          <p style="color: var(--text-body); font-size: var(--text-body-sm); margin-bottom: var(--space-4); line-height: var(--leading-body);">{{ pkg.short_description }}</p>
+          <ul style="list-style: none; padding: 0; margin: 0 0 var(--space-5); font-size: var(--text-body-sm); color: var(--text-body);">
+            {% for f in pkg.features %}
+            <li style="padding: var(--space-2) 0; border-bottom: 1px solid var(--ink-100);">✓ {{ f }}</li>
+            {% endfor %}
+          </ul>
+          <a href="{{ url_for('lawyer_ads.advertise_lawyers_checkout', package=pkg.id) }}" class="mb-button mb-button--primary mb-button--md" style="width: 100%;">
+            Get Started &rarr;
+          </a>
+        </article>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="mb-record-card" style="background: var(--surface-page);">
+      <header class="mb-section-header">
+        <div>
+          <p class="mb-section-header__kicker">Why advertise here</p>
+          <h2 class="mb-section-header__title">Built for lawyers who care about ROI</h2>
+        </div>
+      </header>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-5); margin-top: var(--space-4);">
+        <div>
+          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+            Targeted
+          </p>
+          <p style="margin: var(--space-1) 0 0; color: var(--text-body); font-size: var(--text-body-sm); line-height: var(--leading-body);">Pick the counties you serve. Only your placements appear there.</p>
+        </div>
+        <div>
+          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+            Tap-to-call
+          </p>
+          <p style="margin: var(--space-1) 0 0; color: var(--text-body); font-size: var(--text-body-sm); line-height: var(--leading-body);">Every listing has one-tap calling on mobile. No friction.</p>
+        </div>
+        <div>
+          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+            Lead capture
+          </p>
+          <p style="margin: var(--space-1) 0 0; color: var(--text-body); font-size: var(--text-body-sm); line-height: var(--leading-body);">Public intake form routes directly to active advertisers.</p>
+        </div>
+        <div>
+          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+            Reporting
+          </p>
+          <p style="margin: var(--space-1) 0 0; color: var(--text-body); font-size: var(--text-body-sm); line-height: var(--leading-body);">Monthly impression, click, and lead counts in your control panel.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="mb-record-card">
+      <header class="mb-section-header">
+        <div>
+          <p class="mb-section-header__kicker">Process</p>
+          <h2 class="mb-section-header__title">How it works</h2>
+        </div>
+      </header>
+      <ol style="margin: var(--space-4) 0 0; padding-left: var(--space-5); color: var(--text-body); font-size: var(--text-body-md); line-height: var(--leading-body); display: flex; flex-direction: column; gap: var(--space-2);">
+        <li>Pick your package and submit your firm details.</li>
+        <li>We send you a Stripe checkout for monthly or annual billing.</li>
+        <li>After payment, your listing goes live on /lawyers for the counties you picked.</li>
+        <li>Leads from the public intake form are routed to you instantly.</li>
+        <li>Cancel anytime from your control panel — no contracts.</li>
+      </ol>
+    </article>
+
+    <p style="color: var(--text-secondary); font-size: var(--text-body-sm); margin: 0;">
+      Questions? Email <a href="mailto:advertising@montanablotter.com" style="color: var(--text-link);">advertising@montanablotter.com</a>.
+      Montana State Bar number required for all paid placements.
+    </p>
+    <p style="color: var(--text-secondary); font-size: var(--text-body-sm); margin: 0;">
+      Not interested in a paid placement? The free
+      <a href="/attorneys" style="color: var(--text-link);">/attorneys directory</a>
+      is opt-in for licensed Montana defense attorneys.
+    </p>
+
+  </div>
+</main>
+{% endblock %}

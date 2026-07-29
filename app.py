@@ -30,12 +30,17 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
 from core.agency_normalization import normalize_agency_identity
 from services.blotter.auditor import get_pii_spans
+from services.seo.jsonld import (
+    dataset_ld,
+    government_organization_ld,
+    item_page_ld,
+    news_article_ld,
+)
 import config
 from services.api.auth import after_api_request
 from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
-from blueprints.warrant_unlock import register_warrant_unlock_blueprint
 from blueprints.detention import register_detention_blueprint
 from blueprints.datacenter import register_datacenter_blueprint
 from blueprints.code_violations import register_code_violations_blueprint
@@ -46,8 +51,10 @@ from blueprints.government_spending import register_government_spending_blueprin
 from blueprints.watchdog import register_watchdog_blueprint
 from blueprints.recovery_ads import recovery_ads_bp
 from blueprints.attorney_ads import attorney_ads_bp
+from blueprints.lawyer_ads import lawyer_ads_bp
 from blueprints.threedhub import threedhub_bp
 from blueprints.chat_agent import chat_agent_bp
+from blueprints.sitemap import sitemap_bp
 from services.court.tracker import (
     court_admin_context,
     court_case_detail,
@@ -58,6 +65,7 @@ from services.court.tracker import (
 )
 from services.disposition.lookup import lookup_disposition
 from db import connect_db, connect_page_views, get_db
+from init_db import ensure_lawyer_ad_schema, ensure_treatment_center_schema
 from services.alerts.engine import get_recent_alerts_for_user
 from core.dedupe import incident_key_set
 from services.publishing.morning_briefing import (
@@ -104,6 +112,20 @@ except Exception:
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 BASE_URL = config.BASE_URL
+
+# Drift sentinel: log the absolute path of app.py at import time. If we ever
+# see nginx serving 5000 but the gunicorn process loaded a different app.py
+# (e.g. someone started gunicorn by hand from another checkout), this line in
+# logs/gunicorn.log will make it obvious. Written to stderr directly because
+# Python's logging module is unconfigured by gunicorn's preload_app=True and
+# the systemd unit captures stderr into logs/gunicorn.log.
+import sys as _sys
+print(
+    f"[montanablotter.boot] app.py={__file__} cwd={os.getcwd()} "
+    f"db={getattr(config, 'DB_PATH', '<unset>')}",
+    file=_sys.stderr,
+    flush=True,
+)
 
 # Server-side response cache for expensive read-only API endpoints.
 from flask_caching import Cache
@@ -984,6 +1006,13 @@ app.config['UPLOAD_FOLDER'] = config.UPLOAD_DIR
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_UPLOAD_MB * 1024 * 1024
 
 _ADMIN_CSRF_METHODS = {'POST', 'PUT', 'PATCH', 'DELETE'}
+_CSRF_PROTECTED_PATHS = (
+    '/advertise/lawyers/checkout',
+    '/advertise/recovery/checkout',
+    '/advertise/bail-bonds/checkout',
+    '/checkout/warrant-access',
+    '/lawyer-control-panel/',
+)
 _SAFE_URL_SCHEMES = {'http', 'https', 'mailto', 'tel'}
 _ALLOWED_MARKDOWN_TAGS = {
     'a', 'p', 'br', 'hr',
@@ -1070,6 +1099,39 @@ def _sanitize_html(html_text: str) -> str:
 
 
 @app.before_request
+def enforce_billing_csrf():
+    """Reject POSTs to advertising-checkout and advertiser-control-panel routes without a valid CSRF token.
+
+    These endpoints are anonymous (no admin login required), so they sit
+    outside the admin CSRF guard. They all either create a paid Stripe
+    checkout session or mutate an advertiser's listing. Both need the same
+    same-origin protection that admin forms already get.
+    """
+    if request.method not in _ADMIN_CSRF_METHODS:
+        return
+    if not any(request.path == prefix or request.path.startswith(prefix) for prefix in _CSRF_PROTECTED_PATHS):
+        return
+
+    session_token = session.get('_csrf_token')
+    submitted_token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
+    if not session_token or not submitted_token or not hmac.compare_digest(session_token, submitted_token):
+        # These endpoints are programmatic checkout / control-panel mutations.
+        # Return 400 with a machine-readable error so a real browser shows the
+        # flash and an attacker hitting it from another site gets nothing
+        # useful.
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'ok': False, 'error': 'csrf_validation_failed'}), 400
+
+        flash('Security token validation failed. Refresh the page and try again.', 'error')
+        if request.referrer and request.referrer.startswith(request.host_url):
+            return redirect(request.referrer), 400
+        if request.path.startswith('/lawyer-control-panel/'):
+            return redirect(url_for('lawyer_ads.lawyers_directory')), 400
+        # Default: send the buyer back to the listing package page.
+        return redirect(url_for('lawyer_ads.advertise_lawyers')), 400
+
+
+@app.before_request
 def enforce_admin_csrf():
     if request.method not in _ADMIN_CSRF_METHODS:
         return
@@ -1120,8 +1182,11 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/static/',
     '/api/',
     '/admin/',
+    '/status',  # public system-status page (mirrors garageroute.com/status)
+
     '/login',
     '/register',
+    '/signup',
     '/logout',
     '/forgot-password',
     '/reset-password',
@@ -1133,16 +1198,27 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/wanted/subscribe',
     '/health',
     '/ping',
+    '/jail-bookings/',
+    '/jail-rosters/',
+    '/bail-bonds/',
+    '/lawyers/',
+    '/wanted/',
+    '/arrests/',
+    '/county/',  # county blotter listing
 )
 _SIGNIN_WALL_EXEMPT_EXACT = {
     '/',
     '/favicon.ico',
     '/robots.txt',
     '/sitemap.xml',
+    '/sitemap-seo.xml',
     '/manifest.json',
     '/ads.txt',
     '/api/subscribe-event',
     '/advertise',
+    '/careers',
+    '/sources',
+    '/lawyers',
 }
 
 
@@ -1191,6 +1267,10 @@ def apply_security_headers(response):
     if request.path.startswith('/admin'):
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Pragma'] = 'no-cache'
+
+    if request.method in {'GET', 'HEAD'} and response.status_code == 200:
+        if request.path.startswith(('/county/', '/jail-bookings', '/jail-rosters', '/wanted')):
+            response.headers.setdefault('Cache-Control', 'public, max-age=300, s-maxage=1800')
 
     response.headers.setdefault('X-Content-Type-Options', 'nosniff')
     response.headers.setdefault('X-Frame-Options', config.X_FRAME_OPTIONS)
@@ -2609,6 +2689,7 @@ def _post_bail_lead_webhook(payload):
 
 
 def _active_bail_ad_listings(conn):
+    _ensure_bail_ad_simulator_order_columns(conn)
     rows = conn.execute(
         '''
         SELECT
@@ -5091,8 +5172,8 @@ RESOURCE_GUIDES = {
 def _source_channel_meta(post):
     source_key = post['source_type'] or post['blotter_source_type'] or 'pdf'
     labels = {
-        'imap_pdf': ('Email PDF', 'Delivered to records@montanablotter.com as a PDF attachment.'),
-        'imap_text': ('Email Body', 'Delivered to records@montanablotter.com as text in the email body.'),
+        'imap_pdf': ('Email PDF', 'Delivered to support@montanablotter.com as a PDF attachment.'),
+        'imap_text': ('Email Body', 'Delivered to support@montanablotter.com as text in the email body.'),
         'local_pdf': ('Manual Upload', 'Uploaded manually through the Montana Blotter admin panel.'),
         'crimemapping': ('CrimeMapping', 'Imported from a public CrimeMapping incident feed.'),
         'pdf': ('Imported PDF', 'Imported from a PDF batch in the blotter pipeline.'),
@@ -6025,10 +6106,13 @@ def _homepage_newsroom_context(
 
 
 def _parse_record_date(value):
+    value = str(value or '').strip()
+    if not value:
+        return None
     for fmt in ('%m/%d/%y', '%m/%d/%Y', '%Y-%m-%d'):
         try:
-            return datetime.strptime((value or '').strip(), fmt).date()
-        except (ValueError, TypeError):
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
             continue
     return None
 
@@ -6749,6 +6833,53 @@ def _public_meetings_dashboard_context():
     }
 
 
+def _safe_public_status():
+    """Build a defensive status payload for footer rendering.
+
+    Returns a baseline of {'ok': True, 'uptime_ratio': None, ...}
+    if the UptimeRobot call or import fails for any reason, so the
+    footer template never raises during render.
+    """
+    try:
+        from services.ops import status as _status
+        return _status.summarize(local_ok=True)
+    except Exception:
+        return {
+            'ok': True,
+            'uptime_ratio': None,
+            'monitored_by': 'none',
+            'monitored_at': '',
+            'source': 'self',
+        }
+
+
+def _header_stats():
+    """Live counts for the newspaper masthead stats hub.
+
+    Failures are swallowed so a missing table never breaks every public page.
+    """
+    try:
+        conn = get_db()
+    except Exception:
+        return {}
+    try:
+        stats = {
+            'courts': conn.execute("SELECT COUNT(*) FROM court_events").fetchone()[0],
+            'jails': conn.execute("SELECT COUNT(*) FROM jail_bookings WHERE COALESCE(is_current, 1) = 1").fetchone()[0],
+            'missing': conn.execute("SELECT COUNT(*) FROM missing_persons WHERE status = 'missing'").fetchone()[0],
+            'warrants': conn.execute("SELECT COUNT(*) FROM warrants WHERE status = 'active'").fetchone()[0],
+            'sanctions': conn.execute("SELECT COUNT(*) FROM license_sanctions WHERE COALESCE(is_active, 1) = 1").fetchone()[0],
+            'offenders': conn.execute("SELECT COUNT(*) FROM sex_offenders WHERE status = 'active'").fetchone()[0],
+            'blotters': conn.execute("SELECT COUNT(*) FROM blotters").fetchone()[0],
+            'records': conn.execute("SELECT COUNT(*) FROM records").fetchone()[0],
+        }
+    except Exception:
+        stats = {}
+    finally:
+        conn.close()
+    return stats
+
+
 @app.context_processor
 def inject_public_nav():
     home_href = BASE_URL if _is_agendas_host() else '/'
@@ -6841,6 +6972,7 @@ def inject_public_nav():
         {'href': '/courts', 'label': 'Courts'},
         {'href': '/case-status', 'label': 'Case Status Lookup'},
         {'href': '/court-sources', 'label': 'Court Data Sources'},
+        {'href': '/sources', 'label': 'Sources by County'},
         {'href': '/case-journeys', 'label': 'Case Journeys'},
         {'href': '/missing-persons', 'label': 'Missing Persons'},
         {'href': '/wanted', 'label': 'Active Warrants'},
@@ -6877,9 +7009,16 @@ def inject_public_nav():
         'public_nav_experiment': {'subscribe_variant': subscribe_variant},
         'public_footer_items': [item for item in public_footer_items if item],
         'footer_featured_city_items': footer_featured_city_items,
+        # Live status payload for the footer badge. Fetches UptimeRobot
+        # via services.ops.status (cached 60s in-process). If the call
+        # fails for any reason, fall back to a "self only" payload so
+        # the footer never crashes a page render.
+        'public_status': _safe_public_status(),
         'current_year': datetime.now().year,
+        'today': datetime.now().strftime('%A, %B %d, %Y'),
         'public_user': public_user,
         'winter_storm_banner': _winter_storm_banner_config(),
+        'header_stats': _header_stats(),
     }
 
 class User(UserMixin):
@@ -8185,6 +8324,50 @@ def healthz():
     return jsonify(status='ok')
 
 
+@app.route('/status')
+def public_status_page():
+    """Public status page — same data as the footer badge.
+
+    Renders services/ops/status + a simple component list. No login,
+    no admin nav. Mirrors the shape of garageroute's /status page.
+    """
+    from services.ops import status as _status
+    payload = _status.summarize(local_ok=True)
+    # Merge the full public-nav context so the parent template renders
+    # without missing-variable errors. The status payload overrides
+    # any conflicting key (none today).
+    ctx = inject_public_nav()
+    ctx.update({
+        'status': payload,
+        'page_title': 'System Status',
+        'meta_description': 'Live operational status for Montana Blotter: site, ingestion, and email.',
+        'canonical_url': 'https://montanablotter.com/status',
+        'og_title': 'System Status — Montana Blotter',
+        'og_description': 'Live operational status for Montana Blotter.',
+        'og_type': 'website',
+        'og_image': 'https://montanablotter.com/static/icons/og-default.png',
+        'twitter_card': 'summary_large_image',
+    })
+    return render_template('public_status.html', **ctx), 200
+
+
+@app.route('/api/status')
+def api_status():
+    """Combined status: local health + UptimeRobot uptime ratio.
+
+    Public, unauthenticated, cached 30s at the edge. Powers the
+    footer status badge on montanablotter.com and any 3rd-party
+    status widget. Same shape as garageroute's /api/status so a
+    single dashboard can poll both.
+    """
+    from services.ops import status as _status
+    payload = _status.summarize(local_ok=True)
+    resp = jsonify(payload)
+    # CDN-friendly cache; UptimeRobot leg is already cached 60s in-process.
+    resp.headers['Cache-Control'] = 'public, s-maxage=30, stale-while-revalidate=60'
+    return resp, 200
+
+
 @app.route('/health/freshness')
 def health_freshness():
     """Data freshness for arrests and jail rosters.
@@ -8201,9 +8384,114 @@ def health_freshness():
 @app.route('/office')
 @app.route('/office/')
 def office_redirect():
-    """Public shorthand that lands on the canonical admin office mount."""
-    return redirect('/admin/office/office', code=302)
+    """Public shorthand — the 3D office iframe was removed; bounce to the admin hub."""
+    return redirect('/admin', code=302)
 
+
+def _homepage_sponsors_context(conn):
+    # Homepage sponsor unit — top paid bail-bond + lawyer placements
+    homepage_sponsors = []
+    try:
+        ensure_lawyer_ad_schema(conn)
+        sponsor_rows = conn.execute(
+            '''
+            SELECT 'bail' AS sponsor_kind,
+                   o.id AS order_id,
+                   o.business_name AS name,
+                   o.phone AS phone,
+                   o.website_url AS website_url,
+                   o.county_targets AS coverage,
+                   o.package_id AS package_id,
+                   c.headline AS headline,
+                   c.body_copy AS body,
+                   c.cta_text AS cta_text,
+                   c.target_url AS target_url,
+                   c.logo_path AS logo_path
+            FROM bail_ad_orders o
+            LEFT JOIN bail_ad_creatives c ON c.order_id = o.id
+            WHERE o.status = 'active'
+              AND (c.status = 'approved' OR c.status IS NULL)
+            ORDER BY
+                CASE o.package_id
+                    WHEN 'gold_bond_bundle' THEN 0
+                    WHEN 'state_power' THEN 1
+                    WHEN 'gold_bond' THEN 2
+                    WHEN 'featured_bondsman_banner' THEN 3
+                    WHEN 'silver_link' THEN 4
+                    WHEN 'exclusive_county_sponsorship' THEN 5
+                    ELSE 6
+                END,
+                datetime(o.paid_at) DESC
+            LIMIT 3
+            '''
+        ).fetchall()
+        for row in sponsor_rows:
+            county_list = _bail_ad_county_list(row['coverage']) if '_bail_ad_county_list' in dir() else []
+            phone_value = (row['phone'] or '').strip()
+            phone_token = _format_phone_for_tel(phone_value) if '_format_phone_for_tel' in dir() else phone_value
+            homepage_sponsors.append({
+                'kind': 'bail',
+                'order_id': row['order_id'],
+                'name': row['name'],
+                'phone': phone_value,
+                'phone_href': f'tel:{phone_token}' if phone_token else '',
+                'website_url': row['website_url'] or '',
+                'counties': county_list,
+                'package_id': row['package_id'],
+                'headline': row['headline'] or f"{row['name']} Bail Bonds",
+                'body': row['body'] or 'Licensed local bail bond support available.',
+                'cta_text': row['cta_text'] or 'Contact Now',
+                'target_url': row['target_url'] or row['website_url'] or '',
+                'logo_path': row['logo_path'] or '',
+            })
+    except Exception:
+        pass
+
+    try:
+        lawyer_sponsor_rows = conn.execute(
+            '''
+            SELECT
+                o.id AS order_id,
+                o.firm_name AS name,
+                o.phone AS phone,
+                o.website AS website_url,
+                o.counties_served AS coverage,
+                o.package_id AS package_id,
+                l.tagline AS tagline,
+                l.description AS body,
+                l.headline AS headline,
+                l.cta_text AS cta_text,
+                l.target_url AS target_url,
+                l.logo_path AS logo_path
+            FROM lawyer_ad_orders o
+            JOIN lawyer_ad_listings l ON l.order_id = o.id
+            WHERE o.status = 'active' AND l.is_active = 1
+            ORDER BY
+                CASE o.package_id WHEN 'gold' THEN 0 WHEN 'silver' THEN 1 ELSE 2 END,
+                datetime(o.paid_at) ASC
+            LIMIT 3
+            '''
+        ).fetchall()
+        for row in lawyer_sponsor_rows:
+            coverage_list = [c.strip() for c in (row['coverage'] or '').split(',') if c.strip()]
+            homepage_sponsors.append({
+                'kind': 'lawyer',
+                'order_id': row['order_id'],
+                'name': row['name'],
+                'phone': (row['phone'] or '').strip(),
+                'phone_href': f"tel:{(row['phone'] or '').replace(' ', '').replace('(', '').replace(')', '').replace('-', '')}" if row['phone'] else '',
+                'website_url': row['website_url'] or '',
+                'counties': coverage_list,
+                'package_id': row['package_id'],
+                'headline': row['headline'] or row['tagline'] or row['name'],
+                'body': row['body'] or '',
+                'cta_text': row['cta_text'] or 'Visit Website',
+                'target_url': row['target_url'] or row['website_url'] or '',
+                'logo_path': row['logo_path'] or '',
+            })
+    except Exception:
+        pass
+    return homepage_sponsors
 
 @app.route('/')
 def index():
@@ -8273,10 +8561,39 @@ def index():
     posts = _annotate_posts_with_confidence(conn, posts)
 
     # Filter dropdowns
-    counties = [r['county'] for r in conn.execute(
+    county_names_for_filter = [r['county'] for r in conn.execute(
         "SELECT DISTINCT county FROM posts WHERE COALESCE(audit_status, 'pending') = 'clean' ORDER BY county").fetchall()]
     cities = [r['city'] for r in conn.execute(
         "SELECT DISTINCT city FROM posts WHERE city != '' AND COALESCE(audit_status, 'pending') = 'clean' ORDER BY city").fetchall()]
+
+    # Build counties list for homepage grid (Kimi template expects: slug, name, records_today, last_updated)
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
+    county_metrics_map = {}
+    for row in conn.execute("""
+        SELECT county,
+               COUNT(*) AS records_today,
+               MAX(created_at) AS last_updated
+        FROM records
+        WHERE created_at >= ?
+          AND county IS NOT NULL
+          AND county != ''
+        GROUP BY county
+    """, [today_start]).fetchall():
+        county_metrics_map[row['county']] = {
+            'records_today': row['records_today'],
+            'last_updated': row['last_updated']
+        }
+
+    counties = []
+    for county_data in COUNTY_DATA.values():
+        metrics = county_metrics_map.get(county_data['name'], {})
+        counties.append({
+            'slug': county_data['slug'],
+            'name': county_data['name'],
+            'records_today': metrics.get('records_today', 0),
+            'last_updated': metrics.get('last_updated', None)
+        })
+    counties.sort(key=lambda c: c['name'])
 
     # Agency directory: each agency with last report date and count
     agency_rows = conn.execute("""
@@ -8312,6 +8629,7 @@ def index():
         agency_map[key]['report_count'] += row['report_count']
 
     total_records = conn.execute('SELECT COUNT(*) FROM records').fetchone()[0]
+    blotter_count = conn.execute('SELECT COUNT(*) FROM blotters').fetchone()[0]
 
     post_stats = {
         row['county']: row
@@ -8356,11 +8674,8 @@ def index():
     featured_new_cities = []
     weekly_snapshot = _weekly_snapshot(conn)
     missing_persons_alert = missing_person_homepage_context(conn, limit=3)
-    wanted_spotlight = (
-        warrant_homepage_context(conn, limit=6, has_access=user_has_warrant_access())
-        if user_has_warrant_access()
-        else None
-    )
+    has_warrant_access = user_has_warrant_access()
+    wanted_spotlight = warrant_homepage_context(conn, limit=6, has_access=has_warrant_access)
     newsroom_context = _homepage_newsroom_context(
         conn,
         county=county,
@@ -8427,11 +8742,20 @@ def index():
         LIMIT 5
     """).fetchall()
 
+    # Sort by the later of booking_at and last_seen_at so counties whose
+    # roster is a "currently held" snapshot (Hill County / Havre DOCX,
+    # Flathead, Lincoln, Sanders, etc. — none of which carry a per-inmate
+    # booking timestamp) still surface on the homepage when a fresh
+    # roster arrives. Without this fallback every Havre row sorts to the
+    # very end of the result set because SQLite puts NULLs last on
+    # DESC, so Havre never appears in the top 5 even though we have
+    # 44 current inmates.
     recent_jail_bookings = conn.execute("""
-        SELECT person_name, county_name, booking_at, charges_summary
+        SELECT person_name, county_name, booking_at, charges_summary,
+               COALESCE(booking_at, last_seen_at) AS freshness_ts
         FROM jail_bookings
         WHERE is_current = 1
-        ORDER BY booking_at DESC
+        ORDER BY freshness_ts DESC
         LIMIT 5
     """).fetchall()
 
@@ -8462,14 +8786,18 @@ def index():
     public_user = _get_public_user()
     recent_alerts = get_recent_alerts_for_user(public_user.id, limit=5) if public_user else None
 
+    homepage_sponsors = _homepage_sponsors_context(conn)
+
     conn.close()
 
-    return render_template('index.html',
+    _homepage_template = 'index.newspaper.html' if request.args.get('newspaper') == '1' else 'index.html'
+    return render_template(_homepage_template,
                            posts=posts,
                            total=total,
                            total_pages=total_pages,
                            page=page,
                            counties=counties,
+                           county_names_for_filter=county_names_for_filter,
                            cities=cities,
                            agencies=agencies,
                            county=county,
@@ -8480,11 +8808,13 @@ def index():
                            date_filter=date_filter,
                            status_filter=status_filter,
                            total_records=total_records,
+                           blotter_count=blotter_count,
                            top_counties=top_counties,
                            featured_new_cities=featured_new_cities,
                            weekly_snapshot=weekly_snapshot,
                            missing_persons_alert=missing_persons_alert,
                            wanted_spotlight=wanted_spotlight,
+                           has_warrant_access=has_warrant_access,
                            leaderboard=leaderboard,
                            recent_court_events=recent_court_events,
                            recent_license_sanctions=recent_license_sanctions,
@@ -8493,6 +8823,8 @@ def index():
                            recent_blog_posts=recent_blog_posts,
                            hub_counts=hub_counts,
                            recent_alerts=recent_alerts,
+                           homepage_sponsors=homepage_sponsors,
+                           now_dt=datetime.utcnow().strftime('%A, %B %d, %Y').replace(' 0', ' '),
                            page_title='Real-Time Public Record Reporting',
                            meta_description='Real-time Montana public record reporting with recent incident cards, jurisdiction directories, and statewide trend visibility.',
                            canonical_url=f'{BASE_URL}/',
@@ -8501,6 +8833,90 @@ def index():
                            active_nav='home',
                            **newsroom_context,
                            current_year=datetime.now().year)
+
+
+@app.route('/blotters')
+def blotters_redirect():
+    """Legacy plural alias → canonical /blotter."""
+    return redirect(url_for('blotter'), code=301)
+
+
+@app.route('/records')
+def records_redirect():
+    """Legacy /records alias → canonical /blotter."""
+    return redirect(url_for('blotter'), code=301)
+
+
+@app.route('/blotter')
+def blotter():
+    """Public blotter feed — individual records with type/county filters."""
+    county = request.args.get('county', '')
+    q = request.args.get('q', '')
+    tab = request.args.get('type', 'all')
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 20
+
+    conn = get_db()
+    homepage_sponsors = _homepage_sponsors_context(conn)
+    where = ['1=1']
+    params = []
+    if county:
+        where.append('county = ?')
+        params.append(county)
+    if q:
+        where.append('(incident_type LIKE ? OR incident LIKE ? OR location LIKE ? OR details LIKE ?)')
+        like = f'%{q}%'
+        params.extend([like, like, like, like])
+
+    type_filter = ''
+    if tab == 'bookings':
+        type_filter = " AND (LOWER(COALESCE(incident_type,'')) LIKE '%book%' OR LOWER(incident) LIKE '%book%')"
+    elif tab == 'missing':
+        type_filter = " AND (LOWER(COALESCE(incident_type,'')) LIKE '%missing%' OR LOWER(incident) LIKE '%missing%')"
+    elif tab == 'warrants':
+        type_filter = " AND (LOWER(COALESCE(incident_type,'')) LIKE '%warrant%' OR LOWER(incident) LIKE '%warrant%')"
+    elif tab == 'blotter':
+        type_filter = (
+            " AND NOT (LOWER(COALESCE(incident_type,'')) LIKE '%book%' OR LOWER(COALESCE(incident_type,'')) LIKE '%missing%' OR LOWER(COALESCE(incident_type,'')) LIKE '%warrant%')"
+            " AND NOT (LOWER(incident) LIKE '%book%' OR LOWER(incident) LIKE '%missing%' OR LOWER(incident) LIKE '%warrant%')"
+        )
+
+    count_sql_all = f"SELECT COUNT(*) FROM records WHERE {' AND '.join(where)}"
+    all_total = conn.execute(count_sql_all, list(params[:len(params)])).fetchone()[0]
+    count_sql = f"SELECT COUNT(*) FROM records WHERE {' AND '.join(where)} {type_filter}"
+    total = conn.execute(count_sql, params).fetchone()[0]
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    sql = (
+        f"SELECT id, incident, incident_type, date, time, location, details, county, cfs_number, officer "
+        f"FROM records WHERE {' AND '.join(where)} {type_filter} "
+        f"ORDER BY date DESC, time DESC LIMIT ? OFFSET ?"
+    )
+    params.extend([per_page, (page - 1) * per_page])
+    rows = conn.execute(sql, params).fetchall()
+
+    counties = [r['county'] for r in conn.execute(
+        "SELECT DISTINCT county FROM records WHERE county IS NOT NULL AND county != '' ORDER BY county"
+    ).fetchall()]
+    conn.close()
+
+    return render_template(
+        'blotter.html',
+        rows=rows,
+        total=total,
+        all_total=all_total,
+        page=page,
+        total_pages=total_pages,
+        county=county,
+        q=q,
+        tab=tab,
+        counties=counties,
+        homepage_sponsors=homepage_sponsors,
+        active_nav='blotter',
+        page_title='The Daily Blotter',
+        meta_description='Public records from law-enforcement agencies statewide, updated hourly.',
+        canonical_url=f'{BASE_URL}/blotter',
+    )
 
 
 @app.route('/posts')
@@ -9153,12 +9569,15 @@ def public_case_journey_detail(slug):
 @app.route('/missing-persons')
 def missing_persons_index():
     conn = get_db()
+    homepage_sponsors = _homepage_sponsors_context(conn)
     context = missing_person_public_context(
         conn,
         status_filter=request.args.get('status'),
         q=request.args.get('q'),
         county=request.args.get('county'),
         sort=request.args.get('sort'),
+        page=request.args.get('page', 1, type=int),
+        per_page=25,
     )
     conn.close()
     return render_template(
@@ -9169,6 +9588,7 @@ def missing_persons_index():
         canonical_url=f'{BASE_URL}/missing-persons',
         og_title='Montana Missing Persons Database',
         og_description='Track active missing-person alerts and recently located cases across Montana.',
+        homepage_sponsors=homepage_sponsors,
         **context,
         current_year=datetime.now().year,
     )
@@ -9638,6 +10058,32 @@ def service_worker():
     return response
 
 
+# ---------------------------------------------------------------------------
+# Admin PWA manifest + service worker
+# ---------------------------------------------------------------------------
+# The public site already serves /sw.js (with push handlers) and /manifest.json.
+# The admin shell gets its own PWA install surface: a dedicated manifest at
+# /manifest.webmanifest and a dedicated SW at /admin-sw.js scoped to /admin/.
+# Keeping these on separate URLs means the public SW (with its push handlers)
+# is untouched, and the admin SW only ever sees /admin/* requests.
+
+@app.route('/manifest.webmanifest')
+def admin_manifest():
+    response = send_from_directory(app.static_folder, 'manifest.webmanifest')
+    response.headers['Content-Type'] = 'application/manifest+json'
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    return response
+
+
+@app.route('/admin-sw.js')
+def admin_service_worker():
+    response = send_from_directory(app.static_folder, 'admin-sw.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Service-Worker-Allowed'] = '/'
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+
 @app.route('/robots.txt')
 def robots_txt():
     body = "\n".join([
@@ -9645,6 +10091,7 @@ def robots_txt():
         "Allow: /",
         "Disallow: /admin/",
         f"Sitemap: {BASE_URL}/sitemap.xml",
+        f"Sitemap: {BASE_URL}/sitemap-seo.xml",
         "",
     ])
     return Response(body, mimetype='text/plain')
@@ -9685,6 +10132,7 @@ def sitemap_index():
     sections = [
         ('static', None),
         ('locations', None),
+        ('seo', None),
         ('patterns', None),
         ('posts', _iso_lastmod(post_lastmod_row['lastmod']) if post_lastmod_row else None),
         ('case-journeys', _iso_lastmod(journey_lastmod_row['lastmod']) if journey_lastmod_row else None),
@@ -10942,6 +11390,24 @@ def public_record_detail(record_id):
     post_slug = record['post_seo_slug'] or record['post_id']
     parent_post_url = f"{BASE_URL}/post/{post_slug}" if post_slug else None
 
+    # Schema.org structured data: ItemPage for raw records, NewsArticle
+    # only when the record was actually republished as a blog post.
+    record_for_jsonld = dict(public_record)
+    record_for_jsonld['post_seo_slug'] = record['post_seo_slug']
+    record_for_jsonld['post_id'] = record['post_id']
+    record_for_jsonld['county_slug'] = _county_slug_for_name(record['county'])
+    jsonld_item_page = item_page_ld(
+        record_for_jsonld,
+        county_name=record['county'],
+    )
+    # Only emit NewsArticle when there is a real post we can link to.
+    jsonld_article = None
+    if record['post_id'] and record['post_seo_slug']:
+        jsonld_article = news_article_ld(
+            record_for_jsonld,
+            county_name=record['county'],
+        )
+
     return render_template(
         'record_detail.html',
         record=public_record,
@@ -10956,6 +11422,53 @@ def public_record_detail(record_id):
         paywall_counts=paywall_counts,
         parent_post_url=parent_post_url,
         parent_post_title=record['post_title'],
+        jsonld_item_page=jsonld_item_page,
+        jsonld_article=jsonld_article,
+    )
+
+
+@app.route('/record/<int:record_id>/source')
+def public_record_source(record_id):
+    """Dedicated full-screen viewer for the original source PDF."""
+    conn = get_db()
+    record = conn.execute(
+        '''
+        SELECT records.*,
+               blotters.filename AS blotter_filename,
+               blotters.file_path,
+               posts.id AS post_id,
+               source_documents.filename AS source_filename
+        FROM records
+        LEFT JOIN blotters ON blotters.id = records.blotter_id
+        LEFT JOIN posts ON posts.id = (
+            SELECT p.id
+            FROM posts p
+            WHERE p.blotter_id = records.blotter_id
+              AND COALESCE(p.audit_status, 'pending') = 'clean'
+            ORDER BY p.created_at DESC, p.id DESC
+            LIMIT 1
+        )
+        LEFT JOIN source_documents ON source_documents.id = blotters.source_document_id
+        WHERE records.id = ?
+        LIMIT 1
+        ''',
+        (record_id,),
+    ).fetchone()
+    source_pdf_name = _detail_source_pdf_name(record)
+    conn.close()
+
+    if not record or record['post_id'] is None:
+        return render_template('404.html'), 404
+
+    record_title = record['incident_type'] or record['incident'] or 'Incident Record'
+    pdf_url = f"/uploads/{source_pdf_name}" if source_pdf_name else None
+    return render_template(
+        'view_pdf.html',
+        record_title=record_title,
+        record_id=record_id,
+        pdf_url=pdf_url,
+        back_url=f"{BASE_URL}/record/{record_id}",
+        current_year=datetime.now().year,
     )
 
 
@@ -11273,7 +11786,29 @@ def _jail_booking_public_context(conn, county_filter='', status_filter='current'
 
     valid_counties = {row['county_slug'] for row in sources}
     if county_filter and county_filter not in valid_counties:
-        county_filter = ''
+        # A county page may be intentionally configured but not featured.
+        # Keep it addressable when its source exists in the directory.
+        if county_page and county_filter in COUNTY_DIRECTORY:
+            conn.execute(
+                '''
+                INSERT OR IGNORE INTO jail_booking_sources
+                    (county_slug, county_name, facility_name, roster_url, phone, is_enabled, is_featured)
+                VALUES (?, ?, ?, ?, ?, 1, 0)
+                ''',
+                (county_filter, COUNTY_DIRECTORY[county_filter]['name'],
+                 f"{COUNTY_DIRECTORY[county_filter]['name']} County Detention Center",
+                 COUNTY_DIRECTORY[county_filter].get('roster_url'), COUNTY_DIRECTORY[county_filter].get('phone')),
+            )
+            conn.commit()
+            sources = conn.execute(
+                '''SELECT s.*, (SELECT COUNT(*) FROM jail_bookings jb WHERE jb.source_id = s.id AND COALESCE(jb.is_current, 1) = 1) AS current_count,
+                          (SELECT COUNT(*) FROM jail_bookings jb WHERE jb.source_id = s.id AND datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) >= datetime('now', '-24 hours')) AS new_24h_count
+                   FROM jail_booking_sources s WHERE COALESCE(s.is_enabled, 1) = 1 AND s.county_slug = ?''',
+                (county_filter,),
+            ).fetchall()
+            valid_counties = {row['county_slug'] for row in sources}
+        else:
+            county_filter = ''
 
     where = ['1 = 1']
     params = []
@@ -11764,6 +12299,7 @@ def annual_roundup_year(year):
 @app.route('/counties')
 def counties_directory():
     conn = get_db()
+    homepage_sponsors = _homepage_sponsors_context(conn)
     post_stats = {
         row['county']: row
         for row in conn.execute(
@@ -11808,6 +12344,7 @@ def counties_directory():
     return render_template(
         'counties.html',
         counties=counties,
+        homepage_sponsors=homepage_sponsors,
         current_year=datetime.now().year,
     )
 
@@ -12550,6 +13087,30 @@ def county_page(slug):
     if page < total_pages:
         pagination_rels.append({"rel": "next", "href": f"{base_canonical}?page={page + 1}"})
 
+    # Schema.org structured data (GovernmentOrganization + Dataset).
+    jsonld_organization = government_organization_ld(
+        county_name=county['name'],
+        slug=county['slug'],
+        county_data=county,
+    )
+    jsonld_dataset = dataset_ld({
+        'name': f"{county['name']} County Public Records — Montana Blotter",
+        'description': (
+            f"Arrest records, police blotter reports, and incident logs for "
+            f"{county['name']} County, Montana. Updated regularly from official public records."
+        ),
+        'url': base_canonical if page == 1 else f"{base_canonical}?page={page}",
+        'county': county['name'],
+        'record_count': record_count,
+        'last_report': last_report,
+        'keywords': [
+            f"{county['name']} County arrests",
+            f"{county['name']} police blotter",
+            "Montana public records",
+            f"{county['name']} jail bookings",
+        ],
+    })
+
     return render_template(
         'county_page.html',
         county=county,
@@ -12572,6 +13133,8 @@ def county_page(slug):
         current_year=datetime.now().year,
         canonical_url=base_canonical if page == 1 else f"{base_canonical}?page={page}",
         pagination_rels=pagination_rels,
+        jsonld_organization=jsonld_organization,
+        jsonld_dataset=jsonld_dataset,
     )
 
 
@@ -14504,6 +15067,200 @@ def pii_transparency():
     )
 
 
+@app.route('/about')
+def about_page():
+    return render_template(
+        'about.html',
+        active_nav='about',
+        page_title='About Montana Blotter',
+        meta_description='Montana Blotter is an open public-records platform that aggregates police blotters, jail bookings, court records, missing-person alerts, and government transparency data from across Montana.',
+        canonical_url=f'{BASE_URL}/about',
+        og_title='About Montana Blotter',
+        og_description='An open public-records platform for Montana, aggregating blotters, bookings, courts, missing persons, and government transparency data.',
+        current_year=datetime.now().year,
+    )
+
+
+# ---------------------------------------------------------------------------
+# /sources — public coverage page listing every Montana county's jail roster
+# source, sync health, and disclosed gaps. Modeled on /court-sources; this is
+# the public counterpart of the admin sources view so readers see exactly the
+# same state the editors do.
+# ---------------------------------------------------------------------------
+
+# 5-minute in-memory cache for the assembled coverage payload. Keyed by
+# `id(county_data)`-style sentinel so the cache resets on process restart.
+_SOURCES_CACHE_TTL_SECONDS = 300
+_SOURCES_CACHE = {'fetched_at': 0.0, 'payload': None}
+
+
+def _build_sources_payload():
+    """Compute the /sources coverage payload with status per county."""
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    two_days = now - timedelta(days=2)
+    fourteen_days = now - timedelta(days=14)
+
+    conn = get_db()
+    source_rows = conn.execute(
+        '''
+        SELECT id, county_slug, county_name, facility_name, roster_url,
+               coverage_tier, is_enabled, is_featured,
+               last_checked_at, last_success_at, latest_error,
+               created_at, updated_at
+        FROM jail_booking_sources
+        '''
+    ).fetchall()
+    conn.close()
+    sources_by_slug = {row['county_slug']: dict(row) for row in source_rows}
+
+    counties = []
+    for county in COUNTY_DATA.values():
+        src = sources_by_slug.get(county['slug'])
+        last_success = (src or {}).get('last_success_at') or ''
+        last_success_dt = None
+        if last_success:
+            try:
+                last_success_dt = datetime.strptime(last_success[:19], '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                last_success_dt = None
+
+        is_enabled = bool((src or {}).get('is_enabled'))
+        latest_error = (src or {}).get('latest_error') or ''
+
+        if src is None:
+            status = 'none'
+            tone = 'red'
+            label = 'Not contacted'
+            days_since_success = None
+        elif latest_error.strip():
+            status = 'stalled'
+            tone = 'amber'
+            label = 'Stalled'
+            days_since_success = (
+                (now - last_success_dt).days if last_success_dt else None
+            )
+        elif not is_enabled:
+            status = 'paused'
+            tone = 'slate'
+            label = 'Paused'
+            days_since_success = (
+                (now - last_success_dt).days if last_success_dt else None
+            )
+        elif last_success_dt is None:
+            status = 'unknown'
+            tone = 'slate'
+            label = 'Awaiting first sync'
+            days_since_success = None
+        elif last_success_dt >= two_days:
+            status = 'publishing'
+            tone = 'emerald'
+            label = 'Publishing'
+            days_since_success = (now - last_success_dt).days
+        elif last_success_dt >= fourteen_days:
+            status = 'weekly'
+            tone = 'green'
+            label = 'Weekly'
+            days_since_success = (now - last_success_dt).days
+        else:
+            status = 'stale'
+            tone = 'amber'
+            label = 'Stale'
+            days_since_success = (now - last_success_dt).days
+
+        counties.append({
+            'slug': county['slug'],
+            'name': county['name'],
+            'seat': county.get('seat', ''),
+            'source': src,
+            'has_source': src is not None,
+            'status': status,
+            'tone': tone,
+            'label': label,
+            'days_since_success': days_since_success,
+        })
+
+    # Sort: active statuses first (publishing, weekly), then by name.
+    status_order = {
+        'publishing': 0,
+        'weekly': 1,
+        'stalled': 2,
+        'paused': 3,
+        'stale': 4,
+        'unknown': 5,
+        'none': 6,
+    }
+    counties.sort(key=lambda c: (status_order.get(c['status'], 99), c['name']))
+
+    summary = {
+        'total': len(counties),
+        'publishing': sum(1 for c in counties if c['status'] == 'publishing'),
+        'weekly': sum(1 for c in counties if c['status'] == 'weekly'),
+        'stale_30d': sum(
+            1 for c in counties
+            if c['days_since_success'] is not None and c['days_since_success'] > 30
+        ),
+        'not_contacted': sum(1 for c in counties if c['status'] == 'none'),
+    }
+
+    return {
+        'counties': counties,
+        'summary': summary,
+        'computed_at': now.strftime('%Y-%m-%d %H:%M UTC'),
+    }
+
+
+@app.route('/sources')
+def public_sources():
+    import time as _time
+
+    now_ts = _time.time()
+    payload = _SOURCES_CACHE.get('payload')
+    fetched_at = _SOURCES_CACHE.get('fetched_at') or 0.0
+    if payload is None or (now_ts - fetched_at) > _SOURCES_CACHE_TTL_SECONDS:
+        payload = _build_sources_payload()
+        _SOURCES_CACHE['payload'] = payload
+        _SOURCES_CACHE['fetched_at'] = now_ts
+
+    return render_template(
+        'public_sources.html',
+        counties=payload['counties'],
+        summary=payload['summary'],
+        computed_at=payload['computed_at'],
+        page_title='Jail Roster Sources by County | Montana Blotter',
+        meta_description=(
+            'The complete list of Montana county jail roster sources used by '
+            'Montana Blotter, with sync recency and disclosed gaps. Every '
+            'county shows whether its roster is currently being published, '
+            'stalled, or not yet onboarded.'
+        ),
+        canonical_url=f'{BASE_URL}/sources',
+        og_title='Sources by County — Montana Blotter',
+        og_description=(
+            'Transparency page listing every Montana jail roster source, '
+            'when it last synced, and which counties are still awaiting '
+            'outreach.'
+        ),
+        active_nav='sources',
+        current_year=datetime.now().year,
+    )
+
+
+@app.route('/careers')
+def careers_page():
+    return render_template(
+        'careers.html',
+        active_nav='careers',
+        page_title='Careers',
+        meta_description='Join the Montana Blotter team. We are building civic technology for Great Falls, Montana and beyond.',
+        canonical_url=f'{BASE_URL}/careers',
+        og_title='Careers — Montana Blotter',
+        og_description='Open positions at Montana Blotter, a civic-tech platform based in Great Falls, Montana.',
+        current_year=datetime.now().year,
+    )
+
+
 _PII_TYPE_DESCRIPTIONS = {
     'ssn': 'Social Security numbers — never published. Triggered: any 9-digit pattern with a valid SSN prefix.',
     'dob': 'Dates of birth labeled as personal (DOB, birthday, born on). Birthdays that appear as event context are kept.',
@@ -14704,6 +15461,14 @@ def blog_post(slug):
 
 
 # ==========================================
+# PUBLIC READ-ONLY API (blotter_api.py)
+# ==========================================
+# NOTE: Disabled while the redesign is consolidated. The /api/records and
+# /api/counties endpoints in blueprints/api.py are the canonical versions.
+# from blotter_api import api as blotter_api
+# app.register_blueprint(blotter_api)
+
+# ==========================================
 # ADMIN BLUEPRINT
 # ==========================================
 from blueprints.admin import register_admin_blueprint
@@ -14711,7 +15476,6 @@ register_admin_blueprint(app)
 register_api_blueprint(app)
 register_auth_blueprint(app)
 register_payments_blueprint(app)
-register_warrant_unlock_blueprint(app)
 register_datacenter_blueprint(app)
 register_code_violations_blueprint(app, get_db=get_db)
 register_license_sanctions_blueprint(app, get_db=get_db)
@@ -14721,11 +15485,18 @@ register_government_spending_blueprint(app, get_db=get_db)
 register_watchdog_blueprint(app)
 app.register_blueprint(recovery_ads_bp)
 app.register_blueprint(attorney_ads_bp)
+app.register_blueprint(lawyer_ads_bp)
 from blueprints.admin_geocode import admin_geocode_bp
 app.register_blueprint(admin_geocode_bp)
 app.register_blueprint(threedhub_bp)
 app.register_blueprint(chat_agent_bp)
+app.register_blueprint(sitemap_bp)
 app.after_request(after_api_request)
+
+
+@app.route("/new")
+def new_frontend():
+    return app.send_static_file("new/index.html")
 
 
 # ==========================================
@@ -15505,7 +16276,7 @@ def disposition_api_checkout():
 
     return jsonify({
         'error': 'payments_not_configured',
-        'message': 'Disposition API billing is not yet active. Email data@montanablotter.com for early access.',
+        'message': 'Disposition API billing is not yet active. Email support@montanablotter.com for early access.',
     }), 503
 
 
@@ -15598,6 +16369,68 @@ def attorneys_directory():
         total_attorneys=len(rows),
         total_counties=len(by_county),
         canonical_url=f'{BASE_URL}/attorneys',
+        active_nav='resources_attorneys',
+    )
+
+
+@app.route('/treatment-centers')
+def treatment_centers_directory():
+    """Public directory of Montana addiction & mental-health resources.
+
+    Editorial, content-only — no checkout, no Stripe, no lead capture. Mirrors
+    /attorneys in shape and visual treatment. Statewide entries (988, MT 211,
+    DPHHS, SAMHSA, IHS) appear in every page load; county-level SAP anchors
+    populate the by_county grouping.
+    """
+    conn = get_db()
+    ensure_treatment_center_schema(conn)
+    rows = conn.execute(
+        '''
+        SELECT id, county, name, organization, phone, email, website,
+               services, intake_url, blurb
+        FROM treatment_centers
+        WHERE is_active = 1
+        ORDER BY
+            CASE WHEN county = 'Statewide' THEN 0 ELSE 1 END,
+            county ASC,
+            sort_order ASC,
+            name ASC
+        '''
+    ).fetchall()
+    conn.close()
+
+    by_county: dict = {}
+    for r in rows:
+        by_county.setdefault(r['county'], []).append(dict(r))
+
+    statewide = by_county.get('Statewide', [])
+    by_county.pop('Statewide', None)
+
+    return render_template(
+        'treatment_centers.html',
+        current_year=datetime.now().year,
+        statewide_entries=statewide,
+        by_county=by_county,
+        total_entries=len(rows),
+        total_counties=len(by_county),
+        canonical_url=f'{BASE_URL}/treatment-centers',
+        active_nav='resources_treatment',
+    )
+
+
+@app.route('/resources')
+def public_resources_index():
+    """Editorial landing page that pairs /attorneys and /treatment-centers.
+
+    Two-column layout: legal resources on the left, treatment/recovery on the
+    right. Short — meant to be the human-readable index that shows a new user
+    why these two directories exist and what they will and won't help with.
+    """
+    return render_template(
+        'resources_index.html',
+        current_year=datetime.now().year,
+        canonical_url=f'{BASE_URL}/resources',
+        active_nav='resources',
     )
 
 
@@ -15686,7 +16519,7 @@ def submit_a_tip():
             from services.publishing.morning_briefing import send_email
             admin_email = (
                 config.ADMIN_ALERT_EMAILS[0] if getattr(config, 'ADMIN_ALERT_EMAILS', None)
-                else (getattr(config, 'EMAIL_USER', '') or 'admin@montanablotter.com')
+                else (getattr(config, 'EMAIL_USER', '') or 'support@montanablotter.com')
             )
             send_email(
                 admin_email,

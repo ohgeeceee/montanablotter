@@ -79,6 +79,7 @@ def register_admin_blueprint(app):
     from blueprints.admin import operations # noqa: F401
     from blueprints.admin import recovery_ads  # noqa: F401
     from blueprints.admin import attorney_ads  # noqa: F401
+    from blueprints.admin import lawyer_ads  # noqa: F401
     from blueprints.admin import security   # noqa: F401
     from blueprints.admin import code_violations  # noqa: F401
     from blueprints.admin import license_sanctions  # noqa: F401
@@ -90,4 +91,7 @@ def register_admin_blueprint(app):
     from blueprints.admin import social_shares   # noqa: F401
     from blueprints.admin import sponsored_digests  # noqa: F401
     from blueprints.admin import case_watch  # noqa: F401
+    from blueprints.admin import outreach  # noqa: F401
+    from blueprints.admin import for_the_record  # noqa: F401
+    from blueprints.admin import civic_requests  # noqa: F401
     app.register_blueprint(admin_bp)

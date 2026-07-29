@@ -1,0 +1,48 @@
+{% extends "public_page_base_v2.html" %}
+
+{% set page_title = "Listing Purchase Confirmed" %}
+{% set canonical_url = "https://montanablotter.com/advertise/lawyers/checkout/success" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/lawyers" style="color: var(--text-body);">Advertise</a>
+<span class="mx-2">/</span>
+<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">Success</span>
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div style="max-width: 42rem; margin: 0 auto; padding: var(--space-12) var(--page-gutter); text-align: center;">
+    <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: #047857; text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0 0 var(--space-4);">
+      Confirmed
+    </p>
+    <div style="font-family: var(--font-serif-display); font-size: 3rem; color: #047857; margin-bottom: var(--space-4); line-height: 1;">&#10003;</div>
+    <h1 style="font-family: var(--font-serif-display); font-size: var(--text-headline-lg); font-weight: var(--weight-display); line-height: var(--leading-display); color: #047857; margin: 0 0 var(--space-3);">
+      Thank you!
+    </h1>
+    {% if order %}
+    <p style="color: var(--text-body); font-size: var(--text-body-md); margin: 0 0 var(--space-3);">
+      Your <strong>{{ order.firm_name }}</strong> {{ order.package_id|upper }} listing
+      is being set up.
+    </p>
+    {% if order.onboarding_token %}
+    <a href="{{ url_for('lawyer_ads.lawyer_control_panel', token=order.onboarding_token) }}" class="mb-button mb-button--primary mb-button--md" style="margin-bottom: var(--space-4);">
+      Open Your Control Panel &rarr;
+    </a>
+    {% endif %}
+    {% else %}
+    <p style="color: var(--text-body); font-size: var(--text-body-md); margin: 0 0 var(--space-3);">
+      Your listing is being set up. If payment completed but this page has not updated yet,
+      refresh in a moment or contact advertising@montanablotter.com.
+    </p>
+    {% endif %}
+    <p style="color: var(--text-body); font-size: var(--text-body-sm); margin: 0 0 var(--space-6);">
+      Stripe is confirming payment. Your listing will appear on
+      <a href="/lawyers" style="color: var(--action-primary); text-decoration: underline;">/lawyers</a> within a few minutes.
+    </p>
+    <a href="/lawyers" class="mb-button mb-button--secondary mb-button--md">
+      View the directory &rarr;
+    </a>
+  </div>
+</main>
+{% endblock %}

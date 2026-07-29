@@ -1,0 +1,97 @@
+{% extends "public_page_base_v2.html" %}
+
+{% set page_title = order.firm_name ~ " — Lawyer Advertising Control Panel" %}
+{% set canonical_url = "" %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex,nofollow,noarchive">
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div style="max-width: 64rem; margin: 0 auto; padding: var(--space-10) var(--page-gutter); display: flex; flex-direction: column; gap: var(--space-6);">
+    <header>
+      <p class="mb-section-header__kicker">Advertiser Control Panel</p>
+      <h1 style="font-family: var(--font-serif-display); font-size: var(--text-headline-lg); color: var(--text-headline); margin: var(--space-2) 0;">{{ order.firm_name }}</h1>
+      <p style="color: var(--text-secondary); margin: 0;">{{ package.name }} · {{ order.status|title }} · {{ order.counties_served }}</p>
+    </header>
+
+    {% if request.args.get('saved') == '1' %}
+    <div class="mb-alert mb-alert--info" role="status"><div class="mb-alert__body">Listing changes saved.</div></div>
+    {% endif %}
+
+    <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3);">
+      {% for label, value in [('Impressions', order.impressions), ('Clicks', order.clicks), ('Calls', order.calls), ('Leads', order.leads)] %}
+      <article class="mb-record-card" style="text-align:center;">
+        <div style="font-family:var(--font-serif-display);font-size:2rem;font-weight:var(--weight-display);">{{ value or 0 }}</div>
+        <div style="font-family:var(--font-mono);font-size:var(--text-caption);text-transform:uppercase;color:var(--text-secondary);">{{ label }}</div>
+      </article>
+      {% endfor %}
+    </section>
+
+    <form method="post" action="{{ url_for('lawyer_ads.lawyer_control_panel_update', token=token) }}" enctype="multipart/form-data" class="mb-record-card" style="display:flex;flex-direction:column;gap:var(--space-4);">
+      <input type="hidden" name="form_token" value="{{ token }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <header class="mb-section-header"><div><p class="mb-section-header__kicker">Listing</p><h2 class="mb-section-header__title">Edit public placement</h2></div></header>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+        <div class="mb-form-field">
+          <label class="mb-form-field__label" for="phone">Public phone</label>
+          <input class="mb-input" id="phone" name="phone" value="{{ order.phone or '' }}" maxlength="40">
+        </div>
+        <div class="mb-form-field">
+          <label class="mb-form-field__label" for="website">Website</label>
+          <input class="mb-input" id="website" name="website" value="{{ order.website or '' }}" maxlength="300">
+        </div>
+      </div>
+
+      {% if package.featured %}
+      <div class="mb-form-field">
+        <label class="mb-form-field__label" for="tagline">Priority-placement tagline</label>
+        <input class="mb-input" id="tagline" name="tagline" value="{{ order.tagline or '' }}" maxlength="120">
+      </div>
+      {% endif %}
+
+      <div class="mb-form-field">
+        <label class="mb-form-field__label" for="description">Firm description</label>
+        <textarea class="mb-input" id="description" name="description" rows="5" maxlength="{{ package.description_limit or 200 }}">{{ order.description or '' }}</textarea>
+        <p style="font-size:var(--text-caption);color:var(--text-secondary);margin:var(--space-1) 0 0;">Maximum {{ package.description_limit or 200 }} characters. Avoid unverifiable comparisons or guaranteed outcomes.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+        <div class="mb-form-field">
+          <label class="mb-form-field__label" for="cta_text">CTA text</label>
+          <input class="mb-input" id="cta_text" name="cta_text" value="{{ order.cta_text or '' }}" maxlength="80" placeholder="Request a consultation">
+        </div>
+        <div class="mb-form-field">
+          <label class="mb-form-field__label" for="target_url">CTA URL</label>
+          <input class="mb-input" id="target_url" name="target_url" value="{{ order.target_url or '' }}" maxlength="500" placeholder="https://">
+        </div>
+      </div>
+
+      {% if package.logo %}
+      <div class="mb-form-field">
+        <label class="mb-form-field__label" for="logo">Firm logo</label>
+        <input class="mb-input" id="logo" name="logo" type="file" accept=".jpg,.jpeg,.png,.webp">
+        {% if order.logo_path %}<p><a href="{{ order.logo_path }}" target="_blank" rel="noopener">View current logo</a></p>{% endif %}
+      </div>
+      {% endif %}
+
+      {% if package.photo %}
+      <div class="mb-form-field">
+        <label class="mb-form-field__label" for="photo">Attorney photo</label>
+        <input class="mb-input" id="photo" name="photo" type="file" accept=".jpg,.jpeg,.png,.webp">
+        {% if order.photo_path %}<p><a href="{{ order.photo_path }}" target="_blank" rel="noopener">View current photo</a></p>{% endif %}
+      </div>
+      {% endif %}
+
+      <button class="mb-button mb-button--primary mb-button--md" type="submit">Save Listing</button>
+    </form>
+
+    <p style="font-size:var(--text-caption);color:var(--text-secondary);">
+      Need billing or placement help? Email <a href="mailto:advertising@montanablotter.com">advertising@montanablotter.com</a>.
+      Do not share this private control-panel link.
+    </p>
+  </div>
+</main>
+{% endblock %}
