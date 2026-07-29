@@ -1,0 +1,123 @@
+{% set admin_path = request.path or '' %}
+
+<aside class="admin-sidebar" id="admin-sidebar">
+  <div class="admin-sidebar__brand">
+    <a href="/admin" class="admin-sidebar__logo">Montana Blotter</a>
+    <div class="admin-sidebar__tagline">Operations Console</div>
+  </div>
+
+  <nav class="admin-sidebar__nav" aria-label="Admin navigation">
+    <div class="admin-sidebar__section">
+      <div class="admin-sidebar__section-title">Overview</div>
+      <a href="/admin" class="admin-sidebar__link {% if admin_path in ('/admin', '/admin/') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-home"></i><span>Command Hub</span>
+      </a>
+      <a href="/admin/dashboard" class="admin-sidebar__link {% if admin_path.startswith('/admin/dashboard') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-chart-line"></i><span>Blotter Ops</span>
+      </a>
+      <a href="/admin/command-center" class="admin-sidebar__link {% if admin_path.startswith('/admin/command-center') or admin_path.startswith('/admin/mission-control') or admin_path.startswith('/admin/agents') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-terminal"></i><span>Command Center</span>
+      </a>
+    </div>
+
+    <div class="admin-sidebar__section">
+      <div class="admin-sidebar__section-title">Data</div>
+      <a href="/admin/ingestion" class="admin-sidebar__link {% if admin_path.startswith('/admin/ingestion') or admin_path.startswith('/admin/upload') or admin_path.startswith('/admin/blotters') or admin_path.startswith('/admin/blotter/') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-file-import"></i><span>Ingestion</span>
+      </a>
+      <a href="/admin/operations/sources" class="admin-sidebar__link {% if admin_path.startswith('/admin/operations/sources') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-database"></i><span>Sources</span>
+      </a>
+      <a href="/admin/operations/redaction" class="admin-sidebar__link {% if admin_path.startswith('/admin/operations/redaction') or admin_path.startswith('/admin/post/') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-shield-alt"></i><span>Review Queue</span>
+      </a>
+      <a href="/admin/operations/courts" class="admin-sidebar__link {% if admin_path.startswith('/admin/operations/courts') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-gavel"></i><span>Courts</span>
+      </a>
+      <a href="/admin/operations/jail-bookings" class="admin-sidebar__link {% if admin_path.startswith('/admin/operations/jail-bookings') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-id-card"></i><span>Jail Bookings</span>
+      </a>
+      <a href="/admin/operations/meetings" class="admin-sidebar__link {% if admin_path.startswith('/admin/operations/meetings') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-landmark"></i><span>Meetings</span>
+      </a>
+      <a href="/admin/civic-requests" class="admin-sidebar__link {% if admin_path.startswith('/admin/civic-requests') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-envelope-open-text"></i><span>Civic Requests</span>
+      </a>
+    </div>
+
+    <div class="admin-sidebar__section">
+      <div class="admin-sidebar__section-title">Publishing</div>
+      <a href="/admin/blog" class="admin-sidebar__link {% if admin_path.startswith('/admin/blog') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-newspaper"></i><span>Blog</span>
+      </a>
+      <a href="/admin/content/seo" class="admin-sidebar__link {% if admin_path.startswith('/admin/content/seo') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-search"></i><span>SEO Console</span>
+      </a>
+      <a href="/admin/facebook" class="admin-sidebar__link {% if admin_path.startswith('/admin/facebook') %}admin-sidebar__link--active{% endif %}">
+        <i class="fab fa-facebook"></i><span>Facebook</span>
+      </a>
+    </div>
+
+    <div class="admin-sidebar__section">
+      <div class="admin-sidebar__section-title">Audience</div>
+      <a href="/admin/audience/subscribers" class="admin-sidebar__link {% if admin_path.startswith('/admin/audience/subscribers') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-users"></i><span>Subscribers</span>
+      </a>
+      <a href="/admin/analytics" class="admin-sidebar__link {% if admin_path.startswith('/admin/analytics') or admin_path.startswith('/admin/visitors') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-chart-pie"></i><span>Analytics</span>
+      </a>
+      <a href="/admin/bail-ads" class="admin-sidebar__link {% if admin_path.startswith('/admin/bail-ads') or admin_path.startswith('/admin/recovery-ads') or admin_path.startswith('/admin/attorney-ads') or admin_path.startswith('/admin/lawyer-ads') or admin_path.startswith('/admin/donations') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-hand-holding-dollar"></i><span>Revenue</span>
+      </a>
+    </div>
+
+    <div class="admin-sidebar__section">
+      <div class="admin-sidebar__section-title">System</div>
+      <a href="/admin/workspace" class="admin-sidebar__link {% if admin_path.startswith('/admin/workspace') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-robot"></i><span>Workspace</span>
+      </a>
+      {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+      <a href="/admin/security/users" class="admin-sidebar__link {% if admin_path.startswith('/admin/security/') or admin_path.startswith('/admin/settings') %}admin-sidebar__link--active{% endif %}">
+        <i class="fas fa-lock"></i><span>Security</span>
+      </a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <div class="admin-sidebar__footer">
+    <a href="/">Public site</a>
+    <a href="/admin/logout">Logout</a>
+  </div>
+</aside>
+<div class="admin-sidebar__overlay" onclick="document.getElementById('admin-sidebar').classList.remove('is-open')"></div>
+
+<header class="admin-header">
+  <div class="admin-header__left">
+    <button type="button" class="admin-masthead__toggle" onclick="document.getElementById('admin-sidebar').classList.toggle('is-open')" aria-label="Toggle admin menu">
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="admin-header__title">Admin</div>
+    <div class="admin-header__search">
+      <i class="fas fa-search"></i>
+      <input type="search" placeholder="Search admin…" aria-label="Search admin">
+    </div>
+  </div>
+
+  <div class="admin-header__right">
+    <div class="admin-header__stat" title="Records">
+      <span>Records</span><span class="admin-header__stat-value" id="admin-stat-records">—</span>
+    </div>
+    <div class="admin-header__stat" title="Queue depth">
+      <span>Queue</span><span class="admin-header__stat-value" id="admin-stat-queue">—</span>
+    </div>
+    <div class="admin-header__stat" title="Alerts">
+      <span>Alerts</span><span class="admin-header__stat-value" id="admin-stat-alerts">—</span>
+    </div>
+    {% if current_user.is_authenticated %}
+    <div class="admin-header__user">
+      <div class="admin-header__user-avatar">{{ (current_user.username or 'A')[:1]|upper }}</div>
+      <div class="admin-header__user-name">{{ current_user.username }}</div>
+    </div>
+    {% endif %}
+  </div>
+</header>

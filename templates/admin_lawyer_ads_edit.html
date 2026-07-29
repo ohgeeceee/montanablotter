@@ -1,0 +1,137 @@
+{% extends "admin_base_v2.html" %}
+{% block title %}Edit Lawyer Ad — Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <h1>Edit Lawyer Ad — {{ order.firm_name }}</h1>
+
+  {% if saved %}
+  <div style="background:#d1fae5;border:1px solid #10b981;border-radius:4px;padding:1rem;margin-bottom:1.5rem;color:#065f46;">
+    Saved.
+  </div>
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+    <div style="grid-column:1 / -1;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Firm name</label>
+      <input type="text" name="firm_name" value="{{ order.firm_name }}" required maxlength="200"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+
+    <div>
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Contact name</label>
+      <input type="text" name="contact_name" value="{{ order.contact_name or '' }}" maxlength="160"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div>
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Email</label>
+      <input type="email" name="email" value="{{ order.email }}" required maxlength="160"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+
+    <div>
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Phone</label>
+      <input type="tel" name="phone" value="{{ order.phone or '' }}" maxlength="40"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div>
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Website</label>
+      <input type="url" name="website" value="{{ order.website or '' }}" maxlength="300"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+
+    <div>
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Montana Bar #</label>
+      <input type="text" name="bar_number" value="{{ order.bar_number or '' }}" maxlength="40"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div>
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Practice areas</label>
+      <input type="text" name="practice_areas" value="{{ order.practice_areas or '' }}" maxlength="600"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+
+    <div style="grid-column:1 / -1;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Counties served (comma-separated)</label>
+      <input type="text" name="counties_served" value="{{ order.counties_served }}" required maxlength="600"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+
+    <div style="grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:.25rem;">Package</label>
+        <select name="package_id" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+          <option value="gold" {% if order.package_id == 'gold' %}selected{% endif %}>Gold ($599/mo)</option>
+          <option value="silver" {% if order.package_id == 'silver' %}selected{% endif %}>Silver ($299/mo)</option>
+          <option value="bronze" {% if order.package_id == 'bronze' %}selected{% endif %}>Bronze ($149/mo)</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:.25rem;">Billing cycle</label>
+        <select name="billing_cycle" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+          <option value="monthly" {% if order.billing_cycle == 'monthly' %}selected{% endif %}>Monthly</option>
+          <option value="annual" {% if order.billing_cycle == 'annual' %}selected{% endif %}>Annual</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:.25rem;">Status</label>
+        <select name="status" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+          <option value="active" {% if order.status == 'active' %}selected{% endif %}>Active</option>
+          <option value="checkout_pending" {% if order.status == 'checkout_pending' %}selected{% endif %}>Pending</option>
+          <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+          <option value="payment_failed" {% if order.status == 'payment_failed' %}selected{% endif %}>Failed</option>
+          <option value="capacity_blocked" {% if order.status == 'capacity_blocked' %}selected{% endif %}>Cap blocked</option>
+        </select>
+      </div>
+    </div>
+
+    <fieldset style="grid-column:1 / -1;border:1px solid #e2e8f0;border-radius:6px;padding:1rem;">
+      <legend style="font-weight:700;padding:0 .5rem;">Listing copy</legend>
+
+      <label style="display:block;font-weight:600;margin:.5rem 0 .25rem;">Tagline (Gold only)</label>
+      <input type="text" name="tagline" value="{{ listing.tagline or '' }}" maxlength="120"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+
+      <label style="display:block;font-weight:600;margin:.75rem 0 .25rem;">Public description</label>
+      <textarea name="description" rows="4" maxlength="1000"
+                style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">{{ listing.description or '' }}</textarea>
+
+      <label style="display:block;font-weight:600;margin:.75rem 0 .25rem;">Headline</label>
+      <input type="text" name="headline" value="{{ listing.headline or '' }}" maxlength="200"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+
+      <label style="display:block;font-weight:600;margin:.75rem 0 .25rem;">Body copy</label>
+      <textarea name="body_copy" rows="3" maxlength="1000"
+                style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">{{ listing.body_copy or '' }}</textarea>
+
+      <label style="display:block;font-weight:600;margin:.75rem 0 .25rem;">CTA text</label>
+      <input type="text" name="cta_text" value="{{ listing.cta_text or '' }}" maxlength="80"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+
+      <label style="display:block;font-weight:600;margin:.75rem 0 .25rem;">CTA URL</label>
+      <input type="url" name="target_url" value="{{ listing.target_url or '' }}" maxlength="500"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+
+      <label style="display:block;font-weight:600;margin:.75rem 0 .25rem;">Logo upload (Silver/Gold)</label>
+      <input type="file" name="logo" accept=".jpg,.jpeg,.png,.webp"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+      {% if listing.logo_path %}<p style="font-size:.8rem;color:#475569;margin:.25rem 0 0;">Current: <a href="{{ listing.logo_path }}" target="_blank" rel="noopener">view logo</a></p>{% endif %}
+
+      <label style="display:block;font-weight:600;margin:.75rem 0 .25rem;">Photo upload (Gold)</label>
+      <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+      {% if listing.photo_path %}<p style="font-size:.8rem;color:#475569;margin:.25rem 0 0;">Current: <a href="{{ listing.photo_path }}" target="_blank" rel="noopener">view photo</a></p>{% endif %}
+    </fieldset>
+
+    <div style="grid-column:1 / -1;display:flex;gap:.75rem;align-items:center;">
+      <button type="submit" style="padding:.75rem 1.5rem;background:#1e40af;color:#fff;border:none;border-radius:4px;font-weight:600;cursor:pointer;">
+        Save Changes
+      </button>
+      <a href="/admin/lawyer-ads" style="color:#64748b;">&larr; Back to list</a>
+      {% if order.status == 'active' %}
+      <span style="margin-left:auto;color:#047857;font-size:.85rem;">Public listing: <a href="/lawyers" style="color:#1e40af;">/lawyers</a></span>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

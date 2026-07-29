@@ -676,6 +676,173 @@ def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
+    """Create lawyer_ad_orders + lawyer_ad_listings + lawyer_consumer_leads tables.
+
+    Mirror of the recovery_ad_* schema. Lawyers are a separate paid directory
+    (lead-gen marketplace) from /attorneys, which stays free opt-in.
+
+    Packages (Bronze / Silver / Gold) determine placement, branding, and lead
+    routing. Stripe subscription webhooks drive status transitions.
+    """
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_ad_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firm_name TEXT NOT NULL,
+            contact_name TEXT,
+            email TEXT NOT NULL,
+            phone TEXT,
+            website TEXT,
+            bar_number TEXT,
+            counties_served TEXT NOT NULL,
+            practice_areas TEXT,
+            package_id TEXT NOT NULL,
+            billing_cycle TEXT NOT NULL DEFAULT 'monthly',
+            amount_cents INTEGER NOT NULL DEFAULT 0,
+            currency TEXT NOT NULL DEFAULT 'usd',
+            provider TEXT NOT NULL DEFAULT 'stripe',
+            provider_session_id TEXT UNIQUE,
+            provider_subscription_id TEXT UNIQUE,
+            provider_customer_id TEXT,
+            status TEXT NOT NULL DEFAULT 'checkout_pending',
+            onboarding_token TEXT UNIQUE,
+            paid_at TEXT,
+            cancelled_at TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_ad_listings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER UNIQUE NOT NULL REFERENCES lawyer_ad_orders(id),
+            firm_name TEXT,
+            tagline TEXT,
+            description TEXT,
+            practice_areas TEXT,
+            counties_served TEXT,
+            logo_path TEXT,
+            photo_path TEXT,
+            headline TEXT,
+            body_copy TEXT,
+            cta_text TEXT,
+            target_url TEXT,
+            impressions INTEGER NOT NULL DEFAULT 0,
+            clicks INTEGER NOT NULL DEFAULT 0,
+            calls INTEGER NOT NULL DEFAULT 0,
+            leads INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_consumer_leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            full_name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            email TEXT,
+            county TEXT NOT NULL,
+            case_type TEXT,
+            notes TEXT,
+            source TEXT NOT NULL DEFAULT 'lawyers_directory',
+            ip_hash TEXT,
+            user_agent TEXT,
+            routed_order_ids TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_consumer_lead_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER REFERENCES lawyer_consumer_leads(id) ON DELETE SET NULL,
+            event_type TEXT NOT NULL,
+            county TEXT,
+            source TEXT,
+            order_id INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_lead_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER NOT NULL REFERENCES lawyer_consumer_leads(id) ON DELETE CASCADE,
+            order_id INTEGER NOT NULL REFERENCES lawyer_ad_orders(id) ON DELETE CASCADE,
+            channel TEXT NOT NULL,
+            destination TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            provider_message_id TEXT,
+            error TEXT,
+            sent_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(lead_id, order_id, channel, destination)
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_listing_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL REFERENCES lawyer_ad_orders(id) ON DELETE CASCADE,
+            listing_id INTEGER REFERENCES lawyer_ad_listings(id) ON DELETE SET NULL,
+            event_type TEXT NOT NULL,
+            ip_hash TEXT,
+            user_agent_hash TEXT,
+            county TEXT,
+            session_hash TEXT,
+            source TEXT,
+            occurred_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    ''')
+    # Drop the older full unique index from before this schema learned about
+    # partial uniqueness. Safe to run on every migration.
+    try:
+        conn.execute('DROP INDEX IF EXISTS idx_lawyer_listing_event_dedupe')
+    except sqlite3.OperationalError:
+        pass
+    # Deduped impressions: at most one per (order, IP, county, day). Partial
+    # index keeps clicks/calls/leads from being blocked by the same uniqueness
+    # rule — those are explicit user actions and must count every time.
+    conn.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_lawyer_listing_event_dedupe
+        ON lawyer_listing_events(order_id, ip_hash, county, date(occurred_at))
+        WHERE event_type = 'impression'
+    ''')
+    for col, definition in [
+        ('consent_at', 'TEXT'),
+        ('consent_ip_hash', 'TEXT'),
+        ('consent_text_version', "TEXT NOT NULL DEFAULT 'lawyer-lead-v1'"),
+    ]:
+        try:
+            conn.execute(f'ALTER TABLE lawyer_consumer_leads ADD COLUMN {col} {definition}')
+        except sqlite3.OperationalError as exc:
+            if 'duplicate column' not in str(exc).lower():
+                raise
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_deliveries_lead ON lawyer_lead_deliveries(lead_id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_deliveries_status ON lawyer_lead_deliveries(status, created_at)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_events_created ON lawyer_consumer_lead_events(created_at)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_events_order ON lawyer_consumer_lead_events(order_id, created_at)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_orders_status ON lawyer_ad_orders(status)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_orders_package ON lawyer_ad_orders(package_id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_listings_active ON lawyer_ad_listings(is_active)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_leads_county ON lawyer_consumer_leads(county, created_at)'
+    )
+    conn.commit()
+
+
 def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
     """2026-06-06: Sponsored-listing tier on attorney_referrals.
 
@@ -749,29 +916,165 @@ def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def ensure_ad_unlock_schema(conn: sqlite3.Connection) -> None:
-    """Create ad_unlock_grants table for ad-watched warrant unlock grants.
+def ensure_treatment_center_schema(conn: sqlite3.Connection) -> None:
+    """Free public treatment-center directory — mirrors attorney_referrals shape.
 
-    Each successful watch inserts a row with expires_at = now() + duration.
-    The paywall check returns True if any unexpired grant exists for the user.
+    Sister table to attorney_referrals; same opt-in ethos, same editorial
+    structure. The recovery_ad_orders/_listings pair (paid product) is
+    intentionally separate; this is the free, hand-curated companion page at
+    /treatment-centers. Both directories are content-only — no checkout, no
+    Stripe, no lead capture.
+
+    Columns follow the attorney_referrals shape so the public template can
+    render both directories with the same card component without a separate
+    template branch. county is a 2-letter or full-county text label (matches
+    existing patterns in attorney_referrals and emailed_agencies).
     """
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS ad_unlock_grants (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            public_user_id INTEGER NOT NULL,
-            granted_at TEXT NOT NULL DEFAULT (datetime('now')),
-            expires_at TEXT NOT NULL,
-            ad_id TEXT,
-            watch_seconds INTEGER NOT NULL,
-            ip_address TEXT,
-            user_agent TEXT,
-            provider TEXT NOT NULL DEFAULT 'youtube',
-            FOREIGN KEY (public_user_id) REFERENCES public_users(id)
-        )
-    ''')
     conn.execute(
-        '''CREATE INDEX IF NOT EXISTS idx_ad_unlock_grants_user_expiry
-           ON ad_unlock_grants(public_user_id, expires_at)'''
+        '''
+        CREATE TABLE IF NOT EXISTS treatment_centers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            county TEXT NOT NULL,
+            name TEXT NOT NULL,
+            organization TEXT,
+            phone TEXT,
+            email TEXT,
+            website TEXT,
+            services TEXT,
+            intake_url TEXT,
+            blurb TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 100,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_tc_county
+        ON treatment_centers(county, is_active, sort_order)
+        '''
+    )
+    conn.commit()
+
+
+def ensure_for_the_record_drafts_schema(conn: sqlite3.Connection) -> None:
+    """Weekly "For the Record" narrative drafts queue.
+
+    Mirrors the Havre Daily News "For the Record" column: a per-agency
+    weekly narrative that glues together jail bookings + incident records
+    into a single publishable article.
+
+    Workers queue rows here; /admin/for-the-record lets the operator
+    review, edit, publish, or skip each one. The cron never publishes
+    unattended — the Publish button is a manual action in the admin panel.
+
+    Publishing a draft moves it to status='published', stamps published_at,
+    and writes a row to for_the_record_published so the public view can
+    serve the same article at /for-the-record/<state>-<date>. The
+    campaign_dedupe_key prevents one worker run from creating duplicate
+    rows for the same agency + week.
+
+    body_md is the raw Markdown body (what the operator sees in the editor);
+    body_html is the rendered HTML written at publish time so we don't
+    re-render on every page load. source_count + booking_count are
+    denormalized so the admin listing can show "X bookings, Y incidents"
+    without joining jail_bookings/records every row.
+    """
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS for_the_record_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            worker_name TEXT NOT NULL,
+            agency_name TEXT NOT NULL,
+            county_slug TEXT NOT NULL,
+            county_name TEXT NOT NULL,
+            title TEXT NOT NULL,
+            week_start TEXT NOT NULL,
+            week_end TEXT NOT NULL,
+            body_md TEXT NOT NULL,
+            body_html TEXT NOT NULL DEFAULT '',
+            booking_count INTEGER NOT NULL DEFAULT 0,
+            source_count INTEGER NOT NULL DEFAULT 0,
+            sources_json TEXT NOT NULL DEFAULT '[]',
+            status TEXT NOT NULL DEFAULT 'pending',
+            campaign_dedupe_key TEXT UNIQUE,
+            review_notes TEXT DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            reviewed_at TEXT,
+            published_at TEXT,
+            skipped_at TEXT,
+            public_slug TEXT
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_ftrd_status
+        ON for_the_record_drafts(status, created_at DESC)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_ftrd_county_week
+        ON for_the_record_drafts(county_slug, week_start DESC)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_ftrd_published
+        ON for_the_record_drafts(status, public_slug)
+        '''
+    )
+    conn.commit()
+
+
+def ensure_outreach_drafts_schema(conn: sqlite3.Connection) -> None:
+    """Weekly outreach drafts queue for the source-discovery cron.
+
+    Workers queue rows here; /admin/outreach lets the operator review, edit,
+    send, or discard each one. The cron never sends unattended — the Send
+    button is a manual action in the admin panel. Sending a draft moves it
+    to status='sent', stamps sent_at, and writes the same agency_name /
+    email_address pair into emailed_agencies so the gap-analysis SQL on the
+    next run does not re-queue it.
+
+    subject + body are kept editable in the admin so the operator can tweak
+    wording before sending. worker_name records which cron generated the
+    draft (currently 'weekly_county_outreach'); campaign_dedupe_key prevents
+    one worker run from creating duplicate rows for the same county.
+    """
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS outreach_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            worker_name TEXT NOT NULL,
+            agency_name TEXT NOT NULL,
+            email_address TEXT NOT NULL,
+            recipient_role TEXT,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            campaign_dedupe_key TEXT UNIQUE,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            reviewed_at TEXT,
+            sent_at TEXT,
+            skipped_at TEXT,
+            notes TEXT
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_od_status
+        ON outreach_drafts(status, created_at DESC)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_od_worker
+        ON outreach_drafts(worker_name, status)
+        '''
     )
     conn.commit()
 
@@ -791,6 +1094,21 @@ def migrate():
         try:
             cursor.execute(f'ALTER TABLE meeting_locations ADD COLUMN {col} {definition}')
             print(f'✅ Added meeting_locations.{col}')
+        except sqlite3.OperationalError:
+            pass
+
+    # Add LLM cost tracking to scheduled_job_runs (created in job_runner.py).
+    # Per-row model + token columns let ops see which cron workers eat the most
+    # budget. Population requires instrumentation via services/llm_instrument.py
+    # call sites — see that module's docstring for the drop-in pattern.
+    for col, definition in [
+        ('model', 'TEXT'),
+        ('input_tokens', 'INTEGER'),
+        ('output_tokens', 'INTEGER'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE scheduled_job_runs ADD COLUMN {col} {definition}')
+            print(f'✅ Added scheduled_job_runs.{col}')
         except sqlite3.OperationalError:
             pass
 
@@ -824,18 +1142,11 @@ def migrate():
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
     ensure_recovery_ad_schema(conn)
+    ensure_lawyer_ad_schema(conn)
     ensure_attorney_ad_schema(conn)
-    ensure_ad_unlock_schema(conn)
-    # Backfill: add `provider` column to ad_unlock_grants on installs that
-    # pre-date multi-provider support (2026-06-04). DEFAULT 'youtube' so
-    # existing rows are attributed to the YouTube path retroactively.
-    try:
-        conn.execute(
-            "ALTER TABLE ad_unlock_grants ADD COLUMN provider TEXT NOT NULL DEFAULT 'youtube'"
-        )
-        print('✅ Added ad_unlock_grants.provider')
-    except sqlite3.OperationalError:
-        pass  # column already exists
+    ensure_treatment_center_schema(conn)
+    ensure_outreach_drafts_schema(conn)
+    ensure_for_the_record_drafts_schema(conn)
     ensure_agent_mission_control_schema(conn)
     ensure_api_auth_schema(conn)
     ensure_code_violation_schema(conn)
@@ -843,6 +1154,7 @@ def migrate():
     ensure_civil_filing_schema(conn)
     ensure_crash_incident_schema(conn)
     ensure_agency_contacts_schema(conn)
+    ensure_civic_records_requests_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -3048,6 +3360,36 @@ def ensure_agency_contacts_schema(conn):
     ''')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_agency_contacts_county ON agency_contacts(county)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_agency_contacts_active ON agency_contacts(is_active, weekly_brief_enabled)')
+    conn.commit()
+
+
+def ensure_civic_records_requests_schema(conn):
+    """End-to-end tracker for public-records requests to county agencies."""
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS civic_records_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            county_slug TEXT NOT NULL,
+            agency_name TEXT,
+            request_type TEXT,
+            subject TEXT NOT NULL,
+            body TEXT,
+            sent_at TEXT,
+            sent_via TEXT,
+            response_due_at TEXT,
+            response_received_at TEXT,
+            response_summary TEXT,
+            response_file_path TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            follow_up_count INTEGER DEFAULT 0,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_civic_records_requests_status ON civic_records_requests(status)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_civic_records_requests_county ON civic_records_requests(county_slug)')
     conn.commit()
 
 
