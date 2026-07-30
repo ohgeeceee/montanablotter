@@ -1,0 +1,37 @@
+{% extends "public_page_base_v2.html" %}
+
+{% set page_title = "Claim Case — " ~ delivery.firm_name %}
+{% set canonical_url = "" %}
+
+{% block extra_head %}
+<meta name="robots" content="noindex,nofollow,noarchive">
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div style="max-width: 40rem; margin: 0 auto; padding: var(--space-10) var(--page-gutter); display: flex; flex-direction: column; gap: var(--space-6);">
+    <header>
+      <p class="mb-section-header__kicker">{{ delivery.firm_name }}</p>
+      <h1 style="font-family: var(--font-serif-display); font-size: var(--text-headline-lg); color: var(--text-headline); margin: var(--space-2) 0;">Claim this case</h1>
+      <p style="color: var(--text-secondary); margin: 0;">{{ delivery.post_title }}</p>
+    </header>
+
+    {% if claimed %}
+    <div class="mb-alert mb-alert--info" role="status">
+      <div class="mb-alert__body">Claimed. We'll email you the moment a court disposition posts for this case, and add a verified "Represented by" badge to the public post once it does.</div>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary);">{{ delivery.post_summary }}</p>
+    <form method="post" class="mb-record-card" style="display:flex;flex-direction:column;gap:var(--space-4);">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-form-field">
+        <label class="mb-form-field__label" for="defendant_name">Defendant name</label>
+        <input class="mb-input" id="defendant_name" name="defendant_name" placeholder="Last, First" required>
+        <p style="font-size: var(--text-caption); color: var(--text-secondary); margin: var(--space-1) 0 0;">Used only to match this case to court records for outcome tracking — not published.</p>
+      </div>
+      <button type="submit" class="mb-btn mb-btn--primary">Claim case</button>
+    </form>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

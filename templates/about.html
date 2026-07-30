@@ -1,0 +1,223 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "About Montana Blotter" %}
+{% set meta_description = "Montana Blotter is an open public-records platform that aggregates police blotters, jail bookings, court records, missing-person alerts, and government transparency data from across Montana." %}
+{% set canonical_url = "https://montanablotter.com/about" %}
+{% set og_title = "About Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}about-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  "name": "About Montana Blotter",
+  "url": "https://montanablotter.com/about",
+  "description": "Montana Blotter is an open public-records platform built in Montana for Montana readers.",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com/"
+  }
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>About</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">About</p>
+                <h1 class="public-title public-title--medium">Montana's public records, in one searchable place.</h1>
+                <p class="public-copy">
+                    Montana Blotter is an open-source, free-to-read project that pulls police blotters, jail rosters, court activity, missing-person alerts, and other public-record data from all 56 Montana counties and publishes it in a consistent, searchable form.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Quick Facts</p>
+                    <h2 class="public-card__title">The short version.</h2>
+                    <p class="public-card__text">
+                        Independent. Open source. Free to read. No paywall. Built and run out of Montana.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Mission</span>
+                    <span class="public-pill">Since 2023</span>
+                </div>
+                <h2 class="public-detail-title">Make Montana's public records actually public.</h2>
+                <p class="public-detail-subtitle">
+                    Most Montana counties publish police blotters and jail rosters as PDFs on a sheriff's website. Montana Blotter collects them, parses them, links them to the right county, and puts them on a single map. Read it for free at the kitchen table, on a phone in a parking lot, or in a newsroom filing a story.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-policy-stack">
+
+                    <section class="public-policy-section" id="about-what">
+                        <h2 class="public-policy-heading">What we publish</h2>
+                        <ul class="public-policy-list">
+                            <li><strong>Daily police blotters</strong> &mdash; incidents, calls for service, and dispatch logs from every cooperating county and city.</li>
+                            <li><strong>Jail rosters and new bookings</strong> &mdash; who's currently in custody and who was booked in the last 24 hours.</li>
+                            <li><strong>Court activity</strong> &mdash; case filings, hearings, and dispositions from Montana's district courts.</li>
+                            <li><strong>Missing persons and warrants</strong> &mdash; public alerts, with subscribe-by-county notifications.</li>
+                            <li><strong>Public meetings</strong> &mdash; city council, county commission, and school board agendas hosted on agendas.montanablotter.com.</li>
+                            <li><strong>Code violations, license sanctions, and sex-offender registry updates</strong> &mdash; the harder-to-find civic records.</li>
+                            <li><strong>Open editorial</strong> &mdash; a daily blog and a public-records blog wire that translates confusing filings into plain English.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="about-how">
+                        <h2 class="public-policy-heading">How it works</h2>
+                        <p class="public-policy-copy">
+                            We pull records three ways: an IMAP pipeline that watches a shared mailbox for blotter PDFs, scheduled scrapers that hit county and city websites on rotation, and integration with the Montana Judicial Branch's public docket. Each record is parsed, normalized, de-duplicated against what we already have, and tagged with the source URL so you can verify it back to the original government page.
+                        </p>
+                        <p class="public-policy-copy">
+                            Coverage is uneven by county &mdash; some publish daily, some publish weekly, some stopped publishing during COVID and never restarted. The <a class="public-policy-inline-link" href="/sources">/sources</a> page shows exactly which counties we read from, when each was last refreshed, and where the gaps are.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="about-principles">
+                        <h2 class="public-policy-heading">What we won't do</h2>
+                        <ul class="public-policy-list">
+                            <li><strong>No paywall.</strong> The public site is free to read. Always has been.</li>
+                            <li><strong>No fabrication.</strong> If a county didn't publish a record, we don't invent one. If a PDF is illegible, we mark it unread rather than guess.</li>
+                            <li><strong>No stripping of provenance.</strong> Every record links back to the original source. If you need to verify, the cite is one click away.</li>
+                            <li><strong>No victim names.</strong> Domestic violence, sexual assault, and juvenile cases are reviewed by the editorial desk and sensitive fields are redacted before publication.</li>
+                            <li><strong>No drop-in replacement for official records.</strong> We're a mirror and a directory, not the county clerk. The county's website is the source of record; we're a faster way to find it.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="about-who">
+                        <h2 class="public-policy-heading">Who runs it</h2>
+                        <p class="public-policy-copy">
+                            Montana Blotter is built and operated by an independent Montana developer and a small crew of editors and engineers. The founder lives in Great Falls and built the first version of the site after watching a county sheriff print a blotter PDF in 4-point type and post it as a scanned image. Open-source code, transparent process, plain-language records.
+                        </p>
+                        <p class="public-policy-copy">
+                            The site is supported by reader donations, paid local directories (lawyers, bail bonds, recovery centers), and a small handful of civic-tech sponsorships. Editorial decisions are independent of sponsors.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="about-tech">
+                        <h2 class="public-policy-heading">Under the hood</h2>
+                        <p class="public-policy-copy">
+                            Python + Flask, SQLite, and a small fleet of scheduled workers. The mobile app is React Native on Expo. The full source is available on the project's GitHub repository, and patches from outside contributors are welcome. Detailed architecture, source coverage, and operating procedures are documented in the repository's <code>docs/</code> directory.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="about-standards">
+                        <h2 class="public-policy-heading">Standards, corrections, and accountability</h2>
+                        <p class="public-policy-copy">
+                            We publish a <a class="public-policy-inline-link" href="/standards">Sourcing Standards</a> page that explains how we gather, verify, and label data. If a record is wrong, outdated, or missing something, the <a class="public-policy-inline-link" href="/corrections">Corrections Policy</a> tells you exactly how to report it and what we'll do. The <a class="public-policy-inline-link" href="/privacy">Privacy Policy</a> covers how we handle visitors and subscribers.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section" id="about-help">
+                        <h2 class="public-policy-heading">How to help</h2>
+                        <ul class="public-policy-list">
+                            <li><strong>Report a gap.</strong> If your county's not listed or hasn't been refreshed in a while, email us and we'll chase the source.</li>
+                            <li><strong>Tip a story.</strong> If you've found a public record that should be on the site, send the URL. We don't accept anonymous submissions for criminal allegations &mdash; only documented public records.</li>
+                            <li><strong>Fund the work.</strong> Donations keep the servers running and fund the editor time. Civic-tech sponsorships are listed on the <a class="public-policy-inline-link" href="/transparency">/transparency</a> page.</li>
+                            <li><strong>Fix things.</strong> The codebase is open. Parser improvements, accessibility fixes, and new county integrations are all welcome pull requests.</li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section" id="about-contact">
+                        <h2 class="public-policy-heading">Contact</h2>
+                        <p class="public-policy-copy">
+                            Montana Blotter<br>
+                            Great Falls, Montana<br>
+                            Records, corrections, and source updates: <a class="public-policy-inline-link" href="mailto:records@montanablotter.com?subject=Montana%20Blotter">records@montanablotter.com</a>
+                        </p>
+                    </section>
+
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">On This Page</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="#about-what" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">01</div>
+                        <div class="public-rail-link__title">What we publish</div>
+                    </a>
+                    <a href="#about-how" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">02</div>
+                        <div class="public-rail-link__title">How it works</div>
+                    </a>
+                    <a href="#about-principles" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">03</div>
+                        <div class="public-rail-link__title">What we won't do</div>
+                    </a>
+                    <a href="#about-who" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">04</div>
+                        <div class="public-rail-link__title">Who runs it</div>
+                    </a>
+                    <a href="#about-tech" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">05</div>
+                        <div class="public-rail-link__title">Under the hood</div>
+                    </a>
+                    <a href="#about-standards" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">06</div>
+                        <div class="public-rail-link__title">Standards &amp; corrections</div>
+                    </a>
+                    <a href="#about-help" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">07</div>
+                        <div class="public-rail-link__title">How to help</div>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Related Pages</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="/standards" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Policy</div>
+                        <div class="public-rail-link__title">Sourcing Standards</div>
+                        <div class="public-rail-link__copy">How we gather, verify, and label data.</div>
+                    </a>
+                    <a href="/corrections" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Policy</div>
+                        <div class="public-rail-link__title">Corrections Policy</div>
+                        <div class="public-rail-link__copy">How to report a factual fix.</div>
+                    </a>
+                    <a href="/privacy" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Legal</div>
+                        <div class="public-rail-link__title">Privacy Policy</div>
+                        <div class="public-rail-link__copy">How site and subscriber data is handled.</div>
+                    </a>
+                    <a href="/transparency" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Disclosure</div>
+                        <div class="public-rail-link__title">Transparency</div>
+                        <div class="public-rail-link__copy">Funding, sponsors, and editorial independence.</div>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}
