@@ -1,0 +1,143 @@
+{# =========================================================================
+   admin/_macros.html — Component primitives for admin templates
+   Import with: {% from 'admin/_macros.html' import stat, card, status_pill, ... %}
+   ========================================================================= #}
+
+{# ── stat ──────────────────────────────────────────────────────────────
+   Renders a single stat tile. Use on dashboards.
+   Usage: {{ stat('Total Records', total_records, accent='amber') }}
+   Accents: default | amber | red | green | blue
+#}
+{% macro stat(label, value, accent='default') %}
+  <div class="adm-stat">
+    <p class="adm-stat__label">{{ label }}</p>
+    <p class="adm-stat__value {% if accent == 'amber' %}adm-stat__value--warn{% elif accent == 'red' %}adm-stat__value--danger{% elif accent == 'green' %}adm-stat__value--ok{% endif %}">{{ value }}</p>
+  </div>
+{% endmacro %}
+
+{# ── card ──────────────────────────────────────────────────────────────
+   Block-style card with optional title, body, and footer.
+   Usage:
+     {% call card('Recent Records') %}
+       <p>Body content</p>
+     {% endcall %}
+#}
+{% macro card(title, accent='default') %}
+  <section class="adm-card">
+    {% if title %}
+    <div style="padding:0.9rem 1.2rem; border-bottom:1px solid var(--adm-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
+      <h2 class="adm-section-title">{{ title }}</h2>
+      {% if caller %}{{ caller('header') }}{% endif %}
+    </div>
+    {% endif %}
+    <div style="padding:1.1rem 1.2rem;">
+      {{ caller() }}
+    </div>
+  </section>
+{% endmacro %}
+
+{# ── status_pill ───────────────────────────────────────────────────────
+   Tiny status badge. Use in tables and list rows.
+   Usage: {{ status_pill('active', 'green') }}
+   Variants: green | red | amber | blue | purple | muted
+#}
+{% macro status_pill(status, kind='auto') %}
+  {% if kind == 'auto' %}
+    {% set auto = status|string|lower %}
+    {% if auto in ['active', 'live', 'success', 'paid', 'clean', 'ok', 'completed', 'online', 'connected'] %}
+      {% set kind = 'green' %}
+    {% elif auto in ['failed', 'error', 'rejected', 'declined', 'down', 'dead', 'inactive', 'spam', 'redact'] %}
+      {% set kind = 'red' %}
+    {% elif auto in ['pending', 'queued', 'draft', 'review', 'flagged', 'warn', 'warning', 'stale'] %}
+      {% set kind = 'amber' %}
+    {% elif auto in ['processing', 'running', 'syncing', 'info'] %}
+      {% set kind = 'blue' %}
+    {% elif auto in ['bronze', 'silver', 'gold'] %}
+      {% set kind = 'purple' %}
+    {% else %}
+      {% set kind = 'muted' %}
+    {% endif %}
+  {% endif %}
+  <span class="adm-pill adm-pill--{{ kind }}">{{ status }}</span>
+{% endmacro %}
+
+{# ── btn ───────────────────────────────────────────────────────────────
+   Button or anchor with consistent variant.
+   Usage:
+     {{ btn('Save', href=url_for('admin.save'), variant='primary') }}
+     {{ btn('Delete', type='submit', variant='danger') }}
+   Variants: primary | ghost | danger | success | purple
+#}
+{% macro btn(label, href=None, type='button', variant='primary', icon=None, size='md', extra='') %}
+  {% set _cls = 'adm-btn adm-btn--' ~ variant ~ (' adm-btn--sm' if size == 'sm' else '') %}
+  {% if href %}
+    <a href="{{ href }}" class="{{ _cls }}" {{ extra|safe }}>{% if icon %}<i class="{{ icon }}"></i>{% endif %}{{ label }}</a>
+  {% else %}
+    <button type="{{ type }}" class="{{ _cls }}" {{ extra|safe }}>{% if icon %}<i class="{{ icon }}"></i>{% endif %}{{ label }}</button>
+  {% endif %}
+{% endmacro %}
+
+{# ── form_field ────────────────────────────────────────────────────────
+   Single labeled form input with optional help text.
+   Usage: {{ form_field('email', 'Email', type='email', value=user.email, help='Visible on profile') }}
+#}
+{% macro form_field(name, label, type='text', value='', help=None, required=False, placeholder='') %}
+  <div class="adm-form-row">
+    <label class="adm-label-form" for="adm-{{ name }}">{{ label }}{% if required %} <span class="adm-text-amber">*</span>{% endif %}</label>
+    <input
+      id="adm-{{ name }}"
+      name="{{ name }}"
+      type="{{ type }}"
+      class="adm-input"
+      value="{{ value }}"
+      {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+      {% if required %}required{% endif %}
+    >
+    {% if help %}<p class="adm-help">{{ help }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{# ── form_select ─────────────────────────────────────────────────────── #}
+{% macro form_select(name, label, options, value='', required=False, help=None) %}
+  <div class="adm-form-row">
+    <label class="adm-label-form" for="adm-{{ name }}">{{ label }}{% if required %} <span class="adm-text-amber">*</span>{% endif %}</label>
+    <select id="adm-{{ name }}" name="{{ name }}" class="adm-select" {% if required %}required{% endif %}>
+      {% for opt in options %}
+        {% if opt is mapping %}
+          <option value="{{ opt.value }}" {% if opt.value == value %}selected{% endif %}>{{ opt.label }}</option>
+        {% else %}
+          <option value="{{ opt }}" {% if opt == value %}selected{% endif %}>{{ opt }}</option>
+        {% endif %}
+      {% endfor %}
+    </select>
+    {% if help %}<p class="adm-help">{{ help }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{# ── form_textarea ───────────────────────────────────────────────────── #}
+{% macro form_textarea(name, label, value='', rows=4, required=False, help=None, placeholder='') %}
+  <div class="adm-form-row">
+    <label class="adm-label-form" for="adm-{{ name }}">{{ label }}{% if required %} <span class="adm-text-amber">*</span>{% endif %}</label>
+    <textarea
+      id="adm-{{ name }}"
+      name="{{ name }}"
+      class="adm-textarea"
+      rows="{{ rows }}"
+      {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+      {% if required %}required{% endif %}
+    >{{ value }}</textarea>
+    {% if help %}<p class="adm-help">{{ help }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{# ── shortcut_card ─────────────────────────────────────────────────────
+   Big clickable card for nav dashboards. Replaces hand-rolled .adm-cmd links.
+   Usage: {{ shortcut_card('Blotter Ops', 'Ingestion, courts, meetings', href='/admin/dashboard', accent='amber', icon='fa-gauge') }}
+#}
+{% macro shortcut_card(title, desc, href='#', accent='amber', icon=None) %}
+  <a href="{{ href }}" class="adm-cmd adm-cmd--{{ accent }}">
+    {% if icon %}<p class="adm-cmd__cat"><i class="{{ icon }}"></i></p>{% endif %}
+    <p class="adm-cmd__title">{{ title }}</p>
+    <p class="adm-cmd__desc">{{ desc }}</p>
+  </a>
+{% endmacro %}

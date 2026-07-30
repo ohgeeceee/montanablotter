@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from flask import jsonify, render_template
+from flask import jsonify, redirect, render_template, url_for
 from flask_login import login_required
 
 from services.agents.mission_control import build_snapshot, recent_events
@@ -253,7 +253,8 @@ def _build_feed() -> dict:
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_hub():
-    return render_template('admin_hub.html')
+    """Backwards-compat redirect — /admin/hub was merged into /admin/dashboard."""
+    return redirect(url_for('admin.admin_dashboard'), code=301)
 
 
 @admin_bp.route('/command-center')

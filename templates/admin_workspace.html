@@ -1,10 +1,11 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Hermes Workspace | Montana Blotter{% endblock %}
 
-{% block body_class %}bg-gray-50 text-gray-900 font-sans{% endblock %}
+{% block body_class %}admin-shell bg-gray-50 text-gray-900 font-sans{% endblock %}
 
 {% block extra_head %}
+{{ super() }}
 <style>
   .hw-panel {
     background: #141210;

@@ -1,4 +1,4 @@
-{% extends "admin_base_v2.html" %}
+{% extends "admin_base.html" %}
 {% block title %}Lawyer Ads — Admin{% endblock %}
 
 {% block content %}
@@ -94,9 +94,12 @@
           <span style="font-size:.78rem;color:#64748b;">{{ order.email }}</span>
         </td>
         <td style="padding:.55rem .75rem;font-size:.8rem;">
-          {% for c in order.counties_served.split(',') if c.strip() %}
-            {% if not loop.first %}, {% endif %}{{ c.strip() }}{% if loop.index >= 3 %} +{{ order.counties_served.split(',')|length - 3 }}{% break %}{% endif %}
-          {% endfor %}
+          {%- set _counties = order.counties_served.split(',') | selectattr('strip') | map('strip') | list -%}
+          {%- for c in _counties[:3] -%}
+            {%- if not loop.first %}, {% endif -%}
+            {{ c -}}
+          {%- endfor -%}
+          {%- if _counties | length > 3 %} +{{ _counties | length - 3 }}{% endif -%}
         </td>
         <td style="padding:.55rem .75rem;">
           <span style="display:inline-block;padding:.15rem .55rem;border-radius:999px;font-size:.7rem;font-weight:700;color:#fff;
