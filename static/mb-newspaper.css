@@ -1,0 +1,1305 @@
+/* =========================================================================
+   mb-newspaper.css — "floating newspaper artwork" treatment
+   Layered on top of public-redesign.css. Default ON, kill-switch via
+   ?newspaper=0 (handled by parent class .mb-newspaper-off on <body>).
+
+   Re-introduced 2026-07-29 after the base template that previously owned
+   this stylesheet (public_page_base_v2.html) and the stylesheet itself
+   were both deleted. Reuses broadsheet recipe from the flask-public-page-
+   redesign skill (references/broadsheet-typography-recipe.md).
+
+   Naming: every class prefix is `mb-np-` to avoid collision with the
+   chrome's `mb-*` body classes (.mb-main, .mb-lead-report, etc.) and the
+   chrome's `public-*` chrome classes.
+   ========================================================================= */
+
+/* ---- Defaults that only apply when newspaper treatment is ON ---- */
+body.mb-newspaper-body {
+  margin: 0;
+  min-height: 100vh;
+  color: #1a140a;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #14110b;
+  background-image:
+    radial-gradient(1100px 700px at 12% -10%, rgba(255, 220, 170, 0.08), transparent 60%),
+    radial-gradient(900px 600px at 88% 110%, rgba(255, 220, 170, 0.05), transparent 60%),
+    repeating-linear-gradient(0deg,
+      rgba(255, 245, 220, 0.018) 0px, rgba(255, 245, 220, 0.018) 1px,
+      transparent 1px, transparent 3px),
+    repeating-linear-gradient(90deg,
+      rgba(255, 245, 220, 0.012) 0px, rgba(255, 245, 220, 0.012) 1px,
+      transparent 1px, transparent 3px);
+  padding: clamp(28px, 5vw, 64px) clamp(8px, 2vw, 32px) clamp(48px, 8vw, 96px);
+}
+
+/* Hide legacy chrome when newspaper treatment is on */
+body.mb-newspaper-body #official-banner,
+body.mb-newspaper-body .public-official-banner,
+body.mb-newspaper-body .public-breadcrumb-bar,
+body.mb-newspaper-body .public-topband,
+body.mb-newspaper-body .public-shell-note,
+body.mb-newspaper-body .public-nav,
+body.mb-newspaper-body .public-secondary-nav,
+body.mb-newspaper-body .public-mobile-toggle,
+body.mb-newspaper-body .public-mobile-menu,
+body.mb-newspaper-body .public-footer {
+  display: none !important;
+}
+
+/* Kill-switch: when ?newspaper=0, the legacy chrome is visible again
+   AND the broadsheet wrapper renders nothing. Handled in HTML by gating
+   the broadsheet <div> on `request.args.get('newspaper') != '0'`. */
+body.mb-newspaper-off #mb-np-stage,
+body.mb-newspaper-off .mb-newspaper-stage { display: none !important; }
+
+/* ---- Stage: the wrapper that visually hovers the paper above the desk ---- */
+.mb-newspaper-stage {
+  position: relative;
+  max-width: 1380px;
+  margin: 0 auto;
+  isolation: isolate; /* keeps paper above substrate pseudo-elements */
+}
+
+/* Two thin sheets peeking out behind the broadsheet (stack-of-papers hint) */
+.mb-newspaper-stage::before,
+.mb-newspaper-stage::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 14px;
+  bottom: 8px;
+  background: #efe7d4;
+  border-radius: 4px;
+  box-shadow:
+    0 18px 40px -18px rgba(0, 0, 0, 0.45),
+    0 2px 0 rgba(20, 14, 4, 0.06) inset;
+  z-index: -1;
+  transform: rotate(-0.6deg);
+}
+.mb-newspaper-stage::after {
+  left: 36px;
+  right: 36px;
+  top: 8px;
+  bottom: 14px;
+  transform: rotate(0.4deg);
+  background: #e7deca;
+}
+
+/* ---- Stack: holds a fixed max-width for the paper itself ---- */
+.mb-newspaper-stack {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+/* ---- Paper: the broadsheet ---- */
+article.mb-newspaper {
+  background:
+    repeating-linear-gradient(0deg,
+      rgba(40, 28, 12, 0.02) 0px, rgba(40, 28, 12, 0.02) 1px,
+      transparent 1px, transparent 2px),
+    radial-gradient(ellipse at top, #fbf8f0 0%, #f5efe1 70%, #ece4d0 100%);
+  border: 1px solid rgba(20, 14, 4, 0.18);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    0 18px 48px -12px rgba(0, 0, 0, 0.45),
+    0 40px 80px -24px rgba(0, 0, 0, 0.55);
+  padding: clamp(16px, 2.5vw, 32px) clamp(20px, 3vw, 44px) clamp(28px, 4vw, 56px);
+  font-family: "Newsreader", "Playfair Display", Georgia, "Times New Roman", serif;
+  font-variation-settings: "opsz" 18;
+  color: #1a140a;
+  position: relative;
+}
+
+/* very-low-opacity aged-edge band at top and bottom of paper (3px each side) */
+.mb-newspaper::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: repeating-linear-gradient(90deg,
+    rgba(40, 28, 12, 0.04) 0px, rgba(40, 28, 12, 0.04) 1px,
+    transparent 1px, transparent 6px);
+  pointer-events: none;
+}
+.mb-newspaper::after {
+  content: "";
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: repeating-linear-gradient(90deg,
+    rgba(40, 28, 12, 0.04) 0px, rgba(40, 28, 12, 0.04) 1px,
+    transparent 1px, transparent 6px);
+  pointer-events: none;
+}
+
+/* ---- Edition strip (top of masthead) ---- */
+.mb-np-edition {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #4b3f24;
+  padding: 4px 0 10px;
+  border-bottom: 1px solid rgba(20, 14, 4, 0.35);
+}
+.mb-np-edition__date { text-align: left; }
+.mb-np-edition__vol {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: #1a140a;
+}
+.mb-np-edition__price {
+  text-align: right;
+  letter-spacing: 0.18em;
+}
+
+/* ---- Masthead (logo strip with emblem + title + tag) ---- */
+.mb-np-masthead {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: clamp(16px, 3vw, 36px);
+  align-items: center;
+  padding: 22px 0 14px;
+  border-top: 4px double rgba(20, 14, 4, 0.85);
+  border-bottom: 4px double rgba(20, 14, 4, 0.85);
+}
+.mb-np-masthead__emblem {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+}
+.mb-np-masthead__title {
+  font-family: "Playfair Display", "Newsreader", Georgia, serif;
+  font-weight: 900;
+  font-variation-settings: "opsz" 144;
+  font-size: clamp(38px, 7vw, 88px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: #0f0c07;
+  text-align: center;
+  margin: 0;
+}
+.mb-np-masthead__tag {
+  font-family: "Newsreader", Georgia, serif;
+  font-style: italic;
+  font-variation-settings: "opsz" 24;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #4b3f24;
+  text-align: center;
+  margin-top: 6px;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.mb-np-masthead__est {
+  text-align: right;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #4b3f24;
+  padding-right: 4px;
+  line-height: 1.4;
+}
+
+/* Ink stamp: "FILED · DAILY EDITION" rotated box in the corner.
+   rotation capped ≤4° per skill guidance — bigger reads as a banner across
+   the headline. */
+.mb-np-stamp {
+  position: absolute;
+  top: 86px;
+  right: -22px;
+  background: rgba(150, 38, 31, 0.92);
+  color: #fff7e8;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 6px 10px 5px;
+  border: 1px solid rgba(150, 38, 31, 1);
+  transform: rotate(-3deg);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+  z-index: 3;
+  white-space: nowrap;
+}
+.mb-np-stamp span {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 0.24em;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+/* ---- Secondary nav: top-of-paper row of section links ---- */
+.mb-np-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0;
+  padding: 10px 0;
+  border-bottom: 2px solid rgba(20, 14, 4, 0.85);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.mb-np-nav a {
+  display: inline-block;
+  padding: 4px 16px;
+  color: #0f0c07;
+  text-decoration: none;
+  border-right: 1px solid rgba(20, 14, 4, 0.25);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.mb-np-nav a:first-child { border-left: 1px solid rgba(20, 14, 4, 0.25); }
+.mb-np-nav a:hover,
+.mb-np-nav a:focus-visible {
+  color: #96261f;
+  background: rgba(150, 38, 31, 0.08);
+}
+@media (max-width: 720px) {
+  .mb-np-nav { font-size: 10px; gap: 0; }
+  .mb-np-nav a { padding: 4px 10px; }
+}
+
+/* ---- Dateline strip (small-caps row of stats under nav) ---- */
+.mb-np-dateline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0;
+  padding: 6px 0 8px;
+  margin: 0 0 14px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #4b3f24;
+  border-bottom: 1px solid rgba(20, 14, 4, 0.3);
+}
+.mb-np-dateline__item {
+  padding: 4px 14px;
+  border-right: 1px solid rgba(20, 14, 4, 0.25);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex: 0 1 auto;
+}
+.mb-np-dateline__item:last-child { border-right: 0; }
+.mb-np-dateline__label { color: #4b3f24; }
+.mb-np-dateline__value { color: #0f0c07; font-weight: 800; }
+
+@media (max-width: 900px) {
+  .mb-np-dateline__item { border-right: 0; padding: 4px 10px; font-size: 9px; }
+}
+
+/* ---- OTBAR (Off The Bar / On The Beat bar): red strip with rolling stat ---- */
+.mb-np-otbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, #96261f, #7c1d18);
+  color: #fff7e8;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 8px 18px;
+  margin: 0 0 18px;
+  border-top: 1px solid rgba(0, 0, 0, 0.35);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.35);
+}
+.mb-np-otbar__pulse {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  flex: none;
+  animation: mb-np-pulse 1.4s infinite ease-in-out;
+}
+@keyframes mb-np-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.mb-np-otbar__label { color: #ffd9b3; }
+.mb-np-otbar__text { color: #fff; }
+.mb-np-otbar strong { color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .mb-np-otbar__pulse { animation: none; opacity: 1; }
+}
+
+/* ---- Breadcrumb (compact, on brand) ---- */
+.mb-np-breadcrumb {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #4b3f24;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(20, 14, 4, 0.2);
+  margin: 0 0 10px;
+}
+.mb-np-breadcrumb a {
+  color: #96261f;
+  text-decoration: none;
+}
+.mb-np-breadcrumb a:hover { text-decoration: underline; }
+.mb-np-breadcrumb__sep { padding: 0 6px; color: rgba(20, 14, 4, 0.4); }
+
+/* ---- Flash messages inside the broadsheet ---- */
+.mb-np-flash {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 2px;
+  border: 1px solid;
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-variation-settings: normal;
+}
+.mb-np-flash--error   { color: #96261f; background: rgba(150, 38, 31, 0.08); border-color: rgba(150, 38, 31, 0.4); }
+.mb-np-flash--warning { color: #7a4f0f; background: rgba(173, 122, 45, 0.1); border-color: rgba(173, 122, 45, 0.4); }
+.mb-np-flash--success { color: #2f7f56; background: rgba(47, 127, 86, 0.08); border-color: rgba(47, 127, 86, 0.4); }
+
+/* ---- Editorial wrappers ---- */
+.mb-np-body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: clamp(20px, 3vw, 36px);
+  margin: 14px 0 0;
+}
+.mb-np-body__main { min-width: 0; }
+.mb-np-body__rail { min-width: 0; }
+@media (max-width: 980px) {
+  .mb-np-body { grid-template-columns: 1fr; }
+}
+
+/* Column hairline rules running the full height of .mb-np-body__main */
+.mb-np-body__main {
+  background-image:
+    linear-gradient(90deg,
+      transparent calc(33.333% - 1px),
+      rgba(20, 14, 4, 0.18) calc(33.333% - 1px),
+      rgba(20, 14, 4, 0.18) calc(33.333%),
+      transparent calc(33.333%)),
+    linear-gradient(90deg,
+      transparent calc(66.666% - 1px),
+      rgba(20, 14, 4, 0.18) calc(66.666% - 1px),
+      rgba(20, 14, 4, 0.18) calc(66.666%),
+      transparent calc(66.666%));
+  background-repeat: no-repeat;
+  background-position: 0 0, 0 0;
+}
+@media (max-width: 900px) { .mb-np-body__main { background-image: none; } }
+
+/* Vertical hairline between main column and rail */
+.mb-np-body__rail {
+  border-left: 1px solid rgba(20, 14, 4, 0.25);
+  padding-left: clamp(16px, 2vw, 28px);
+}
+@media (max-width: 980px) {
+  .mb-np-body__rail { border-left: 0; padding-left: 0; }
+}
+
+/* Lead story within main column */
+.mb-np-lead {
+  padding: 6px 0 18px;
+  border-bottom: 2px solid rgba(20, 14, 4, 0.85);
+  margin-bottom: 18px;
+}
+.mb-np-lead__kicker {
+  display: inline-block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #96261f;
+  padding-bottom: 3px;
+  border-bottom: 2px solid #96261f;
+  margin-bottom: 6px;
+}
+.mb-np-lead__headline {
+  font-family: "Newsreader", "Playfair Display", Georgia, serif;
+  font-variation-settings: "opsz" 96, "wght" 700;
+  font-size: clamp(28px, 3.6vw, 44px);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  color: #0f0c07;
+  margin: 0 0 8px;
+}
+.mb-np-lead__deck {
+  font-family: "Newsreader", Georgia, serif;
+  font-style: italic;
+  font-variation-settings: "opsz" 24;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #4b3f24;
+  margin: 0 0 14px;
+  max-width: 70ch;
+}
+.mb-np-lead__summary {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 18;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #2a2418;
+  margin: 0 0 12px;
+  max-width: 70ch;
+}
+.mb-np-lead__summary > p:first-of-type::first-letter {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 144, "wght" 700;
+  font-size: 4.4em;
+  line-height: 0.86;
+  float: left;
+  padding: 4px 10px 0 0;
+  margin: 4px 4px -4px 0;
+  color: #96261f;
+}
+.mb-np-lead__byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #5b5141;
+  margin: 6px 0 0;
+}
+
+/* Section header: kicker + serif title + optional right-aligned link */
+.mb-np-section {
+  margin: 28px 0 14px;
+  padding-bottom: 4px;
+  border-bottom: 3px solid rgba(20, 14, 4, 0.85);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.mb-np-section:first-child { margin-top: 8px; }
+.mb-np-section__main { min-width: 0; }
+.mb-np-section__kicker {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #96261f;
+  padding-bottom: 3px;
+  border-bottom: 2px solid #96261f;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+.mb-np-section__title {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 72, "wght" 800;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.05;
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: #0f0c07;
+}
+.mb-np-section__action {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #96261f;
+  text-decoration: none;
+  border-bottom: 2px solid #96261f;
+  padding-bottom: 2px;
+  white-space: nowrap;
+}
+.mb-np-section__action:hover { color: #0f0c07; border-bottom-color: #0f0c07; }
+
+/* Blotter list — like the recipe: dotted rule between rows */
+.mb-np-blotter { margin: 0; padding: 0; }
+.mb-np-blotter__row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px dotted rgba(20, 14, 4, 0.35);
+  align-items: baseline;
+}
+.mb-np-blotter__time {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: #5b5141;
+  letter-spacing: 0.05em;
+}
+.mb-np-blotter__text {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 18;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #1a140a;
+  min-width: 0;
+}
+.mb-np-blotter__county {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #96261f;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .mb-np-blotter__row { grid-template-columns: 56px 1fr; }
+  .mb-np-blotter__county { grid-column: 1 / -1; padding-left: 70px; }
+}
+
+/* Readmore link — accent color with bottom underline */
+.mb-np-readmore {
+  display: inline-block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #96261f;
+  text-decoration: none;
+  border-bottom: 2px solid #96261f;
+  padding-bottom: 2px;
+}
+.mb-np-readmore:hover { color: #0f0c07; border-bottom-color: #0f0c07; }
+
+/* Reading time stamp */
+.mb-np-readtime {
+  display: inline-block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5b5141;
+  padding-left: 8px;
+  margin-left: 8px;
+  border-left: 1px solid rgba(20, 14, 4, 0.3);
+}
+.mb-np-readtime::before { content: "→ "; color: #96261f; }
+
+/* Section break ("fold") between stories */
+.mb-np-fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 28px 0 14px;
+  text-align: center;
+}
+.mb-np-fold::before, .mb-np-fold::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: #15110a;
+}
+.mb-np-fold__label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #1d1a14;
+  padding: 0 6px;
+}
+
+/* Ornament glyph between fold sections */
+.mb-np-ornament {
+  text-align: center;
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 14px;
+  letter-spacing: 0.6em;
+  color: #5b5141;
+  margin: 6px 0;
+  padding-left: 0.6em;
+}
+
+/* -- The mb-* chrome classes repaint inside the broadsheet -- */
+/* We have to override chrome colors because they were tuned for the dark
+   substrate of public-redesign.css; the broadsheet is paper-coloured and
+   expects warm dark ink, not the navy/steel of the chrome. */
+
+article.mb-newspaper .mb-alert {
+  background:
+    linear-gradient(180deg, rgba(195, 66, 63, 0.08), transparent),
+    #fbf8f0;
+  border: 1px solid rgba(195, 66, 63, 0.4);
+  color: #1a140a;
+}
+article.mb-newspaper .mb-alert__title { color: #96261f; }
+article.mb-newspaper .mb-alert__body  { color: #4b3f24; font-family: "Inter", system-ui, sans-serif; font-size: 13px; line-height: 1.45; }
+article.mb-newspaper .mb-alert__dismiss { color: #4b3f24; }
+article.mb-newspaper .mb-alert__dismiss:hover { color: #96261f; }
+
+article.mb-newspaper .mb-lead-report {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid rgba(20, 14, 4, 0.85);
+  border-bottom: 1px solid rgba(20, 14, 4, 0.85);
+  border-radius: 0;
+  padding: 14px 0 12px;
+  box-shadow: none;
+}
+article.mb-newspaper .mb-lead-report::before { display: none; }
+article.mb-newspaper .mb-lead-report__kicker { color: #96261f; }
+article.mb-newspaper .mb-lead-report__headline {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 96, "wght" 800;
+  font-size: clamp(28px, 3.4vw, 42px);
+  color: #0f0c07;
+}
+article.mb-newspaper .mb-lead-report__summary {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 18;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #2a2418;
+}
+article.mb-newspaper .mb-lead-report__meta { color: #5b5141; }
+
+article.mb-newspaper .mb-blotter-list {
+  border-top: 1px solid rgba(20, 14, 4, 0.5);
+  margin-top: 0;
+}
+article.mb-newspaper .mb-blotter-item {
+  border-bottom: 1px dotted rgba(20, 14, 4, 0.45);
+  padding: 8px 0;
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 18;
+}
+article.mb-newspaper .mb-blotter-item__county { color: #96261f; }
+article.mb-newspaper .mb-blotter-item__text { font-family: "Newsreader", Georgia, serif; }
+article.mb-newspaper .mb-blotter-item__time { color: #5b5141; }
+
+article.mb-newspaper .mb-section-header {
+  border-bottom: 3px solid rgba(20, 14, 4, 0.85);
+  padding-bottom: 4px;
+  margin-top: 22px;
+}
+article.mb-newspaper .mb-section-header__kicker { color: #96261f; }
+article.mb-newspaper .mb-section-header__title {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 72, "wght" 800;
+  color: #0f0c07;
+}
+article.mb-newspaper .mb-section-header__action { color: #96261f; }
+article.mb-newspaper .mb-section-header__action:hover { color: #0f0c07; }
+
+article.mb-newspaper .mb-record-card {
+  background: #fbf8f0;
+  border: 1px solid rgba(20, 14, 4, 0.18);
+  border-radius: 0;
+  padding: 12px 14px;
+  box-shadow: 2px 2px 0 rgba(20, 14, 4, 0.08);
+  margin-bottom: 12px;
+}
+article.mb-newspaper .mb-record-card__kicker { color: #96261f; }
+article.mb-newspaper .mb-record-card__headline {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 48, "wght" 800;
+  font-size: 18px;
+  color: #0f0c07;
+}
+article.mb-newspaper .mb-record-card__summary {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #2a2418;
+}
+article.mb-newspaper .mb-record-card__meta { color: #5b5141; }
+a.mb-newspaper .mb-record-card:hover,
+article.mb-newspaper a.mb-record-card:hover {
+  background: #fff;
+  transform: translate(0, 0);
+  box-shadow: 3px 3px 0 rgba(20, 14, 4, 0.12);
+}
+
+article.mb-newspaper .mb-badge {
+  background: rgba(20, 14, 4, 0.06);
+  color: #4b3f24;
+  border-radius: 0;
+  border: 1px solid rgba(20, 14, 4, 0.18);
+}
+article.mb-newspaper .mb-badge--alert { background: rgba(195, 66, 63, 0.12); color: #96261f; border-color: rgba(150, 38, 31, 0.4); }
+article.mb-newspaper .mb-badge--pending { background: rgba(173, 122, 45, 0.14); color: #7a4f0f; border-color: rgba(173, 122, 45, 0.45); }
+
+article.mb-newspaper .mb-button {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border-radius: 0;
+  padding: 8px 14px;
+  background: #0f0c07;
+  color: #fbf8f0;
+  border-color: #0f0c07;
+}
+article.mb-newspaper .mb-button--primary {
+  background: #96261f;
+  color: #fff;
+  border-color: #96261f;
+}
+article.mb-newspaper .mb-button--secondary {
+  background: #0f0c07;
+  color: #fbf8f0;
+  border-color: #0f0c07;
+}
+article.mb-newspaper .mb-button--inverse {
+  background: transparent;
+  color: #fbf8f0;
+  border-color: rgba(251, 248, 240, 0.4);
+}
+article.mb-newspaper .mb-button--inverse:hover {
+  background: #fbf8f0;
+  color: #0f0c07;
+}
+
+article.mb-newspaper .mb-dark-cta {
+  background: #0f0c07;
+  color: #f5efe1;
+  border: 1px solid rgba(251, 248, 240, 0.18);
+  border-radius: 0;
+  padding: 14px 16px;
+}
+article.mb-newspaper .mb-dark-cta__title {
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 48, "wght" 800;
+  font-size: 18px;
+}
+article.mb-newspaper .mb-dark-cta__text { color: rgba(245, 239, 225, 0.78); }
+
+article.mb-newspaper .mb-data-table {
+  background: #fbf8f0;
+  border: 1px solid rgba(20, 14, 4, 0.4);
+  border-radius: 0;
+  font-family: "Newsreader", Georgia, serif;
+  font-variation-settings: "opsz" 18;
+}
+article.mb-newspaper .mb-data-table__head th {
+  background: rgba(20, 14, 4, 0.07);
+  border-bottom: 2px solid rgba(20, 14, 4, 0.7);
+  color: #0f0c07;
+}
+article.mb-newspaper .mb-data-table__cell {
+  border-bottom: 1px solid rgba(20, 14, 4, 0.18);
+  color: #1a140a;
+}
+article.mb-newspaper .mb-data-table__row:hover { background: rgba(20, 14, 4, 0.04); }
+article.mb-newspaper .mb-data-table__cell--mono { color: #5b5141; }
+
+article.mb-newspaper .mb-empty-state {
+  background: rgba(20, 14, 4, 0.04);
+  border: 1px dashed rgba(20, 14, 4, 0.3);
+  border-radius: 0;
+  color: #5b5141;
+  font-family: "Newsreader", Georgia, serif;
+}
+
+article.mb-newspaper .mb-note { color: #5b5141; font-family: "Newsreader", Georgia, serif; font-style: italic; }
+
+/* Crime Wire ticker paper variant */
+article.mb-newspaper .mb-form-field label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #4b3f24;
+}
+article.mb-newspaper .mb-input,
+article.mb-newspaper .mb-select,
+article.mb-newspaper .mb-button {
+  /* base input reset */
+}
+article.mb-newspaper .mb-input,
+article.mb-newspaper .mb-select {
+  background: #fbf8f0;
+  border: 1px solid rgba(20, 14, 4, 0.35);
+  border-radius: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  color: #1a140a;
+  padding: 8px 10px;
+}
+article.mb-newspaper .mb-input:focus,
+article.mb-newspaper .mb-select:focus {
+  outline: none;
+  border-color: #96261f;
+  box-shadow: 3px 3px 0 rgba(150, 38, 31, 0.18);
+}
+
+/* ---- Folio footer (bottom of broadsheet: edition · photographer · page · copyright) ---- */
+.mb-np-folio {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 0;
+  padding: 10px 0 0;
+  border-top: 4px double rgba(20, 14, 4, 0.85);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #4b3f24;
+}
+.mb-np-folio__left  { text-align: left; }
+.mb-np-folio__center { text-align: center; letter-spacing: 0.32em; }
+.mb-np-folio__right { text-align: right; }
+@media (max-width: 720px) {
+  .mb-np-folio { grid-template-columns: 1fr; gap: 4px; text-align: center !important; }
+  .mb-np-folio__left, .mb-np-folio__right { text-align: center !important; }
+}
+
+/* ---- Readability on the broadsheet: tighten & tone generic chrome ---- */
+article.mb-newspaper a {
+  color: inherit;
+}
+article.mb-newspaper h1,
+article.mb-newspaper h2,
+article.mb-newspaper h3 {
+  font-family: "Newsreader", Georgia, serif;
+  color: #0f0c07;
+  letter-spacing: -0.01em;
+}
+
+/* Print -->
+@media print {
+  body.mb-newspaper-body {
+    background: #fff;
+  }
+  .mb-newspaper-stage::before,
+  .mb-newspaper-stage::after { display: none; }
+  article.mb-newspaper { box-shadow: none; }
+}
+
+/* =========================================================================
+   Crime Wire ticker (first-party rotating public-record feed).
+   The homepage template owns the markup; this file owns the paper treatment.
+   ========================================================================= */
+
+.mb-crime-ticker {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0;
+  margin: 0 0 18px;
+  border: 1px solid rgba(20, 14, 4, 0.35);
+  background: #fbf8f0;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #1a140a;
+  overflow: hidden;
+}
+
+.mb-crime-ticker__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  background: linear-gradient(180deg, #96261f, #7c1d18);
+  color: #fff7e8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  align-self: stretch;
+  border-right: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.mb-crime-ticker__pulse {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  border-radius: 50%;
+  flex: none;
+  animation: mb-np-pulse 1.4s infinite ease-in-out;
+}
+
+.mb-crime-ticker__viewport {
+  position: relative;
+  overflow: hidden;
+  padding: 10px 0;
+  /* soft mask at the trailing edge so headlines fade out as they scroll off */
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 60px), transparent 100%);
+          mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 60px), transparent 100%);
+}
+
+.mb-crime-ticker__track {
+  display: flex;
+  width: max-content;
+  padding-left: 6px; /* first item doesn't get clipped by the viewport mask */
+  animation: mb-crime-scroll 55s linear infinite;
+}
+
+.mb-crime-ticker__group {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.mb-crime-ticker__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 22px 0 8px;
+  white-space: nowrap;
+  color: #1a140a;
+  text-decoration: none;
+  border-right: 1px dotted rgba(20, 14, 4, 0.35);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  /* keep the link hit-target the full vertical span of the ticker */
+  padding-block: 2px;
+}
+.mb-crime-ticker__item:hover,
+.mb-crime-ticker__item:focus-visible {
+  color: #96261f;
+  background: rgba(150, 38, 31, 0.06);
+  outline: none;
+}
+
+.mb-crime-ticker__time {
+  color: #5b5141;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+.mb-crime-ticker__headline {
+  color: #0f0c07;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.mb-crime-ticker__meta {
+  color: #5b5141;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.mb-crime-ticker__feed {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  background: rgba(20, 14, 4, 0.06);
+  border-left: 1px solid rgba(20, 14, 4, 0.35);
+  color: #0f0c07;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+.mb-crime-ticker__feed:hover,
+.mb-crime-ticker__feed:focus-visible {
+  background: #0f0c07;
+  color: #fbf8f0;
+}
+
+.mb-crime-ticker__empty {
+  padding: 12px 18px;
+  font-family: "Newsreader", Georgia, serif;
+  font-style: italic;
+  color: #5b5141;
+  text-align: center;
+}
+
+@keyframes mb-crime-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Pause scroll while user is hovering / keyboard-focusing */
+.mb-crime-ticker__viewport:hover .mb-crime-ticker__track,
+.mb-crime-ticker__viewport:focus-within .mb-crime-ticker__track {
+  animation-play-state: paused;
+}
+
+@media (max-width: 720px) {
+    .mb-crime-ticker {
+      grid-template-columns: minmax(108px, auto) minmax(0, 1fr);
+    }
+    .mb-crime-ticker__feed { display: none; }
+    .mb-crime-ticker__item { padding: 0 14px 0 6px; font-size: 11px; }
+    .mb-crime-ticker__meta { display: none; }
+  }
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-crime-ticker__track { animation: none; }
+  .mb-crime-ticker__pulse { animation: none; opacity: 1; }
+  .mb-crime-ticker__viewport {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+            mask-image: none;
+  }
+  .mb-crime-ticker__group[aria-hidden="true"] { display: none; }
+}
+
+/* The ticker is nested in the newspaper article on the live default. */
+article.mb-newspaper .mb-crime-ticker {
+  border-color: rgba(20, 14, 4, 0.35);
+  border-radius: 0;
+  background: #fbf8f0;
+  color: #1a140a;
+}
+article.mb-newspaper .mb-crime-ticker__label {
+  background: linear-gradient(180deg, #96261f, #7c1d18);
+}
+article.mb-newspaper .mb-crime-ticker__item {
+  color: #1a140a;
+  border-right-color: rgba(20, 14, 4, 0.35);
+}
+article.mb-newspaper .mb-crime-ticker__item:hover,
+article.mb-newspaper .mb-crime-ticker__item:focus-visible {
+  color: #96261f;
+  background: rgba(150, 38, 31, 0.06);
+}
+article.mb-newspaper .mb-crime-ticker__time,
+article.mb-newspaper .mb-crime-ticker__meta {
+  color: #5b5141;
+}
+article.mb-newspaper .mb-crime-ticker__headline { color: #0f0c07; }
+article.mb-newspaper .mb-crime-ticker__feed {
+  background: rgba(20, 14, 4, 0.06);
+  border-left-color: rgba(20, 14, 4, 0.35);
+  color: #0f0c07;
+}
+article.mb-newspaper .mb-crime-ticker__feed:hover,
+article.mb-newspaper .mb-crime-ticker__feed:focus-visible {
+  background: #0f0c07;
+  color: #fbf8f0;
+}
+article.mb-newspaper .mb-crime-ticker__empty { color: #5b5141; }
+
+/* ========================================================================
+   Dark-inset variant — for fullscreen data-viz surfaces
+   (crime_map, crime_atlas, crime_data, safety_scorecards, embed_violations)
+   where the page renders a dark widget that must remain readable inside
+   the broadsheet wrapper. Added 2026-07-29 site-wide parity.
+
+   Goal: keep the broadsheet paper-margin frame around the widget, but
+   suppress the cream paper background + heavy padding inside the article
+   so the widget's own dark theme shows through. The body keeps its
+   padded substrate so the cream paper margin frames the dark widget on
+   all four sides. The .mb-newspaper-stack caps at 1320px and is centered,
+   so on wide viewports the dark widget sits as a centered card on the
+   dark substrate with cream paper margins showing around it.
+
+   Note: the dark widget's own flex/100vh layout overrides work because
+   the article's padding:0 lets the widget compute against the body's
+   content box; the body's own clamp(28-64px) padding provides the
+   visual margin.
+   ======================================================================== */
+body.mb-newspaper-body:has(article.mb-newspaper--dark-inset) {
+  /* Keep the body's padded substrate so the widget has cream margin around it */
+  background-color: #14110b;
+  padding: clamp(16px, 2vw, 32px);
+}
+
+.mb-newspaper-stage:has(article.mb-newspaper--dark-inset) {
+  display: block !important;
+}
+
+article.mb-newspaper.mb-newspaper--dark-inset {
+  background: #0b0f19;
+  border: 1px solid rgba(251, 248, 240, 0.18);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    0 18px 48px -12px rgba(0, 0, 0, 0.45);
+  padding: 0;
+  color: #e2e8f0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  overflow: hidden;
+}
+
+article.mb-newspaper.mb-newspaper--dark-inset > * {
+  /* The widgets inside already have their own dark backgrounds; let them through */
+  background: transparent;
+}
+
+/* Force child dark-themed widgets to fill the article */
+article.mb-newspaper.mb-newspaper--dark-inset {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 64px);
+}
+
+article.mb-newspaper.mb-newspaper--dark-inset > #app {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: calc(100vh - 64px);
+}
+
+article.mb-newspaper.mb-newspaper--dark-inset > .container,
+article.mb-newspaper.mb-newspaper--dark-inset > .grid {
+  width: 100%;
+}
+
+/* ---- Account chip / signed-out links in the masthead ---- */
+.mb-np-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  position: relative;
+}
+.mb-np-account--signed-out {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.mb-np-account__link {
+  color: #0f0c07;
+  text-decoration: none;
+  padding: 2px 0;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.mb-np-account__link:hover,
+.mb-np-account__link:focus-visible {
+  color: #96261f;
+  border-bottom-color: #96261f;
+}
+.mb-np-account__link--cta {
+  color: #96261f;
+  font-weight: 800;
+}
+.mb-np-account__sep {
+  color: rgba(20, 14, 4, 0.35);
+}
+.mb-np-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+  background: rgba(20, 14, 4, 0.06);
+  border: 1px solid rgba(20, 14, 4, 0.35);
+  border-radius: 999px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #0f0c07;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.mb-np-user-chip:hover,
+.mb-np-user-chip:focus-visible,
+.mb-np-user-chip[aria-expanded="true"] {
+  background: rgba(20, 14, 4, 0.12);
+  border-color: #0f0c07;
+  outline: none;
+}
+.mb-np-user-chip__avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #96261f;
+  color: #fbf8f0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.mb-np-user-chip__name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mb-np-user-chip__caret {
+  flex: 0 0 auto;
+}
+.mb-np-user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: #fbf8f0;
+  border: 1px solid rgba(20, 14, 4, 0.6);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(15, 12, 7, 0.18);
+  padding: 6px 0;
+  z-index: 60;
+  font-family: "IBM Plex Mono", monospace;
+}
+.mb-np-user-menu[hidden] {
+  display: none;
+}
+.mb-np-user-menu__link {
+  display: block;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #0f0c07;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.mb-np-user-menu__link:hover,
+.mb-np-user-menu__link:focus-visible {
+  background: rgba(20, 14, 4, 0.08);
+  color: #96261f;
+  outline: none;
+}
+.mb-np-user-menu__link--danger:hover,
+.mb-np-user-menu__link--danger:focus-visible {
+  color: #96261f;
+}
+.mb-np-masthead__est-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(20, 14, 4, 0.7);
+}
+@media (max-width: 720px) {
+  .mb-np-user-chip__name { display: none; }
+  .mb-np-user-chip { padding: 3px 8px 3px 3px; }
+  .mb-np-user-chip__avatar { width: 24px; height: 24px; font-size: 13px; }
+  .mb-np-user-menu { right: -8px; min-width: 180px; }
+}

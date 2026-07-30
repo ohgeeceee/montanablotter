@@ -1,0 +1,293 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = page_title or "The Daily Blotter" %}
+{% set meta_description = meta_description or "Public records from law-enforcement agencies statewide, updated hourly." %}
+{% set canonical_url = canonical_url or 'https://montanablotter.com/blotter' %}
+{% set active_nav = active_nav or 'blotter' %}
+
+{% block body_class %}blotter-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "The Daily Blotter",
+  "url": "https://montanablotter.com/blotter",
+  "description": "Public records from law-enforcement agencies statewide, updated hourly."
+}
+</script>
+<style>
+  /* Pin the dark hero's foreground so the broadsheet/newspaper cascade
+     (which redefines --text-inverse to a light value) cannot make the
+     title invisible. */
+  .blotter-hero,
+  .blotter-hero h1 {
+    color: #fffdf8 !important;
+  }
+  .blotter-hero p {
+    color: #e7e2d8 !important;
+  }
+
+  /* Incident type tag colors. */
+  .blotter-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.55rem;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+  .blotter-tag--theft   { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+  .blotter-tag--assault { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+  .blotter-tag--dui,
+  .blotter-tag--traffic { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+  .blotter-tag--dui     { background: #fce7f3; color: #9d174d; border-color: #fbcfe8; }
+  .blotter-tag--drug    { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+  .blotter-tag--warrant { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+  .blotter-tag--missing { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+  .blotter-tag--book    { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+  .blotter-tag--fire    { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+  .blotter-tag--suspicious { background: #f1f5f9; color: #0f172a; border-color: #e2e8f0; }
+  .blotter-tag--disturbance { background: #ffe4e6; color: #9f1239; border-color: #fecdd3; }
+  .blotter-tag--patrol  { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
+  .blotter-tag--other   { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+
+  /* Per-row labels are only visible on mobile (the desktop grid already
+     has its own header row). */
+  .blotter-row-label { display: none; }
+
+  /* Mobile responsive form/grid */
+  @media (max-width: 760px) {
+    .blotter-page .blotter-toolbar {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+    .blotter-page .blotter-toolbar .blotter-toolbar__actions {
+      flex-direction: row !important;
+    }
+    /* Record rows: collapse the 4-col grid to a label/value stack */
+    .blotter-page .blotter-row-grid {
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap: var(--space-2) !important;
+    }
+    .blotter-page .blotter-row-grid .blotter-row-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-secondary);
+      margin: 0 0 0.15rem;
+    }
+    .blotter-page .blotter-row-header {
+      display: none !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">The Daily Blotter</span>
+{% endblock %}
+
+{% block hero %}
+<section class="blotter-hero" style="background: linear-gradient(135deg, #17130f 0%, #332820 100%); color: #fffdf8; padding: var(--space-12) var(--page-gutter); border-bottom: var(--rule-heavy);">
+  <div style="max-width: 80rem; margin: 0 auto;">
+    <span style="display: inline-flex; align-items: center; background: rgba(252, 211, 77, 0.18); color: #fcd34d; font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); padding: var(--space-2) var(--space-4); border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin-bottom: var(--space-5);">
+      Statewide &middot; Updated Hourly
+    </span>
+    <h1 style="font-family: var(--font-serif-display); font-size: clamp(2rem, 4vw, var(--text-display)); font-weight: var(--weight-display); line-height: var(--leading-display); letter-spacing: var(--tracking-display); margin: 0 0 var(--space-4); color: #fffdf8;">
+      The Daily Blotter
+    </h1>
+    <p style="color: #e7e2d8; font-size: var(--text-body-md); line-height: var(--leading-body); max-width: 64ch; margin: 0 0 var(--space-4);">
+      Public records from law-enforcement agencies statewide, updated hourly. Filter by county, search the incident text, or jump straight to a tab.
+    </p>
+    <p style="color: #cbd5e1; font-family: var(--font-mono); font-size: var(--text-caption); margin: 0;">
+      Showing <strong style="color: #fcd34d;">{{ total|default(0) }}</strong> record{{ '' if total == 1 else 's' }}{% if all_total and all_total != total %} (of {{ all_total }} matching all filters){% endif %}{% if county %} in {{ county }} County{% endif %}{% if q %} matching &ldquo;{{ q }}&rdquo;{% endif %}.
+    </p>
+  </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div style="max-width: 80rem; margin: 0 auto; padding: var(--space-8) var(--page-gutter); display: flex; flex-direction: column; gap: var(--space-6);">
+
+    <!-- Tabs: All / Blotter / Bookings / Missing / Warrants -->
+    {% set tab = tab or 'all' %}
+    <nav aria-label="Filter by record type" style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+      {% set _tab_base = '/blotter' %}
+      {% set _tab_qs = '' %}
+      {% if county %}{% set _tab_qs = 'county=' ~ county %}{% endif %}
+      {% if q %}{% set _tab_qs = (_tab_qs ~ '&' if _tab_qs else '') ~ 'q=' ~ q|urlencode %}{% endif %}
+
+      {% for key, label in [
+        ('all', 'All Records'),
+        ('blotter', 'Blotter'),
+        ('bookings', 'Bookings'),
+        ('missing', 'Missing'),
+        ('warrants', 'Warrants'),
+      ] %}
+        {% set _href = _tab_base ~ '?type=' ~ key ~ ('&' ~ _tab_qs if _tab_qs else '') %}
+        <a href="{{ _href }}"
+           style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.95rem; border-radius: var(--radius-full); border: 1px solid {{ 'var(--ink-900, #17130f)' if tab == key else 'var(--ink-200, #e2e8f0)' }}; background: {{ 'var(--ink-900, #17130f)' if tab == key else 'var(--surface-page, #f8fafc)' }}; color: {{ 'var(--text-inverse, #fffdf8)' if tab == key else 'var(--text-body, #1f2937)' }}; font-family: var(--font-mono); font-size: var(--text-caption); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: var(--tracking-kicker); text-decoration: none;">
+          {{ label }}
+        </a>
+      {% endfor %}
+    </nav>
+
+    <!-- Filter form -->
+    <form method="get" action="/blotter" class="blotter-toolbar" style="display: grid; grid-template-columns: 1.4fr 0.9fr auto; gap: var(--space-3); align-items: end; background: var(--surface-page, #f8fafc); border: var(--rule-light); border-radius: var(--radius-md); padding: var(--space-4);">
+      {% if tab and tab != 'all' %}<input type="hidden" name="type" value="{{ tab }}">{% endif %}
+      <div>
+        <label for="q" style="display:block; font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: var(--tracking-kicker); color: var(--text-secondary); margin-bottom: var(--space-1);">Search</label>
+        <input id="q" type="text" name="q" value="{{ q or '' }}" placeholder="Incident, location, CFS number, details"
+               style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.85rem; border: 1px solid var(--ink-200, #e2e8f0); border-radius: var(--radius-sm); background: var(--surface-card, #ffffff); font-family: var(--font-sans, system-ui); font-size: var(--text-body-sm); color: var(--text-headline, #0f172a);">
+      </div>
+      <div>
+        <label for="county" style="display:block; font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: var(--tracking-kicker); color: var(--text-secondary); margin-bottom: var(--space-1);">County</label>
+        <select id="county" name="county" style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.85rem; border: 1px solid var(--ink-200, #e2e8f0); border-radius: var(--radius-sm); background: var(--surface-card, #ffffff); font-family: var(--font-sans, system-ui); font-size: var(--text-body-sm); color: var(--text-headline, #0f172a);">
+          <option value="">All counties</option>
+          {% for c in counties or [] %}
+            <option value="{{ c }}" {% if county == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="blotter-toolbar__actions" style="display: flex; gap: var(--space-2);">
+        <button type="submit" class="mb-button mb-button--primary mb-button--md" style="white-space: nowrap;">Apply</button>
+        <a href="/blotter{% if tab and tab != 'all' %}?type={{ tab }}{% endif %}" class="mb-button mb-button--secondary mb-button--md" style="white-space: nowrap;">Reset</a>
+      </div>
+    </form>
+
+    <!-- Results -->
+    {% if rows %}
+    <article class="mb-record-card" style="overflow: hidden;">
+      <div class="blotter-row-header" style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.4fr) minmax(0, 0.7fr); gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--ink-200, #e2e8f0); background: var(--surface-page, #f8fafc); font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: var(--tracking-kicker); color: var(--text-secondary);">
+        <span>Incident</span>
+        <span>When</span>
+        <span>Location</span>
+        <span>County</span>
+      </div>
+      <div>
+        {% for r in rows %}
+        {% set tag_class = 'blotter-tag--other' %}
+        {% set itype = (r.incident_type or 'OTHER')|lower %}
+        {% if 'assault' in itype %}{% set tag_class = 'blotter-tag--assault' %}
+        {% elif 'theft' in itype or 'shoplift' in itype or 'stolen' in itype %}{% set tag_class = 'blotter-tag--theft' %}
+        {% elif 'dui' in itype or 'impair' in itype %}{% set tag_class = 'blotter-tag--dui' %}
+        {% elif 'drug' in itype or 'narcotic' in itype or 'substance' in itype %}{% set tag_class = 'blotter-tag--drug' %}
+        {% elif 'warrant' in itype %}{% set tag_class = 'blotter-tag--warrant' %}
+        {% elif 'missing' in itype %}{% set tag_class = 'blotter-tag--missing' %}
+        {% elif 'book' in itype %}{% set tag_class = 'blotter-tag--book' %}
+        {% elif 'fire' in itype %}{% set tag_class = 'blotter-tag--fire' %}
+        {% elif 'traffic' in itype %}{% set tag_class = 'blotter-tag--traffic' %}
+        {% elif 'suspicious' in itype %}{% set tag_class = 'blotter-tag--suspicious' %}
+        {% elif 'disturbance' in itype %}{% set tag_class = 'blotter-tag--disturbance' %}
+        {% elif 'patrol' in itype %}{% set tag_class = 'blotter-tag--patrol' %}
+        {% endif %}
+        <article class="blotter-row-grid" style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 1.4fr) minmax(0, 0.7fr); gap: var(--space-3); padding: var(--space-4); border-bottom: 1px solid var(--ink-200, #e2e8f0); align-items: start;">
+          <div class="blotter-row-value">
+            <span class="blotter-tag {{ tag_class }}">{{ r.incident_type or 'Other' }}</span>
+            <h3 style="font-family: var(--font-serif-display); font-size: var(--text-body-md); font-weight: var(--weight-semibold); color: var(--text-headline, #0f172a); margin: var(--space-2) 0 var(--space-1); line-height: var(--leading-snug);">
+              {{ r.incident or 'Untitled incident' }}
+            </h3>
+            {% if r.details %}
+            <p style="font-size: var(--text-caption); color: var(--text-body); margin: 0; line-height: var(--leading-body);">
+              {{ r.details[:240] }}{% if r.details|length > 240 %}&hellip;{% endif %}
+            </p>
+            {% endif %}
+            {% if r.cfs_number %}
+            <p style="font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); margin: var(--space-2) 0 0; text-transform: uppercase; letter-spacing: var(--tracking-kicker);">
+              CFS: {{ r.cfs_number }}
+            </p>
+            {% endif %}
+          </div>
+          <div class="blotter-row-value" style="font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-body); line-height: var(--leading-body);">
+            <span class="blotter-row-label">When</span>
+            <div style="font-weight: var(--weight-bold); color: var(--text-headline, #0f172a);">{{ r.date or '—' }}</div>
+            <div>{{ r.time or '' }}</div>
+          </div>
+          <div class="blotter-row-value" style="font-size: var(--text-caption); color: var(--text-body); line-height: var(--leading-body);">
+            <span class="blotter-row-label">Location</span>
+            {{ r.location or '—' }}{% if r.officer %}
+            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); margin-top: var(--space-1); text-transform: uppercase; letter-spacing: var(--tracking-kicker);">
+              Ofc: {{ r.officer }}
+            </div>
+            {% endif %}
+          </div>
+          <div class="blotter-row-value">
+            <span class="blotter-row-label">County</span>
+            {% if r.county %}
+              <a href="/blotter?county={{ r.county|urlencode }}" style="display: inline-block; padding: 0.2rem 0.6rem; border-radius: var(--radius-full); background: var(--ink-100, #f1f5f9); color: var(--ink-900, #17130f); font-family: var(--font-mono); font-size: 10px; font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: var(--tracking-kicker); text-decoration: none;">
+                {{ r.county }}
+              </a>
+            {% else %}
+              <span style="color: var(--text-secondary); font-size: var(--text-caption);">—</span>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    </article>
+
+    {% if total_pages and total_pages > 1 %}
+    <nav aria-label="Pagination" style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding-top: var(--space-2);">
+      {% set _page_qs = 'type=' ~ (tab or 'all') %}
+      {% if county %}{% set _page_qs = _page_qs ~ '&county=' ~ county|urlencode %}{% endif %}
+      {% if q %}{% set _page_qs = _page_qs ~ '&q=' ~ q|urlencode %}{% endif %}
+      {% if page > 1 %}
+        <a href="/blotter?{{ _page_qs }}&page={{ page - 1 }}" class="mb-button mb-button--secondary mb-button--md">
+          &larr; Newer
+        </a>
+      {% else %}
+        <span></span>
+      {% endif %}
+      <span style="font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker);">
+        Page {{ page }} of {{ total_pages }}
+      </span>
+      {% if page < total_pages %}
+        <a href="/blotter?{{ _page_qs }}&page={{ page + 1 }}" class="mb-button mb-button--secondary mb-button--md">
+          Older &rarr;
+        </a>
+      {% else %}
+        <span></span>
+      {% endif %}
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <article class="mb-record-card" style="text-align: center; padding: var(--space-10);">
+      <h2 style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline, #0f172a); margin: 0 0 var(--space-3);">
+        No records matched those filters.
+      </h2>
+      <p style="color: var(--text-body); font-size: var(--text-body-sm); margin: 0 0 var(--space-4); line-height: var(--leading-body);">
+        Try a broader search, switch to All Records, or pick a different county.
+      </p>
+      <a href="/blotter" class="mb-button mb-button--primary mb-button--md">Show all records</a>
+    </article>
+    {% endif %}
+
+    {% if homepage_sponsors %}
+    <article class="mb-record-card" style="background: var(--surface-page, #f8fafc);">
+      <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0 0 var(--space-3);">
+        Sponsors
+      </p>
+      <div style="display: flex; flex-wrap: wrap; gap: var(--space-3);">
+        {% for sponsor in homepage_sponsors %}
+          <a href="{{ sponsor.href or '/sponsors' }}" style="font-size: var(--text-caption); color: var(--text-link); font-weight: var(--weight-semibold);">{{ sponsor.name or sponsor.label }}</a>
+        {% endfor %}
+      </div>
+    </article>
+    {% endif %}
+
+  </div>
+</main>
+{% endblock %}
