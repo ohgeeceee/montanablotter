@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Analytics | Admin Panel{% endblock %}
 
 {% block extra_head %}
+{{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 

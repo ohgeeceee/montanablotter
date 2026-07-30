@@ -49,35 +49,55 @@ class AdminDashboardTests(unittest.TestCase):
         if os.path.exists(self.db_path):
             os.unlink(self.db_path)
 
-    def _create_admin_user(self) -> int:
+    def _create_admin_user(self, role: str = 'ops') -> int:
         conn = app_module.get_db()
         cursor = conn.execute(
             """
             INSERT INTO users (username, password, email, role, is_active)
             VALUES (?, ?, ?, ?, ?)
             """,
-            ('dashboard-admin', 'not-used-in-tests', 'dashboard@example.com', 'ops', 1),
+            (f'dashboard-{role}', 'not-used-in-tests', f'{role}@example.com', role, 1),
         )
         conn.commit()
         conn.close()
         return int(cursor.lastrowid)
 
-    def _login_admin_session(self, client) -> None:
+    def _login_session(self, client, user_id: int) -> None:
         with client.session_transaction() as session:
-            session['_user_id'] = str(self.admin_user_id)
+            session['_user_id'] = str(user_id)
             session['_fresh'] = True
             session['_csrf_token'] = 'test-csrf-token'
 
-    def test_admin_root_redirects_to_command_center(self) -> None:
+    def _login_admin_session(self, client) -> None:
+        self._login_session(client, self.admin_user_id)
+
+    def test_admin_root_redirects_ops_user_to_dashboard(self) -> None:
+        """Non-super_admin users land on the operations dashboard."""
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        response = client.get('/admin', follow_redirects=True)
-        html = response.get_data(as_text=True)
+        response = client.get('/admin', follow_redirects=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], '/admin/dashboard')
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('Command Center', html)
-        self.assertNotIn('/admin/mission-control', html)
+    def test_admin_root_redirects_super_admin_to_command_center(self) -> None:
+        """super_admin users land on the live-ops command center."""
+        super_admin_id = self._create_admin_user(role='super_admin')
+        client = app_module.app.test_client()
+        self._login_session(client, super_admin_id)
+
+        response = client.get('/admin', follow_redirects=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], '/admin/command-center')
+
+    def test_admin_hub_redirects_to_dashboard(self) -> None:
+        """/admin/hub is a backwards-compat alias for /admin/dashboard."""
+        client = app_module.app.test_client()
+        self._login_admin_session(client)
+
+        response = client.get('/admin/hub', follow_redirects=False)
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.headers['Location'], '/admin/dashboard')
 
     def test_admin_dashboard_renders_operations_summary(self) -> None:
         client = app_module.app.test_client()

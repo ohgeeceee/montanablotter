@@ -54,7 +54,15 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 @admin_bp.route('/', strict_slashes=False)
 @login_required
 def admin_root():
-    return redirect(url_for('admin.admin_hub'))
+    """Role-aware landing.
+
+    - super_admin → command center (live ops, system pulse)
+    - everyone else → operations dashboard (intake, alerts, coverage)
+    """
+    role = getattr(current_user, 'role', '') or ''
+    if role == 'super_admin':
+        return redirect(url_for('admin.admin_command_center'))
+    return redirect(url_for('admin.admin_dashboard'))
 
 
 @admin_bp.route('/dashboard')
