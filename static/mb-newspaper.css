@@ -305,7 +305,11 @@ article.mb-newspaper {
 }
 .mb-np-dateline__item:last-child { border-right: 0; }
 .mb-np-dateline__label { color: #4b3f24; }
-.mb-np-dateline__value { color: #0f0c07; font-weight: 800; }
+.mb-np-dateline__value {
+  color: #96261f;
+  font-weight: 800;
+  text-shadow: 0 0 0.01px currentColor;
+}
 
 @media (max-width: 900px) {
   .mb-np-dateline__item { border-right: 0; padding: 4px 10px; font-size: 9px; }
@@ -890,7 +894,7 @@ article.mb-newspaper h1,
 article.mb-newspaper h2,
 article.mb-newspaper h3 {
   font-family: "Newsreader", Georgia, serif;
-  color: #0f0c07;
+  /* Keep utility/template colors intact (especially dark hero text-white). */
   letter-spacing: -0.01em;
 }
 
