@@ -1,0 +1,210 @@
+{% extends "admin_base.html" %}
+{% block title %}{% if section == 'directory' %}LEA Agency Directory — Admin{% elif section == 'bulk_email' %}LEA Bulk Email — Admin{% else %}LEA Management — Admin{% endif %}{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  {% if section == 'directory' %}
+    {# ── Agency Directory ── #}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h1>LEA Agency Directory</h1>
+      <div>
+        <a href="{{ url_for('.lea_dashboard') }}" class="btn btn-sm" style="padding:.4rem .8rem;background:#e2e8f0;border-radius:4px;text-decoration:none;color:#334155;">← Dashboard</a>
+        <a href="{{ url_for('.lea_bulk_email') }}" class="btn btn-sm" style="padding:.4rem .8rem;background:#1e40af;border-radius:4px;text-decoration:none;color:#fff;">✉ Bulk Email</a>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;margin-bottom:1.5rem;">
+      <div style="background:#f8fafc;border-radius:6px;padding:.6rem 1.2rem;text-align:center;">
+        <div style="font-size:1.4rem;font-weight:700;">{{ counts.total or 0 }}</div>
+        <div style="color:#64748b;font-size:.8rem;">Total</div>
+      </div>
+      <div style="background:#fefce8;border-radius:6px;padding:.6rem 1.2rem;text-align:center;">
+        <div style="font-size:1.4rem;font-weight:700;color:#a16207;">{{ counts.pending or 0 }}</div>
+        <div style="color:#854d0e;font-size:.8rem;">Pending</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:6px;padding:.6rem 1.2rem;text-align:center;">
+        <div style="font-size:1.4rem;font-weight:700;color:#047857;">{{ counts.verified or 0 }}</div>
+        <div style="color:#047857;font-size:.8rem;">Verified</div>
+      </div>
+      <div style="background:#fef2f2;border-radius:6px;padding:.6rem 1.2rem;text-align:center;">
+        <div style="font-size:1.4rem;font-weight:700;color:#dc2626;">{{ counts.rejected or 0 }}</div>
+        <div style="color:#dc2626;font-size:.8rem;">Rejected</div>
+      </div>
+    </div>
+
+    <form method="get" style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+      <input type="text" name="q" value="{{ q or '' }}" placeholder="Search name, county, type, email…" style="flex:1;min-width:200px;padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:4px;">
+      <select name="status" style="padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:4px;">
+        <option value="">All statuses</option>
+        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="verified" {% if status_filter == 'verified' %}selected{% endif %}>Verified</option>
+        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+        <option value="onboarding" {% if status_filter == 'onboarding' %}selected{% endif %}>Onboarding</option>
+      </select>
+      <button type="submit" style="padding:.4rem .8rem;background:#334155;color:#fff;border:none;border-radius:4px;cursor:pointer;">Filter</button>
+      {% if q or status_filter %}
+      <a href="{{ url_for('.lea_agency_directory') }}" style="padding:.4rem .8rem;background:#e2e8f0;border-radius:4px;text-decoration:none;color:#334155;">Clear</a>
+      {% endif %}
+    </form>
+
+    {% if agencies %}
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+        <thead>
+          <tr style="background:#f1f5f9;text-align:left;">
+            <th style="padding:.5rem .75rem;border-bottom:2px solid #e2e8f0;">Name</th>
+            <th style="padding:.5rem .75rem;border-bottom:2px solid #e2e8f0;">County</th>
+            <th style="padding:.5rem .75rem;border-bottom:2px solid #e2e8f0;">Type</th>
+            <th style="padding:.5rem .75rem;border-bottom:2px solid #e2e8f0;">Status</th>
+            <th style="padding:.5rem .75rem;border-bottom:2px solid #e2e8f0;">Users</th>
+            <th style="padding:.5rem .75rem;border-bottom:2px solid #e2e8f0;">Last Activity</th>
+            <th style="padding:.5rem .75rem;border-bottom:2px solid #e2e8f0;">Created</th>
+            <th style="padding:.5rem .75rem;border-bottom:2px solid #e2e8f0;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in agencies %}
+          <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:.5rem .75rem;font-weight:600;">{{ a.org_name }}</td>
+            <td style="padding:.5rem .75rem;">{{ a.county_name }}</td>
+            <td style="padding:.5rem .75rem;text-transform:capitalize;">{{ a.agency_type }}</td>
+            <td style="padding:.5rem .75rem;">
+              <span style="display:inline-block;padding:.15rem .5rem;border-radius:999px;font-size:.8rem;font-weight:500;
+                {% if a.verification_status == 'verified' %}background:#dcfce7;color:#166534;
+                {% elif a.verification_status == 'rejected' %}background:#fef2f2;color:#991b1b;
+                {% elif a.verification_status == 'pending' %}background:#fef9c3;color:#854d0e;
+                {% else %}background:#f1f5f9;color:#475569;
+                {% endif %}">
+                {{ status_label(a.verification_status) }}
+              </span>
+            </td>
+            <td style="padding:.5rem .75rem;text-align:center;">{{ a.user_count or 0 }}</td>
+            <td style="padding:.5rem .75rem;color:#64748b;font-size:.85rem;">{{ ago(a.last_activity) if a.last_activity else '—' }}</td>
+            <td style="padding:.5rem .75rem;color:#64748b;font-size:.85rem;">{{ a.created_at[:10] if a.created_at else '—' }}</td>
+            <td style="padding:.5rem .75rem;">
+              <a href="{{ url_for('.lea_agency_detail', agency_id=a.id) }}" style="color:#2563eb;text-decoration:none;">View</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:#64748b;">No agencies found{% if q or status_filter %} matching your filters{% endif %}.</p>
+    {% endif %}
+
+  {% elif section == 'bulk_email' %}
+    {# ── Bulk Email ── #}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h1>LEA Bulk Email</h1>
+      <a href="{{ url_for('.lea_agency_directory') }}" class="btn btn-sm" style="padding:.4rem .8rem;background:#e2e8f0;border-radius:4px;text-decoration:none;color:#334155;">← Directory</a>
+    </div>
+
+    <form method="post" style="max-width:700px;">
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;font-weight:600;margin-bottom:.3rem;">Subject</label>
+        <input type="text" name="subject" required maxlength="200" style="width:100%;padding:.5rem;border:1px solid #cbd5e1;border-radius:4px;">
+      </div>
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;font-weight:600;margin-bottom:.3rem;">Message Body</label>
+        <textarea name="body" required rows="10" maxlength="5000" style="width:100%;padding:.5rem;border:1px solid #cbd5e1;border-radius:4px;font-family:monospace;"></textarea>
+      </div>
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;font-weight:600;margin-bottom:.3rem;">
+          Target Agencies
+          <span style="font-weight:400;color:#64748b;font-size:.85rem;">(leave blank to send to all)</span>
+        </label>
+        <select name="agency_ids" multiple style="width:100%;min-height:150px;padding:.5rem;border:1px solid #cbd5e1;border-radius:4px;">
+          {% for a in agencies %}
+          <option value="{{ a.id }}">
+            {{ a.org_name }} — {{ a.county_name }} [{{ status_label(a.verification_status) }}] — {{ a.primary_contact_email or 'no email' }}
+          </option>
+          {% endfor %}
+        </select>
+        <p style="color:#64748b;font-size:.8rem;margin-top:.3rem;">Hold Ctrl/Cmd to select multiple. Leave empty for all agencies.</p>
+      </div>
+      <button type="submit" style="padding:.5rem 1.5rem;background:#1e40af;color:#fff;border:none;border-radius:4px;cursor:pointer;">Send Bulk Email</button>
+    </form>
+
+  {% else %}
+    {# ── Dashboard ── #}
+    <h1>LEA Agency Management</h1>
+    <p style="color:#64748b;margin-bottom:1.5rem;">
+      Manage Law Enforcement Agency onboarding, verification, directory, and communications.
+    </p>
+
+    <div style="display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap;">
+      <div style="background:#f8fafc;border-radius:8px;padding:1.2rem 1.8rem;text-align:center;min-width:140px;flex:1;">
+        <div style="font-size:2rem;font-weight:700;color:#0f172a;">{{ stats.total_agencies or 0 }}</div>
+        <div style="color:#64748b;font-size:.9rem;">Total Agencies</div>
+      </div>
+      <div style="background:#fef9c3;border-radius:8px;padding:1.2rem 1.8rem;text-align:center;min-width:140px;flex:1;">
+        <div style="font-size:2rem;font-weight:700;color:#854d0e;">{{ stats.pending_verifications or 0 }}</div>
+        <div style="color:#854d0e;font-size:.9rem;">Pending Verifications</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:8px;padding:1.2rem 1.8rem;text-align:center;min-width:140px;flex:1;">
+        <div style="font-size:2rem;font-weight:700;color:#047857;">{{ stats.verified_agencies or 0 }}</div>
+        <div style="color:#047857;font-size:.9rem;">Verified Agencies</div>
+      </div>
+      <div style="background:#fef2f2;border-radius:8px;padding:1.2rem 1.8rem;text-align:center;min-width:140px;flex:1;">
+        <div style="font-size:2rem;font-weight:700;color:#dc2626;">{{ stats.rejected_agencies or 0 }}</div>
+        <div style="color:#dc2626;font-size:.9rem;">Rejected Agencies</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap;">
+      <div style="background:#eff6ff;border-radius:8px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+        <div style="font-size:1.5rem;font-weight:700;color:#1d4ed8;">{{ active_users or 0 }}</div>
+        <div style="color:#1d4ed8;font-size:.85rem;">Active Users (30d)</div>
+      </div>
+      <div style="background:#f5f3ff;border-radius:8px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
+        <div style="font-size:1.5rem;font-weight:700;color:#7c3aed;">{{ submissions_this_week or 0 }}</div>
+        <div style="color:#7c3aed;font-size:.85rem;">Submissions (7d)</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap;">
+      <a href="{{ url_for('.lea_agency_directory') }}" style="display:inline-block;padding:.6rem 1.2rem;background:#1e40af;color:#fff;text-decoration:none;border-radius:6px;font-weight:500;">📋 Agency Directory</a>
+      <a href="{{ url_for('.lea_bulk_email') }}" style="display:inline-block;padding:.6rem 1.2rem;background:#059669;color:#fff;text-decoration:none;border-radius:6px;font-weight:500;">✉ Bulk Email</a>
+      <a href="{{ url_for('.lea_audit_log_viewer') }}" style="display:inline-block;padding:.6rem 1.2rem;background:#7c3aed;color:#fff;text-decoration:none;border-radius:6px;font-weight:500;">📋 Audit Log</a>
+    </div>
+
+    <h2 style="font-size:1.1rem;margin-bottom:.5rem;">Recently Registered Agencies</h2>
+    {% if recent_agencies %}
+    <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+      <thead>
+        <tr style="background:#f1f5f9;text-align:left;">
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Name</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">County</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Type</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Status</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in recent_agencies %}
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:.4rem .6rem;"><a href="{{ url_for('.lea_agency_detail', agency_id=a.id) }}" style="color:#2563eb;text-decoration:none;">{{ a.org_name }}</a></td>
+          <td style="padding:.4rem .6rem;">{{ a.county_name }}</td>
+          <td style="padding:.4rem .6rem;text-transform:capitalize;">{{ a.agency_type }}</td>
+          <td style="padding:.4rem .6rem;">
+            <span style="display:inline-block;padding:.1rem .4rem;border-radius:999px;font-size:.8rem;
+              {% if a.verification_status == 'verified' %}background:#dcfce7;color:#166534;
+              {% elif a.verification_status == 'rejected' %}background:#fef2f2;color:#991b1b;
+              {% elif a.verification_status == 'pending' %}background:#fef9c3;color:#854d0e;
+              {% else %}background:#f1f5f9;color:#475569;
+              {% endif %}">
+              {{ status_label(a.verification_status) }}
+            </span>
+          </td>
+          <td style="padding:.4rem .6rem;color:#64748b;font-size:.85rem;">{{ a.created_at[:10] if a.created_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">No agencies registered yet.</p>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
