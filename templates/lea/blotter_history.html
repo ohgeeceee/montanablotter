@@ -1,0 +1,86 @@
+{% extends "public_page_base.html" %}
+{% block title %}Blotter History — Montana Blotter{% endblock %}
+{% block content %}
+<div class="lea-history" style="max-width:1000px;margin:0 auto;padding:2rem 1rem;">
+    <div style="margin-bottom:2rem;">
+        <a href="{{ url_for('lea_panel.dashboard', county_slug=county_slug) }}" style="color:#1a5276;text-decoration:none;">&larr; Dashboard</a>
+        <h1 style="margin:0.5rem 0 0 0;">Blotter History</h1>
+        <p style="color:#666;margin:0.25rem 0 0 0;">View and manage all submissions for {{ county_slug | replace('-', ' ') | title }} County</p>
+    </div>
+
+    <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:1.5rem;margin-bottom:1.5rem;">
+        <form method="GET" action="{{ url_for('lea_panel.blotter_history', county_slug=county_slug) }}" style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end;">
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.85rem;">Status</label>
+                <select name="status" style="padding:0.5rem;border:1px solid #ccc;border-radius:4px;">
+                    <option value="">All</option>
+                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Submitted</option>
+                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="published" {% if status_filter == 'published' %}selected{% endif %}>Published</option>
+                    <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.85rem;">From Date</label>
+                <input type="date" name="date_from" value="{{ date_from or '' }}" style="padding:0.5rem;border:1px solid #ccc;border-radius:4px;">
+            </div>
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.85rem;">To Date</label>
+                <input type="date" name="date_to" value="{{ date_to or '' }}" style="padding:0.5rem;border:1px solid #ccc;border-radius:4px;">
+            </div>
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.85rem;">Search</label>
+                <input type="text" name="cad_number" placeholder="CAD #..." value="{{ cad_search or '' }}" style="padding:0.5rem;border:1px solid #ccc;border-radius:4px;">
+            </div>
+            <div>
+                <button type="submit" style="padding:0.5rem 1.5rem;background:#1a5276;color:#fff;border:none;border-radius:4px;cursor:pointer;">Filter</button>
+                <a href="{{ url_for('lea_panel.blotter_history', county_slug=county_slug) }}" style="padding:0.5rem 1rem;color:#666;text-decoration:none;">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:1.5rem;">
+        {% if submissions %}
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                <thead>
+                    <tr style="background:#f8f9fa;">
+                        <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">Date</th>
+                        <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">Time</th>
+                        <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">CAD #</th>
+                        <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">MCA Offense</th>
+                        <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">Location</th>
+                        <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">Status</th>
+                        <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">Submitted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for draft in submissions %}
+                    <tr>
+                        <td style="padding:0.75rem;border-bottom:1px solid #eee;">{{ draft.incident_date }}</td>
+                        <td style="padding:0.75rem;border-bottom:1px solid #eee;">{{ draft.incident_time or '—' }}</td>
+                        <td style="padding:0.75rem;border-bottom:1px solid #eee;">{{ draft.cad_number or '—' }}</td>
+                        <td style="padding:0.75rem;border-bottom:1px solid #eee;">{{ draft.primary_offense_mca or '—' }}</td>
+                        <td style="padding:0.75rem;border-bottom:1px solid #eee;">{{ draft.incident_location_block or '—' }}</td>
+                        <td style="padding:0.75rem;border-bottom:1px solid #eee;">
+                            <span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.8rem;
+                                {% if draft.submission_status == 'published' %}background:#d5f5e3;color:#1e8449;
+                                {% elif draft.submission_status == 'draft' %}background:#fef9e7;color:#b7950b;
+                                {% elif draft.submission_status == 'rejected' %}background:#fadbd8;color:#c0392b;
+                                {% else %}background:#d6eaf8;color:#1a5276;{% endif %}">
+                                {{ draft.submission_status }}
+                            </span>
+                        </td>
+                        <td style="padding:0.75rem;border-bottom:1px solid #eee;font-size:0.8rem;color:#999;">{{ draft.created_at[:10] if draft.created_at else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color:#999;text-align:center;padding:2rem 0;">No submissions match your filters.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

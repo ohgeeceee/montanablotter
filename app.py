@@ -50,6 +50,7 @@ from blueprints.public_salaries import register_public_salaries_blueprint
 from blueprints.government_spending import register_government_spending_blueprint
 from blueprints.watchdog import register_watchdog_blueprint
 from blueprints.api_lea import register_api_lea
+from blueprints.lea_panel import register_lea_panel
 from blueprints.recovery_ads import recovery_ads_bp
 from blueprints.attorney_ads import attorney_ads_bp
 from blueprints.lawyer_ads import lawyer_ads_bp
@@ -15734,6 +15735,7 @@ register_public_salaries_blueprint(app, get_db=get_db)
 register_government_spending_blueprint(app, get_db=get_db)
 register_watchdog_blueprint(app)
 register_api_lea(app)
+register_lea_panel(app)
 app.register_blueprint(recovery_ads_bp)
 app.register_blueprint(attorney_ads_bp)
 app.register_blueprint(lawyer_ads_bp)
