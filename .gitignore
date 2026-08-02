@@ -11,6 +11,7 @@ __pycache__/
 uploads/
 records/
 *.log
+*.log.*
 config.py
 .env
 .env.local

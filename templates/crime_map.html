@@ -38,8 +38,10 @@
   #timeline input[type=range] { flex:1; }
   #timeline .date-label { font-size:12px; color:var(--muted); white-space:nowrap; }
 </style>
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-newspaper.css">{% endif %}
 </head>
-<body>
+<body{% if request.args.get('newspaper') != '0' %} class="mb-newspaper-body"{% endif %}>
+{% if request.args.get('newspaper') != '0' %}<div class="mb-newspaper-stage"><div class="mb-newspaper-stack"><article class="mb-newspaper mb-newspaper--dark-inset">{% endif %}
 <div id="app">
   <aside id="sidebar">
     <h1>🗺️ Crime Map</h1>
@@ -331,5 +333,6 @@
 
   loadIncidents();
 </script>
+{% if request.args.get('newspaper') != '0' %}</article></div></div>{% endif %}
 </body>
 </html>

@@ -136,6 +136,67 @@ def normalize_agency_identity(
     return "", raw_type or "other"
 
 
+def _collapse_repeated_tail(value: str, phrase: str) -> str:
+    """Repair titles corrupted by the old loop bug in normalize_post_title.
+
+    The pre-fix behavior stacked the matched phrase's final word onto the end
+    of the title on every iteration, producing "...Missoula Police Department
+    Department Department Department...". We locate the rightmost legitimate
+    occurrence of `phrase` and trim everything after it, leaving the canonical
+    trailing phrase intact.
+    """
+    if not value or not phrase:
+        return value
+
+    # Locate the rightmost whole-phrase occurrence (case-insensitive).
+    pattern = re.compile(
+        r"(?<![A-Za-z])" + re.escape(phrase) + r"(?![A-Za-z])",
+        re.IGNORECASE,
+    )
+    matches = list(pattern.finditer(value))
+    if not matches:
+        return value
+    last_phrase = matches[-1]
+    prefix = value[: last_phrase.end()]
+    tail = value[last_phrase.end() :]
+    # The tail is the corruption -- any non-empty sequence of `last_word`
+    # tokens, possibly mixed whitespace, after the canonical phrase. Drop it.
+    tokens_after = tail.split()
+    last_word = phrase.rsplit(" ", 1)[-1]
+    tokens_kept = []
+    for tok in tokens_after:
+        if tok.lower() == last_word.lower():
+            continue  # drop duplicates
+        tokens_kept.append(tok)
+    if not tokens_kept:
+        return prefix.rstrip()
+    return (prefix + " " + " ".join(tokens_kept)).strip()
+
+
+def _whole_phrase_match(value: str, phrase: str) -> bool:
+    """True if `phrase` appears as a whole-word phrase in `value`."""
+    if not value or not phrase:
+        return False
+    pattern = re.compile(
+        r"(?<![A-Za-z])" + re.escape(phrase) + r"(?![A-Za-z])",
+        re.IGNORECASE,
+    )
+    return bool(pattern.search(value))
+
+
+def _replace_whole_phrase_once(value: str, phrase: str, replacement: str) -> str:
+    """Replace the first whole-word occurrence of `phrase` in `value` with
+    `replacement`. Returns `value` unchanged if no whole-word match exists.
+    """
+    if not value or not phrase:
+        return value
+    pattern = re.compile(
+        r"(?<![A-Za-z])" + re.escape(phrase) + r"(?![A-Za-z])",
+        re.IGNORECASE,
+    )
+    return pattern.sub(replacement, value, count=1)
+
+
 def normalize_post_title(
     title: Optional[str],
     raw_agency_name: Optional[str],
@@ -149,43 +210,62 @@ def normalize_post_title(
     if not cleaned_title or not normalized_agency_name:
         return cleaned_title
 
-    updated = cleaned_title
+    # Repair titles that were already corrupted by the previous loop bug --
+    # they contain the agency phrase's final word repeated 3+ times at the end.
+    cleaned_title = _collapse_repeated_tail(cleaned_title, normalized_agency_name)
+
     raw_name = _clean_text(raw_agency_name)
     county_name = _title_case_phrase(county or "")
     city_name = _title_case_phrase(city or "")
     title_type = (agency_type or "").strip().lower()
 
-    if raw_name:
-        updated = re.sub(
-            re.escape(raw_name),
-            normalized_agency_name,
-            updated,
-            flags=re.IGNORECASE,
-        )
-
-    replacements = []
+    # If the canonical phrase already appears in the title, we just need to
+    # make sure it appears exactly once. Do single whole-word replacement
+    # against any variant found, applied to the original title (not an
+    # accumulating string) so we cannot grow the suffix on each pass.
+    variants: list[str] = []
+    if raw_name and raw_name.lower() != normalized_agency_name.lower():
+        variants.append(raw_name)
     if county_name:
-        replacements.extend(
+        variants.extend(
             [
                 f"{county_name} Police",
-                f"{county_name} Police Department",
                 f"{county_name} County Police",
                 f"{county_name} County Police Department",
                 f"{county_name} Sheriff's Office",
             ]
         )
-    if city_name and title_type == "police":
-        replacements.append(f"{county_name} County Police")
+        # NB: do NOT include "{county} Police Department" as a variant when
+        # the normalized form is also "{county} Police Department" -- a
+        # shorter prefix would otherwise greedily insert the full phrase on
+        # top of itself. Handled below by the canonical-first check instead.
+        if f"{county_name} Police Department" != normalized_agency_name:
+            variants.append(f"{county_name} Police Department")
+    if county_name and city_name:
+        variants.append(f"{county_name} County Police")
 
-    for source in replacements:
-        if source:
-            updated = re.sub(
-                re.escape(source),
-                normalized_agency_name,
-                updated,
-                flags=re.IGNORECASE,
-            )
+    updated = cleaned_title
 
+    # Step 1: if the canonical phrase is already present, do NOT touch the
+    # title -- this is the regression gate for the original Missoula and Hill
+    # cases where raw == norm and the input was already correct.
+    if _whole_phrase_match(updated, normalized_agency_name):
+        return updated
+
+    # Step 2: find the first variant that appears as a whole phrase and
+    # swap it in for the canonical form. Replace exactly once, against the
+    # ORIGINAL title, so earlier replacements cannot feed later ones.
+    for variant in variants:
+        if not variant:
+            continue
+        candidate = _replace_whole_phrase_once(cleaned_title, variant, normalized_agency_name)
+        if candidate != cleaned_title:
+            updated = candidate
+            break
+
+    # Step 3: fall back to rewriting the standard "Daily ... Activity Report
+    # - X" suffix if no variant matched AND the raw agency differs from the
+    # normalized form (or was junk that needed extracting).
     if updated == cleaned_title and (
         any(marker in raw_name.lower() for marker in _JUNK_MARKERS)
         or raw_name.lower() != normalized_agency_name.lower()

@@ -9,8 +9,10 @@
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         .mb-brand { color: #D4892A; }
     </style>
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-newspaper.css">{% endif %}
 </head>
-<body class="bg-white">
+<body class="bg-white{% if request.args.get('newspaper') != '0' %} mb-newspaper-body{% endif %}">
+{% if request.args.get('newspaper') != '0' %}<div class="mb-newspaper-stage"><div class="mb-newspaper-stack"><article class="mb-newspaper mb-newspaper--dark-inset">{% endif %}
     <div class="max-w-sm mx-auto p-4">
         {% if property %}
         <div class="mb-3">
@@ -52,5 +54,6 @@
             </a>
         </div>
     </div>
+{% if request.args.get('newspaper') != '0' %}</article></div></div>{% endif %}
 </body>
 </html>

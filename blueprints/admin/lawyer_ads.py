@@ -20,9 +20,36 @@ from flask_login import login_required
 from db import get_db
 from blueprints.admin import admin_bp, _log_admin_action
 from init_db import ensure_lawyer_ad_schema
+from blueprints.lawyer_ads import (
+    _PACKAGES,
+    _county_capacity_blocked,
+)
 
 
-_PRICE_CENTS = {'bronze': 14900, 'silver': 29900, 'gold': 59900}
+def _price_cents(package_id: str, billing_cycle: str) -> int:
+    """Source-of-truth price lookup, mirrors the public checkout.
+
+    Manual admin orders used to multiply monthly × 12, which produced
+    $1,788 / $3,588 / $7,188 instead of the published $1,520 / $3,050 /
+    $6,110 annual prices. Always pull from `_PACKAGES` so manual and
+    self-serve invoices match.
+    """
+    pkg = next((p for p in _PACKAGES if p['id'] == package_id), None)
+    if not pkg:
+        return 0
+    if billing_cycle == 'annual':
+        return int(pkg['price_annual_cents'])
+    return int(pkg['price_monthly_cents'])
+
+
+def _capacity_limit(package_id: str) -> int:
+    """Per-county cap for manual entry — keeps admin comps from blowing
+    past the public inventory cap."""
+    return {
+        'gold': 1,
+        'silver': 2,
+        'bronze': 2,
+    }.get(package_id, 0)
 
 
 def _fetch_order(conn, order_id: int):
@@ -84,10 +111,14 @@ def admin_lawyer_ads():
     }
     mrr_cents = 0
     for o in orders:
-        if o['status'] == 'active' and o['billing_cycle'] == 'monthly':
-            mrr_cents += o.get('amount_cents', 0) or _PRICE_CENTS.get(o['package_id'], 0)
-        elif o['status'] == 'active' and o['billing_cycle'] == 'annual':
-            mrr_cents += (o.get('amount_cents', 0) or _PRICE_CENTS.get(o['package_id'], 0)) // 12
+        cycle = (o.get('billing_cycle') or 'monthly').strip().lower()
+        fallback = _price_cents(o['package_id'], cycle) or 0
+        stored = int(o.get('amount_cents') or 0)
+        effective = stored or fallback
+        if o['status'] == 'active' and cycle == 'monthly':
+            mrr_cents += effective
+        elif o['status'] == 'active' and cycle == 'annual':
+            mrr_cents += effective // 12
     stats['mrr_cents'] = mrr_cents
 
     recent_leads_rows = conn.execute(
@@ -168,16 +199,31 @@ def admin_lawyer_ads_new():
             flash('Firm name, email, and counties served are required.', 'error')
             return redirect('/admin/lawyer-ads/new')
 
-        if form['package_id'] not in _PRICE_CENTS:
+        if form['package_id'] not in ('gold', 'silver', 'bronze'):
             form['package_id'] = 'bronze'
         if form['billing_cycle'] not in ('monthly', 'annual'):
             form['billing_cycle'] = 'monthly'
 
-        amount_cents = _PRICE_CENTS[form['package_id']] * (12 if form['billing_cycle'] == 'annual' else 1)
+        amount_cents = _price_cents(form['package_id'], form['billing_cycle'])
         token = secrets.token_urlsafe(24)
 
         conn = get_db()
         ensure_lawyer_ad_schema(conn)
+        # Manual orders must respect the public per-county inventory cap.
+        # Without this check a staff-comp'd 3rd Gold into Yellowstone
+        # would silently break the public cap that protects every other
+        # active advertiser. Operators can still bypass via the edit page
+        # or by raising the cap in `_LAWYER_COUNTY_CAPS`.
+        if _county_capacity_blocked(conn, form['package_id'], form['counties_served']):
+            flash(
+                f"Cannot create {form['package_id']} listing: one or more of "
+                f"the served counties already has {_capacity_limit(form['package_id'])} "
+                f"active {form['package_id']} listing(s). Cancel an existing "
+                f"placement or raise the cap before adding another.",
+                'error',
+            )
+            conn.close()
+            return redirect('/admin/lawyer-ads/new')
         cur = conn.execute(
             '''
             INSERT INTO lawyer_ad_orders (
@@ -254,7 +300,7 @@ def admin_lawyer_ads_edit(order_id):
             'target_url': 500,
         }.items()}
 
-        if form['package_id'] not in _PRICE_CENTS:
+        if form['package_id'] not in ('gold', 'silver', 'bronze'):
             form['package_id'] = 'bronze'
         if form['billing_cycle'] not in ('monthly', 'annual'):
             form['billing_cycle'] = 'monthly'

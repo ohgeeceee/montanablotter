@@ -1,4 +1,4 @@
-{% extends "public_page_base_v2.html" %}
+{% extends "public_page_base.html" %}
 
 {% set page_title = "Montana Blotter — Real-Time Public Record Reporting" %}
 {% set meta_description = "Track recent Montana incident records, browse county and city blotters, view jail rosters, and follow statewide public record trends. Updated daily from official sources." %}
@@ -27,22 +27,6 @@
   "sameAs": ["https://www.facebook.com/montananablotter"]
 }
 </script>
-<style>
-.mb-rss-ticker {
-  width: 100%;
-  min-height: 60px;
-  overflow: hidden;
-  border-top: 1px solid var(--border-default);
-  border-bottom: 1px solid var(--border-default);
-  background-color: var(--surface-page);
-}
-.mb-rss-ticker iframe {
-  display: block;
-  width: 100%;
-  height: 60px;
-  border: 0;
-}
-</style>
 {% endblock %}
 
 {% block content %}
@@ -62,16 +46,35 @@
   </div>
   {% endif %}
 
-  <div class="mb-rss-ticker">
-    <iframe
-      src="https://rss.app/embed/v1/ticker/t9giebudER6tUys4"
-      width="100%"
-      height="60"
-      frameborder="0"
-      loading="lazy"
-      title="Recent headlines"
-    ></iframe>
-  </div>
+  {# Crime Wire ticker — first-party, no third-party iframe. #}
+  <section class="mb-crime-ticker" aria-label="Crime Wire — latest Montana public safety reports">
+    <span class="mb-crime-ticker__label">
+      <span class="mb-crime-ticker__pulse" aria-hidden="true"></span>
+      Crime Wire
+    </span>
+    {% if ticker_records %}
+    <div class="mb-crime-ticker__viewport" tabindex="0" aria-label="Scrolling list of recent reports">
+      <div class="mb-crime-ticker__track">
+        {% for duplicate in (false, true) %}
+        <div class="mb-crime-ticker__group"{% if duplicate %} aria-hidden="true"{% endif %}>
+          {% for record in ticker_records %}
+          <a class="mb-crime-ticker__item"
+             href="{{ '/post/' ~ record.post_id if record.post_id else '/record/' ~ record.id }}"
+             {% if duplicate %}tabindex="-1"{% endif %}>
+            <span class="mb-crime-ticker__time">{{ record.time or '—' }}</span>
+            <span class="mb-crime-ticker__headline">{{ record.incident_label }}{% if record.location %} at {{ record.location }}{% endif %}</span>
+            <span class="mb-crime-ticker__meta">{{ record.county or 'Montana' }}{% if record.agency_name %} · {{ record.agency_name }}{% endif %}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="mb-crime-ticker__empty">No new public safety reports filed yet today.</div>
+    {% endif %}
+    <a class="mb-crime-ticker__feed" href="/feed.xml" type="application/atom+xml" title="Subscribe to the Montana Blotter feed">RSS</a>
+  </section>
 
   <div class="mb-layout-grid mb-layout-grid--2">
     <div>
@@ -164,16 +167,11 @@
         <h2 class="mb-section-header__title">Active Warrants</h2>
         <a href="/wanted" class="mb-section-header__action">See all &rarr;</a>
       </header>
-      {% for record in wanted_spotlight.rows[:2] %}
-      <a href="{{ record.public_href }}" class="mb-record-card" style="text-decoration:none;">
-        <div class="mb-record-card__header">
-          <span class="mb-record-card__kicker">Warrant · {{ record.county }} County</span>
-          <span class="mb-badge mb-badge--alert">Active</span>
-        </div>
-        <h3 class="mb-record-card__headline">{{ record.person_name }}</h3>
-        <p class="mb-record-card__summary">{{ record.charges_text | default('', true) | truncate(120, True, '…') }}</p>
-      </a>
-      {% endfor %}
+      <div class="wanted-spotlight__grid">
+        {% for record in wanted_spotlight.rows[:2] %}
+        {% include "includes/wanted_poster_card.html" %}
+        {% endfor %}
+      </div>
       {% elif not has_warrant_access %}
       <header class="mb-section-header mb-section-header--light" style="margin-top:var(--space-4);">
         <h2 class="mb-section-header__title">Active Warrants</h2>

@@ -80,24 +80,14 @@
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-6xl mx-auto">
-        <span class="inline-block bg-amber-500/20 text-amber-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            {{ pattern.hero_label }}
-        </span>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">{{ title }}</h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            {{ pattern.intro }}
-            {% if county %}
-            This page narrows the archive to {{ county.name }} County so readers can move directly into the underlying records.
-            {% endif %}
-        </p>
-        <div class="mt-5 flex flex-wrap gap-2">
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div><p class="public-eyebrow" style="color: var(--public-amber);">{{ pattern.hero_label }}</p><h1 class="public-title public-title--medium">{{ title }}</h1><p class="public-copy">{{ pattern.intro }}{% if county %} This page narrows the archive to {{ county.name }} County so readers can move directly into the underlying records.{% endif %}</p><div class="public-tag-row">
             {% for item in pattern.search_targets %}
-            <span class="inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/90">
-                {% if county %}{{ county.name }} County {{ item }}{% else %}Montana {{ item }}{% endif %}
-            </span>
+            <span class="public-tag">{% if county %}{{ county.name }} County {{ item }}{% else %}Montana {{ item }}{% endif %}</span>
             {% endfor %}
+        </div></div>
         </div>
     </div>
 </section>

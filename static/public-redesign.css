@@ -2690,3 +2690,657 @@ body.public-app--home #live-bar {
   background: var(--public-red-soft);
   color: var(--public-red);
 }
+
+/* =========================================================================
+   Newspaper body classes (mb-*)
+   Added 2026-07-29: restored missing rules after public_page_base_v2.html
+   was deleted and the homepage/advertise/lawyers templates fell back to
+   the chrome-only base. Keeps the existing design-system tokens.
+   ========================================================================= */
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+  --space-10: 64px;
+  --space-12: 80px;
+  --font-display: "Playfair Display", "Newsreader", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Page main wrapper: paper-tone, padded, max-width */
+.mb-main {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  color: var(--public-text);
+  font-family: var(--font-body);
+  background:
+    radial-gradient(1200px 600px at 50% -100px, rgba(195, 66, 63, 0.05), transparent 70%),
+    transparent;
+}
+
+/* Two-column layout grid: lead + aside rail */
+.mb-layout-grid {
+  display: grid;
+  gap: var(--space-8);
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  align-items: start;
+}
+.mb-layout-grid--2 { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+
+@media (max-width: 980px) {
+  .mb-layout-grid,
+  .mb-layout-grid--2 { grid-template-columns: 1fr; }
+}
+
+/* Section header: kicker + title + optional action link */
+.mb-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid var(--public-border-strong);
+  margin-top: var(--space-4);
+}
+.mb-section-header__kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--public-amber);
+  margin-bottom: var(--space-1);
+}
+.mb-section-header__title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.05;
+  color: var(--public-text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.mb-section-header__action {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--public-steel);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.mb-section-header__action:hover { color: var(--public-amber); }
+
+.mb-section-header--light {
+  border-bottom: 1px solid var(--public-border);
+}
+.mb-section-header--light .mb-section-header__title {
+  font-size: 20px;
+}
+
+/* Lead report: kicker + big headline + summary + meta */
+.mb-lead-report {
+  background: var(--public-panel-strong);
+  border: 1px solid var(--public-border);
+  border-radius: var(--public-radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--public-shadow);
+  position: relative;
+}
+.mb-lead-report::before {
+  content: "";
+  position: absolute;
+  top: 0; left: var(--space-6); right: var(--space-6);
+  height: 3px;
+  background: linear-gradient(90deg, var(--public-red), var(--public-amber));
+  border-radius: 0 0 2px 2px;
+}
+.mb-lead-report__kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--public-red);
+  margin-bottom: var(--space-2);
+}
+.mb-lead-report__headline {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(28px, 3.4vw, 44px);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  color: var(--public-text);
+  margin: 0 0 var(--space-3);
+}
+.mb-lead-report__summary {
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--public-ink-soft, var(--public-muted));
+  margin: 0 0 var(--space-4);
+  max-width: 70ch;
+}
+.mb-lead-report__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--public-dim);
+  text-transform: uppercase;
+}
+
+/* Blotter list: stacked rows with time · county · text */
+.mb-blotter-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--public-border);
+  margin-top: var(--space-4);
+}
+.mb-blotter-item {
+  display: grid;
+  grid-template-columns: 80px 120px 1fr;
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--public-border);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.mb-blotter-item__time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--public-dim);
+  letter-spacing: 0.04em;
+}
+.mb-blotter-item__county {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--public-amber);
+}
+.mb-blotter-item__text { color: var(--public-text); }
+.mb-blotter-item--link {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.mb-blotter-item--link:hover {
+  background-color: var(--public-panel-soft);
+}
+@media (max-width: 720px) {
+  .mb-blotter-item {
+    grid-template-columns: 70px 1fr;
+    grid-template-areas:
+      "time county"
+      ". text";
+    row-gap: var(--space-1);
+  }
+  .mb-blotter-item__time { grid-area: time; }
+  .mb-blotter-item__county { grid-area: county; }
+  .mb-blotter-item__text { grid-area: text; grid-column: 1 / -1; }
+}
+
+/* Record card (missing persons, warrants, sponsors) */
+.mb-record-card {
+  display: block;
+  background: var(--public-panel-strong);
+  border: 1px solid var(--public-border);
+  border-radius: var(--public-radius-md);
+  padding: var(--space-4) var(--space-5);
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+a.mb-record-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--public-shadow);
+  border-color: var(--public-border-strong);
+}
+.mb-record-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.mb-record-card__kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--public-amber);
+}
+.mb-record-card__headline {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.15;
+  margin: 0 0 var(--space-2);
+  color: var(--public-text);
+}
+.mb-record-card__summary {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--public-muted);
+  margin: 0 0 var(--space-3);
+}
+.mb-record-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--public-dim);
+}
+
+/* Alert banner (missing-person alert, etc.) */
+.mb-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--public-radius-md);
+  border: 1px solid var(--public-border);
+  background: var(--public-panel);
+}
+.mb-alert--alert {
+  background:
+    linear-gradient(180deg, var(--public-red-soft), transparent),
+    var(--public-panel-strong);
+  border-color: rgba(195, 66, 63, 0.35);
+}
+.mb-alert__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  margin-bottom: var(--space-1);
+  color: var(--public-text);
+}
+.mb-alert__body { font-size: 14px; color: var(--public-muted); }
+.mb-alert__dismiss {
+  background: transparent;
+  border: 0;
+  color: var(--public-dim);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 var(--space-1);
+}
+.mb-alert__dismiss:hover { color: var(--public-text); }
+
+/* Badge */
+.mb-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 3px var(--space-2);
+  border-radius: 999px;
+  background: var(--public-panel-soft);
+  color: var(--public-muted);
+}
+.mb-badge--alert {
+  background: var(--public-red-soft);
+  color: var(--public-red);
+}
+.mb-badge--pending {
+  background: var(--public-amber-soft);
+  color: var(--public-amber);
+}
+
+/* Buttons */
+.mb-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  padding: 10px var(--space-4);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.mb-button--sm { font-size: 12px; padding: 7px 14px; }
+.mb-button--md { font-size: 14px; padding: 10px 18px; }
+.mb-button--primary {
+  background: var(--public-red);
+  color: #fff;
+  border-color: var(--public-red);
+}
+.mb-button--primary:hover { background: #a93633; border-color: #a93633; color: #fff; }
+.mb-button--secondary {
+  background: var(--public-text);
+  color: var(--public-panel-strong);
+  border-color: var(--public-text);
+}
+.mb-button--secondary:hover { background: var(--public-ink-soft, var(--public-muted)); }
+.mb-button--inverse {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+}
+.mb-button--inverse:hover {
+  background: #fff;
+  color: var(--public-text);
+  border-color: #fff;
+}
+
+/* Dark call-to-action (records-by-county block) */
+.mb-dark-cta {
+  background: var(--public-text);
+  color: #f4f1ea;
+  border-radius: var(--public-radius-md);
+  padding: var(--space-5) var(--space-6);
+}
+.mb-dark-cta__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  margin: 0 0 var(--space-2);
+  color: #fff;
+}
+.mb-dark-cta__text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.78);
+  margin: 0 0 var(--space-4);
+}
+
+/* Data table (jail bookings) */
+.mb-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-body);
+  font-size: 14px;
+  background: var(--public-panel-strong);
+  border: 1px solid var(--public-border);
+  border-radius: var(--public-radius-md);
+  overflow: hidden;
+}
+.mb-data-table__head th {
+  background: var(--public-panel-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--public-muted);
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--public-border-strong);
+}
+.mb-data-table__row { cursor: pointer; transition: background-color 0.15s ease; }
+.mb-data-table__row:hover { background: var(--public-panel-soft); }
+.mb-data-table__cell {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--public-border);
+  color: var(--public-text);
+  vertical-align: top;
+}
+.mb-data-table__cell--mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--public-muted);
+  white-space: nowrap;
+}
+
+/* Empty state */
+.mb-empty-state {
+  padding: var(--space-5);
+  background: var(--public-panel-soft);
+  border: 1px dashed var(--public-border);
+  border-radius: var(--public-radius-sm);
+  color: var(--public-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Footnote / disclaimer */
+.mb-note {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--public-dim);
+  text-align: center;
+  margin: var(--space-2) auto 0;
+  max-width: 70ch;
+}
+
+/* Crime Wire ticker styles are defined below. */
+
+/* Form fields (used by advertise_lawyers, lawyers, post_detail) */
+.mb-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+.mb-form-field label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--public-muted);
+}
+.mb-input,
+.mb-select {
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding: 10px var(--space-3);
+  border: 1px solid var(--public-border);
+  border-radius: var(--public-radius-sm);
+  background: var(--public-panel-strong);
+  color: var(--public-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.mb-input:focus,
+.mb-select:focus {
+  outline: none;
+  border-color: var(--public-amber);
+  box-shadow: 0 0 0 3px var(--public-amber-soft);
+}
+.mb-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--public-amber);
+}
+
+/* Print + reduced-motion niceties */
+@media (prefers-reduced-motion: reduce) {
+  .mb-record-card,
+  .mb-blotter-item--link,
+  .mb-data-table__row,
+  .mb-button { transition: none; }
+}
+
+/* =========================================================================
+   Crime Wire ticker — chrome-mode variant
+   First-party rotating ticker, tuned for the dark substrate (no paper texture).
+   ========================================================================= */
+
+.mb-crime-ticker {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0;
+  margin: 0 0 18px;
+  border: 1px solid var(--public-border-strong);
+  border-radius: var(--public-radius-md);
+  background: var(--public-panel-strong);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--public-text);
+  overflow: hidden;
+}
+
+.mb-crime-ticker__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  background: linear-gradient(180deg, var(--public-red), #a83633);
+  color: #fff7e8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  align-self: stretch;
+  border-right: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.mb-crime-ticker__pulse {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  border-radius: 50%;
+  flex: none;
+  animation: mb-crime-pulse 1.4s infinite ease-in-out;
+}
+@keyframes mb-crime-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.mb-crime-ticker__viewport {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  padding: 10px 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 60px), transparent 100%);
+          mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 60px), transparent 100%);
+}
+
+.mb-crime-ticker__track {
+  display: flex;
+  width: max-content;
+  padding-left: 6px; /* first item doesn't get clipped by the viewport mask */
+  animation: mb-crime-scroll 55s linear infinite;
+}
+
+.mb-crime-ticker__group { display: flex; flex: 0 0 auto; }
+
+.mb-crime-ticker__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 2px 22px 2px 8px;
+  white-space: nowrap;
+  color: var(--public-text);
+  text-decoration: none;
+  border-right: 1px dotted var(--public-border-strong);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.mb-crime-ticker__item:hover,
+.mb-crime-ticker__item:focus-visible {
+  color: var(--public-red);
+  background: var(--public-red-soft);
+  outline: none;
+}
+
+.mb-crime-ticker__time {
+  color: var(--public-dim);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+.mb-crime-ticker__headline {
+  color: var(--public-text);
+  font-weight: 700;
+}
+
+.mb-crime-ticker__meta {
+  color: var(--public-amber);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.mb-crime-ticker__feed {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  background: var(--public-panel-soft);
+  border-left: 1px solid var(--public-border-strong);
+  color: var(--public-text);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.mb-crime-ticker__feed:hover,
+.mb-crime-ticker__feed:focus-visible {
+  background: var(--public-text);
+  color: #fff7e8;
+}
+
+.mb-crime-ticker__empty {
+  padding: 12px 18px;
+  font-family: "Inter", system-ui, sans-serif;
+  font-style: italic;
+  color: var(--public-muted);
+  text-align: center;
+}
+
+@keyframes mb-crime-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.mb-crime-ticker__viewport:hover .mb-crime-ticker__track,
+.mb-crime-ticker__viewport:focus-within .mb-crime-ticker__track {
+  animation-play-state: paused;
+}
+
+@media (max-width: 720px) {
+  .mb-crime-ticker { grid-template-columns: auto 1fr; }
+  .mb-crime-ticker__feed { display: none; }
+  .mb-crime-ticker__item { padding: 2px 14px 2px 6px; font-size: 11px; }
+  .mb-crime-ticker__meta { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-crime-ticker__track {
+    animation: none;
+  }
+  .mb-crime-ticker__pulse {
+    animation: none;
+    opacity: 1;
+  }
+  .mb-crime-ticker__group[aria-hidden="true"] { display: none; }
+  .mb-crime-ticker__viewport {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+            mask-image: none;
+  }
+}

@@ -51,18 +51,18 @@ _TIERS = [
     },
     {
         'id': 'gold',
-        'name': 'Gold Top Rated',
+        'name': 'Gold Priority',
         'price_monthly': 199,
         'price_label': '$199/mo',
         'price_label_annual': '$1,990/yr (save $398)',
-        'badge': 'Top Rated',
+        'badge': 'Priority Placement',
         'description': 'Top of your county\'s section. Logo + photo + custom callout. The firm Montana Blotter surfaces first.',
         'features': [
             'Everything in Silver',
             'Top-of-county placement (above Silver)',
             'Photo on your profile card',
             'Custom callout (1-line tagline)',
-            '"Top Rated" badge',
+            '"Priority Placement" badge',
             'Featured on warrant detail pages in your county',
             'Priority placement on /arrests in your county',
         ],
@@ -107,7 +107,7 @@ def advertise_attorney_sponsorship():
         meta_description=(
             'Get your Montana criminal defense, DUI, or family law firm listed '
             'in the Montana Blotter defense attorney directory. Free Bronze, '
-            'Silver Featured ($99/mo), and Gold Top Rated ($199/mo) tiers. '
+            'Silver Featured ($99/mo), and Gold Priority ($199/mo) tiers. '
             'Reach Montana families at the moment they search for a lawyer.'
         ),
     )

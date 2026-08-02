@@ -937,6 +937,77 @@ def advertise_lawyers():
     )
 
 
+@lawyer_ads_bp.route('/advertise/lawyers/one-pager')
+def advertise_lawyers_one_pager():
+    """Printable one-page sales sheet.
+
+    Single-page layout with print-friendly CSS, links to checkout and to
+    the sample monthly report. Intended for prospect outreach (PDF via
+    browser print) and for the admin sales kit.
+    """
+    return render_template(
+        'advertise_lawyers_one_pager.html',
+        packages=_PACKAGES,
+        package_lookup=_package_lookup(),
+        checkout_ready=_checkout_ready(),
+        page_title='Montana Blotter Lawyer Directory — One-Page Sales Sheet',
+        meta_description=(
+            'One-page summary of the Montana Blotter /lawyers paid '
+            'directory: pricing, tier comparison, what is included, '
+            'and a sample monthly report.'
+        ),
+        active_nav='advertise',
+        current_year=datetime.now().year,
+    )
+
+
+@lawyer_ads_bp.route('/advertise/lawyers/sample-report')
+def advertise_lawyers_sample_report():
+    """Sample monthly report — what the advertiser will actually receive.
+
+    Uses the same metric definitions the control panel exposes, with
+    realistic example numbers (redacted). Marketing surface so prospects
+    can see the format before they sign up.
+    """
+    sample = {
+        'firm_name': 'Example Law, PLLC',
+        'package': 'Gold Priority',
+        'counties_served': 'Yellowstone, Musselshell',
+        'period_label': 'June 2026',
+        'impressions': 4218,
+        'clicks': 187,
+        'calls': 42,
+        'leads_delivered': 17,
+        'leads_undelivered': 0,
+        'spend_cents': 59900,
+        'cost_per_lead_cents': 3522,
+        'contacted': 14,
+        'consultations': 6,
+        'retained': 2,
+        'out_of_practice': 2,
+        'duplicate': 1,
+        'spam': 0,
+    }
+    sample['cost_per_consult_cents'] = (
+        sample['spend_cents'] // sample['consultations'] if sample['consultations'] else 0
+    )
+    sample['cost_per_retained_cents'] = (
+        sample['spend_cents'] // sample['retained'] if sample['retained'] else 0
+    )
+    return render_template(
+        'advertise_lawyers_sample_report.html',
+        sample=sample,
+        page_title='Sample Monthly Report — Montana Blotter Lawyer Directory',
+        meta_description=(
+            'Sample of the monthly report every Montana Blotter paid '
+            'directory advertiser receives: impressions, clicks, calls, '
+            'leads delivered, and advertiser-reported outcomes.'
+        ),
+        active_nav='advertise',
+        current_year=datetime.now().year,
+    )
+
+
 def _create_stripe_session(stripe_module, *, form_data: dict, package: dict, amount_cents: int, base_url: str):
     """Build the Stripe Checkout session. Wrapped for test monkey-patching."""
     interval = 'year' if form_data['billing_cycle'] == 'annual' else 'month'
@@ -1244,3 +1315,40 @@ def lawyer_control_panel_update(token):
     conn.commit()
     conn.close()
     return redirect(url_for('.lawyer_control_panel', token=safe_token, saved=1))
+
+
+@lawyer_ads_bp.route('/lawyers/claim/<token>', methods=['GET', 'POST'])
+def lawyer_arrest_alert_claim(token):
+    """Claim form for a lawyer arrest-alert delivery — see services/alerts/lawyer_arrest_alerts.py."""
+    from services.alerts.lawyer_arrest_alerts import claim_case
+
+    safe_token = (token or '').strip()[:64]
+    conn = get_db()
+    delivery = conn.execute(
+        '''
+        SELECT d.*, p.title AS post_title, p.summary AS post_summary, o.firm_name
+        FROM lawyer_arrest_alert_deliveries d
+        JOIN posts p ON p.id = d.post_id
+        JOIN lawyer_ad_orders o ON o.id = d.order_id
+        WHERE d.claim_token = ?
+        ''',
+        (safe_token,),
+    ).fetchone()
+    if not delivery:
+        conn.close()
+        abort(404)
+
+    if request.method == 'POST':
+        defendant_name = (request.form.get('defendant_name') or '').strip()[:200]
+        claim_case(conn, safe_token, defendant_name)
+        conn.close()
+        return redirect(url_for('.lawyer_arrest_alert_claim', token=safe_token, claimed=1))
+
+    conn.close()
+    return render_template(
+        'lawyer_arrest_alert_claim.html',
+        delivery=delivery,
+        claimed=request.args.get('claimed') == '1',
+        active_nav='advertise',
+        current_year=datetime.now().year,
+    )

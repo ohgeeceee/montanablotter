@@ -1,4 +1,4 @@
-{% extends "public_page_base_v2.html" %}
+{% extends "public_page_base.html" %}
 
 {% set page_title = page_title or "Montana Lawyers Directory" %}
 {% set meta_description = meta_description or "Paid listings from licensed Montana attorneys. Tap-to-call, tap-to-text, and free intake form routing." %}
@@ -32,6 +32,39 @@
   .lawyer-tier-badge--silver { background: var(--ink-500, #475569); }
   .lawyer-tier-badge--bronze { background: #92400e; }
   .lawyer-county-pills a:hover { background: var(--surface-card); }
+
+  /* Newspaper mode uses a light paper palette whose legacy inverse-text
+     variable is also light. Pin this dark hero's foreground colors so the
+     directory heading and introduction retain accessible contrast. */
+  .lawyers-hero,
+  .lawyers-hero h1 {
+    color: #fffdf8 !important;
+  }
+  .lawyers-hero p {
+    color: #e7e2d8 !important;
+    font-size: max(1rem, var(--text-body-md));
+  }
+
+  @media (max-width: 760px) {
+    .lawyers-page #intake {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+    .lawyers-page #intake > *,
+    .lawyers-page #intake form,
+    .lawyers-page #intake .mb-form-field {
+      min-width: 0;
+    }
+    .lawyers-page #intake form > div[style*="grid-template-columns"] {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+    .lawyers-page #intake input,
+    .lawyers-page #intake select,
+    .lawyers-page #intake textarea {
+      box-sizing: border-box;
+      max-width: 100%;
+      width: 100%;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -41,7 +74,7 @@
 {% endblock %}
 
 {% block hero %}
-<section style="background: linear-gradient(135deg, var(--ink-900) 0%, var(--ink-800) 100%); color: var(--text-inverse); padding: var(--space-12) var(--page-gutter); border-bottom: var(--rule-heavy);">
+<section class="lawyers-hero" style="background: linear-gradient(135deg, #17130f 0%, #332820 100%); color: #fffdf8; padding: var(--space-12) var(--page-gutter); border-bottom: var(--rule-heavy);">
   <div style="max-width: 80rem; margin: 0 auto;">
     <span style="display: inline-flex; align-items: center; background: rgba(252, 211, 77, 0.18); color: #fcd34d; font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); padding: var(--space-2) var(--space-4); border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin-bottom: var(--space-5);">
       Advertiser Directory

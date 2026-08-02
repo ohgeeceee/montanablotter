@@ -126,6 +126,20 @@
                     {% for person in rows %}
                     <article class="px-5 py-5">
                         <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                            {% if person.photo_url %}
+                            <a href="{{ person.public_href }}" class="block shrink-0 xl:order-last">
+                                <span class="relative block h-24 w-24 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 sm:h-28 sm:w-28">
+                                    <img
+                                        src="{{ person.photo_url }}"
+                                        alt="Photo of {{ person.full_name }}"
+                                        class="h-full w-full object-cover"
+                                        loading="lazy"
+                                        decoding="async"
+                                        referrerpolicy="no-referrer"
+                                    >
+                                </span>
+                            </a>
+                            {% endif %}
                             <div class="min-w-0 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] {% if person.is_active %}bg-amber-100 text-amber-800{% else %}bg-slate-100 text-slate-600{% endif %}">
@@ -234,17 +248,33 @@
                 <div class="mt-4 space-y-3">
                     {% for person in newest_alerts %}
                     <a href="{{ person.public_href }}" class="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-amber-300 hover:bg-amber-50">
-                        <div class="flex items-center justify-between gap-3">
-                            <p class="font-black text-slate-900">{{ person.full_name }}</p>
-                            <span class="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-800">
-                                Active
+                        <div class="flex items-start gap-3">
+                            {% if person.photo_url %}
+                            <span class="block h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                <img
+                                    src="{{ person.photo_url }}"
+                                    alt="Photo of {{ person.full_name }}"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                    referrerpolicy="no-referrer"
+                                >
                             </span>
+                            {% endif %}
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center justify-between gap-3">
+                                    <p class="font-black text-slate-900">{{ person.full_name }}</p>
+                                    <span class="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-800">
+                                        Active
+                                    </span>
+                                </div>
+                                <p class="mt-2 text-xs leading-5 text-slate-600">{{ person.last_seen_at_label }}{% if person.last_seen_location %} near {{ person.last_seen_location }}{% endif %}</p>
+                                <p class="mt-2 text-xs leading-5 text-slate-500">
+                                    {{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}
+                                    {% if person.age_missing is not none %} · Age {{ person.age_missing }}{% endif %}
+                                </p>
+                            </div>
                         </div>
-                        <p class="mt-2 text-xs leading-5 text-slate-600">{{ person.last_seen_at_label }}{% if person.last_seen_location %} near {{ person.last_seen_location }}{% endif %}</p>
-                        <p class="mt-2 text-xs leading-5 text-slate-500">
-                            {{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}
-                            {% if person.age_missing is not none %} · Age {{ person.age_missing }}{% endif %}
-                        </p>
                     </a>
                     {% else %}
                     <p class="text-sm leading-6 text-slate-600">No active alerts were available for this view.</p>
@@ -257,17 +287,33 @@
                 <div class="mt-4 space-y-3">
                     {% for person in recent_resolved %}
                     <a href="{{ person.public_href }}" class="block rounded-2xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-300 hover:bg-emerald-100">
-                        <div class="flex items-center justify-between gap-3">
-                            <p class="font-black text-slate-900">{{ person.full_name }}</p>
-                            <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-800">
-                                Located
+                        <div class="flex items-start gap-3">
+                            {% if person.photo_url %}
+                            <span class="block h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                <img
+                                    src="{{ person.photo_url }}"
+                                    alt="Photo of {{ person.full_name }}"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                    referrerpolicy="no-referrer"
+                                >
                             </span>
+                            {% endif %}
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center justify-between gap-3">
+                                    <p class="font-black text-slate-900">{{ person.full_name }}</p>
+                                    <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-800">
+                                        Located
+                                    </span>
+                                </div>
+                                <p class="mt-2 text-xs leading-5 text-slate-600">{{ person.resolved_at_label }}{% if person.resolution_summary %} · {{ person.resolution_summary }}{% endif %}</p>
+                                <p class="mt-2 text-xs leading-5 text-slate-500">
+                                    {{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}
+                                    {% if person.source_person_id %} · ID {{ person.source_person_id }}{% endif %}
+                                </p>
+                            </div>
                         </div>
-                        <p class="mt-2 text-xs leading-5 text-slate-600">{{ person.resolved_at_label }}{% if person.resolution_summary %} · {{ person.resolution_summary }}{% endif %}</p>
-                        <p class="mt-2 text-xs leading-5 text-slate-500">
-                            {{ person.county or 'Montana' }}{% if person.city %} · {{ person.city }}{% endif %}
-                            {% if person.source_person_id %} · ID {{ person.source_person_id }}{% endif %}
-                        </p>
                     </a>
                     {% else %}
                     <p class="text-sm leading-6 text-slate-600">No located records are currently surfaced in this lane.</p>
@@ -278,6 +324,20 @@
             {% if latest_active %}
             <section class="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
                 <p class="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700">Newest Active Alert</p>
+                {% if latest_active.photo_url %}
+                <a href="{{ latest_active.public_href }}" class="mt-3 block">
+                    <span class="block h-32 w-full overflow-hidden rounded-2xl border border-amber-200 bg-white">
+                        <img
+                            src="{{ latest_active.photo_url }}"
+                            alt="Photo of {{ latest_active.full_name }}"
+                            class="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            referrerpolicy="no-referrer"
+                        >
+                    </span>
+                </a>
+                {% endif %}
                 <h3 class="mt-3 text-xl font-black text-slate-900">{{ latest_active.full_name }}</h3>
                 <p class="mt-3 text-sm leading-7 text-amber-950">{{ latest_active.summary }}</p>
                 <a href="{{ latest_active.public_href }}" class="mt-4 inline-flex items-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white transition hover:bg-amber-700">
