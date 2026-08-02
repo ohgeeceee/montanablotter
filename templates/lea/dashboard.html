@@ -1,0 +1,68 @@
+{% extends "public_page_base.html" %}
+{% block title %}Agency Dashboard — Montana Blotter{% endblock %}
+{% block content %}
+<div class="lea-dashboard" style="max-width:1000px;margin:0 auto;padding:2rem 1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;">
+        <div>
+            <h1 style="margin:0 0 0.25rem 0;">Agency Dashboard</h1>
+            <p style="margin:0;color:#666;">{{ county_slug | replace('-', ' ') | title }} County — LEA Self-Service Panel</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+            <a href="{{ url_for('lea_panel.submit_incident', county_slug=county_slug) }}" class="btn" style="padding:0.5rem 1rem;background:#1a5276;color:#fff;text-decoration:none;border-radius:4px;">Submit Incident</a>
+            <a href="{{ url_for('lea_panel.batch_upload', county_slug=county_slug) }}" class="btn" style="padding:0.5rem 1rem;background:#1a5276;color:#fff;text-decoration:none;border-radius:4px;">Batch Upload</a>
+            <a href="/panel/logout" style="padding:0.5rem 1rem;color:#c0392b;text-decoration:none;">Logout</a>
+        </div>
+    </div>
+
+    <div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem;">
+        <div style="background:#f8f9fa;padding:1.5rem;border-radius:8px;text-align:center;">
+            <div style="font-size:2rem;font-weight:bold;color:#1a5276;">{{ total_drafts or 0 }}</div>
+            <div style="font-size:0.85rem;color:#666;">Total Submissions</div>
+        </div>
+        <div style="background:#f8f9fa;padding:1.5rem;border-radius:8px;text-align:center;">
+            <div style="font-size:2rem;font-weight:bold;color:#27ae60;">{{ published_count or 0 }}</div>
+            <div style="font-size:0.85rem;color:#666;">Published</div>
+        </div>
+        <div style="background:#f8f9fa;padding:1.5rem;border-radius:8px;text-align:center;">
+            <div style="font-size:2rem;font-weight:bold;color:#f39c12;">{{ pending_count or 0 }}</div>
+            <div style="font-size:0.85rem;color:#666;">Pending Review</div>
+        </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:1.5rem;">
+        <h2 style="margin:0 0 1rem 0;">Recent Submissions</h2>
+        {% if recent_drafts %}
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f8f9fa;">
+                    <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">Date</th>
+                    <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">CAD #</th>
+                    <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">Offense</th>
+                    <th style="text-align:left;padding:0.75rem;border-bottom:2px solid #ddd;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for draft in recent_drafts %}
+                <tr>
+                    <td style="padding:0.75rem;border-bottom:1px solid #eee;">{{ draft.incident_date }}</td>
+                    <td style="padding:0.75rem;border-bottom:1px solid #eee;">{{ draft.cad_number or '—' }}</td>
+                    <td style="padding:0.75rem;border-bottom:1px solid #eee;">{{ draft.primary_offense_mca or '—' }}</td>
+                    <td style="padding:0.75rem;border-bottom:1px solid #eee;">
+                        <span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.8rem;
+                            {% if draft.submission_status == 'published' %}background:#d5f5e3;color:#1e8449;
+                            {% elif draft.submission_status == 'draft' %}background:#fef9e7;color:#b7950b;
+                            {% elif draft.submission_status == 'rejected' %}background:#fadbd8;color:#c0392b;
+                            {% else %}background:#d6eaf8;color:#1a5276;{% endif %}">
+                            {{ draft.submission_status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#999;text-align:center;padding:2rem 0;">No submissions yet. <a href="{{ url_for('lea_panel.submit_incident', county_slug=county_slug) }}">Submit your first incident</a>.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

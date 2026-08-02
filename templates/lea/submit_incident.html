@@ -1,0 +1,75 @@
+{% extends "public_page_base.html" %}
+{% block title %}Submit Incident — Montana Blotter{% endblock %}
+{% block content %}
+<div class="lea-form" style="max-width:700px;margin:0 auto;padding:2rem 1rem;">
+    <div style="margin-bottom:2rem;">
+        <a href="{{ url_for('lea_panel.dashboard', county_slug=county_slug) }}" style="color:#1a5276;text-decoration:none;">&larr; Dashboard</a>
+        <h1 style="margin:0.5rem 0 0 0;">Submit Incident</h1>
+        <p style="color:#666;margin:0.25rem 0 0 0;">Enter one incident for {{ county_slug | replace('-', ' ') | title }} County</p>
+    </div>
+
+    {% if error %}
+    <div style="background:#fadbd8;color:#c0392b;padding:1rem;border-radius:4px;margin-bottom:1rem;">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+    <div style="background:#d5f5e3;color:#1e8449;padding:1rem;border-radius:4px;margin-bottom:1rem;">{{ success }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('lea_panel.submit_incident', county_slug=county_slug) }}" style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:2rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">Incident Date *</label>
+                <input type="date" name="incident_date" required style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">Time</label>
+                <input type="time" name="incident_time" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">CAD Number</label>
+                <input type="text" name="cad_number" placeholder="e.g. 2026-000123" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">Case Number</label>
+                <input type="text" name="case_number" placeholder="e.g. 26-0456" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+            </div>
+        </div>
+
+        <div style="margin-bottom:1.5rem;">
+            <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">MCA Code (Primary Offense)</label>
+            <input type="text" name="primary_offense_mca" placeholder="e.g. 45-5-202" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+        </div>
+
+        <div style="margin-bottom:1.5rem;">
+            <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">Location</label>
+            <input type="text" name="incident_location_block" placeholder="e.g. 300 BLK CENTRAL AVE" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+        </div>
+
+        <div style="margin-bottom:1.5rem;">
+            <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">Narrative</label>
+            <textarea name="public_narrative" rows="5" placeholder="Brief factual description of the incident..." style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;font-family:inherit;"></textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">Arresting Agency</label>
+                <input type="text" name="arresting_agency" placeholder="e.g. Great Falls PD" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">Responding Officer</label>
+                <input type="text" name="responding_officer" placeholder="e.g. Smith" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+            </div>
+        </div>
+
+        <div style="display:flex;gap:1rem;">
+            <button type="submit" style="padding:0.75rem 2rem;background:#1a5276;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1rem;">Submit as Draft</button>
+            <a href="{{ url_for('lea_panel.dashboard', county_slug=county_slug) }}" style="padding:0.75rem 2rem;color:#666;text-decoration:none;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

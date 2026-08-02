@@ -1,0 +1,9 @@
+{% extends "public_page_base.html" %}
+{% block title %}Error — Montana Blotter LEA Panel{% endblock %}
+{% block content %}
+<div style="max-width:600px;margin:4rem auto;padding:2rem;text-align:center;">
+    <h1 style="color:#c0392b;">{{ status_code or 403 }}</h1>
+    <p>{{ message or 'Access denied.' }}</p>
+    <a href="/panel/login" style="color:#1a5276;">Return to Login</a>
+</div>
+{% endblock %}
