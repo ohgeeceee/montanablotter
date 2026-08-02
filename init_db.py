@@ -1337,6 +1337,7 @@ def migrate():
 
     # LEA Panel: multi-tenant agency self-service tables
     ensure_lea_schema(conn)
+    ensure_lea_security_policies(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -3766,6 +3767,106 @@ def ensure_lea_schema(conn: sqlite3.Connection) -> None:
         )
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_agency_coverages_tier ON lea_agency_coverages(blotter_coverage_tier)')
+
+    conn.commit()
+
+
+def ensure_lea_security_policies(conn: sqlite3.Connection) -> None:
+    """Apply CJIS-compliant security policies for LEA panel tables.
+
+    Immutable audit log, deletion guards, and RBAC enforcement triggers.
+    Safe to call repeatedly — uses IF NOT EXISTS / idempotent DDL.
+    """
+    cursor = conn.cursor()
+
+    # ── Immutable audit log ──────────────────────────────────────────────
+    # CJIS requirement: audit records must be append-only.
+    # SQLite has no native row-level BEFORE triggers for UPDATE/DELETE
+    # enforcement on the table itself (AFTER still fires), so we use a
+    # BEFORE trigger that raises an ABORT error.
+    cursor.executescript("""
+        CREATE TRIGGER IF NOT EXISTS lea_audit_log_prevent_update
+        BEFORE UPDATE ON lea_audit_log
+        BEGIN
+            SELECT RAISE(ABORT, 'CJIS violation: UPDATE forbidden on lea_audit_log (immutable audit trail)');
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS lea_audit_log_prevent_delete
+        BEFORE DELETE ON lea_audit_log
+        BEGIN
+            SELECT RAISE(ABORT, 'CJIS violation: DELETE forbidden on lea_audit_log (immutable audit trail)');
+        END;
+    """)
+
+    # ── API token deletion guard ─────────────────────────────────────────
+    # Tokens in use should not be deleted — revoked is the canonical state.
+    cursor.executescript("""
+        CREATE TRIGGER IF NOT EXISTS lea_api_tokens_prevent_delete
+        BEFORE DELETE ON lea_api_tokens
+        BEGIN
+            SELECT RAISE(ABORT, 'Security violation: DELETE forbidden on lea_api_tokens (use is_revoked=1 instead)');
+        END;
+    """)
+
+    # ── Blotter draft submission status workflow ─────────────────────────
+    # Enforce valid status transitions: draft → submitted → approved → published
+    # Rejects illegal skips (e.g. draft → published).
+    cursor.executescript("""
+        CREATE TRIGGER IF NOT EXISTS lea_blotter_drafts_status_workflow
+        BEFORE UPDATE OF submission_status ON lea_blotter_drafts
+        WHEN NEW.submission_status != OLD.submission_status
+        BEGIN
+            SELECT
+                CASE
+                    WHEN OLD.submission_status = 'draft' AND NEW.submission_status NOT IN ('submitted', 'rejected')
+                        THEN RAISE(ABORT, 'Workflow violation: draft can only transition to submitted or rejected')
+                    WHEN OLD.submission_status = 'submitted' AND NEW.submission_status NOT IN ('approved', 'rejected')
+                        THEN RAISE(ABORT, 'Workflow violation: submitted can only transition to approved or rejected')
+                    WHEN OLD.submission_status = 'approved' AND NEW.submission_status NOT IN ('published', 'rejected')
+                        THEN RAISE(ABORT, 'Workflow violation: approved can only transition to published or rejected')
+                    WHEN OLD.submission_status = 'published' AND NEW.submission_status != 'published'
+                        THEN RAISE(ABORT, 'Workflow violation: published is a terminal state')
+                    WHEN OLD.submission_status = 'rejected' AND NEW.submission_status != 'rejected'
+                        THEN RAISE(ABORT, 'Workflow violation: rejected is a terminal state')
+                END;
+        END;
+    """)
+
+    # ── Roster ingestion status workflow ─────────────────────────────────
+    cursor.executescript("""
+        CREATE TRIGGER IF NOT EXISTS lea_roster_status_workflow
+        BEFORE UPDATE OF ingestion_status ON lea_roster_snapshots
+        WHEN NEW.ingestion_status != OLD.ingestion_status
+        BEGIN
+            SELECT
+                CASE
+                    WHEN OLD.ingestion_status = 'staged' AND NEW.ingestion_status NOT IN ('processing', 'rejected')
+                        THEN RAISE(ABORT, 'Workflow violation: staged can only transition to processing or rejected')
+                    WHEN OLD.ingestion_status = 'processing' AND NEW.ingestion_status NOT IN ('published', 'rejected')
+                        THEN RAISE(ABORT, 'Workflow violation: processing can only transition to published or rejected')
+                    WHEN OLD.ingestion_status IN ('published', 'rejected') AND NEW.ingestion_status != OLD.ingestion_status
+                        THEN RAISE(ABORT, 'Workflow violation: published/rejected are terminal states')
+                END;
+        END;
+    """)
+
+    # ── RBAC role validation ─────────────────────────────────────────────
+    # Enforce valid role values at the DB level.
+    cursor.executescript("""
+        CREATE TRIGGER IF NOT EXISTS lea_users_role_validation
+        BEFORE INSERT ON lea_users
+        WHEN NEW.role NOT IN ('admin', 'pio', 'records_officer')
+        BEGIN
+            SELECT RAISE(ABORT, 'RBAC violation: role must be admin, pio, or records_officer');
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS lea_users_role_update_validation
+        BEFORE UPDATE OF role ON lea_users
+        WHEN NEW.role NOT IN ('admin', 'pio', 'records_officer')
+        BEGIN
+            SELECT RAISE(ABORT, 'RBAC violation: role must be admin, pio, or records_officer');
+        END;
+    """)
 
     conn.commit()
 
