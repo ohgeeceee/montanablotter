@@ -1,0 +1,246 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ agency.org_name }} — LEA Agency Detail{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;">
+    <div>
+      <h1 style="margin-bottom:.25rem;">{{ agency.org_name }}</h1>
+      <p style="color:#64748b;margin:0;">
+        {{ agency.county_name }} County
+        · <span style="text-transform:capitalize;">{{ agency.agency_type }}</span>
+        {% if agency.ori_number %}· ORI: {{ agency.ori_number }}{% endif %}
+      </p>
+    </div>
+    <div>
+      <a href="{{ url_for('.lea_agency_directory') }}" style="padding:.4rem .8rem;background:#e2e8f0;border-radius:4px;text-decoration:none;color:#334155;margin-right:.5rem;">← Directory</a>
+    </div>
+  </div>
+
+  {# Status badge + actions #}
+  <div style="display:flex;gap:.75rem;align-items:center;margin-bottom:1.5rem;padding:.75rem 1rem;background:#f8fafc;border-radius:8px;">
+    <span style="display:inline-block;padding:.25rem .75rem;border-radius:999px;font-weight:600;font-size:.9rem;
+      {% if agency.verification_status == 'verified' %}background:#dcfce7;color:#166534;
+      {% elif agency.verification_status == 'rejected' %}background:#fef2f2;color:#991b1b;
+      {% elif agency.verification_status == 'pending' %}background:#fef9c3;color:#854d0e;
+      {% else %}background:#f1f5f9;color:#475569;
+      {% endif %}">
+      {{ status_label(agency.verification_status) }}
+    </span>
+
+    {% if agency.verified_at %}
+    <span style="color:#64748b;font-size:.85rem;">Verified {{ agency.verified_at[:10] }}</span>
+    {% endif %}
+
+    <span style="flex:1;"></span>
+
+    {% if agency.verification_status != 'verified' %}
+    <form method="post" action="{{ url_for('.lea_verify_agency', agency_id=agency.id) }}" style="display:inline;" onsubmit="return confirm('Verify {{ agency.org_name }}?')">
+      <button type="submit" style="padding:.4rem 1rem;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">✓ Verify</button>
+    </form>
+    {% endif %}
+
+    {% if agency.verification_status != 'rejected' and agency.verification_status != 'verified' %}
+    <details style="display:inline-block;">
+      <summary style="cursor:pointer;padding:.4rem 1rem;background:#dc2626;color:#fff;border-radius:4px;font-weight:500;font-size:.9rem;">✕ Reject</summary>
+      <form method="post" action="{{ url_for('.lea_reject_agency', agency_id=agency.id) }}" style="margin-top:.5rem;padding:.5rem;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;">
+        <label style="display:block;font-size:.85rem;margin-bottom:.3rem;">Rejection reason:</label>
+        <textarea name="reason" required rows="2" style="width:100%;padding:.3rem;border:1px solid #fecaca;border-radius:3px;" placeholder="Why is this agency being rejected?"></textarea>
+        <button type="submit" style="margin-top:.3rem;padding:.3rem .8rem;background:#dc2626;color:#fff;border:none;border-radius:3px;cursor:pointer;">Confirm Rejection</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+
+  {# Tabs #}
+  <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:1.5rem;">
+    {% set tab = request.args.get('tab') or 'users' %}
+    <a href="?tab=users" style="padding:.5rem 1rem;text-decoration:none;font-weight:500;{% if tab == 'users' %}color:#2563eb;border-bottom:2px solid #2563eb;margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">Users ({{ users|length }})</a>
+    <a href="?tab=submissions" style="padding:.5rem 1rem;text-decoration:none;font-weight:500;{% if tab == 'submissions' %}color:#2563eb;border-bottom:2px solid #2563eb;margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">Submissions ({{ submissions|length }})</a>
+    <a href="?tab=tokens" style="padding:.5rem 1rem;text-decoration:none;font-weight:500;{% if tab == 'tokens' %}color:#2563eb;border-bottom:2px solid #2563eb;margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">API Tokens ({{ tokens|length }})</a>
+    <a href="?tab=coverage" style="padding:.5rem 1rem;text-decoration:none;font-weight:500;{% if tab == 'coverage' %}color:#2563eb;border-bottom:2px solid #2563eb;margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">Coverage</a>
+    <a href="?tab=audit" style="padding:.5rem 1rem;text-decoration:none;font-weight:500;{% if tab == 'audit' %}color:#2563eb;border-bottom:2px solid #2563eb;margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">Audit ({{ audit_entries|length }})</a>
+    <a href="?tab=settings" style="padding:.5rem 1rem;text-decoration:none;font-weight:500;{% if tab == 'settings' %}color:#2563eb;border-bottom:2px solid #2563eb;margin-bottom:-2px;{% else %}color:#64748b;{% endif %}">Settings</a>
+  </div>
+
+  {# ── Users Tab ── #}
+  {% if tab == 'users' %}
+  <div>
+    {% if users %}
+    <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+      <thead>
+        <tr style="background:#f1f5f9;text-align:left;">
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Name</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Username</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Email</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Role</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Active</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Last Login</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:.4rem .6rem;font-weight:500;">{{ u.full_name }}</td>
+          <td style="padding:.4rem .6rem;">{{ u.username }}</td>
+          <td style="padding:.4rem .6rem;">{{ u.email }}</td>
+          <td style="padding:.4rem .6rem;text-transform:capitalize;">{{ u.role }}</td>
+          <td style="padding:.4rem .6rem;">{% if u.is_active %}<span style="color:#059669;">✓</span>{% else %}<span style="color:#dc2626;">✕</span>{% endif %}</td>
+          <td style="padding:.4rem .6rem;color:#64748b;font-size:.85rem;">{{ ago(u.last_login_at) if u.last_login_at else '—' }}</td>
+          <td style="padding:.4rem .6rem;color:#64748b;font-size:.85rem;">{{ u.created_at[:10] if u.created_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">No users for this agency.</p>
+    {% endif %}
+  </div>
+
+  {# ── Submissions Tab ── #}
+  {% elif tab == 'submissions' %}
+  <div>
+    {% if submissions %}
+    <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+      <thead>
+        <tr style="background:#f1f5f9;text-align:left;">
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">ID</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Date</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">CAD #</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Case #</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Offense</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Status</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in submissions %}
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:.4rem .6rem;">{{ s.id }}</td>
+          <td style="padding:.4rem .6rem;">{{ s.incident_date or '—' }}</td>
+          <td style="padding:.4rem .6rem;">{{ s.cad_number or '—' }}</td>
+          <td style="padding:.4rem .6rem;">{{ s.case_number or '—' }}</td>
+          <td style="padding:.4rem .6rem;">{{ s.primary_offense_mca or '—' }}</td>
+          <td style="padding:.4rem .6rem;">
+            <span style="display:inline-block;padding:.1rem .4rem;border-radius:999px;font-size:.8rem;
+              {% if s.submission_status == 'submitted' %}background:#dcfce7;color:#166534;
+              {% elif s.submission_status == 'published' %}background:#dbeafe;color:#1e40af;
+              {% elif s.submission_status == 'draft' %}background:#fef9c3;color:#854d0e;
+              {% else %}background:#f1f5f9;color:#475569;
+              {% endif %}">{{ s.submission_status }}</span>
+          </td>
+          <td style="padding:.4rem .6rem;color:#64748b;font-size:.85rem;">{{ s.created_at[:10] if s.created_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">No submissions for this agency.</p>
+    {% endif %}
+  </div>
+
+  {# ── API Tokens Tab ── #}
+  {% elif tab == 'tokens' %}
+  <div>
+    {% if tokens %}
+    <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+      <thead>
+        <tr style="background:#f1f5f9;text-align:left;">
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Name</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Scopes</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Last Used</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Expires</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Revoked</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tokens %}
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:.4rem .6rem;font-weight:500;">{{ t.token_name }}</td>
+          <td style="padding:.4rem .6rem;font-size:.8rem;">{{ t.scopes }}</td>
+          <td style="padding:.4rem .6rem;color:#64748b;font-size:.85rem;">{{ ago(t.last_used_at) if t.last_used_at else '—' }}</td>
+          <td style="padding:.4rem .6rem;color:#64748b;font-size:.85rem;">{{ t.expires_at[:10] if t.expires_at else '—' }}</td>
+          <td style="padding:.4rem .6rem;">{% if t.is_revoked %}<span style="color:#dc2626;">Revoked</span>{% else %}<span style="color:#059669;">Active</span>{% endif %}</td>
+          <td style="padding:.4rem .6rem;color:#64748b;font-size:.85rem;">{{ t.created_at[:10] if t.created_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">No API tokens for this agency.</p>
+    {% endif %}
+  </div>
+
+  {# ── Coverage Tab ── #}
+  {% elif tab == 'coverage' %}
+  <div>
+    <h2 style="font-size:1rem;margin-bottom:1rem;">Coverage Settings</h2>
+    <table style="width:auto;font-size:.9rem;">
+      <tbody>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Blotter Coverage Tier</td><td style="padding:.4rem .8rem;">{{ coverage.get('blotter_coverage_tier', 'standard') }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Roster Coverage Tier</td><td style="padding:.4rem .8rem;">{{ coverage.get('roster_coverage_tier', 'off') }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">CAD Export</td><td style="padding:.4rem .8rem;">{% if coverage.get('supports_cad_export') %}✓ Enabled{% else %}✕ Disabled{% endif %}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">RMS Export</td><td style="padding:.4rem .8rem;">{% if coverage.get('supports_rms_export') %}✓ Enabled{% else %}✕ Disabled{% endif %}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">API Batch Upload</td><td style="padding:.4rem .8rem;">{% if coverage.get('supports_api_batch_upload') %}✓ Enabled{% else %}✕ Disabled{% endif %}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Audit Tab ── #}
+  {% elif tab == 'audit' %}
+  <div>
+    {% if audit_entries %}
+    <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+      <thead>
+        <tr style="background:#f1f5f9;text-align:left;">
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Action</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Resource</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Summary</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in audit_entries %}
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:.4rem .6rem;font-weight:500;">{{ e.action }}</td>
+          <td style="padding:.4rem .6rem;">{% if e.resource_type %}{{ e.resource_type }}#{{ e.resource_id }}{% else %}—{% endif %}</td>
+          <td style="padding:.4rem .6rem;color:#64748b;">{{ e.change_summary or '—' }}</td>
+          <td style="padding:.4rem .6rem;color:#64748b;">{{ ago(e.timestamp) if e.timestamp else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#64748b;">No audit log entries for this agency.</p>
+    {% endif %}
+  </div>
+
+  {# ── Settings Tab ── #}
+  {% elif tab == 'settings' %}
+  <div>
+    <h2 style="font-size:1rem;margin-bottom:1rem;">Agency Settings</h2>
+    <table style="width:auto;font-size:.9rem;">
+      <tbody>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Org Name</td><td style="padding:.4rem .8rem;">{{ agency.org_name }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Agency Type</td><td style="padding:.4rem .8rem;text-transform:capitalize;">{{ agency.agency_type }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">County</td><td style="padding:.4rem .8rem;">{{ agency.county_name }} ({{ agency.county_slug }})</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">ORI Number</td><td style="padding:.4rem .8rem;">{{ agency.ori_number or '—' }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Primary Contact</td><td style="padding:.4rem .8rem;">{{ agency.primary_contact_name or '—' }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Contact Email</td><td style="padding:.4rem .8rem;">{{ agency.primary_contact_email }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Contact Phone</td><td style="padding:.4rem .8rem;">{{ agency.primary_contact_phone or '—' }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Website</td><td style="padding:.4rem .8rem;">{% if agency.agency_website_url %}<a href="{{ agency.agency_website_url }}" target="_blank">{{ agency.agency_website_url }}</a>{% else %}—{% endif %}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Timezone</td><td style="padding:.4rem .8rem;">{{ agency.timezone or 'America/Denver' }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Blotter Publishing</td><td style="padding:.4rem .8rem;">{% if agency.enable_blotter_publishing %}Enabled{% else %}Disabled{% endif %}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Roster Publishing</td><td style="padding:.4rem .8rem;">{% if agency.enable_roster_publishing %}Enabled{% else %}Disabled{% endif %}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">API Access</td><td style="padding:.4rem .8rem;">{% if agency.enable_api_access %}Enabled{% else %}Disabled{% endif %}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Created</td><td style="padding:.4rem .8rem;">{{ agency.created_at or '—' }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Updated</td><td style="padding:.4rem .8rem;">{{ agency.updated_at or '—' }}</td></tr>
+        <tr><td style="padding:.4rem .8rem;font-weight:600;">Notes</td><td style="padding:.4rem .8rem;white-space:pre-wrap;max-width:500px;">{{ agency.notes or '—' }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

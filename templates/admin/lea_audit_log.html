@@ -1,0 +1,79 @@
+{% extends "admin_base.html" %}
+{% block title %}LEA Audit Log — Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <h1>LEA Audit Log</h1>
+    <a href="{{ url_for('.lea_dashboard') }}" style="padding:.4rem .8rem;background:#e2e8f0;border-radius:4px;text-decoration:none;color:#334155;">← Dashboard</a>
+  </div>
+
+  <p style="color:#64748b;margin-bottom:1.5rem;">
+    CJIS-compliant immutable audit trail for all LEA panel activity.
+  </p>
+
+  <form method="get" style="margin-bottom:1.5rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end;">
+    <div>
+      <label style="display:block;font-size:.8rem;color:#64748b;margin-bottom:.2rem;">Action</label>
+      <input type="text" name="action" value="{{ action_filter or '' }}" placeholder="e.g. blotter.submit" style="padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:4px;width:180px;">
+    </div>
+    <div>
+      <label style="display:block;font-size:.8rem;color:#64748b;margin-bottom:.2rem;">Agency</label>
+      <select name="agency_id" style="padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:4px;min-width:160px;">
+        <option value="">All agencies</option>
+        {% for a in agencies %}
+        <option value="{{ a.id }}" {% if agency_filter == a.id|string %}selected{% endif %}>{{ a.org_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label style="display:block;font-size:.8rem;color:#64748b;margin-bottom:.2rem;">From</label>
+      <input type="date" name="date_from" value="{{ date_from }}" style="padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:4px;">
+    </div>
+    <div>
+      <label style="display:block;font-size:.8rem;color:#64748b;margin-bottom:.2rem;">To</label>
+      <input type="date" name="date_to" value="{{ date_to }}" style="padding:.4rem .6rem;border:1px solid #cbd5e1;border-radius:4px;">
+    </div>
+    <button type="submit" style="padding:.4rem .8rem;background:#334155;color:#fff;border:none;border-radius:4px;cursor:pointer;">Filter</button>
+    {% if action_filter or agency_filter or date_from or date_to %}
+    <a href="{{ url_for('.lea_audit_log_viewer') }}" style="padding:.4rem .8rem;background:#e2e8f0;border-radius:4px;text-decoration:none;color:#334155;">Clear</a>
+    {% endif %}
+  </form>
+
+  {% if entries %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+      <thead>
+        <tr style="background:#f1f5f9;text-align:left;">
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Timestamp</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Agency</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">User</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Action</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Resource</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">Summary</th>
+          <th style="padding:.4rem .6rem;border-bottom:2px solid #e2e8f0;">IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:.4rem .6rem;white-space:nowrap;color:#64748b;" title="{{ e.timestamp }}">{{ ago(e.timestamp) }}</td>
+          <td style="padding:.4rem .6rem;">{% if e.agency_name %}<a href="{{ url_for('.lea_agency_detail', agency_id=e.agency_id) }}" style="color:#2563eb;text-decoration:none;">{{ e.agency_name }}</a>{% else %}{{ e.agency_id }}{% endif %}</td>
+          <td style="padding:.4rem .6rem;">{{ e.user_id or '—' }}</td>
+          <td style="padding:.4rem .6rem;font-weight:500;font-family:monospace;font-size:.8rem;">{{ e.action }}</td>
+          <td style="padding:.4rem .6rem;color:#64748b;font-size:.8rem;">{% if e.resource_type %}{{ e.resource_type }}#{{ e.resource_id or '—' }}{% else %}—{% endif %}</td>
+          <td style="padding:.4rem .6rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ e.change_summary or '' }}">{{ e.change_summary or '—' }}</td>
+          <td style="padding:.4rem .6rem;font-family:monospace;font-size:.8rem;color:#64748b;">{{ e.actor_ip or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p style="color:#64748b;font-size:.85rem;margin-top:.5rem;">Showing {{ entries|length }} entries.</p>
+  {% else %}
+  <div style="padding:2rem;text-align:center;color:#64748b;">
+    <p>No audit log entries found{% if action_filter or agency_filter or date_from or date_to %} matching your filters{% endif %}.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
