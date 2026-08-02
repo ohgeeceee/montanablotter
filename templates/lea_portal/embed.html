@@ -1,0 +1,24 @@
+{% extends "public_page_base.html" %}
+{% block title %}Embed Badge — LEA Portal{% endblock %}
+{% block content %}
+<div style="max-width:700px;margin:4rem auto;padding:2rem;text-align:center;">
+    <h1 style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;margin:0 0 0.5rem;">Embed Badge</h1>
+    <p style="color:#64748b;margin:0 0 2rem;">Copy this snippet to show your agency publishes data on Montana Blotter.</p>
+
+    <div style="display:inline-block;background:#0f172a;color:#fff;padding:1rem 1.5rem;border-radius:8px;text-align:center;margin-bottom:2rem;">
+        <div style="font-weight:700;">&#9670; Montana Blotter</div>
+        <div style="color:#94a3b8;font-size:0.85rem;">Law Enforcement Data Publisher</div>
+        <div style="color:#60a5fa;font-size:0.75rem;margin-top:0.25rem;">{{ stats.agency_count }} agencies &middot; {{ stats.published_count }} incidents</div>
+    </div>
+
+    <pre style="background:#1e293b;color:#a5f3fc;padding:1.5rem;border-radius:8px;text-align:left;font-size:0.85rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all;">&lt;a href="https://montanablotter.com/leaportal" target="_blank" style="display:inline-block;background:#0f172a;color:#fff;padding:0.75rem 1.25rem;border-radius:8px;text-decoration:none;font-family:sans-serif;"&gt;
+  &lt;strong&gt;&amp;#9670; Montana Blotter&lt;/strong&gt;&lt;br&gt;
+  &lt;span style="color:#94a3b8;font-size:0.85rem;"&gt;Law Enforcement Data Publisher&lt;/span&gt;
+&lt;/a&gt;
+</pre>
+
+    <p style="color:#94a3b8;font-size:0.85rem;margin-top:1rem;">
+        Live stats endpoint: <a href="{{ url_for('lea_portal.stats_json') }}" style="color:#2563eb;">/leaportal/stats</a>
+    </p>
+</div>
+{% endblock %}
