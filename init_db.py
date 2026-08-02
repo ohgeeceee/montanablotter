@@ -3768,6 +3768,24 @@ def ensure_lea_schema(conn: sqlite3.Connection) -> None:
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_agency_coverages_tier ON lea_agency_coverages(blotter_coverage_tier)')
 
+    # --- lea_registration_interest: agency signup requests from landing page ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_registration_interest (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_name TEXT NOT NULL,
+            county_name TEXT NOT NULL,
+            contact_name TEXT NOT NULL,
+            contact_email TEXT NOT NULL,
+            contact_phone TEXT,
+            agency_type TEXT DEFAULT 'sheriff',
+            message TEXT DEFAULT '',
+            status TEXT DEFAULT 'new',
+            contacted_at TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_registration_status ON lea_registration_interest(status)')
+
     conn.commit()
 
 

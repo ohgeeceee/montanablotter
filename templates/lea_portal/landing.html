@@ -1,6 +1,6 @@
 {% extends "public_page_base.html" %}
 {% block title %}LEA Portal — Montana Blotter{% endblock %}
-{% block meta_description %}Law Enforcement Agency self-service portal for Montana Blotter. Submit police blotters and jail rosters directly from your agency.{% endblock %}
+{% block meta_description %}Law Enforcement Agency self-service portal for Montana Blotter. Submit police blotters and jail rosters directly from your agency. Free for all Montana LEAs.{% endblock %}
 {% block content %}
 <style>
   .lp-hero {
@@ -46,6 +46,27 @@
     margin-bottom: 1.5rem;
     position: relative;
   }
+  .lp-hero .live-stats {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+    position: relative;
+  }
+  .lp-hero .live-stats .stat {
+    text-align: center;
+  }
+  .lp-hero .live-stats .stat .num {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #60a5fa;
+  }
+  .lp-hero .live-stats .stat .label {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+  }
   .lp-btn-group {
     display: flex;
     gap: 1rem;
@@ -68,19 +89,13 @@
     background: #2563eb;
     color: #fff;
   }
-  .lp-btn-primary:hover {
-    background: #1d4ed8;
-    transform: translateY(-1px);
-  }
+  .lp-btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
   .lp-btn-secondary {
     background: rgba(255,255,255,0.1);
     color: #e2e8f0;
     border: 1px solid rgba(255,255,255,0.2);
   }
-  .lp-btn-secondary:hover {
-    background: rgba(255,255,255,0.18);
-    transform: translateY(-1px);
-  }
+  .lp-btn-secondary:hover { background: rgba(255,255,255,0.18); transform: translateY(-1px); }
 
   .lp-section {
     max-width: 1100px;
@@ -99,7 +114,6 @@
     font-size: 1.05rem;
     margin: 0 0 2.5rem;
   }
-
   .lp-features {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -112,106 +126,72 @@
     padding: 2rem;
     transition: box-shadow 0.2s;
   }
-  .lp-feature:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-  }
-  .lp-feature .icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-  .lp-feature h3 {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin: 0 0 0.5rem;
-    color: #0f172a;
-  }
-  .lp-feature p {
-    color: #64748b;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    margin: 0;
-  }
+  .lp-feature:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .lp-feature .icon { font-size: 2rem; margin-bottom: 1rem; }
+  .lp-feature h3 { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.5rem; color: #0f172a; }
+  .lp-feature p { color: #64748b; font-size: 0.95rem; line-height: 1.6; margin: 0; }
 
   .lp-steps {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1.5rem;
-    counter-reset: step;
   }
-  .lp-step {
-    text-align: center;
-    padding: 2rem 1.5rem;
-    position: relative;
-  }
+  .lp-step { text-align: center; padding: 2rem 1.5rem; }
   .lp-step .num {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: #2563eb;
-    color: #fff;
-    font-size: 1.3rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1rem;
+    width: 48px; height: 48px; border-radius: 50%; background: #2563eb; color: #fff;
+    font-size: 1.3rem; font-weight: 700; display: flex; align-items: center;
+    justify-content: center; margin: 0 auto 1rem;
   }
-  .lp-step h3 {
-    font-size: 1.05rem;
-    font-weight: 700;
-    margin: 0 0 0.4rem;
-    color: #0f172a;
-  }
-  .lp-step p {
-    color: #64748b;
-    font-size: 0.9rem;
-    margin: 0;
-  }
+  .lp-step h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 0.4rem; color: #0f172a; }
+  .lp-step p { color: #64748b; font-size: 0.9rem; margin: 0; }
 
   .lp-security {
-    background: #fef9c3;
-    border: 1px solid #fde68a;
-    border-radius: 12px;
-    padding: 2rem;
-    display: flex;
-    gap: 1.5rem;
-    align-items: flex-start;
-    margin-top: 2rem;
+    background: #fef9c3; border: 1px solid #fde68a; border-radius: 12px;
+    padding: 2rem; display: flex; gap: 1.5rem; align-items: flex-start; margin-top: 2rem;
   }
-  .lp-security .icon {
-    font-size: 2rem;
-    flex-shrink: 0;
+  .lp-security .icon { font-size: 2rem; flex-shrink: 0; }
+  .lp-security h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 0.3rem; color: #854d0e; }
+  .lp-security p { color: #92400e; font-size: 0.9rem; margin: 0; }
+
+  .lp-form-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 2.5rem; max-width: 600px; margin: 0 auto;
   }
-  .lp-security h3 {
-    font-size: 1.05rem;
-    font-weight: 700;
-    margin: 0 0 0.3rem;
-    color: #854d0e;
+  .lp-form-card label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.3rem; color: #334155; }
+  .lp-form-card input, .lp-form-card select, .lp-form-card textarea {
+    width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;
+    box-sizing: border-box; font-size: 0.95rem; margin-bottom: 1rem;
   }
-  .lp-security p {
-    color: #92400e;
-    font-size: 0.9rem;
-    margin: 0;
+  .lp-form-card textarea { resize: vertical; font-family: inherit; }
+  .lp-form-card .form-error { color: #dc2626; font-size: 0.85rem; margin-top: -0.75rem; margin-bottom: 0.75rem; }
+  .lp-form-card .form-success {
+    background: #d5f5e3; color: #1e8449; padding: 1rem; border-radius: 6px;
+    text-align: center; font-weight: 600; margin-bottom: 1rem;
   }
 
+  .lp-faq { max-width: 800px; margin: 0 auto; }
+  .lp-faq details {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+    margin-bottom: 0.75rem; padding: 1.25rem 1.5rem; cursor: pointer;
+  }
+  .lp-faq details summary {
+    font-weight: 600; color: #0f172a; outline: none;
+  }
+  .lp-faq details p {
+    color: #475569; margin: 0.75rem 0 0; font-size: 0.95rem; line-height: 1.6;
+  }
+
+  .lp-embed-code {
+    background: #1e293b; color: #a5f3fc; padding: 1.25rem; border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; overflow-x: auto;
+    white-space: pre-wrap; word-break: break-all;
+  }
   .lp-cta {
-    text-align: center;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    padding: 4rem 2rem;
+    text-align: center; background: #f8fafc; border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0; padding: 4rem 2rem;
   }
-  .lp-cta h2 {
-    font-family: 'Playfair Display', serif;
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0 0 0.5rem;
-    color: #0f172a;
-  }
-  .lp-cta p {
-    color: #64748b;
-    margin: 0 0 2rem;
-  }
-
+  .lp-cta h2 { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; margin: 0 0 0.5rem; color: #0f172a; }
+  .lp-cta p { color: #64748b; margin: 0 0 2rem; }
   @media (max-width: 640px) {
     .lp-hero h1 { font-size: 2rem; }
     .lp-hero { padding: 3rem 1.5rem; }
@@ -219,10 +199,27 @@
   }
 </style>
 
+<!-- Hero -->
 <div class="lp-hero">
   <div class="badge">&#9670; Montana Law Enforcement Agency Portal</div>
   <h1>Agency Self-Service Publishing</h1>
   <p>Publish police blotters and jail rosters directly to montanablotter.com. Free for all Montana law enforcement agencies.</p>
+
+  <div class="live-stats">
+    <div class="stat">
+      <div class="num">{{ stats.agency_count }}</div>
+      <div class="label">Agencies Onboarded</div>
+    </div>
+    <div class="stat">
+      <div class="num">{{ stats.published_count }}</div>
+      <div class="label">Incidents Published</div>
+    </div>
+    <div class="stat">
+      <div class="num">{{ stats.total_registrations }}</div>
+      <div class="label">Agencies Total</div>
+    </div>
+  </div>
+
   <div class="lp-btn-group">
     <a href="{{ url_for('lea_portal.login_redirect') }}" class="lp-btn lp-btn-primary">
       <i class="fas fa-shield-halved"></i> Agency Login
@@ -233,82 +230,226 @@
   </div>
 </div>
 
+<!-- Features -->
 <div class="lp-section">
   <h2>Why the LEA Portal?</h2>
   <p class="subtitle">Replace 3&ndash;7 day scraping delays with real-time agency submission.</p>
-
   <div class="lp-features">
     <div class="lp-feature">
       <div class="icon">&#9889;</div>
       <h3>Real-Time Publishing</h3>
-      <p>Submit an incident and it appears on montanablotter.com in under 10 minutes. No more waiting for the weekly scrape.</p>
+      <p>Submit an incident and it appears on montanablotter.com in under 10 minutes.</p>
     </div>
     <div class="lp-feature">
       <div class="icon">&#128203;</div>
       <h3>Full Control</h3>
-      <p>Your agency owns its data. Submit, review, approve, or reject incidents through your dedicated dashboard.</p>
+      <p>Your agency owns its data. Submit, review, approve, or reject through your dashboard.</p>
     </div>
     <div class="lp-feature">
       <div class="icon">&#128274;</div>
       <h3>CJIS Compliant</h3>
-      <p>Immutable audit trail, RBAC enforcement, and PII redaction built in. Every action is logged and tamper-proof.</p>
+      <p>Immutable audit trail, RBAC, and PII redaction built in. Every action is logged.</p>
     </div>
     <div class="lp-feature">
       <div class="icon">&#128200;</div>
       <h3>Batch Upload</h3>
-      <p>Upload multiple incidents at once via CSV. Preview before publishing. Ideal for CAD/RMS exports.</p>
+      <p>Upload multiple incidents at once via CSV. Preview before publishing.</p>
     </div>
     <div class="lp-feature">
       <div class="icon">&#128279;</div>
       <h3>REST API</h3>
-      <p>Integrate directly with your records management system. Secure token-based authentication with rate limiting.</p>
+      <p>Integrate with your RMS. Secure token-based auth with rate limiting.</p>
     </div>
     <div class="lp-feature">
       <div class="icon">&#128101;</div>
       <h3>Team Management</h3>
-      <p>Role-based access for PIOs, records officers, and agency admins. Invite your team via email.</p>
+      <p>RBAC for PIOs, records officers, and admins. Invite your team via email.</p>
     </div>
   </div>
 </div>
 
+<!-- How It Works -->
+<div class="lp-cta">
+  <h2>How It Works</h2>
+  <p class="subtitle" style="margin-bottom:2rem;">Three steps from submission to publication.</p>
+  <div class="lp-steps" style="max-width:900px;margin:0 auto;">
+    <div class="lp-step">
+      <div class="num">1</div>
+      <h3>Submit</h3>
+      <p>An officer submits an incident through the dashboard or API. It saves as a draft.</p>
+    </div>
+    <div class="lp-step">
+      <div class="num">2</div>
+      <h3>Review</h3>
+      <p>A supervisor or PIO reviews and approves. PII is automatically flagged.</p>
+    </div>
+    <div class="lp-step">
+      <div class="num">3</div>
+      <h3>Publish</h3>
+      <p>Approved incidents are normalized and published to the public site within minutes.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Registration Form -->
+<div class="lp-section" id="register">
+  <h2 style="text-align:center;">Register Your Agency</h2>
+  <p class="subtitle" style="text-align:center;">Interested in joining? Fill out the form and we'll get back to you.</p>
+
+  <div class="lp-form-card">
+    {% if form_success %}
+    <div class="form-success">{{ form_success }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('lea_portal.register_interest') }}">
+      <label for="agency_name">Agency Name *</label>
+      <input type="text" id="agency_name" name="agency_name" value="{{ form_data.get('agency_name', '') if form_data else '' }}" required>
+      {% if form_errors and 'Agency name is required' in form_errors %}<div class="form-error">Agency name is required</div>{% endif %}
+
+      <label for="county">County *</label>
+      <input type="text" id="county" name="county" value="{{ form_data.get('county', '') if form_data else '' }}" placeholder="e.g. Cascade" required>
+      {% if form_errors and 'County is required' in form_errors %}<div class="form-error">County is required</div>{% endif %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>
+          <label for="contact_name">Contact Name *</label>
+          <input type="text" id="contact_name" name="contact_name" value="{{ form_data.get('contact_name', '') if form_data else '' }}" required>
+          {% if form_errors and 'Contact name is required' in form_errors %}<div class="form-error">Required</div>{% endif %}
+        </div>
+        <div>
+          <label for="agency_type">Agency Type</label>
+          <select id="agency_type" name="agency_type">
+            <option value="sheriff" {% if form_data and form_data.get('agency_type') == 'sheriff' %}selected{% endif %}>Sheriff's Office</option>
+            <option value="police" {% if form_data and form_data.get('agency_type') == 'police' %}selected{% endif %}>Police Department</option>
+            <option value="detention" {% if form_data and form_data.get('agency_type') == 'detention' %}selected{% endif %}>Detention Center</option>
+            <option value="tribal" {% if form_data and form_data.get('agency_type') == 'tribal' %}selected{% endif %}>Tribal Law Enforcement</option>
+            <option value="other" {% if form_data and form_data.get('agency_type') == 'other' %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div>
+          <label for="contact_email">Email *</label>
+          <input type="email" id="contact_email" name="contact_email" value="{{ form_data.get('contact_email', '') if form_data else '' }}" required>
+          {% if form_errors and 'Contact email is required' in form_errors %}<div class="form-error">Required</div>{% endif %}
+        </div>
+        <div>
+          <label for="contact_phone">Phone</label>
+          <input type="tel" id="contact_phone" name="contact_phone" value="{{ form_data.get('contact_phone', '') if form_data else '' }}">
+        </div>
+      </div>
+
+      <label for="message">Notes</label>
+      <textarea id="message" name="message" rows="3" placeholder="Anything you'd like us to know...">{{ form_data.get('message', '') if form_data else '' }}</textarea>
+
+      <button type="submit" style="width:100%;padding:0.75rem;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:1rem;font-weight:600;">Submit Interest</button>
+    </form>
+  </div>
+</div>
+
+<!-- FAQ -->
+<div class="lp-section">
+  <h2 style="text-align:center;">Frequently Asked Questions</h2>
+  <p class="subtitle" style="text-align:center;">Everything you need to know about the LEA Portal.</p>
+
+  <div class="lp-faq">
+    <details>
+      <summary>Is this really free for law enforcement agencies?</summary>
+      <p>Yes. The LEA Portal is completely free for all Montana law enforcement agencies. There are no setup fees, monthly charges, or per-incident costs. Montana Blotter is an open-source public records platform — this is part of our mission to increase government transparency.</p>
+    </details>
+    <details>
+      <summary>How long does it take for a submission to go live?</summary>
+      <p>Once an incident is submitted and approved by a supervisor/PIO, it is typically published to the public site within 5&ndash;10 minutes. The normalization and PII audit run automatically every 5 minutes.</p>
+    </details>
+    <details>
+      <summary>Can I edit or remove a published incident?</summary>
+      <p>Published incidents cannot be deleted (to maintain audit integrity), but they can be updated by submitting a correction. The audit trail preserves the original and the correction. Contact the admin team if you need to remove something urgently.</p>
+    </details>
+    <details>
+      <summary>What if my county doesn't have an ORI number?</summary>
+      <p>An ORI number is preferred but not required for registration. We can verify your agency through government email domain (<code>.gov</code>, <code>.mt.us</code>) or by phone. Fill out the registration form and we'll work it out.</p>
+    </details>
+    <details>
+      <summary>Can I submit jail rosters in addition to blotters?</summary>
+      <p>Yes. The portal supports both police blotter incidents and jail roster snapshots. Rosters sync every 4 hours and are deduplicated automatically. Enable roster publishing in your agency settings.</p>
+    </details>
+    <details>
+      <summary>How does PII redaction work?</summary>
+      <p>Before publication, the system automatically scans narratives for potential PII (names, DOBs, SSNs, addresses). Flagged content is highlighted for review. Sensitive records (juveniles, domestic violence victims) require explicit admin approval before going public.</p>
+    </details>
+    <details>
+      <summary>Can our IT department integrate via API?</summary>
+      <p>Absolutely. We offer a REST API with token-based authentication. Endpoints include incident submission, batch upload, roster sync, and audit log retrieval. Rate limited at 1,000 requests per hour per agency. See the API docs once logged in.</p>
+    </details>
+  </div>
+</div>
+
+<!-- Security -->
 <div class="lp-section" style="background:#f8fafc;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;max-width:none;">
   <div style="max-width:1100px;margin:0 auto;">
-    <h2 style="text-align:center;">How It Works</h2>
-    <p class="subtitle" style="text-align:center;">Three steps to go from submission to publication.</p>
-
-    <div class="lp-steps">
-      <div class="lp-step">
-        <div class="num">1</div>
-        <h3>Submit</h3>
-        <p>An officer submits an incident through the dashboard or API. It saves as a draft.</p>
-      </div>
-      <div class="lp-step">
-        <div class="num">2</div>
-        <h3>Review</h3>
-        <p>A supervisor or PIO reviews and approves the submission. PII is automatically flagged.</p>
-      </div>
-      <div class="lp-step">
-        <div class="num">3</div>
-        <h3>Publish</h3>
-        <p>Approved incidents are normalized and published to the public site within minutes.</p>
+    <div class="lp-security">
+      <div class="icon">&#128737;</div>
+      <div>
+        <h3>CJIS-Compliant Security</h3>
+        <p>The LEA Portal was built with law enforcement security requirements from day one. Every audit log entry is immutable — no edits, no deletions. Role-based access is enforced at the database level. Agency verification requires a government email domain (<code>.gov</code>, <code>.mt.us</code>) and ORI number validation.</p>
       </div>
     </div>
   </div>
 </div>
 
-<div class="lp-section">
-  <div class="lp-security">
-    <div class="icon">&#128737;</div>
-    <div>
-      <h3>CJIS-Compliant Security</h3>
-      <p>The LEA Portal was built with law enforcement security requirements from day one. Every audit log entry is immutable &mdash; no edits, no deletions. Role-based access control is enforced at the database level. Agency verification requires a government email domain (<code>.gov</code>, <code>.mt.us</code>) and ORI number validation.</p>
+<!-- Embed Badge -->
+<div class="lp-section" id="embed">
+  <h2 style="text-align:center;">Put a Badge on Your Site</h2>
+  <p class="subtitle" style="text-align:center;">Show the public that your agency publishes data to Montana Blotter.</p>
+
+  <div style="max-width:700px;margin:0 auto;">
+    <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:2rem;text-align:center;margin-bottom:1.5rem;">
+      <div style="display:inline-block;background:#0f172a;color:#fff;padding:1rem 1.5rem;border-radius:8px;font-size:0.9rem;">
+        <div style="font-weight:700;">&#9670; Montana Blotter</div>
+        <div style="color:#94a3b8;font-size:0.8rem;">Law Enforcement Data Publisher</div>
+        <div style="color:#60a5fa;font-size:0.75rem;margin-top:0.25rem;">{{ stats.agency_count }} agencies &middot; {{ stats.published_count }} incidents</div>
+      </div>
+    </div>
+
+    <p style="text-align:center;color:#64748b;font-size:0.9rem;margin-bottom:0.75rem;">Copy this snippet and add it to your agency website:</p>
+    <div class="lp-embed-code">&lt;a href="https://montanablotter.com/leaportal" target="_blank" style="display:inline-block;background:#0f172a;color:#fff;padding:0.75rem 1.25rem;border-radius:8px;text-decoration:none;font-family:sans-serif;"&gt;
+  &lt;strong&gt;&amp;#9670; Montana Blotter&lt;/strong&gt;&lt;br&gt;
+  &lt;span style="color:#94a3b8;font-size:0.85rem;"&gt;Law Enforcement Data Publisher&lt;/span&gt;
+&lt;/a&gt;</div>
+    <p style="text-align:center;color:#94a3b8;font-size:0.8rem;margin-top:0.75rem;">
+      Live stats: <a href="{{ url_for('lea_portal.stats_json') }}" style="color:#2563eb;">/leaportal/stats</a>
+    </p>
+  </div>
+</div>
+
+<!-- Contact -->
+<div class="lp-cta" id="contact">
+  <h2>Questions? Get in Touch</h2>
+  <p>Have questions about the LEA Portal or want to onboard your agency?</p>
+  <div style="display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;">
+    <div style="text-align:center;">
+      <div style="font-size:1.5rem;margin-bottom:0.3rem;">&#128231;</div>
+      <div style="font-weight:600;">Email</div>
+      <div style="color:#64748b;font-size:0.9rem;">lea@montanablotter.com</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:1.5rem;margin-bottom:0.3rem;">&#128222;</div>
+      <div style="font-weight:600;">Phone</div>
+      <div style="color:#64748b;font-size:0.9rem;">(406) 555-0113</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:1.5rem;margin-bottom:0.3rem;">&#128172;</div>
+      <div style="font-weight:600;">Schedule Onboarding</div>
+      <div style="color:#64748b;font-size:0.9rem;">Fill the form above</div>
     </div>
   </div>
 </div>
 
-<div class="lp-cta">
+<!-- Bottom CTA -->
+<div class="lp-section" style="text-align:center;">
   <h2>Ready to get started?</h2>
-  <p>Contact us to set up your agency account. Already have one? Sign in below.</p>
+  <p style="color:#64748b;margin:0 0 2rem;">Already have an account? Sign in below.</p>
   <div class="lp-btn-group">
     <a href="{{ url_for('lea_portal.login_redirect') }}" class="lp-btn lp-btn-primary">
       <i class="fas fa-shield-halved"></i> Agency Login
