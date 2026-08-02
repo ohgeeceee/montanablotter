@@ -843,13 +843,60 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def ensure_lawyer_arrest_alert_schema(conn: sqlite3.Connection) -> None:
+    """2026-07-29: Real-time arrest alerts + case claim for lawyer_ad_orders subscribers.
+
+    Reuses the existing paid lawyer_ad_orders advertiser roster (county +
+    practice_areas already captured there) rather than a parallel billing
+    table. One delivery row per (order, post): tracks the alert email, the
+    optional claim, and the outcome-notified badge state once court_cases
+    picks up a disposition for the linked defendant.
+    """
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_arrest_alert_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL REFERENCES lawyer_ad_orders(id) ON DELETE CASCADE,
+            post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+            county TEXT,
+            charge_category TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            error TEXT,
+            sent_at TEXT,
+            claim_token TEXT UNIQUE,
+            claimed_at TEXT,
+            court_case_id INTEGER REFERENCES court_cases(id) ON DELETE SET NULL,
+            outcome_notified_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(order_id, post_id)
+        )
+    ''')
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_arrest_alerts_post ON lawyer_arrest_alert_deliveries(post_id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_arrest_alerts_order ON lawyer_arrest_alert_deliveries(order_id, status)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_arrest_alerts_claimed ON lawyer_arrest_alert_deliveries(claimed_at, court_case_id)'
+    )
+    try:
+        conn.execute('ALTER TABLE posts ADD COLUMN lawyer_alert_dispatched_at TEXT')
+        print('✅ Added posts.lawyer_alert_dispatched_at')
+    except sqlite3.OperationalError:
+        pass
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_posts_lawyer_alert_dispatched ON posts(lawyer_alert_dispatched_at)'
+    )
+    conn.commit()
+
+
 def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
     """2026-06-06: Sponsored-listing tier on attorney_referrals.
 
     Free Bronze listings are the default (sponsored=0). Silver ($99/mo) and
     Gold ($199/mo) tiers rank above free listings in the same county and get
-    a 'Featured' or 'Top Rated' badge. Tier flip is done by the admin after
-    manual invoicing (Stripe wire-up can replace this later).
+    a 'Featured' or 'Priority Placement' badge. Tier flip is done by the admin
+    after manual invoicing (Stripe wire-up can replace this later).
 
     `attorney_sponsored_claims` captures inbound self-service form
     submissions so the admin can review and create the underlying
@@ -1079,6 +1126,93 @@ def ensure_outreach_drafts_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def ensure_lawyer_outreach_schema(conn: sqlite3.Connection) -> None:
+    """Per-firm lawyer advertising outreach workflow.
+
+    Mirrors the existing outreach_drafts pattern (operator review queue, never
+    auto-send) but adds a per-firm stage tracker on top:
+
+      lawyer_outreach_prospects  one row per target_list.csv firm, tracks the
+                                  Day 1 / Day 3 / Day 5 / Day 10 cadence and
+                                  terminal won/lost state.
+      lawyer_outreach_emails      queued message bodies per prospect + stage.
+                                  Status moves pending -> sent / skipped via
+                                  the admin blueprint, never via cron.
+
+    The dedupe key on emails is (prospect_id, stage, attempt) — re-running the
+    worker for the same week won't double-queue the Day 1 email for the same
+    prospect.
+    """
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS lawyer_outreach_prospects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firm_name TEXT NOT NULL,
+            county TEXT NOT NULL,
+            city TEXT,
+            website TEXT,
+            contact_name TEXT,
+            contact_email TEXT,
+            practice_areas TEXT,
+            notes TEXT,
+            stage TEXT NOT NULL DEFAULT 'day_1',
+            last_action_at TEXT,
+            next_action_at TEXT,
+            status TEXT NOT NULL DEFAULT 'queued',
+            source TEXT NOT NULL DEFAULT 'target_list.csv',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(firm_name, county)
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_lop_stage
+        ON lawyer_outreach_prospects(stage, status)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_lop_next_action
+        ON lawyer_outreach_prospects(next_action_at)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS lawyer_outreach_emails (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prospect_id INTEGER NOT NULL REFERENCES lawyer_outreach_prospects(id),
+            stage TEXT NOT NULL,
+            attempt INTEGER NOT NULL DEFAULT 1,
+            to_addr TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            campaign_dedupe_key TEXT UNIQUE,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            reviewed_at TEXT,
+            sent_at TEXT,
+            skipped_at TEXT,
+            error TEXT
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_loe_status
+        ON lawyer_outreach_emails(status, created_at DESC)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_loe_prospect
+        ON lawyer_outreach_emails(prospect_id, stage)
+        '''
+    )
+    conn.commit()
+
+
 def migrate():
     """Safely apply schema changes to an existing DB without data loss"""
     conn = sqlite3.connect(DB_PATH)
@@ -1146,6 +1280,7 @@ def migrate():
     ensure_attorney_ad_schema(conn)
     ensure_treatment_center_schema(conn)
     ensure_outreach_drafts_schema(conn)
+    ensure_lawyer_outreach_schema(conn)
     ensure_for_the_record_drafts_schema(conn)
     ensure_agent_mission_control_schema(conn)
     ensure_api_auth_schema(conn)
@@ -1984,6 +2119,8 @@ def migrate():
         except sqlite3.OperationalError:
             pass  # Already exists
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_audit_status ON posts(audit_status)')
+
+    ensure_lawyer_arrest_alert_schema(conn)
 
     ensure_case_journey_schema(conn)
     created_journeys = seed_case_journeys(conn)

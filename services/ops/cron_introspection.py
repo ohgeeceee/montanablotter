@@ -279,6 +279,11 @@ def well_known_jobs() -> dict[str, dict]:
             "max_age_hours": 2,
             "cadence": "hourly",
         },
+        "lawyer_outreach_cadence": {
+            "log_path": f"{REPO_ROOT}/logs/lawyer_outreach_cadence.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
     }
 
 

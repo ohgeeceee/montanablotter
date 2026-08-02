@@ -1,0 +1,100 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ prospect.firm_name }} — Lawyer Outreach{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <p style="margin-bottom:.5rem;"><a href="{{ url_for('admin.admin_lawyer_outreach') }}" style="color:#1e40af;">← Back to queue</a></p>
+  <h1>{{ prospect.firm_name }} <span style="color:#64748b;font-weight:400;">— {{ prospect.county }} County</span></h1>
+  <p style="color:#64748b;font-size:.9rem;margin-bottom:1.5rem;">
+    Stage: <code>{{ prospect.stage }}</code> · Status: <code>{{ prospect.status }}</code><br>
+    Source: <code>{{ prospect.source }}</code> · Last action: <code>{{ prospect.last_action_at or 'never' }}</code>
+  </p>
+
+  <div style="display:flex;gap:.5rem;margin-bottom:2rem;flex-wrap:wrap;">
+    <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_advance', prospect_id=prospect.id) }}" style="display:inline;">
+      <select name="stage" style="padding:.4rem;border:1px solid #ccc;border-radius:4px;">
+        {% for s in stages %}
+        <option value="{{ s }}" {% if s == prospect.stage %}selected{% endif %}>{{ stage_label(s) }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" style="background:#1e40af;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer;">Advance</button>
+    </form>
+    <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_email', prospect_id=prospect.id) }}" style="display:inline;">
+      <button type="submit" style="background:#475569;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer;">Re-queue next stage email</button>
+    </form>
+    <a href="{{ url_for('admin.admin_lawyer_outreach_sample_report', prospect_id=prospect.id) }}"
+       style="background:#7c3aed;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;text-decoration:none;display:inline-block;">
+       View sample report →</a>
+    <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_won', prospect_id=prospect.id) }}"
+          onsubmit="return confirm('Mark {{ prospect.firm_name }} as WON?');" style="display:inline;">
+      <button type="submit" style="background:#047857;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer;">Mark WON</button>
+    </form>
+    <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_lost', prospect_id=prospect.id) }}"
+          onsubmit="return confirm('Mark {{ prospect.firm_name }} as LOST?');" style="display:inline;">
+      <button type="submit" style="background:#9ca3af;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer;">Mark LOST</button>
+    </form>
+  </div>
+
+  <h2>Prospect fields</h2>
+  <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_edit', prospect_id=prospect.id) }}"
+        style="background:#f8fafc;padding:1rem 1.5rem;border-radius:6px;margin-bottom:2rem;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
+      <label>Contact name<br><input name="contact_name" value="{{ prospect.contact_name or '' }}"
+        style="width:100%;padding:.4rem;border:1px solid #ccc;border-radius:4px;"></label>
+      <label>Contact email<br><input name="contact_email" value="{{ prospect.contact_email or '' }}"
+        style="width:100%;padding:.4rem;border:1px solid #ccc;border-radius:4px;"></label>
+      <label>Website<br><input name="website" value="{{ prospect.website or '' }}"
+        style="width:100%;padding:.4rem;border:1px solid #ccc;border-radius:4px;"></label>
+      <label>Practice areas<br><input name="practice_areas" value="{{ prospect.practice_areas or '' }}"
+        style="width:100%;padding:.4rem;border:1px solid #ccc;border-radius:4px;"></label>
+    </div>
+    <label style="display:block;margin-top:1rem;">Notes<br>
+      <textarea name="notes" rows="4" style="width:100%;padding:.4rem;border:1px solid #ccc;border-radius:4px;">{{ prospect.notes or '' }}</textarea>
+    </label>
+    <button type="submit" style="margin-top:.75rem;padding:.5rem 1rem;background:#1e40af;color:#fff;border:none;border-radius:4px;cursor:pointer;">Save</button>
+  </form>
+
+  <h2>Email history ({{ emails|length }})</h2>
+  {% if emails %}
+  <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+    <thead>
+      <tr style="background:#1e293b;color:#fff;">
+        <th style="padding:.5rem;text-align:left;">Stage</th>
+        <th style="padding:.5rem;text-align:left;">Status</th>
+        <th style="padding:.5rem;text-align:left;">To</th>
+        <th style="padding:.5rem;text-align:left;">Subject</th>
+        <th style="padding:.5rem;text-align:left;">Created</th>
+        <th style="padding:.5rem;text-align:left;">Sent/Skipped</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for em in emails %}
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:.5rem;font-family:monospace;font-size:.85rem;">{{ em.stage }}</td>
+        <td style="padding:.5rem;">
+          <span style="padding:.1rem .5rem;border-radius:4px;font-size:.75rem;
+            {% if em.status == 'sent' %}background:#dcfce7;color:#047857;
+            {% elif em.status == 'skipped' %}background:#f3f4f6;color:#6b7280;
+            {% else %}background:#fef3c7;color:#92400e;{% endif %}">{{ em.status }}</span>
+        </td>
+        <td style="padding:.5rem;font-family:monospace;font-size:.8rem;color:#475569;">{{ em.to_addr }}</td>
+        <td style="padding:.5rem;">{{ em.subject[:80] }}{% if em.subject|length > 80 %}…{% endif %}</td>
+        <td style="padding:.5rem;font-family:monospace;font-size:.8rem;color:#475569;">{{ em.created_at }}</td>
+        <td style="padding:.5rem;font-family:monospace;font-size:.8rem;color:#475569;">
+          {{ em.sent_at or em.skipped_at or '—' }}{% if em.error %}<br>
+          <span style="color:#b91c1c;">{{ em.error }}</span>{% endif %}
+        </td>
+      </tr>
+      {% if em.body %}
+      <tr style="background:#f9fafb;">
+        <td colspan="6" style="padding:.5rem 1rem;font-family:monospace;font-size:.8rem;color:#334155;white-space:pre-wrap;">{{ em.body }}</td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#64748b;font-size:.9rem;">No emails queued yet. Run the cadence worker or click "Re-queue next stage email".</p>
+  {% endif %}
+</div>
+{% endblock %}

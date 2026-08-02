@@ -80,6 +80,7 @@ def register_admin_blueprint(app):
     from blueprints.admin import recovery_ads  # noqa: F401
     from blueprints.admin import attorney_ads  # noqa: F401
     from blueprints.admin import lawyer_ads  # noqa: F401
+    from blueprints.admin import lawyer_outreach  # noqa: F401
     from blueprints.admin import security   # noqa: F401
     from blueprints.admin import code_violations  # noqa: F401
     from blueprints.admin import license_sanctions  # noqa: F401
@@ -91,7 +92,18 @@ def register_admin_blueprint(app):
     from blueprints.admin import social_shares   # noqa: F401
     from blueprints.admin import sponsored_digests  # noqa: F401
     from blueprints.admin import case_watch  # noqa: F401
-    from blueprints.admin import outreach  # noqa: F401
-    from blueprints.admin import for_the_record  # noqa: F401
-    from blueprints.admin import civic_requests  # noqa: F401
+    # outreach / for_the_record / civic_requests: source files are missing
+    # from disk (2026-07-29 — only stale __pycache__ remained, no git
+    # history to restore from). Skipped so the rest of /admin and the
+    # public site keep working; these three admin tools are unavailable
+    # until their source is rebuilt or restored.
+    for _missing_admin_module in ('outreach', 'for_the_record', 'civic_requests'):
+        try:
+            __import__(f'blueprints.admin.{_missing_admin_module}')
+        except ImportError:
+            import logging
+            logging.getLogger(__name__).warning(
+                "admin submodule '%s' unavailable (missing source file) — skipping",
+                _missing_admin_module,
+            )
     app.register_blueprint(admin_bp)

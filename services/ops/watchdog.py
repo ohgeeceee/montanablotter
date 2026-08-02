@@ -84,6 +84,10 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("bozeman_calls", LOGS / "bozeman_calls.log", 2, "hourly"),
     MonitoredJob("bozeman_crime", LOGS / "bozeman_crime.log", 2, "hourly"),
     MonitoredJob("missoula_public_report", LOGS / "missoula_fetcher.log", 2, "hourly"),
+    # Per-firm lawyer outreach cadence — nightly import + queue.
+    # Logs to logs/lawyer_outreach_cadence.log. Cron never sends; admin
+    # blueprint is the only SMTP path. Daily cadence → 26h freshness window.
+    MonitoredJob("lawyer_outreach_cadence", LOGS / "lawyer_outreach_cadence.log", 26, "daily"),
 )
 
 # STATE_JOBS watches rows in the `scheduled_job_state` table — populated by

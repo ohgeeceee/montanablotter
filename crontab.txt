@@ -15,18 +15,32 @@ BASH_ENV=/root/montanablotter/.env
 # Email queue scan — polls IONOS inbox (records@montanablotter.com) every 15 min
 # and routes Havre PD daily jail roster DOCX attachments to the jail_bookings
 # pipeline via services/ingestion/fetchers/havre_inmate.py. Logs to mail.log.
-*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_worker --log /root/montanablotter/logs/mail.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py --mode queue
+# Shared-lock wait matches the 900s child timeout: historical successful scans
+# averaged ~591s and peaked at ~891s, so shorter waits starved sibling jobs.
+*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_worker --shared-lock blotter_db_writer --wait-for-lock 900 --timeout 900 --log /root/montanablotter/logs/mail.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_worker.py --mode queue
 
 # Image-based blotter ingestion — separate from the queue scan above because
 # it processes a short inbox window for any image attachments missed by the
 # queue poll (Havre PDF blotters, etc.). A 2-day look-back is enough of a
 # safety net because email_worker polls UNSEEN every 15 minutes. Offset by
 # 8 min to avoid stacking.
-8-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_image_blotter --log /root/montanablotter/logs/email_image_blotter.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_image_blotter.py --since-days 2
+8-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name email_image_blotter --shared-lock blotter_db_writer --wait-for-lock 900 --timeout 900 --log /root/montanablotter/logs/email_image_blotter.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/email_image_blotter.py --since-days 2
 
 # Disposition watcher — link new jail bookings to court cases + detect outcome
 # changes for existing links. Every 15 min. Logs to logs/disposition_watcher.log.
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/disposition_watcher.py >> /root/montanablotter/logs/disposition_watcher.log 2>&1
+
+# Lawyer arrest alerts — email paid lawyer_ad_orders advertisers when a new
+# post matches their county + practice area, and notify claimed cases once a
+# disposition posts. Every 15 min. Logs to logs/lawyer_arrest_alerts.log.
+*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/lawyer_arrest_alerts_watcher.py >> /root/montanablotter/logs/lawyer_arrest_alerts.log 2>&1
+
+# Lawyer outreach cadence — re-imports target_list.csv and queues Day 1 / Day 3
+# / Day 5 / Day 10 emails into lawyer_outreach_emails. The cron NEVER sends;
+# /admin/lawyer-outreach is the only SMTP path. Daily at 03:30 UTC, offset
+# from the 03:00 backup and the 05:30 daily_blog_worker. Logs to
+# logs/lawyer_outreach_cadence.log.
+30 3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name lawyer_outreach_cadence --log /root/montanablotter/logs/lawyer_outreach_cadence.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.lawyer_outreach.cadence
 
 # Ad integration health check — assert Monetag loader + meta are present and
 # that no AdSense references have crept back. Every 15 min, offset by 7 min.
@@ -161,3 +175,10 @@ BASH_ENV=/root/montanablotter/.env
 # Cache and compress active warrant mugshots locally once per day.
 # Runs at 02:15 (off-peak) so wanted pages serve fast local images.
 15 2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/maintenance/compress_mugshots.py >> /root/montanablotter/logs/compress_mugshots.log 2>&1
+
+# Montana DOJ Missing Persons Database — sync every 15 minutes, offset :09 to
+# avoid stacking on the :00 email_worker, :15 disposition_watcher, and :30
+# image_blotter lock windows. The DOJ app sits behind a Cloudflare JS
+# challenge (Playwright with a fresh context per subpath bypasses it; see
+# services.persons.missing.fetch_official_missing_person_snapshot).
+9-59/15 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missing_person_sync --log /root/montanablotter/logs/missing_person_sync.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/sync_missing_persons.py

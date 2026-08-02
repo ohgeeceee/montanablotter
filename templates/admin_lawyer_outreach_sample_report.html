@@ -1,0 +1,158 @@
+{% extends "admin_base.html" %}
+{% block title %}Sample report — {{ report.firm_name }} ({{ report.county }}){% endblock %}
+
+{% block content %}
+<meta name="robots" content="noindex,nofollow,noarchive">
+<div class="admin-panel" style="max-width:820px;">
+
+  <p style="margin-bottom:.5rem;">
+    <a href="{{ url_for('admin.admin_lawyer_outreach_prospect', prospect_id=request.view_args['prospect_id'] if request.view_args else 0) }}" style="color:#1e40af;">← Back to prospect</a>
+    &nbsp;·&nbsp;
+    <a href="{{ url_for('admin.admin_lawyer_outreach_sample_report', prospect_id=request.view_args['prospect_id'] if request.view_args else 0, package='gold') }}" style="color:#1e40af;">Gold</a> ·
+    <a href="{{ url_for('admin.admin_lawyer_outreach_sample_report', prospect_id=request.view_args['prospect_id'] if request.view_args else 0, package='silver') }}" style="color:#1e40af;">Silver</a> ·
+    <a href="{{ url_for('admin.admin_lawyer_outreach_sample_report', prospect_id=request.view_args['prospect_id'] if request.view_args else 0, package='bronze') }}" style="color:#1e40af;">Bronze</a>
+  </p>
+
+  <article id="sample-report" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:2rem 2.5rem;margin-top:1rem;">
+
+    <header style="border-bottom:2px solid #1e1b18;padding-bottom:1rem;margin-bottom:1.5rem;">
+      <p style="font-family:'Courier New',monospace;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:0.15em;color:#888;margin:0;">
+        Montana Blotter · {{ report.period_label }}
+      </p>
+      <h1 style="font-family:Georgia,serif;font-size:26px;margin:6px 0 4px;">
+        {{ report.firm_name }} — {{ report.county }} County
+      </h1>
+      <p style="margin:0;color:#475569;font-size:.95rem;">
+        {{ report.package.name }} · {{ report.package.price_label }}
+        {% if report.mode == 'sample' %}
+          <span style="background:#fef3c7;color:#92400e;padding:.1rem .55rem;border-radius:4px;font-size:.75rem;margin-left:.5rem;">SAMPLE</span>
+        {% else %}
+          <span style="background:#dcfce7;color:#047857;padding:.1rem .55rem;border-radius:4px;font-size:.75rem;margin-left:.5rem;">LIVE</span>
+        {% endif %}
+      </p>
+      <p style="margin:6px 0 0;color:#94a3b8;font-size:.78rem;font-family:'Courier New',monospace;">
+        Report {{ report.report_id }} · Generated {{ report.generated_at }}
+      </p>
+    </header>
+
+    <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:2rem;">
+      <div style="background:#f8fafc;padding:1rem;border-radius:4px;border-left:3px solid #1e1b18;">
+        <p style="margin:0;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#64748b;">Impressions</p>
+        <p style="margin:.25rem 0 0;font-size:1.7rem;font-weight:bold;font-family:Georgia,serif;">{{ report.metrics.impressions }}</p>
+      </div>
+      <div style="background:#f8fafc;padding:1rem;border-radius:4px;border-left:3px solid #1e1b18;">
+        <p style="margin:0;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#64748b;">Clicks</p>
+        <p style="margin:.25rem 0 0;font-size:1.7rem;font-weight:bold;font-family:Georgia,serif;">{{ report.metrics.clicks }}</p>
+      </div>
+      <div style="background:#f8fafc;padding:1rem;border-radius:4px;border-left:3px solid #1e1b18;">
+        <p style="margin:0;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#64748b;">Calls</p>
+        <p style="margin:.25rem 0 0;font-size:1.7rem;font-weight:bold;font-family:Georgia,serif;">{{ report.metrics.calls }}</p>
+      </div>
+      <div style="background:#f8fafc;padding:1rem;border-radius:4px;border-left:3px solid #047857;">
+        <p style="margin:0;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#64748b;">Leads delivered</p>
+        <p style="margin:.25rem 0 0;font-size:1.7rem;font-weight:bold;font-family:Georgia,serif;color:#047857;">{{ report.metrics.leads_delivered }}</p>
+      </div>
+      <div style="background:#f8fafc;padding:1rem;border-radius:4px;border-left:3px solid #b91c1c;">
+        <p style="margin:0;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#64748b;">Delivery failures</p>
+        <p style="margin:.25rem 0 0;font-size:1.7rem;font-weight:bold;font-family:Georgia,serif;color:{% if report.metrics.leads_failed %}#b91c1c{% else %}#475569{% endif %};">{{ report.metrics.leads_failed }}</p>
+      </div>
+    </section>
+
+    <section style="margin-bottom:2rem;">
+      <h2 style="font-family:Georgia,serif;font-size:18px;border-bottom:1px solid #e2e8f0;padding-bottom:.4rem;">Recent lead deliveries</h2>
+      {% if report.deliveries %}
+      <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+        <thead>
+          <tr style="background:#1e293b;color:#fff;">
+            <th style="padding:.5rem;text-align:left;">Date</th>
+            <th style="padding:.5rem;text-align:left;">Lead</th>
+            <th style="padding:.5rem;text-align:left;">County</th>
+            <th style="padding:.5rem;text-align:left;">Case</th>
+            <th style="padding:.5rem;text-align:left;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in report.deliveries %}
+          <tr style="border-bottom:1px solid #e5e7eb;">
+            <td style="padding:.5rem;font-family:monospace;font-size:.78rem;color:#475569;white-space:nowrap;">{{ d.sent_at or '—' }}</td>
+            <td style="padding:.5rem;">{{ d.lead_name }}<br><span style="color:#64748b;font-size:.78rem;font-family:monospace;">{{ d.lead_phone }}</span></td>
+            <td style="padding:.5rem;">{{ d.county }}</td>
+            <td style="padding:.5rem;">{{ d.case_type }}</td>
+            <td style="padding:.5rem;">
+              {% if d.status == 'sent' %}
+                <span style="background:#dcfce7;color:#047857;padding:.1rem .5rem;border-radius:4px;font-size:.72rem;">sent</span>
+              {% elif d.status == 'failed' %}
+                <span style="background:#fee2e2;color:#b91c1c;padding:.1rem .5rem;border-radius:4px;font-size:.72rem;" title="{{ d.error or '' }}">failed</span>
+              {% else %}
+                <span style="background:#f3f4f6;color:#6b7280;padding:.1rem .5rem;border-radius:4px;font-size:.72rem;">{{ d.status }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="color:#64748b;font-size:.9rem;font-style:italic;">No lead deliveries in this period.</p>
+      {% endif %}
+    </section>
+
+    <section style="margin-bottom:2rem;">
+      <h2 style="font-family:Georgia,serif;font-size:18px;border-bottom:1px solid #e2e8f0;padding-bottom:.4rem;">Advertiser-reported</h2>
+      <p style="color:#64748b;font-size:.82rem;margin:.25rem 0 1rem;">
+        Numbers you fill in each month via the reporting form. The platform does not estimate these.
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+        <thead>
+          <tr style="background:#1e293b;color:#fff;">
+            <th style="padding:.5rem;text-align:left;">Contacted</th>
+            <th style="padding:.5rem;text-align:left;">Consultations</th>
+            <th style="padding:.5rem;text-align:left;">Retained</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:.75rem;text-align:center;font-family:Georgia,serif;font-size:1.2rem;">{{ report.advertiser_reported.contacted if report.advertiser_reported.contacted is not none else '—' }}</td>
+            <td style="padding:.75rem;text-align:center;font-family:Georgia,serif;font-size:1.2rem;">{{ report.advertiser_reported.consultations if report.advertiser_reported.consultations is not none else '—' }}</td>
+            <td style="padding:.75rem;text-align:center;font-family:Georgia,serif;font-size:1.2rem;">{{ report.advertiser_reported.retained if report.advertiser_reported.retained is not none else '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section style="margin-bottom:1.5rem;">
+      <h2 style="font-family:Georgia,serif;font-size:18px;border-bottom:1px solid #e2e8f0;padding-bottom:.4rem;">Cost per outcome</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+        <tbody>
+          <tr>
+            <td style="padding:.5rem;border-bottom:1px solid #e5e7eb;">Per lead delivered</td>
+            <td style="padding:.5rem;border-bottom:1px solid #e5e7eb;text-align:right;font-family:monospace;">{% if report.cost_per_lead is not none %}${{ '{:.2f}'.format(report.cost_per_lead) }}{% else %}—{% endif %}</td>
+          </tr>
+          <tr>
+            <td style="padding:.5rem;border-bottom:1px solid #e5e7eb;">Per consultation</td>
+            <td style="padding:.5rem;border-bottom:1px solid #e5e7eb;text-align:right;font-family:monospace;">{% if report.cost_per_consultation is not none %}${{ '{:.2f}'.format(report.cost_per_consultation) }}{% else %}—{% endif %}</td>
+          </tr>
+          <tr>
+            <td style="padding:.5rem;">Per retained matter</td>
+            <td style="padding:.5rem;text-align:right;font-family:monospace;">{% if report.cost_per_retained is not none %}${{ '{:.2f}'.format(report.cost_per_retained) }}{% else %}—{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer style="border-top:1px solid #e2e8f0;padding-top:1rem;margin-top:1.5rem;">
+      <p style="color:#475569;font-size:.82rem;line-height:1.5;margin:0;">
+        <strong>Disclosures:</strong> {{ report.disclaimer }}
+      </p>
+      <p style="color:#94a3b8;font-size:.72rem;font-family:'Courier New',monospace;margin:.75rem 0 0;">
+        Montana Blotter · advertising@montanablotter.com · Period {{ report.period_start }} to {{ report.period_end }}
+      </p>
+    </footer>
+
+  </article>
+
+  <p style="margin-top:1rem;font-size:.78rem;color:#64748b;">
+    <em>This page is for internal operator review. It is not part of the public directory. Print or PDF for in-person pitches.</em>
+  </p>
+
+</div>
+{% endblock %}
