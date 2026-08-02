@@ -516,7 +516,9 @@ def init_database():
     seed_civil_filing_sources(conn)
     ensure_crash_incident_schema(conn)
     ensure_sex_offender_schema(conn)
+    ensure_advertise_sales_lead_schema(conn)
 
+    # Add lat/lon to meeting_locations for map display
     conn.commit()
     conn.close()
 
@@ -931,6 +933,10 @@ def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
         ('logo_path', 'TEXT'),
         ('photo_path', 'TEXT'),
         ('tagline', 'TEXT'),  # short callout shown above name on Gold
+        # 2026-08-02: JSON column listing county names this entry serves.
+        # Use ["*"] for statewide resources; specific county names otherwise.
+        # Backfilled from `county` on first read by the route if NULL.
+        ('counties', "TEXT DEFAULT '[]'"),
     ]:
         try:
             _cur.execute(f'ALTER TABLE attorney_referrals ADD COLUMN {col} {definition}')
@@ -1213,6 +1219,44 @@ def ensure_lawyer_outreach_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def ensure_advertise_sales_lead_schema(conn):
+    """Sales-call leads from /advertise/* landing pages.
+
+    Single table for both bail and lawyer products. The `product` column
+    discriminates ('bail' or 'lawyer'). Keep this separate from the
+    inventory tables (bail_ad_inquiries, lawyer_ad_orders) so a "schedule
+    a call" submission doesn't accidentally look like a paid order.
+    """
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS advertise_sales_leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product TEXT NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            firm_or_agency TEXT NOT NULL DEFAULT '',
+            email TEXT NOT NULL DEFAULT '',
+            phone TEXT NOT NULL DEFAULT '',
+            county TEXT NOT NULL DEFAULT '',
+            package_interest TEXT NOT NULL DEFAULT '',
+            message TEXT NOT NULL DEFAULT '',
+            source TEXT NOT NULL DEFAULT '',
+            ip_hash TEXT NOT NULL DEFAULT '',
+            user_agent TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'new',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_asl_product_created ON advertise_sales_leads(product, created_at DESC)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_asl_status ON advertise_sales_leads(status, created_at DESC)'
+    )
+    conn.commit()
+
+
 def migrate():
     """Safely apply schema changes to an existing DB without data loss"""
     conn = sqlite3.connect(DB_PATH)
@@ -1290,6 +1334,9 @@ def migrate():
     ensure_crash_incident_schema(conn)
     ensure_agency_contacts_schema(conn)
     ensure_civic_records_requests_schema(conn)
+
+    # LEA Panel: multi-tenant agency self-service tables
+    ensure_lea_schema(conn)
 
     # Add source_type column to blotters if it doesn't exist
     try:
@@ -3527,6 +3574,199 @@ def ensure_civic_records_requests_schema(conn):
     )
     conn.execute('CREATE INDEX IF NOT EXISTS idx_civic_records_requests_status ON civic_records_requests(status)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_civic_records_requests_county ON civic_records_requests(county_slug)')
+    conn.commit()
+
+
+def ensure_lea_schema(conn: sqlite3.Connection) -> None:
+    """Create LEA panel tables for multi-tenant agency self-service."""
+    cursor = conn.cursor()
+
+    # --- lea_agencies: agency registry ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_agencies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            org_name TEXT NOT NULL UNIQUE,
+            agency_type TEXT NOT NULL,
+            county_slug TEXT NOT NULL,
+            county_name TEXT NOT NULL,
+            ori_number TEXT UNIQUE,
+            primary_contact_name TEXT,
+            primary_contact_email TEXT NOT NULL,
+            primary_contact_phone TEXT,
+            agency_website_url TEXT,
+            verification_status TEXT DEFAULT 'pending',
+            verified_by_user_id INTEGER,
+            verified_at TEXT,
+            timezone TEXT DEFAULT 'America/Denver',
+            enable_blotter_publishing INTEGER DEFAULT 1,
+            enable_roster_publishing INTEGER DEFAULT 0,
+            enable_api_access INTEGER DEFAULT 0,
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_agencies_slug ON lea_agencies(county_slug)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_agencies_ori ON lea_agencies(ori_number)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_agencies_status ON lea_agencies(verification_status)')
+
+    # --- lea_users: per-agency users with RBAC ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            email TEXT NOT NULL,
+            full_name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'records_officer',
+            is_active INTEGER DEFAULT 1,
+            last_login_at TEXT,
+            last_login_ip TEXT,
+            mfa_enabled INTEGER DEFAULT 0,
+            mfa_secret TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE (agency_id, email),
+            FOREIGN KEY (agency_id) REFERENCES lea_agencies(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_users_agency ON lea_users(agency_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_users_active ON lea_users(agency_id, is_active)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_users_email ON lea_users(email)')
+
+    # --- lea_invitations: pending user invitations ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_invitations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_id INTEGER NOT NULL,
+            email TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'records_officer',
+            token TEXT NOT NULL UNIQUE,
+            expires_at TEXT NOT NULL,
+            accepted_at TEXT,
+            invited_by_user_id INTEGER,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (agency_id) REFERENCES lea_agencies(id) ON DELETE CASCADE,
+            FOREIGN KEY (invited_by_user_id) REFERENCES lea_users(id) ON DELETE SET NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_invitations_token ON lea_invitations(token)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_invitations_email ON lea_invitations(email, expires_at)')
+
+    # --- lea_blotter_drafts: staged incident submissions ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_blotter_drafts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_id INTEGER NOT NULL,
+            submitted_by_user_id INTEGER NOT NULL,
+            incident_date TEXT NOT NULL,
+            incident_time TEXT,
+            cad_number TEXT,
+            case_number TEXT,
+            primary_offense_mca TEXT,
+            charges_json TEXT,
+            incident_location_block TEXT,
+            incident_location_latitude REAL,
+            incident_location_longitude REAL,
+            public_narrative TEXT,
+            arresting_agency TEXT,
+            responding_officer TEXT,
+            submission_status TEXT DEFAULT 'draft',
+            published_at TEXT,
+            raw_json TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (agency_id) REFERENCES lea_agencies(id) ON DELETE CASCADE,
+            FOREIGN KEY (submitted_by_user_id) REFERENCES lea_users(id) ON DELETE SET NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_blotter_incident_date ON lea_blotter_drafts(agency_id, incident_date)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_blotter_status ON lea_blotter_drafts(agency_id, submission_status)')
+
+    # --- lea_roster_snapshots: jail roster snapshots ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_roster_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_id INTEGER NOT NULL,
+            submitted_by_user_id INTEGER,
+            snapshot_date TEXT NOT NULL,
+            sync_type TEXT DEFAULT 'incremental',
+            roster_json TEXT NOT NULL,
+            total_inmates INTEGER DEFAULT 0,
+            hash_checksum TEXT,
+            ingestion_status TEXT DEFAULT 'staged',
+            ingestion_error TEXT,
+            published_at TEXT,
+            notes TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (agency_id) REFERENCES lea_agencies(id) ON DELETE CASCADE,
+            FOREIGN KEY (submitted_by_user_id) REFERENCES lea_users(id) ON DELETE SET NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_roster_agency_date ON lea_roster_snapshots(agency_id, snapshot_date)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_roster_hash ON lea_roster_snapshots(hash_checksum)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_roster_status ON lea_roster_snapshots(agency_id, ingestion_status)')
+
+    # --- lea_api_tokens: hashed API tokens ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_api_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_id INTEGER NOT NULL,
+            user_id INTEGER,
+            token_name TEXT NOT NULL,
+            token_hash TEXT NOT NULL UNIQUE,
+            token_created_from_ip TEXT,
+            scopes TEXT NOT NULL,
+            last_used_at TEXT,
+            expires_at TEXT,
+            is_revoked INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (agency_id) REFERENCES lea_agencies(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES lea_users(id) ON DELETE SET NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_api_tokens_hash ON lea_api_tokens(token_hash)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_api_tokens_agency ON lea_api_tokens(agency_id, is_revoked)')
+
+    # --- lea_audit_log: immutable audit trail (CJIS-compliant) ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_id INTEGER NOT NULL,
+            user_id INTEGER,
+            actor_ip TEXT,
+            action TEXT NOT NULL,
+            resource_type TEXT,
+            resource_id TEXT,
+            change_summary TEXT,
+            previous_state_json TEXT,
+            new_state_json TEXT,
+            timestamp TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (agency_id) REFERENCES lea_agencies(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES lea_users(id) ON DELETE SET NULL
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_audit_timestamp ON lea_audit_log(agency_id, timestamp)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_audit_action ON lea_audit_log(action)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_audit_resource ON lea_audit_log(resource_type, resource_id)')
+
+    # --- lea_agency_coverages: feature flags per agency ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lea_agency_coverages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agency_id INTEGER NOT NULL UNIQUE,
+            blotter_coverage_tier TEXT DEFAULT 'standard',
+            roster_coverage_tier TEXT DEFAULT 'off',
+            supports_cad_export INTEGER DEFAULT 0,
+            supports_rms_export INTEGER DEFAULT 0,
+            supports_api_batch_upload INTEGER DEFAULT 0,
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (agency_id) REFERENCES lea_agencies(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_lea_agency_coverages_tier ON lea_agency_coverages(blotter_coverage_tier)')
+
     conn.commit()
 
 
