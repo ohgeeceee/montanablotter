@@ -523,3 +523,137 @@ class TestLEASchemaIntegration(unittest.TestCase):
         }
         self.assertTrue(expected_lea_tables.issubset(table_names))
         conn.close()
+
+
+class TestLEASecurityPolicies(unittest.TestCase):
+    """Tests for CJIS-compliant security policies (triggers, immutability)."""
+
+    def setUp(self) -> None:
+        fd, self.db_path = tempfile.mkstemp(prefix='mb-lea-sec-', suffix='.db')
+        os.close(fd)
+        self.previous_db_path = config.DB_PATH
+        self.previous_init_db_path = init_db.DB_PATH
+        config.DB_PATH = self.db_path
+        init_db.DB_PATH = self.db_path
+
+        conn = sqlite3.connect(self.db_path)
+        conn.execute('PRAGMA foreign_keys = ON')
+        conn.row_factory = sqlite3.Row
+        init_db.ensure_lea_schema(conn)
+        init_db.ensure_lea_security_policies(conn)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO lea_agencies (org_name, agency_type, county_slug, county_name, primary_contact_email) VALUES (?, ?, ?, ?, ?)",
+            ("Test PD", "police", "test", "Test", "admin@test.gov")
+        )
+        conn.commit()
+        self.conn = conn
+        self.agency_id = cursor.lastrowid
+
+    def tearDown(self) -> None:
+        config.DB_PATH = self.previous_db_path
+        init_db.DB_PATH = self.previous_init_db_path
+        if os.path.exists(self.db_path):
+            os.unlink(self.db_path)
+
+    def test_audit_log_immutable_update_rejected(self) -> None:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT INTO lea_audit_log (agency_id, action, resource_type, resource_id, change_summary) VALUES (?, ?, ?, ?, ?)",
+            (self.agency_id, "test.action", "test", "1", "Test entry")
+        )
+        self.conn.commit()
+        log_id = cursor.lastrowid
+        with self.assertRaises(sqlite3.IntegrityError):
+            cursor.execute(
+                "UPDATE lea_audit_log SET change_summary = ? WHERE id = ?",
+                ("Tampered", log_id)
+            )
+
+    def test_audit_log_immutable_delete_rejected(self) -> None:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT INTO lea_audit_log (agency_id, action, resource_type, resource_id, change_summary) VALUES (?, ?, ?, ?, ?)",
+            (self.agency_id, "test.action", "test", "2", "Delete me")
+        )
+        self.conn.commit()
+        log_id = cursor.lastrowid
+        with self.assertRaises(sqlite3.IntegrityError):
+            cursor.execute("DELETE FROM lea_audit_log WHERE id = ?", (log_id,))
+
+    def test_api_tokens_delete_rejected(self) -> None:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT INTO lea_api_tokens (agency_id, token_name, token_hash, scopes) VALUES (?, ?, ?, ?)",
+            (self.agency_id, "Test Key", "testhash123", '["read"]')
+        )
+        self.conn.commit()
+        token_id = cursor.lastrowid
+        with self.assertRaises(sqlite3.IntegrityError):
+            cursor.execute("DELETE FROM lea_api_tokens WHERE id = ?", (token_id,))
+
+    def test_lea_users_role_validation_rejects_bad_role(self) -> None:
+        cursor = self.conn.cursor()
+        with self.assertRaises(sqlite3.IntegrityError):
+            cursor.execute(
+                "INSERT INTO lea_users (agency_id, username, email, full_name, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)",
+                (self.agency_id, "baduser", "bad@test.gov", "Bad User", "hash", "superadmin")
+            )
+
+    def test_lea_users_role_validation_accepts_valid_roles(self) -> None:
+        cursor = self.conn.cursor()
+        for role in ('admin', 'pio', 'records_officer'):
+            cursor.execute(
+                "INSERT INTO lea_users (agency_id, username, email, full_name, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)",
+                (self.agency_id, f"user_{role}", f"{role}@test.gov", f"User {role}", "hash", role)
+            )
+            self.conn.commit()
+            self.assertIsNotNone(cursor.lastrowid)
+
+    def test_blotter_draft_workflow_valid_transition(self) -> None:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT INTO lea_users (agency_id, username, email, full_name, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)",
+            (self.agency_id, "officer", "officer@test.gov", "Officer", "hash", "pio")
+        )
+        user_id = cursor.lastrowid
+        self.conn.commit()
+
+        cursor.execute(
+            "INSERT INTO lea_blotter_drafts (agency_id, submitted_by_user_id, incident_date, submission_status) VALUES (?, ?, ?, ?)",
+            (self.agency_id, user_id, "2026-08-02", "draft")
+        )
+        draft_id = cursor.lastrowid
+        self.conn.commit()
+
+        # Valid: draft → submitted
+        cursor.execute(
+            "UPDATE lea_blotter_drafts SET submission_status = ? WHERE id = ?",
+            ("submitted", draft_id)
+        )
+        self.conn.commit()
+        row = cursor.execute("SELECT submission_status FROM lea_blotter_drafts WHERE id = ?", (draft_id,)).fetchone()
+        self.assertEqual(row['submission_status'], "submitted")
+
+    def test_blotter_draft_workflow_invalid_transition(self) -> None:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "INSERT INTO lea_users (agency_id, username, email, full_name, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)",
+            (self.agency_id, "officer2", "officer2@test.gov", "Officer Two", "hash", "pio")
+        )
+        user_id = cursor.lastrowid
+        self.conn.commit()
+
+        cursor.execute(
+            "INSERT INTO lea_blotter_drafts (agency_id, submitted_by_user_id, incident_date, submission_status) VALUES (?, ?, ?, ?)",
+            (self.agency_id, user_id, "2026-08-02", "draft")
+        )
+        draft_id = cursor.lastrowid
+        self.conn.commit()
+
+        # Invalid: draft → published (skips submitted → approved)
+        with self.assertRaises(sqlite3.IntegrityError):
+            cursor.execute(
+                "UPDATE lea_blotter_drafts SET submission_status = ? WHERE id = ?",
+                ("published", draft_id)
+            )
