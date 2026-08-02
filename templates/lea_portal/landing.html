@@ -1,0 +1,322 @@
+{% extends "public_page_base.html" %}
+{% block title %}LEA Portal — Montana Blotter{% endblock %}
+{% block meta_description %}Law Enforcement Agency self-service portal for Montana Blotter. Submit police blotters and jail rosters directly from your agency.{% endblock %}
+{% block content %}
+<style>
+  .lp-hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1a2639 50%, #0f172a 100%);
+    color: #fff;
+    padding: 5rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .lp-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(59,130,246,0.08) 0%, transparent 50%);
+  }
+  .lp-hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    font-weight: 900;
+    margin: 0 0 1rem;
+    position: relative;
+  }
+  .lp-hero p {
+    font-size: 1.2rem;
+    color: #94a3b8;
+    max-width: 650px;
+    margin: 0 auto 2rem;
+    position: relative;
+  }
+  .lp-hero .badge {
+    display: inline-block;
+    background: rgba(59,130,246,0.15);
+    color: #60a5fa;
+    padding: 0.35rem 1rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+  .lp-btn-group {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    position: relative;
+  }
+  .lp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .lp-btn-primary {
+    background: #2563eb;
+    color: #fff;
+  }
+  .lp-btn-primary:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+  }
+  .lp-btn-secondary {
+    background: rgba(255,255,255,0.1);
+    color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .lp-btn-secondary:hover {
+    background: rgba(255,255,255,0.18);
+    transform: translateY(-1px);
+  }
+
+  .lp-section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+  }
+  .lp-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    color: #0f172a;
+  }
+  .lp-section .subtitle {
+    color: #64748b;
+    font-size: 1.05rem;
+    margin: 0 0 2.5rem;
+  }
+
+  .lp-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+  .lp-feature {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 2rem;
+    transition: box-shadow 0.2s;
+  }
+  .lp-feature:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  }
+  .lp-feature .icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+  .lp-feature h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    color: #0f172a;
+  }
+  .lp-feature p {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .lp-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    counter-reset: step;
+  }
+  .lp-step {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    position: relative;
+  }
+  .lp-step .num {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #2563eb;
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+  }
+  .lp-step h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 0.4rem;
+    color: #0f172a;
+  }
+  .lp-step p {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .lp-security {
+    background: #fef9c3;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    padding: 2rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    margin-top: 2rem;
+  }
+  .lp-security .icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+  }
+  .lp-security h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 0.3rem;
+    color: #854d0e;
+  }
+  .lp-security p {
+    color: #92400e;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .lp-cta {
+    text-align: center;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    padding: 4rem 2rem;
+  }
+  .lp-cta h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    color: #0f172a;
+  }
+  .lp-cta p {
+    color: #64748b;
+    margin: 0 0 2rem;
+  }
+
+  @media (max-width: 640px) {
+    .lp-hero h1 { font-size: 2rem; }
+    .lp-hero { padding: 3rem 1.5rem; }
+    .lp-section { padding: 2.5rem 1.5rem; }
+  }
+</style>
+
+<div class="lp-hero">
+  <div class="badge">&#9670; Montana Law Enforcement Agency Portal</div>
+  <h1>Agency Self-Service Publishing</h1>
+  <p>Publish police blotters and jail rosters directly to montanablotter.com. Free for all Montana law enforcement agencies.</p>
+  <div class="lp-btn-group">
+    <a href="{{ url_for('lea_portal.login_redirect') }}" class="lp-btn lp-btn-primary">
+      <i class="fas fa-shield-halved"></i> Agency Login
+    </a>
+    <a href="{{ url_for('lea_portal.admin_redirect') }}" class="lp-btn lp-btn-secondary">
+      <i class="fas fa-user-tie"></i> Admin Login
+    </a>
+  </div>
+</div>
+
+<div class="lp-section">
+  <h2>Why the LEA Portal?</h2>
+  <p class="subtitle">Replace 3&ndash;7 day scraping delays with real-time agency submission.</p>
+
+  <div class="lp-features">
+    <div class="lp-feature">
+      <div class="icon">&#9889;</div>
+      <h3>Real-Time Publishing</h3>
+      <p>Submit an incident and it appears on montanablotter.com in under 10 minutes. No more waiting for the weekly scrape.</p>
+    </div>
+    <div class="lp-feature">
+      <div class="icon">&#128203;</div>
+      <h3>Full Control</h3>
+      <p>Your agency owns its data. Submit, review, approve, or reject incidents through your dedicated dashboard.</p>
+    </div>
+    <div class="lp-feature">
+      <div class="icon">&#128274;</div>
+      <h3>CJIS Compliant</h3>
+      <p>Immutable audit trail, RBAC enforcement, and PII redaction built in. Every action is logged and tamper-proof.</p>
+    </div>
+    <div class="lp-feature">
+      <div class="icon">&#128200;</div>
+      <h3>Batch Upload</h3>
+      <p>Upload multiple incidents at once via CSV. Preview before publishing. Ideal for CAD/RMS exports.</p>
+    </div>
+    <div class="lp-feature">
+      <div class="icon">&#128279;</div>
+      <h3>REST API</h3>
+      <p>Integrate directly with your records management system. Secure token-based authentication with rate limiting.</p>
+    </div>
+    <div class="lp-feature">
+      <div class="icon">&#128101;</div>
+      <h3>Team Management</h3>
+      <p>Role-based access for PIOs, records officers, and agency admins. Invite your team via email.</p>
+    </div>
+  </div>
+</div>
+
+<div class="lp-section" style="background:#f8fafc;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;max-width:none;">
+  <div style="max-width:1100px;margin:0 auto;">
+    <h2 style="text-align:center;">How It Works</h2>
+    <p class="subtitle" style="text-align:center;">Three steps to go from submission to publication.</p>
+
+    <div class="lp-steps">
+      <div class="lp-step">
+        <div class="num">1</div>
+        <h3>Submit</h3>
+        <p>An officer submits an incident through the dashboard or API. It saves as a draft.</p>
+      </div>
+      <div class="lp-step">
+        <div class="num">2</div>
+        <h3>Review</h3>
+        <p>A supervisor or PIO reviews and approves the submission. PII is automatically flagged.</p>
+      </div>
+      <div class="lp-step">
+        <div class="num">3</div>
+        <h3>Publish</h3>
+        <p>Approved incidents are normalized and published to the public site within minutes.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lp-section">
+  <div class="lp-security">
+    <div class="icon">&#128737;</div>
+    <div>
+      <h3>CJIS-Compliant Security</h3>
+      <p>The LEA Portal was built with law enforcement security requirements from day one. Every audit log entry is immutable &mdash; no edits, no deletions. Role-based access control is enforced at the database level. Agency verification requires a government email domain (<code>.gov</code>, <code>.mt.us</code>) and ORI number validation.</p>
+    </div>
+  </div>
+</div>
+
+<div class="lp-cta">
+  <h2>Ready to get started?</h2>
+  <p>Contact us to set up your agency account. Already have one? Sign in below.</p>
+  <div class="lp-btn-group">
+    <a href="{{ url_for('lea_portal.login_redirect') }}" class="lp-btn lp-btn-primary">
+      <i class="fas fa-shield-halved"></i> Agency Login
+    </a>
+    <a href="{{ url_for('lea_portal.admin_redirect') }}" class="lp-btn lp-btn-secondary" style="background:#334155;color:#fff;border:none;">
+      <i class="fas fa-user-tie"></i> Admin Login
+    </a>
+  </div>
+</div>
+
+{% endblock %}
