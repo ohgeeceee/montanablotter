@@ -1,22 +1,8 @@
 {% extends "admin_base.html" %}
+{% from 'admin/_macros.html' import stat, card, btn, status_pill, shortcut_card %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto space-y-5">
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <div class="space-y-2">
-        {% for category, message in messages %}
-        <div style="border-radius:10px; padding:.7rem 1rem; font-size:.85rem; border:1px solid;
-            {% if category == 'error' %}background:var(--adm-red-soft); border-color:rgba(248,81,73,.25); color:#f85149;
-            {% elif category == 'warning' %}background:var(--adm-amber-soft); border-color:rgba(212,137,42,.25); color:#d4892a;
-            {% else %}background:var(--adm-green-soft); border-color:rgba(63,185,80,.25); color:#3fb950;{% endif %}">
-            {{ message }}
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-    {% endwith %}
 
     <!-- ── Hero + Stats ── -->
     <section class="adm-card">
@@ -30,37 +16,19 @@
                     </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <a href="/admin/upload" style="display:inline-flex; align-items:center; justify-content:center; background:var(--adm-amber); color:#0d1117; padding:.55rem 1rem; border-radius:9px; font-size:.8rem; font-weight:900; transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Upload PDF</a>
-                    <a href="/admin/workspace" style="display:inline-flex; align-items:center; justify-content:center; background:rgba(188,140,255,.15); color:var(--adm-purple); border:1px solid rgba(188,140,255,.25); padding:.55rem 1rem; border-radius:9px; font-size:.8rem; font-weight:700; transition:opacity .15s;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">Workspace</a>
-                    <a href="/admin/ai" style="display:inline-flex; align-items:center; justify-content:center; background:var(--adm-surface-2); color:var(--adm-text-soft); border:1px solid var(--adm-border); padding:.55rem 1rem; border-radius:9px; font-size:.8rem; font-weight:700; transition:opacity .15s;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">AI Console</a>
+                    {{ btn('Upload PDF', href='/admin/upload', variant='primary', size='sm') }}
+                    {{ btn('Workspace', href='/admin/workspace', variant='purple', size='sm') }}
+                    {{ btn('AI Console', href='/admin/ai', variant='ghost', size='sm') }}
                 </div>
             </div>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3" style="padding:1.25rem;">
-            <div class="adm-stat">
-                <p class="adm-stat__label">Total Records</p>
-                <p class="adm-stat__value">{{ total_records }}</p>
-            </div>
-            <div class="adm-stat">
-                <p class="adm-stat__label">Blotters</p>
-                <p class="adm-stat__value">{{ total_blotters }}</p>
-            </div>
-            <div class="adm-stat">
-                <p class="adm-stat__label">Counties</p>
-                <p class="adm-stat__value">{{ total_counties }}</p>
-            </div>
-            <div class="adm-stat" style="{% if failed_ingestions %}border-color:rgba(212,137,42,.3); background:var(--adm-amber-soft);{% endif %}">
-                <p class="adm-stat__label">Failed Ingestions</p>
-                <p class="adm-stat__value {% if failed_ingestions %}adm-stat__value--warn{% endif %}">{{ failed_ingestions }}</p>
-            </div>
-            <div class="adm-stat">
-                <p class="adm-stat__label">Active Admins</p>
-                <p class="adm-stat__value">{{ active_admin_users }}</p>
-            </div>
-            <div class="adm-stat">
-                <p class="adm-stat__label">Audit Events 7d</p>
-                <p class="adm-stat__value">{{ recent_audit_actions }}</p>
-            </div>
+            {{ stat('Total Records', total_records) }}
+            {{ stat('Blotters', total_blotters) }}
+            {{ stat('Counties', total_counties) }}
+            {{ stat('Failed Ingestions', failed_ingestions, accent='amber' if failed_ingestions else 'default') }}
+            {{ stat('Active Admins', active_admin_users) }}
+            {{ stat('Audit Events 7d', recent_audit_actions) }}
         </div>
     </section>
 
@@ -110,144 +78,89 @@
 
     <!-- ── Command Center + Coverage ── -->
     <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-        <section class="adm-card">
-            <div style="padding:.9rem 1.2rem; border-bottom:1px solid var(--adm-border);">
-                <p class="adm-label">Operations Shortcuts</p>
-                <h2 style="margin-top:.35rem; font-size:1.1rem; font-weight:900; color:var(--adm-text);">Quick links to admin tools</h2>
-            </div>
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2" style="padding:1.1rem;">
-                <a href="/admin/ingestion?status=failed" class="adm-cmd adm-cmd--amber">
-                    <p class="adm-cmd__cat">Data</p>
-                    <p class="adm-cmd__title">Ingestion Health</p>
-                    <p class="adm-cmd__desc">Investigate failed jobs and stale sources.</p>
-                </a>
-                <a href="/admin/operations/sources" class="adm-cmd adm-cmd--blue">
-                    <p class="adm-cmd__cat">Data</p>
-                    <p class="adm-cmd__title">Source Registry</p>
-                    <p class="adm-cmd__desc">Official source coverage, freshness, and health.</p>
-                </a>
-                <a href="/admin/operations/data-center" class="adm-cmd adm-cmd--green">
-                    <p class="adm-cmd__cat">Data</p>
-                    <p class="adm-cmd__title">Data Center Ops</p>
-                    <p class="adm-cmd__desc">Freshness, refresh timestamps, and stale feed counts.</p>
-                </a>
-                <a href="/admin/operations/redaction" class="adm-cmd adm-cmd--slate">
-                    <p class="adm-cmd__cat">Data</p>
-                    <p class="adm-cmd__title">Review Queue</p>
-                    <p class="adm-cmd__desc">Pending, flagged, and clean editorial review states.</p>
-                </a>
-                <a href="/admin/analytics" class="adm-cmd adm-cmd--green">
-                    <p class="adm-cmd__cat">System</p>
-                    <p class="adm-cmd__title">Analytics Hub</p>
-                    <p class="adm-cmd__desc">Traffic, content, and conversion performance.</p>
-                </a>
-                <a href="/admin/workspace" class="adm-cmd adm-cmd--purple">
-                    <p class="adm-cmd__cat">System</p>
-                    <p class="adm-cmd__title">Hermes Workspace</p>
-                    <p class="adm-cmd__desc">Unified AI console with live agent monitoring.</p>
-                </a>
-                <a href="/admin/blog" class="adm-cmd adm-cmd--sky">
-                    <p class="adm-cmd__cat">Content</p>
-                    <p class="adm-cmd__title">Blog &amp; Editorial</p>
-                    <p class="adm-cmd__desc">Manage posts, workflow, and publishing.</p>
-                </a>
-                <a href="/admin/audience/subscribers" class="adm-cmd adm-cmd--dim">
-                    <p class="adm-cmd__cat">Audience</p>
-                    <p class="adm-cmd__title">Subscribers</p>
-                    <p class="adm-cmd__desc">Manage status, county coverage, and exports.</p>
-                </a>
-                <a href="/admin/bail-ads" class="adm-cmd adm-cmd--dim">
-                    <p class="adm-cmd__cat">Revenue</p>
-                    <p class="adm-cmd__title">Bail Ads</p>
-                    <p class="adm-cmd__desc">Manage inquiries, creatives, and orders.</p>
-                </a>
-                <a href="/admin/recovery-ads" class="adm-cmd adm-cmd--dim">
-                    <p class="adm-cmd__cat">Revenue</p>
-                    <p class="adm-cmd__title">Recovery Ads</p>
-                    <p class="adm-cmd__desc">Manage recovery ad orders and CMS.</p>
-                </a>
-            </div>
-        </section>
+        {% call card('Operations Shortcuts') %}
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {{ shortcut_card('Ingestion Health', 'Investigate failed jobs and stale sources.', href='/admin/ingestion?status=failed', accent='amber') }}
+            {{ shortcut_card('Source Registry', 'Official source coverage, freshness, and health.', href='/admin/operations/sources', accent='blue') }}
+            {{ shortcut_card('Data Center Ops', 'Freshness, refresh timestamps, and stale feed counts.', href='/admin/operations/data-center', accent='green') }}
+            {{ shortcut_card('Review Queue', 'Pending, flagged, and clean editorial review states.', href='/admin/operations/redaction', accent='slate') }}
+            {{ shortcut_card('Analytics Hub', 'Traffic, content, and conversion performance.', href='/admin/analytics', accent='green') }}
+            {{ shortcut_card('Hermes Workspace', 'Unified AI console with live agent monitoring.', href='/admin/workspace', accent='purple') }}
+            {{ shortcut_card('Blog &amp; Editorial', 'Manage posts, workflow, and publishing.', href='/admin/blog', accent='sky') }}
+            {{ shortcut_card('Subscribers', 'Manage status, county coverage, and exports.', href='/admin/audience/subscribers', accent='dim') }}
+            {{ shortcut_card('Bail Ads', 'Manage inquiries, creatives, and orders.', href='/admin/bail-ads', accent='dim') }}
+            {{ shortcut_card('Recovery Ads', 'Manage recovery ad orders and CMS.', href='/admin/recovery-ads', accent='dim') }}
+            {{ shortcut_card('3D Office', 'Monitor the 3D print fleet.', href='/admin/office/', accent='dim') }}
+        </div>
+        {% endcall %}
 
-        <section class="adm-card">
-            <div style="padding:.9rem 1.2rem; border-bottom:1px solid var(--adm-border);">
-                <p class="adm-label">Coverage</p>
-                <h2 style="margin-top:.35rem; font-size:1.1rem; font-weight:900; color:var(--adm-text);">Official Coverage Snapshot</h2>
+        {% call card('Official Coverage Snapshot') %}
+        <div class="grid grid-cols-2 gap-3" style="padding:0 0 .75rem;">
+            <div style="background:var(--adm-green-soft); border:1px solid rgba(63,185,80,.2); border-radius:10px; padding:.75rem .9rem;">
+                <p class="adm-label" style="color:var(--adm-green);">Live</p>
+                <p style="margin-top:.3rem; font-size:1.5rem; font-weight:900; color:var(--adm-text); font-family:'IBM Plex Mono',monospace;">{{ source_coverage.summary.live }}</p>
             </div>
-            <div class="grid grid-cols-2 gap-3" style="padding:1.1rem 1.1rem .75rem;">
-                <div style="background:var(--adm-green-soft); border:1px solid rgba(63,185,80,.2); border-radius:10px; padding:.75rem .9rem;">
-                    <p class="adm-label" style="color:var(--adm-green);">Live</p>
-                    <p style="margin-top:.3rem; font-size:1.5rem; font-weight:900; color:var(--adm-text); font-family:'IBM Plex Mono',monospace;">{{ source_coverage.summary.live }}</p>
-                </div>
-                <div style="background:var(--adm-blue-soft); border:1px solid rgba(88,166,255,.2); border-radius:10px; padding:.75rem .9rem;">
-                    <p class="adm-label" style="color:var(--adm-blue);">Covered</p>
-                    <p style="margin-top:.3rem; font-size:1.5rem; font-weight:900; color:var(--adm-text); font-family:'IBM Plex Mono',monospace;">{{ source_coverage.summary.covered }}</p>
-                </div>
-                <div style="background:var(--adm-amber-soft); border:1px solid rgba(212,137,42,.2); border-radius:10px; padding:.75rem .9rem;">
-                    <p class="adm-label" style="color:var(--adm-amber);">Candidate</p>
-                    <p style="margin-top:.3rem; font-size:1.5rem; font-weight:900; color:var(--adm-text); font-family:'IBM Plex Mono',monospace;">{{ source_coverage.summary.candidate }}</p>
-                </div>
-                <div style="background:var(--adm-surface-2); border:1px solid var(--adm-border); border-radius:10px; padding:.75rem .9rem;">
-                    <p class="adm-label">No Source</p>
-                    <p style="margin-top:.3rem; font-size:1.5rem; font-weight:900; color:var(--adm-text-soft); font-family:'IBM Plex Mono',monospace;">{{ source_coverage.summary.no_source }}</p>
-                </div>
+            <div style="background:var(--adm-blue-soft); border:1px solid rgba(88,166,255,.2); border-radius:10px; padding:.75rem .9rem;">
+                <p class="adm-label" style="color:var(--adm-blue);">Covered</p>
+                <p style="margin-top:.3rem; font-size:1.5rem; font-weight:900; color:var(--adm-text); font-family:'IBM Plex Mono',monospace;">{{ source_coverage.summary.covered }}</p>
             </div>
-            <div style="padding:0 1.1rem 1.1rem; display:grid; gap:.6rem;">
-                {% for item in source_coverage.entries[:5] %}
-                <div style="background:var(--adm-surface-2); border:1px solid var(--adm-border); border-radius:10px; padding:.7rem .9rem;">
-                    <p style="font-size:.85rem; font-weight:900; color:var(--adm-text);">{{ item.agency }}</p>
-                    <p style="margin-top:.2rem; font-size:.75rem; color:var(--adm-text-soft);">{{ item.category|replace('_',' ')|title }}{% if item.freshness %} &middot; {{ item.freshness }}{% endif %}</p>
-                </div>
-                {% else %}
-                <div style="background:var(--adm-surface-2); border:1px dashed var(--adm-border-strong); border-radius:10px; padding:1.2rem; font-size:.85rem; color:var(--adm-text-muted);">
-                    No official source coverage entries available yet.
-                </div>
-                {% endfor %}
+            <div style="background:var(--adm-amber-soft); border:1px solid rgba(212,137,42,.2); border-radius:10px; padding:.75rem .9rem;">
+                <p class="adm-label" style="color:var(--adm-amber);">Candidate</p>
+                <p style="margin-top:.3rem; font-size:1.5rem; font-weight:900; color:var(--adm-text); font-family:'IBM Plex Mono',monospace;">{{ source_coverage.summary.candidate }}</p>
             </div>
-        </section>
+            <div style="background:var(--adm-surface-2); border:1px solid var(--adm-border); border-radius:10px; padding:.75rem .9rem;">
+                <p class="adm-label">No Source</p>
+                <p style="margin-top:.3rem; font-size:1.5rem; font-weight:900; color:var(--adm-text-soft); font-family:'IBM Plex Mono',monospace;">{{ source_coverage.summary.no_source }}</p>
+            </div>
+        </div>
+        <div style="display:grid; gap:.6rem;">
+            {% for item in source_coverage.entries[:5] %}
+            <div style="background:var(--adm-surface-2); border:1px solid var(--adm-border); border-radius:10px; padding:.7rem .9rem;">
+                <p style="font-size:.85rem; font-weight:900; color:var(--adm-text);">{{ item.agency }}</p>
+                <p style="margin-top:.2rem; font-size:.75rem; color:var(--adm-text-soft);">{{ item.category|replace('_',' ')|title }}{% if item.freshness %} &middot; {{ item.freshness }}{% endif %}</p>
+            </div>
+            {% else %}
+            <div style="background:var(--adm-surface-2); border:1px dashed var(--adm-border-strong); border-radius:10px; padding:1.2rem; font-size:.85rem; color:var(--adm-text-muted);">
+                No official source coverage entries available yet.
+            </div>
+            {% endfor %}
+        </div>
+        {% endcall %}
     </div>
 
     <!-- ── Recent Intake + County Stats ── -->
     <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <section class="adm-card">
-            <div style="padding:.9rem 1.2rem; border-bottom:1px solid var(--adm-border);">
-                <p class="adm-label">Recent Intake</p>
-                <h2 style="margin-top:.35rem; font-size:1.1rem; font-weight:900; color:var(--adm-text);">Recent source files</h2>
-            </div>
-            <div>
-                {% for blotter in recent_blotters[:6] %}
-                <div style="padding:.85rem 1.2rem; border-bottom:1px solid var(--adm-border); display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
-                    <div>
-                        <p style="font-size:.85rem; font-weight:900; color:var(--adm-text);">{{ blotter.filename }}</p>
-                        <p style="margin-top:.2rem; font-size:.75rem; color:var(--adm-text-soft);">{{ blotter.county or 'Unknown county' }}{% if blotter.upload_date %} &middot; {{ blotter.upload_date }}{% endif %}</p>
-                    </div>
-                    <span style="flex-shrink:0; background:var(--adm-surface-2); border:1px solid var(--adm-border); border-radius:999px; padding:.25rem .65rem; font-size:.6rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; color:var(--adm-text-muted);">{{ blotter.status or 'queued' }}</span>
+        {% call card('Recent source files') %}
+        <div>
+            {% for blotter in recent_blotters[:6] %}
+            <div style="padding:.85rem 1.2rem; border-bottom:1px solid var(--adm-border); display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
+                <div>
+                    <p style="font-size:.85rem; font-weight:900; color:var(--adm-text);">{{ blotter.filename }}</p>
+                    <p style="margin-top:.2rem; font-size:.75rem; color:var(--adm-text-soft);">{{ blotter.county or 'Unknown county' }}{% if blotter.upload_date %} &middot; {{ blotter.upload_date }}{% endif %}</p>
                 </div>
-                {% else %}
-                <div style="padding:1.2rem; font-size:.85rem; color:var(--adm-text-muted);">No recent blotter uploads available.</div>
-                {% endfor %}
+                {{ status_pill(blotter.status or 'queued') }}
             </div>
-        </section>
+            {% else %}
+            <div style="padding:1.2rem; font-size:.85rem; color:var(--adm-text-muted);">No recent blotter uploads available.</div>
+            {% endfor %}
+        </div>
+        {% endcall %}
 
-        <section class="adm-card">
-            <div style="padding:.9rem 1.2rem; border-bottom:1px solid var(--adm-border);">
-                <p class="adm-label">Statewide Volume</p>
-                <h2 style="margin-top:.35rem; font-size:1.1rem; font-weight:900; color:var(--adm-text);">County record volume</h2>
-            </div>
-            <div>
-                {% for row in county_stats[:6] %}
-                <div style="padding:.85rem 1.2rem; border-bottom:1px solid var(--adm-border); display:flex; align-items:center; justify-content:space-between; gap:1rem;">
-                    <div>
-                        <p style="font-size:.85rem; font-weight:900; color:var(--adm-text);">{{ row.county or 'Unknown county' }}</p>
-                        <p style="margin-top:.2rem; font-size:.75rem; color:var(--adm-text-soft);">Indexed records in current database</p>
-                    </div>
-                    <span style="font-size:1.2rem; font-weight:900; font-family:'IBM Plex Mono',monospace; color:var(--adm-text);">{{ row.count }}</span>
+        {% call card('County record volume') %}
+        <div>
+            {% for row in county_stats[:6] %}
+            <div style="padding:.85rem 1.2rem; border-bottom:1px solid var(--adm-border); display:flex; align-items:center; justify-content:space-between; gap:1rem;">
+                <div>
+                    <p style="font-size:.85rem; font-weight:900; color:var(--adm-text);">{{ row.county or 'Unknown county' }}</p>
+                    <p style="margin-top:.2rem; font-size:.75rem; color:var(--adm-text-soft);">Indexed records in current database</p>
                 </div>
-                {% else %}
-                <div style="padding:1.2rem; font-size:.85rem; color:var(--adm-text-muted);">County record totals are not available yet.</div>
-                {% endfor %}
+                <span style="font-size:1.2rem; font-weight:900; font-family:'IBM Plex Mono',monospace; color:var(--adm-text);">{{ row.count }}</span>
             </div>
-        </section>
+            {% else %}
+            <div style="padding:1.2rem; font-size:.85rem; color:var(--adm-text-muted);">County record totals are not available yet.</div>
+            {% endfor %}
+        </div>
+        {% endcall %}
     </div>
 
 </div>

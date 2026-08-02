@@ -27,7 +27,7 @@
     {% if title %}
     <div style="padding:0.9rem 1.2rem; border-bottom:1px solid var(--adm-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
       <h2 class="adm-section-title">{{ title }}</h2>
-      {% if caller %}{{ caller('header') }}{% endif %}
+      {% if caller is defined %}{{ caller() }}{% endif %}
     </div>
     {% endif %}
     <div style="padding:1.1rem 1.2rem;">
