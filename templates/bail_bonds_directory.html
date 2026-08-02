@@ -16,21 +16,11 @@
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-6xl mx-auto">
-        <div class="inline-flex items-center bg-amber-500/20 text-amber-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            Advertiser Directory
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div><p class="public-eyebrow" style="color: var(--public-amber);">Advertiser Directory</p><h1 class="public-title public-title--medium">{% if selected_county %}{{ selected_county }} County Bail Bonds{% else %}Montana Bail Bonds Directory{% endif %}</h1><p class="public-copy">Paid placements from licensed providers with click-to-call, text, and rapid callback routing.</p></div>
         </div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">
-            {% if selected_county %}
-            {{ selected_county }} County Bail Bonds
-            {% else %}
-            Montana Bail Bonds Directory
-            {% endif %}
-        </h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            Paid placements from licensed providers with click-to-call, text, and rapid callback routing.
-        </p>
     </div>
 </section>
 {% endblock %}

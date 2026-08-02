@@ -62,6 +62,40 @@ class AgencyNormalizationTests(unittest.TestCase):
 
         self.assertEqual(title, "Daily Police Activity Report - Billings Police Department")
 
+    def test_does_not_duplicate_agency_name_in_title(self) -> None:
+        # Regression for montanablotter.com/post/765 -- a looping re.sub in
+        # normalize_post_title was stacking "Department" ~150x onto titles
+        # whose raw agency name was already the canonical form.
+        title = normalize_post_title(
+            "Daily Police Activity Report - Missoula Police Department",
+            "Missoula Police Department",
+            "Missoula Police Department",
+            county="Missoula",
+            city="Missoula",
+            agency_type="police",
+        )
+        self.assertEqual(
+            title,
+            "Daily Police Activity Report - Missoula Police Department",
+        )
+
+    def test_does_not_loop_variant_phrase_into_canonical_form(self) -> None:
+        # Same bug class, raw agency != normalized output: word boundaries
+        # must keep the variant phrase from doubling inside the canonical form
+        # (e.g. "Hill Police" is a prefix of "Hill Police Department").
+        title = normalize_post_title(
+            "Daily Police Activity Report - Hill Police Department",
+            "Hill Police Department",
+            "Hill County Sheriff's Office",
+            county="Hill",
+            city="Havre",
+            agency_type="police",
+        )
+        self.assertEqual(
+            title,
+            "Daily Police Activity Report - Hill County Sheriff's Office",
+        )
+
     def test_backfills_existing_posts(self) -> None:
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row

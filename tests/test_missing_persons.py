@@ -554,7 +554,12 @@ class MissingPersonsTests(unittest.TestCase):
         conn.commit()
         conn.close()
 
-        self.assertEqual(second_result['resolved'], 1)
+        # Empty-snapshot guard: a fetch that produced zero records must NOT
+        # sweep the previously-active row to STATUS_LOCATED. The public page
+        # should keep showing it until a subsequent successful run proves it
+        # was actually delisted from the MT DOJ database.
+        self.assertEqual(second_result['resolved'], 0)
+        self.assertTrue(second_result.get('snapshot_empty'))
 
         check_conn = sqlite3.connect(self.db_path)
         check_conn.row_factory = sqlite3.Row
@@ -570,12 +575,111 @@ class MissingPersonsTests(unittest.TestCase):
         ).fetchone()
         check_conn.close()
 
-        self.assertEqual(updated['status'], 'located')
-        self.assertEqual(updated['is_active'], 0)
-        self.assertIn('No longer listed', updated['resolution_summary'])
+        # Row stays MISSING until a non-empty snapshot proves it's gone.
+        self.assertEqual(updated['status'], 'missing')
+        self.assertEqual(updated['is_active'], 1)
+        self.assertEqual(updated['resolution_summary'], '')
+        # last_synced still reflects the prior successful run (snapshot
+        # empty path skips the per-row UPDATE that would have touched it).
         self.assertEqual(updated['last_synced'], '2026-April-11 13:29:44 MDT')
+        # Stats carry through the empty snapshot but the active count is
+        # not dropped to zero — preserves last-known good number.
         self.assertEqual(stats['total_active'], 0)
         self.assertEqual(stats['children'], 0)
+
+    def test_sync_official_missing_persons_empty_snapshot_skips_sweep(self) -> None:
+        """Empty/failed snapshot preserves the existing active table (regression test).
+
+        Without the snapshot_empty guard, a Cloudflare-blocked fetch would
+        flip every previously-active row to STATUS_LOCATED in a single sync
+        cycle and silently empty the public page.
+        """
+        conn = app_module.get_db()
+        base_snapshot = {
+            'source_name': missing_persons_module.OFFICIAL_SOURCE_NAME,
+            'official_last_updated': '2026-July-29 14:50:01 MDT',
+            'official_last_checked': '2026-07-29 22:55:01 UTC',
+            'stats': {
+                'total_active': 2,
+                'children': 0,
+                'indigenous': 0,
+                'missing_less_than_year': 1,
+                'missing_more_than_year': 1,
+            },
+            'records': [
+                {
+                    'source_person_id': '471',
+                    'full_name': 'DECOTEAU, PEGGY JO',
+                    'gender': 'FEMALE',
+                    'age_now': 87,
+                    'age_missing': 40,
+                    'race': 'WHITE',
+                    'hair_color': 'RED OR AUBURN',
+                    'eye_color': 'BLUE',
+                    'height_raw': '504',
+                    'weight_lbs': 155,
+                    'last_seen_at': '1979-07-04 00:00:00',
+                    'investigating_agency': 'MINERAL COUNTY SHERIFF',
+                    'aliases': '',
+                    'photo_url': '',
+                    'photo_gallery': [],
+                    'is_indigenous': 0,
+                    'is_child': 0,
+                },
+                {
+                    'source_person_id': '999',
+                    'full_name': 'DOE, JANE',
+                    'gender': 'FEMALE',
+                    'age_now': 30,
+                    'age_missing': 25,
+                    'race': 'WHITE',
+                    'hair_color': 'BROWN',
+                    'eye_color': 'BLUE',
+                    'height_raw': '502',
+                    'weight_lbs': 130,
+                    'last_seen_at': '2026-04-09 00:00:00',
+                    'investigating_agency': 'YELLOWSTONE COUNTY SHERIFF',
+                    'aliases': '',
+                    'photo_url': '',
+                    'photo_gallery': [],
+                    'is_indigenous': 0,
+                    'is_child': 0,
+                },
+            ],
+        }
+        missing_persons_module.sync_official_missing_persons(conn, actor='guard_test', snapshot=base_snapshot)
+        conn.commit()
+
+        before = conn.execute(
+            "SELECT COUNT(*) FROM missing_persons WHERE status='missing'"
+        ).fetchone()[0]
+        self.assertEqual(before, 2)
+
+        # Now simulate a Cloudflare-blocked fetch (snapshot returns empty).
+        empty_snapshot = dict(base_snapshot)
+        empty_snapshot['stats'] = {
+            'total_active': 0,
+            'children': 0,
+            'indigenous': 0,
+            'missing_less_than_year': 0,
+            'missing_more_than_year': 0,
+        }
+        empty_snapshot['records'] = []
+        result = missing_persons_module.sync_official_missing_persons(conn, actor='guard_test', snapshot=empty_snapshot)
+        conn.commit()
+        conn.close()
+
+        self.assertEqual(result['resolved'], 0)
+        self.assertTrue(result['snapshot_empty'])
+        self.assertFalse(result['fetch_failed'])
+
+        check_conn = sqlite3.connect(self.db_path)
+        check_conn.row_factory = sqlite3.Row
+        still_missing = check_conn.execute(
+            "SELECT COUNT(*) AS c FROM missing_persons WHERE status='missing'"
+        ).fetchone()['c']
+        check_conn.close()
+        self.assertEqual(still_missing, 2)
 
     def test_create_and_update_missing_person_keep_is_active_in_sync(self) -> None:
         conn = app_module.get_db()

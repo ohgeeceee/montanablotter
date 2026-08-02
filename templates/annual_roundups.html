@@ -24,13 +24,11 @@
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-6xl mx-auto">
-        <span class="inline-block bg-amber-500/20 text-amber-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            Yearly Linkable Assets
-        </span>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">Montana Annual Public Safety Roundups</h1>
-        <p class="text-slate-300 text-sm max-w-3xl">Year-based roundup pages summarize the archive into something linkable: top counties, top incidents, strongest patterns, and the local pages that matter most for follow-up.</p>
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div><p class="public-eyebrow" style="color: var(--public-amber);">Yearly Linkable Assets</p><h1 class="public-title public-title--medium">Montana Annual Public Safety Roundups</h1><p class="public-copy">Year-based roundup pages summarize the archive into something linkable: top counties, top incidents, strongest patterns, and the local pages that matter most for follow-up.</p></div>
+        </div>
     </div>
 </section>
 {% endblock %}

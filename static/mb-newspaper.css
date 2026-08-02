@@ -215,13 +215,18 @@ article.mb-newspaper {
   line-height: 1.4;
 }
 
-/* Ink stamp: "FILED · DAILY EDITION" rotated box in the corner.
-   rotation capped ≤4° per skill guidance — bigger reads as a banner across
-   the headline. */
+/* Ink stamp: "FILED · DAILY EDITION" rotated box in the corner of the
+   masthead's center column. Anchored to .mb-np-masthead__center so it
+   cannot bleed rightward over the Sign In / Create Account controls.
+   rotation capped ≤4° per skill guidance — bigger reads as a banner
+   across the headline. */
+.mb-np-masthead__center {
+  position: relative;
+}
 .mb-np-stamp {
   position: absolute;
-  top: 86px;
-  right: -22px;
+  top: 4px;
+  right: -8px;
   background: rgba(150, 38, 31, 0.92);
   color: #fff7e8;
   font-family: "IBM Plex Mono", monospace;
@@ -232,6 +237,7 @@ article.mb-newspaper {
   padding: 6px 10px 5px;
   border: 1px solid rgba(150, 38, 31, 1);
   transform: rotate(-3deg);
+  transform-origin: top right;
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
   z-index: 3;
   white-space: nowrap;

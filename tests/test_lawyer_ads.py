@@ -7,6 +7,7 @@ from unittest.mock import patch
 import app as app_module
 import config
 import init_db
+import blueprints.payments as payments_module
 from blueprints.lawyer_ads import (
     _county_matches,
     _deliver_lawyer_lead,
@@ -330,6 +331,100 @@ class LawyerAdWebhookTests(unittest.TestCase):
             ('sub_lawyer_1',),
         ).fetchone()
         self.assertEqual(dict(row), {'status': 'cancelled', 'is_active': 0})
+
+
+class LawyerAdWebhookWiringTests(unittest.TestCase):
+    """Regression: the live Stripe webhook dispatcher in blueprints.payments
+    must route events with metadata.flow == 'lawyer_ad' into
+    blueprints.lawyer_ads.apply_stripe_lawyer_ad_event. Until 2026-07-30 the
+    function existed and was unit-tested, but the dispatcher never called it,
+    so no Stripe checkout ever activated a paid listing.
+    """
+
+    def test_dispatcher_invokes_lawyer_ad_handler(self):
+        import blueprints.lawyer_ads as la
+        # Sanity: the symbol exists where the dispatcher imports it from.
+        self.assertTrue(callable(getattr(la, 'apply_stripe_lawyer_ad_event', None)))
+
+        # The webhook handler imports apply_stripe_lawyer_ad_event inside the
+        # try block, so we replace the underlying function with a wrapper
+        # that records the call while still being importable by name.
+        from blueprints import lawyer_ads as la_mod
+        original_handler = la_mod.apply_stripe_lawyer_ad_event
+        called = {}
+
+        def spy_handler(conn, event):
+            called['lawyer'] = (conn, event)
+            return None
+
+        la_mod.apply_stripe_lawyer_ad_event = spy_handler
+        try:
+            with patch.object(
+                app_module, '_apply_stripe_bail_ad_event', lambda conn, event: None
+            ), patch(
+                'blueprints.recovery_ads.apply_stripe_recovery_ad_event',
+                lambda conn, event: None,
+            ), patch.object(
+                app_module, '_apply_stripe_event', lambda *a, **kw: None
+            ):
+                from flask import Flask
+                app = Flask(__name__)
+                with app.test_request_context(
+                    '/webhooks/stripe', method='POST', data=b'{}'
+                ):
+                    with patch.object(
+                        payments_module, '_app', lambda: app_module
+                    ), patch.object(
+                        app_module, '_stripe_ready_for_webhooks', lambda: True
+                    ), patch.object(
+                        app_module, '_client_ip', lambda: '127.0.0.1'
+                    ), patch.object(
+                        app_module, '_stripe_keys',
+                        lambda: {'secret_key': 'sk_test_x', 'webhook_secret': 'whsec_x'},
+                    ), patch(
+                        'stripe.Webhook.construct_event',
+                        lambda payload, sig, secret: {
+                            'id': 'evt_lawyer_dispatch',
+                            'type': 'checkout.session.completed',
+                            'data': {'object': {
+                                'id': 'cs_lawyer_dispatch',
+                                'metadata': {'flow': 'lawyer_ad'},
+                            }},
+                        },
+                    ), patch(
+                        'blueprints.payments.get_db', lambda: _StubConn()
+                    ):
+                        resp = payments_module.stripe_webhook()
+            self.assertEqual(resp[1], 200)
+            self.assertIn(
+                'lawyer', called,
+                'Stripe webhook did not invoke apply_stripe_lawyer_ad_event — '
+                'lawyer_ad checkouts would never activate listings.',
+            )
+        finally:
+            la_mod.apply_stripe_lawyer_ad_event = original_handler
+
+
+class _StubConn:
+    """Just enough to satisfy the dispatcher's INSERT ... ON CONFLICT path
+    without touching the real database. The lawyer handler is patched out
+    so no queries against lawyer_ad_orders ever fire."""
+
+    def __init__(self):
+        self._executes = 0
+
+    def execute(self, *a, **kw):
+        self._executes += 1
+        # Let the first INSERT (to payment_webhook_events) succeed so the
+        # dispatcher body runs, then let everything else pass too. The
+        # final UPDATE on payment_webhook_events is harmless.
+        return self
+
+    def commit(self):
+        return None
+
+    def close(self):
+        return None
 
 
 if __name__ == '__main__':

@@ -1202,6 +1202,8 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/jail-rosters/',
     '/bail-bonds/',
     '/lawyers/',
+    '/advertise/lawyers/',  # checkout, success, cancel, intake, control panel
+    '/lawyer-control-panel/',  # token-gated, noindex; reach stays open when wall is on
     '/wanted/',
     '/arrests/',
     '/county/',  # county blotter listing
@@ -1219,6 +1221,7 @@ _SIGNIN_WALL_EXEMPT_EXACT = {
     '/careers',
     '/sources',
     '/lawyers',
+    '/advertise/lawyers',  # landing page for the paid directory
 }
 
 
@@ -1312,6 +1315,103 @@ def inject_csrf_token():
         # Keep Facebook auth hidden in the UI while the integration is disabled.
         'facebook_login_enabled': False,
     }
+
+
+def _newspaper_stats() -> dict:
+    """Live counts + edition metadata for the newspaper masthead/OTBAR.
+
+    Failures are swallowed so a missing table never breaks every public page.
+    Adds itself to every template via the context processor below.
+    """
+    out = {
+        'np_records': 0,
+        'np_blotters': 0,
+        'np_jails': 0,
+        'np_missing': 0,
+        'np_warrants': 0,
+        'np_courts': 0,
+        'np_sanctions': 0,
+        'np_offenders': 0,
+        'np_counties': 56,
+        'np_edition_date': '',
+        'np_vol': '',
+        'np_no': '',
+        'np_weather_temp': '—°F',
+        'np_weather_sky': 'Clear',
+        'np_sunrise': '',
+        'np_sunset': '',
+    }
+    try:
+        conn = get_db()
+    except Exception:
+        return out
+    try:
+        def _safe_count(sql):
+            try:
+                return int(conn.execute(sql).fetchone()[0] or 0)
+            except Exception:
+                return 0
+        out['np_records']   = _safe_count("SELECT COUNT(*) FROM records")
+        out['np_blotters']  = _safe_count("SELECT COUNT(*) FROM blotters")
+        out['np_jails']     = _safe_count("SELECT COUNT(*) FROM jail_bookings")
+        out['np_missing']   = _safe_count("SELECT COUNT(*) FROM missing_persons WHERE status = 'missing'")
+        try:
+            out['np_warrants']  = _safe_count("SELECT COUNT(*) FROM warrants WHERE status = 'active'")
+        except Exception:
+            out['np_warrants'] = _safe_count("SELECT COUNT(*) FROM warrants WHERE COALESCE(status, 'active') = 'active'")
+        try:
+            out['np_courts']    = _safe_count("SELECT COUNT(*) FROM court_events")
+        except Exception:
+            out['np_courts']    = _safe_count("SELECT COUNT(*) FROM court_cases")
+        try:
+            out['np_sanctions'] = _safe_count("SELECT COUNT(*) FROM license_sanctions WHERE COALESCE(is_active, 1) = 1")
+        except Exception:
+            pass
+        try:
+            out['np_offenders'] = _safe_count("SELECT COUNT(*) FROM sex_offenders WHERE status = 'active'")
+        except Exception:
+            pass
+        try:
+            row = conn.execute("SELECT MIN(date(upload_date)), MAX(date(upload_date)) FROM records").fetchone()
+        except Exception:
+            try:
+                row = conn.execute("SELECT MIN(date(created_at)), MAX(date(created_at)) FROM records").fetchone()
+            except Exception:
+                row = None
+        if row:
+            try:
+                import datetime as _dt
+                start, _ = row
+                if start:
+                    d = _dt.datetime.strptime(start[:10], '%Y-%m-%d')
+                    days = max(1, (_dt.datetime.utcnow().date() - d.date()).days)
+                    weeks = max(1, days // 7)
+                    out['np_vol'] = f"VOL. III"
+                    out['np_no']  = f"NO. {500 + weeks % 700}"
+            except Exception:
+                out['np_vol'] = 'VOL. III'
+                out['np_no']  = 'NO. 514'
+        else:
+            out['np_vol'] = 'VOL. III'
+            out['np_no']  = 'NO. 514'
+        # Edition date label — uppercase, weekday + month + day + year
+        import datetime as _dt2
+        now = _dt2.datetime.utcnow()
+        out['np_edition_date'] = now.strftime('%A, %B %-d, %Y').upper()
+        out['np_edition_date_iso'] = now.strftime('%Y-%m-%d')
+    except Exception:
+        pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    return out
+
+
+@app.context_processor
+def inject_newspaper_stats():
+    return _newspaper_stats()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -4297,6 +4397,13 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
     metadata = data_object.get('metadata') or {}
     if (metadata.get('flow') or '').strip() == 'bail_ad':
         return
+    if (metadata.get('flow') or '').strip() == 'lawyer_ad':
+        # Lawyer ad checkout/subscription events are dispatched directly from
+        # the Stripe webhook in blueprints/payments.py via
+        # blueprints.lawyer_ads.apply_stripe_lawyer_ad_event. Short-circuit
+        # here so the donation / supporter / warrant-access fallbacks
+        # below don't also touch the session.
+        return
     if (metadata.get('flow') or '').strip() == 'subscription':
         _apply_subscription_stripe_event(conn, event)
         return
@@ -5837,6 +5944,13 @@ def _homepage_recent_records(
     limit=10,
 ):
     record_date_sql = _record_roundup_date_sql('records.date')
+    # Pick the newest clean post per blotter via a correlated subquery, then
+    # LEFT JOIN records to it. Bare JOIN on blotter_id would let a single
+    # blotter (e.g. one Missoula public-report post covering ~97 records)
+    # monopolize the ticker; the per-record query then surfaces 6 records
+    # that all link to the same covering post. The dedupe in Python below
+    # is the second layer of defense: two records from the same post can
+    # still appear in the result set, so we collapse by post_id.
     sql = f"""
         SELECT
             records.id,
@@ -5846,14 +5960,23 @@ def _homepage_recent_records(
             COALESCE(NULLIF(records.incident_type, ''), NULLIF(records.incident, ''), 'Incident') AS incident_label,
             COALESCE(NULLIF(records.location, ''), '') AS location,
             COALESCE(records.details, '') AS details,
-            posts.id AS post_id,
-            posts.title AS post_title,
-            COALESCE(NULLIF(posts.agency_name, ''), 'Unknown agency') AS agency_name,
-            COALESCE(NULLIF(posts.city, ''), '') AS city,
-            COALESCE(posts.case_status, 'pending') AS case_status
+            latest_post.id AS post_id,
+            latest_post.title AS post_title,
+            COALESCE(NULLIF(latest_post.agency_name, ''), 'Unknown agency') AS agency_name,
+            COALESCE(NULLIF(latest_post.city, ''), '') AS city,
+            COALESCE(latest_post.case_status, 'pending') AS case_status
         FROM records
-        JOIN posts ON posts.blotter_id = records.blotter_id
-        WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
+        LEFT JOIN (
+            SELECT p.id, p.blotter_id, p.title, p.agency_name, p.city,
+                   p.case_status, p.audit_status
+            FROM posts p
+            WHERE p.id = (
+                SELECT MAX(p2.id) FROM posts p2
+                WHERE p2.blotter_id = p.blotter_id
+                  AND COALESCE(p2.audit_status, 'pending') = 'clean'
+            )
+        ) latest_post ON latest_post.blotter_id = records.blotter_id
+        WHERE COALESCE(latest_post.audit_status, 'pending') = 'clean'
     """
     params = []
 
@@ -5861,13 +5984,13 @@ def _homepage_recent_records(
         sql += " AND records.county = ?"
         params.append(county)
     if city:
-        sql += " AND COALESCE(posts.city, '') LIKE ?"
+        sql += " AND COALESCE(latest_post.city, '') LIKE ?"
         params.append(f'%{city}%')
     if agency_type:
-        sql += " AND COALESCE(posts.agency_type, '') = ?"
+        sql += " AND COALESCE(latest_post.agency_type, '') = ?"
         params.append(agency_type)
     if agency:
-        sql += " AND COALESCE(posts.agency_name, '') = ?"
+        sql += " AND COALESCE(latest_post.agency_name, '') = ?"
         params.append(agency)
     if search_query:
         st = f'%{search_query}%'
@@ -5877,8 +6000,8 @@ def _homepage_recent_records(
                 OR COALESCE(records.incident, '') LIKE ?
                 OR COALESCE(records.details, '') LIKE ?
                 OR COALESCE(records.location, '') LIKE ?
-                OR COALESCE(posts.title, '') LIKE ?
-                OR COALESCE(posts.summary, '') LIKE ?
+                OR COALESCE(latest_post.title, '') LIKE ?
+                OR COALESCE(latest_post.summary, '') LIKE ?
             )
         """
         params.extend([st, st, st, st, st, st])
@@ -5886,12 +6009,12 @@ def _homepage_recent_records(
         sql += " AND records.date = ?"
         params.append(date_sql_val)
     if status_filter in ('active', 'pending', 'resolved'):
-        sql += " AND COALESCE(posts.case_status, 'pending') = ?"
+        sql += " AND COALESCE(latest_post.case_status, 'pending') = ?"
         params.append(status_filter)
 
     sql += f"""
         ORDER BY
-            CASE COALESCE(posts.case_status, 'pending')
+            CASE COALESCE(latest_post.case_status, 'pending')
                 WHEN 'active' THEN 0
                 WHEN 'pending' THEN 1
                 ELSE 2
@@ -5901,10 +6024,38 @@ def _homepage_recent_records(
             records.id DESC
         LIMIT ?
     """
-    params.append(limit)
+    # Fetch more than `limit` so the post_id dedupe below still has enough
+    # distinct posts to surface after duplicates are collapsed.
+    FETCH_MULTIPLIER = 3
+    params.append(limit * FETCH_MULTIPLIER)
 
-    recent_records = conn.execute(sql, params).fetchall()
-    return _annotate_recent_records(conn, recent_records)
+    return _homepage_recent_records_dedupe(
+        conn,
+        conn.execute(sql, params).fetchall(),
+        limit=limit,
+    )
+
+
+def _homepage_recent_records_dedupe(conn, rows, *, limit: int):
+    """Collapse duplicate posts from the ticker feed, then annotate.
+
+    The SQL already picks the newest clean post per blotter, but two
+    distinct records from the same post can still appear in the result
+    set. This helper keeps the first occurrence of each post_id and
+    caps the final list at `limit`, so a single post never saturates
+    the ticker.
+    """
+    seen_posts: set[int] = set()
+    deduped: list = []
+    for row in rows:
+        post_id = row['post_id']
+        if post_id is None or post_id in seen_posts:
+            continue
+        seen_posts.add(post_id)
+        deduped.append(row)
+        if len(deduped) >= limit:
+            break
+    return _annotate_recent_records(conn, deduped)
 
 
 def _homepage_most_viewed_pages(conn, limit=5):
@@ -8742,20 +8893,50 @@ def index():
         LIMIT 5
     """).fetchall()
 
-    # Sort by the later of booking_at and last_seen_at so counties whose
-    # roster is a "currently held" snapshot (Hill County / Havre DOCX,
-    # Flathead, Lincoln, Sanders, etc. — none of which carry a per-inmate
-    # booking timestamp) still surface on the homepage when a fresh
-    # roster arrives. Without this fallback every Havre row sorts to the
-    # very end of the result set because SQLite puts NULLs last on
-    # DESC, so Havre never appears in the top 5 even though we have
-    # 44 current inmates.
+    # Surface one freshest row per county so the homepage reflects *new*
+    # bookings from every Montana county, not whichever county just
+    # refreshed a currently-held roster snapshot. Counties that publish
+    # a per-inmate booking timestamp (Yellowstone, Missoula, Silver Bow,
+    # Ravalli, Lewis & Clark, Beaverhead, Jefferson, etc.) are preferred
+    # first; counties whose roster is a "currently held" snapshot only
+    # (Hill County / Havre DOCX, Flathead, Lincoln, Sanders, Park — none
+    # of which carry a per-inmate booking timestamp) fall back to
+    # last_seen_at so a fresh roster arrival still surfaces.
+    # `county_slug` collapses hyphen/underscore variants (e.g. silver-bow vs
+    # silver_bow, lewis-and-clark vs lewis_clark) — under one canonical
+    # bucket per county — so duplicate-slug rows don't get surfaced twice.
+    # The outer SELECT dedupes on person_name so the same inmate never
+    # appears in two rows even when they're rostered under different slugs.
     recent_jail_bookings = conn.execute("""
-        SELECT person_name, county_name, booking_at, charges_summary,
-               COALESCE(booking_at, last_seen_at) AS freshness_ts
-        FROM jail_bookings
-        WHERE is_current = 1
-        ORDER BY freshness_ts DESC
+        WITH ranked AS (
+            SELECT person_name, county_name, booking_at, charges_summary,
+                   county_slug,
+                   COALESCE(booking_at, last_seen_at) AS freshness_ts,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY LOWER(REPLACE(REPLACE(county_slug, '_', ''), '-', ''))
+                       ORDER BY
+                           CASE WHEN booking_at IS NOT NULL THEN 0 ELSE 1 END,
+                           COALESCE(booking_at, last_seen_at) DESC
+                   ) AS rn
+            FROM jail_bookings
+            WHERE is_current = 1
+        ),
+        dedup AS (
+            SELECT person_name, county_name, booking_at, charges_summary,
+                   freshness_ts,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY LOWER(person_name)
+                       ORDER BY freshness_ts DESC
+                   ) AS person_rn
+            FROM ranked
+            WHERE rn = 1
+        )
+        SELECT person_name, county_name, booking_at, charges_summary
+        FROM dedup
+        WHERE person_rn = 1
+        ORDER BY
+            CASE WHEN booking_at IS NOT NULL THEN 0 ELSE 1 END,
+            freshness_ts DESC
         LIMIT 5
     """).fetchall()
 
@@ -8790,7 +8971,7 @@ def index():
 
     conn.close()
 
-    _homepage_template = 'index.newspaper.html' if request.args.get('newspaper') == '1' else 'index.html'
+    _homepage_template = 'index.html'
     return render_template(_homepage_template,
                            posts=posts,
                            total=total,
@@ -9576,8 +9757,6 @@ def missing_persons_index():
         q=request.args.get('q'),
         county=request.args.get('county'),
         sort=request.args.get('sort'),
-        page=request.args.get('page', 1, type=int),
-        per_page=25,
     )
     conn.close()
     return render_template(
@@ -9902,6 +10081,57 @@ def wanted_notify_when_cleared():
         canonical_url=f'{BASE_URL}/wanted/notify-when-cleared',
         form_data=prefill,
         current_year=datetime.now().year,
+    )
+
+
+@app.route('/crime-wire.json')
+def crime_wire_json():
+    """JSON feed of the latest ~12 public-safety records for the Crime Wire
+    ticker. Mirrors the homepage ticker server-side, as JSON so a future
+    JS auto-refresh (or external widget embed) can poll without re-rendering.
+
+    Output shape:
+      {"updated_at": "...", "count": N,
+       "items": [{"time","incident_label","location","county",
+                  "agency_name","case_status","post_id","record_id","href"}, ...]}
+    """
+    try:
+        limit = max(4, min(int(request.args.get('limit', 12)), 50))
+    except (TypeError, ValueError):
+        limit = 12
+    conn = get_db()
+    rows = _homepage_recent_records(conn, limit=limit)
+    items = []
+    for r in rows:
+        post_id = r.get('post_id')
+        record_id = r.get('id')
+        items.append({
+            'time': r.get('time') or '',
+            'incident_label': r.get('incident_label') or '',
+            'location': r.get('location') or '',
+            'county': r.get('county') or '',
+            'agency_name': r.get('agency_name') or '',
+            'case_status': r.get('case_status') or 'pending',
+            'post_id': post_id,
+            'record_id': record_id,
+            'href': (
+                f'/post/{post_id}' if post_id
+                else (f'/record/{record_id}' if record_id else '/blotter')
+            ),
+        })
+    payload = {
+        'updated_at': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'count': len(items),
+        'items': items,
+    }
+    return Response(
+        json.dumps(payload, default=str),
+        status=200,
+        mimetype='application/json',
+        headers={
+            'Cache-Control': 'public, max-age=60',
+            'Access-Control-Allow-Origin': '*',
+        },
     )
 
 
@@ -11261,6 +11491,24 @@ def public_post_detail(post_id):
     ).fetchall()
     provenance_card = _build_provenance_card(conn, post, records)
     bail_ad_placements = _bail_ad_public_placements(conn, county=post['county'])
+    try:
+        represented_by = conn.execute(
+            '''
+            SELECT o.firm_name, o.website
+            FROM lawyer_arrest_alert_deliveries d
+            JOIN lawyer_ad_orders o ON o.id = d.order_id
+            LEFT JOIN court_cases cc ON cc.id = d.court_case_id
+            WHERE d.post_id = ?
+              AND d.claimed_at IS NOT NULL
+              AND cc.disposition IS NOT NULL AND cc.disposition != ''
+            ORDER BY d.claimed_at ASC
+            LIMIT 1
+            ''',
+            (post_id,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        # lawyer_arrest_alert_deliveries migration not yet applied to this DB.
+        represented_by = None
     conn.close()
 
     public_records = [_public_record_dict(record) for record in records]
@@ -11286,6 +11534,7 @@ def public_post_detail(post_id):
         related_pattern_pages=_related_pattern_pages_for_post(records, county_slug=county_slug),
         related_posts=related_posts,
         bail_ad_placements=bail_ad_placements,
+        represented_by=represented_by,
         current_year=datetime.now().year,
         canonical_url=post_canonical,
         og_image=post_og_image,

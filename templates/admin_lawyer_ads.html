@@ -1,173 +1,256 @@
 {% extends "admin_base.html" %}
+
 {% block title %}Lawyer Ads — Admin{% endblock %}
 
 {% block content %}
-<div class="admin-panel">
-  <h1>Lawyer Directory — Paid Placements</h1>
-  <p style="color:#64748b;font-size:.9rem;margin-bottom:1.5rem;">
-    Manage <code>/lawyers</code> paid directory orders. Self-serve checkout at
-    <a href="/advertise/lawyers" style="color:#1e40af;">/advertise/lawyers</a>;
-    ad events stream into <code>lawyer_consumer_lead_events</code>.
-  </p>
+<div class="max-w-7xl mx-auto space-y-6 p-6">
 
-  <div style="display:flex;gap:1.5rem;margin-bottom:2rem;flex-wrap:wrap;">
-    <div style="background:#f8fafc;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
-      <div style="font-size:1.75rem;font-weight:700;color:#0f172a;">{{ stats.total }}</div>
-      <div style="color:#64748b;font-size:.85rem;">Total Orders</div>
+    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <p class="text-[11px] uppercase tracking-[0.18em] font-black text-blue-600">Advertising Ops</p>
+                <h1 class="text-3xl font-black text-slate-900 mt-2">Lawyer Directory — Paid Placements</h1>
+                <p class="text-sm text-slate-600 mt-2">
+                    Manage <code>/lawyers</code> paid directory orders. Self-serve checkout runs at
+                    <a href="{{ url_for('lawyer_ads.advertise_lawyers') }}" class="text-blue-700 hover:underline">/advertise/lawyers</a>;
+                    ad events stream into <code>lawyer_consumer_lead_events</code>.
+                </p>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <a href="{{ url_for('admin.admin_lawyer_ads_new') }}"
+                   class="inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                    + Add Order Manually
+                </a>
+            </div>
+        </div>
     </div>
-    <div style="background:#f8fafc;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
-      <div style="font-size:1.75rem;font-weight:700;color:#0f172a;">{{ stats.active }}</div>
-      <div style="color:#64748b;font-size:.85rem;">Active</div>
-    </div>
-    <div style="background:#fefce8;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
-      <div style="font-size:1.75rem;font-weight:700;color:#a16207;">{{ stats.gold }}</div>
-      <div style="color:#854d0e;font-size:.85rem;">Gold</div>
-    </div>
-    <div style="background:#f1f5f9;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
-      <div style="font-size:1.75rem;font-weight:700;color:#475569;">{{ stats.silver }}</div>
-      <div style="color:#64748b;font-size:.85rem;">Silver</div>
-    </div>
-    <div style="background:#fef3c7;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
-      <div style="font-size:1.75rem;font-weight:700;color:#92400e;">{{ stats.bronze }}</div>
-      <div style="color:#92400e;font-size:.85rem;">Bronze</div>
-    </div>
-    <div style="background:#f0fdf4;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:120px;">
-      <div style="font-size:1.75rem;font-weight:700;color:#047857;">{{ stats.mrr_cents | default(0) | int // 100 }}</div>
-      <div style="color:#047857;font-size:.85rem;">MRR ($)</div>
-    </div>
-  </div>
 
-  <div style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
-    <a href="{{ url_for('admin.admin_lawyer_ads_new') if admin_lawyer_ads_new is defined else '/admin/lawyer-ads/new' }}"
-       class="btn btn-primary"
-       style="padding:.5rem 1rem;background:#1e40af;color:#fff;border-radius:4px;text-decoration:none;">+ Add Order Manually</a>
-    <span style="font-size:.85rem;color:#64748b;">Self-serve checkout runs through Stripe. Use this for comp / invoice placements.</span>
-  </div>
-
-  <form method="GET" style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;">
-    <input type="text" name="q" value="{{ q }}" placeholder="Search firm, contact, county..." style="padding:.5rem .75rem;border:1px solid #ccc;border-radius:4px;flex:1;min-width:200px;">
-    <select name="status" style="padding:.5rem;border:1px solid #ccc;border-radius:4px;">
-      <option value="" {% if not status_filter %}selected{% endif %}>All statuses</option>
-      <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-      <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-      <option value="checkout_pending" {% if status_filter == 'checkout_pending' %}selected{% endif %}>Pending</option>
-      <option value="payment_failed" {% if status_filter == 'payment_failed' %}selected{% endif %}>Failed</option>
-      <option value="capacity_blocked" {% if status_filter == 'capacity_blocked' %}selected{% endif %}>Cap blocked</option>
-    </select>
-    <select name="package" style="padding:.5rem;border:1px solid #ccc;border-radius:4px;">
-      <option value="" {% if not package_filter %}selected{% endif %}>All packages</option>
-      <option value="gold" {% if package_filter == 'gold' %}selected{% endif %}>Gold</option>
-      <option value="silver" {% if package_filter == 'silver' %}selected{% endif %}>Silver</option>
-      <option value="bronze" {% if package_filter == 'bronze' %}selected{% endif %}>Bronze</option>
-    </select>
-    <button type="submit" style="padding:.5rem 1rem;background:#0f172a;color:#fff;border:none;border-radius:4px;cursor:pointer;">Filter</button>
-    {% if q or status_filter or package_filter %}
-    <a href="{{ url_for('admin.admin_lawyer_ads') if admin_lawyer_ads is defined else '/admin/lawyer-ads' }}"
-       style="padding:.5rem 1rem;color:#64748b;text-decoration:underline;">Clear</a>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="space-y-2">
+        {% for category, message in messages %}
+        <div class="rounded-xl px-4 py-3 text-sm border
+            {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700
+            {% elif category == 'warning' %}bg-amber-50 border-amber-200 text-amber-800
+            {% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
     {% endif %}
-  </form>
+    {% endwith %}
 
-  <h2 style="margin-top:2rem;">Orders</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-bottom:2rem;">
-    <thead>
-      <tr style="background:#0f172a;color:#fff;">
-        <th style="text-align:left;padding:.6rem .75rem;">ID</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Firm</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Contact</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Counties</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Pkg</th>
-        <th style="text-align:right;padding:.6rem .75rem;">$/mo</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Status</th>
-        <th style="text-align:right;padding:.6rem .75rem;">Impr / Clicks</th>
-        <th style="text-align:right;padding:.6rem .75rem;">Leads</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Paid</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for order in orders %}
-      <tr style="border-bottom:1px solid #e2e8f0;">
-        <td style="padding:.55rem .75rem;font-family:monospace;">#{{ order.id }}</td>
-        <td style="padding:.55rem .75rem;font-weight:600;">{{ order.firm_name }}</td>
-        <td style="padding:.55rem .75rem;">
-          {% if order.contact_name %}{{ order.contact_name }}<br>{% endif %}
-          <span style="font-size:.78rem;color:#64748b;">{{ order.email }}</span>
-        </td>
-        <td style="padding:.55rem .75rem;font-size:.8rem;">
-          {%- set _counties = order.counties_served.split(',') | selectattr('strip') | map('strip') | list -%}
-          {%- for c in _counties[:3] -%}
-            {%- if not loop.first %}, {% endif -%}
-            {{ c -}}
-          {%- endfor -%}
-          {%- if _counties | length > 3 %} +{{ _counties | length - 3 }}{% endif -%}
-        </td>
-        <td style="padding:.55rem .75rem;">
-          <span style="display:inline-block;padding:.15rem .55rem;border-radius:999px;font-size:.7rem;font-weight:700;color:#fff;
-                       background:{% if order.package_id == 'gold' %}#b8860b{% elif order.package_id == 'silver' %}#475569{% else %}#92400e{% endif %};">
-            {{ order.package_id|upper }}
-          </span>
-        </td>
-        <td style="padding:.55rem .75rem;text-align:right;font-family:monospace;">${{ '%.2f' % (order.amount_cents / 100) }}</td>
-        <td style="padding:.55rem .75rem;">
-          {% if order.status == 'active' %}<span style="color:#047857;font-weight:700;">Active</span>
-          {% elif order.status == 'cancelled' %}<span style="color:#b91c1c;">Cancelled</span>
-          {% elif order.status == 'checkout_pending' %}<span style="color:#a16207;">Pending</span>
-          {% elif order.status == 'capacity_blocked' %}<span style="color:#7c3aed;font-weight:700;" title="County cap reached. Activate manually after capacity opens.">Cap blocked</span>
-          {% else %}<span style="color:#64748b;">{{ order.status }}</span>{% endif %}
-        </td>
-        <td style="padding:.55rem .75rem;text-align:right;font-family:monospace;">
-          {{ order.impressions|default(0) }} / {{ order.clicks|default(0) }}
-        </td>
-        <td style="padding:.55rem .75rem;text-align:right;font-family:monospace;">{{ order.leads|default(0) }}</td>
-        <td style="padding:.55rem .75rem;font-size:.78rem;color:#64748b;">{{ order.paid_at or '—' }}</td>
-        <td style="padding:.55rem .75rem;">
-          <a href="/admin/lawyer-ads/{{ order.id }}/edit"
-             style="color:#1e40af;text-decoration:none;font-size:.85rem;">Edit</a>
-          {% if order.status == 'active' %}
-          <form method="POST" action="/admin/lawyer-ads/{{ order.id }}/cancel" style="display:inline;">
-            <button type="submit" onclick="return confirm('Cancel this order?');"
-                    style="margin-left:.5rem;color:#b91c1c;background:none;border:none;cursor:pointer;font-size:.85rem;">Cancel</button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="11" style="padding:2rem;text-align:center;color:#64748b;">No lawyer ad orders yet.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    {% if not schema_ready %}
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+        Lawyer ad tables were not found. Run migrations (<code>python3 init_db.py</code>) before using this panel.
+    </div>
+    {% endif %}
 
-  <h2 style="margin-top:3rem;">Recent intake leads</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
-    <thead>
-      <tr style="background:#0f172a;color:#fff;">
-        <th style="text-align:left;padding:.6rem .75rem;">When</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Name</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Phone</th>
-        <th style="text-align:left;padding:.6rem .75rem;">County</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Case type</th>
-        <th style="text-align:right;padding:.6rem .75rem;">Routed to</th>
-        <th style="text-align:left;padding:.6rem .75rem;">Source</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for lead in recent_leads %}
-      <tr style="border-bottom:1px solid #e2e8f0;">
-        <td style="padding:.55rem .75rem;font-family:monospace;font-size:.78rem;">{{ lead.created_at }}</td>
-        <td style="padding:.55rem .75rem;font-weight:600;">{{ lead.full_name }}</td>
-        <td style="padding:.55rem .75rem;font-family:monospace;">{{ lead.phone }}</td>
-        <td style="padding:.55rem .75rem;">{{ lead.county }}</td>
-        <td style="padding:.55rem .75rem;">{{ lead.case_type or '—' }}</td>
-        <td style="padding:.55rem .75rem;text-align:right;font-family:monospace;">
-          {{ lead.routed_order_ids.split(',')|length if lead.routed_order_ids else 0 }}
-        </td>
-        <td style="padding:.55rem .75rem;font-size:.78rem;color:#64748b;">{{ lead.source }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="7" style="padding:2rem;text-align:center;color:#64748b;">No intake leads yet.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Total Orders</p>
+            <p class="text-2xl font-black text-slate-900 mt-2">{{ stats.total }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Active</p>
+            <p class="text-2xl font-black text-emerald-700 mt-2">{{ stats.active }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-amber-700">Gold</p>
+            <p class="text-2xl font-black text-amber-700 mt-2">{{ stats.gold }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-slate-500">Silver</p>
+            <p class="text-2xl font-black text-slate-700 mt-2">{{ stats.silver }}</p>
+        </article>
+        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-orange-700">Bronze</p>
+            <p class="text-2xl font-black text-orange-700 mt-2">{{ stats.bronze }}</p>
+        </article>
+        <article class="bg-white border border-emerald-200 rounded-xl p-5 shadow-sm bg-emerald-50/40">
+            <p class="text-xs uppercase tracking-[0.14em] font-black text-emerald-700">MRR ($)</p>
+            <p class="text-2xl font-black text-emerald-700 mt-2">{{ (stats.mrr_cents | default(0) | int) // 100 }}</p>
+        </article>
+    </div>
+
+    <p class="text-xs text-slate-500 -mt-2">
+        Self-serve checkout runs through Stripe. Use <strong>Add Order Manually</strong> for comp / invoice placements.
+    </p>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-black text-slate-900">Orders</h2>
+        </div>
+
+        <form method="GET" class="px-5 py-4 border-b border-slate-200 flex gap-3 flex-wrap items-center">
+            <input type="text" name="q" value="{{ q }}" placeholder="Search firm, contact, county..."
+                   class="px-3 py-2 border border-slate-300 rounded-lg text-sm flex-1 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-blue-200">
+            <select name="status" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                <option value="" {% if not status_filter %}selected{% endif %}>All statuses</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="checkout_pending" {% if status_filter == 'checkout_pending' %}selected{% endif %}>Pending</option>
+                <option value="payment_failed" {% if status_filter == 'payment_failed' %}selected{% endif %}>Failed</option>
+                <option value="capacity_blocked" {% if status_filter == 'capacity_blocked' %}selected{% endif %}>Cap blocked</option>
+            </select>
+            <select name="package" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                <option value="" {% if not package_filter %}selected{% endif %}>All packages</option>
+                <option value="gold" {% if package_filter == 'gold' %}selected{% endif %}>Gold</option>
+                <option value="silver" {% if package_filter == 'silver' %}selected{% endif %}>Silver</option>
+                <option value="bronze" {% if package_filter == 'bronze' %}selected{% endif %}>Bronze</option>
+            </select>
+            <button type="submit"
+                    class="inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
+                Filter
+            </button>
+            {% if q or status_filter or package_filter %}
+            <a href="{{ url_for('admin.admin_lawyer_ads') }}"
+               class="text-xs font-black uppercase tracking-[0.12em] text-slate-500 hover:text-slate-700 underline">
+                Clear
+            </a>
+            {% endif %}
+        </form>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                    <tr>
+                        <th class="text-left px-4 py-3 font-black">ID</th>
+                        <th class="text-left px-4 py-3 font-black">Firm</th>
+                        <th class="text-left px-4 py-3 font-black">Contact</th>
+                        <th class="text-left px-4 py-3 font-black">Counties</th>
+                        <th class="text-left px-4 py-3 font-black">Pkg</th>
+                        <th class="text-right px-4 py-3 font-black">$/mo</th>
+                        <th class="text-left px-4 py-3 font-black">Status</th>
+                        <th class="text-right px-4 py-3 font-black">Impr / Clicks</th>
+                        <th class="text-right px-4 py-3 font-black">Leads</th>
+                        <th class="text-left px-4 py-3 font-black">Paid</th>
+                        <th class="text-left px-4 py-3 font-black">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr class="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td class="px-4 py-3 font-mono text-xs text-slate-700">#{{ order.id }}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-900">{{ order.firm_name }}</td>
+                        <td class="px-4 py-3">
+                            {% if order.contact_name %}<div class="text-slate-900">{{ order.contact_name }}</div>{% endif %}
+                            <div class="text-xs text-slate-500">{{ order.email }}</div>
+                        </td>
+                        <td class="px-4 py-3 text-xs text-slate-700">
+                            {%- set _raw_csv = (order.counties_served or '') -%}
+                            {%- set _counties = _raw_csv.split(',') -%}
+                            {%- set _counties = _counties[:3] -%}
+                            {%- for c in _counties -%}
+                                {%- set c = c.strip() -%}
+                                {%- if c -%}
+                                    {%- if not loop.first %}, {% endif -%}
+                                    {{ c -}}
+                                {%- endif -%}
+                            {%- endfor -%}
+                            {%- set _all = _raw_csv.split(',') -%}
+                            {%- if _all | length > 3 %} +{{ _all | length - 3 }}{% endif -%}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% set pkg = order.package_id %}
+                            <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-[0.12em] text-white
+                                {% if pkg == 'gold' %}bg-amber-600
+                                {% elif pkg == 'silver' %}bg-slate-500
+                                {% else %}bg-orange-700{% endif %}">
+                                {{ pkg|upper }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-slate-800">${{ '%.2f' % (order.amount_cents / 100) }}</td>
+                        <td class="px-4 py-3">
+                            {% if order.status == 'active' %}
+                                <span class="inline-flex items-center gap-1 text-xs font-black text-emerald-700">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Active
+                                </span>
+                            {% elif order.status == 'cancelled' %}
+                                <span class="text-xs font-bold text-rose-700">Cancelled</span>
+                            {% elif order.status == 'checkout_pending' %}
+                                <span class="text-xs font-bold text-amber-700">Pending</span>
+                            {% elif order.status == 'payment_failed' %}
+                                <span class="text-xs font-bold text-rose-600">Failed</span>
+                            {% elif order.status == 'capacity_blocked' %}
+                                <span class="inline-flex items-center gap-1 text-xs font-black text-violet-700"
+                                      title="County cap reached. Activate manually after capacity opens.">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-violet-500"></span>Cap blocked
+                                </span>
+                            {% else %}
+                                <span class="text-xs text-slate-500">{{ order.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-xs text-slate-700">
+                            {{ order.impressions|default(0) }} / {{ order.clicks|default(0) }}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-xs text-slate-700">{{ order.leads|default(0) }}</td>
+                        <td class="px-4 py-3 text-xs text-slate-500">{{ order.paid_at or '—' }}</td>
+                        <td class="px-4 py-3">
+                            <a href="{{ url_for('admin.admin_lawyer_ads_edit', order_id=order.id) }}"
+                               class="text-xs font-black uppercase tracking-[0.1em] text-blue-700 hover:underline">
+                                Edit
+                            </a>
+                            {% if order.status == 'active' %}
+                            <form method="POST" action="{{ url_for('admin.admin_lawyer_ads_cancel', order_id=order.id) }}" class="inline">
+                                <button type="submit" onclick="return confirm('Cancel this order?');"
+                                        class="ml-3 text-xs font-black uppercase tracking-[0.1em] text-rose-700 hover:underline">
+                                    Cancel
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="px-4 py-12 text-center text-sm text-slate-500">No lawyer ad orders yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200">
+            <h2 class="text-lg font-black text-slate-900">Recent intake leads</h2>
+            <p class="text-xs text-slate-500 mt-1">Routing-target contact events from the directory intake form.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-[0.12em]">
+                    <tr>
+                        <th class="text-left px-4 py-3 font-black">When</th>
+                        <th class="text-left px-4 py-3 font-black">Name</th>
+                        <th class="text-left px-4 py-3 font-black">Phone</th>
+                        <th class="text-left px-4 py-3 font-black">County</th>
+                        <th class="text-left px-4 py-3 font-black">Case type</th>
+                        <th class="text-right px-4 py-3 font-black">Routed</th>
+                        <th class="text-left px-4 py-3 font-black">Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in recent_leads %}
+                    <tr class="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td class="px-4 py-3 font-mono text-xs text-slate-700">{{ lead.created_at }}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-900">{{ lead.full_name }}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-slate-800">{{ lead.phone }}</td>
+                        <td class="px-4 py-3 text-slate-800">{{ lead.county }}</td>
+                        <td class="px-4 py-3 text-slate-700">{{ lead.case_type or '—' }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-xs text-slate-700">
+                            {{ lead.routed_order_ids.split(',')|length if lead.routed_order_ids else 0 }}
+                        </td>
+                        <td class="px-4 py-3 text-xs text-slate-500">{{ lead.source }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-12 text-center text-sm text-slate-500">No intake leads yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 
 </div>
 {% endblock %}

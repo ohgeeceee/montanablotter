@@ -37,8 +37,10 @@ header .nav-links{display:flex;gap:12px;margin-left:auto;flex-wrap:wrap}
 .legend-inline{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;font-size:11px;color:var(--muted)}
 .legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;flex-shrink:0;vertical-align:middle}
 </style>
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-newspaper.css">{% endif %}
 </head>
-<body>
+<body{% if request.args.get('newspaper') != '0' %} class="mb-newspaper-body"{% endif %}>
+{% if request.args.get('newspaper') != '0' %}<div class="mb-newspaper-stage"><div class="mb-newspaper-stack"><article class="mb-newspaper mb-newspaper--dark-inset">{% endif %}
 
 <header>
   <h1>Montana <span>Crime Data</span></h1>
@@ -312,5 +314,6 @@ loadCalendar(calYear);
 loadTrends(6);
 loadAgency(90);
 </script>
+{% if request.args.get('newspaper') != '0' %}</article></div></div>{% endif %}
 </body>
 </html>

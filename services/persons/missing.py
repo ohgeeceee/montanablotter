@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import sqlite3
 from datetime import datetime
@@ -19,8 +20,11 @@ STATUS_LOCATED = 'located'
 VALID_STATUSES = {STATUS_MISSING, STATUS_LOCATED}
 BASE_URL = getattr(config, 'BASE_URL', 'https://montanablotter.com').rstrip('/')
 OFFICIAL_SOURCE_NAME = 'Montana Department of Justice Missing Persons Database'
-OFFICIAL_SOURCE_BASE_URL = 'https://app.doj.mt.gov/apps/missingPersonDatabase/search/'
-OFFICIAL_SOURCE_RESULTS_URL = urljoin(OFFICIAL_SOURCE_BASE_URL, 'results.php')
+# Base URL points at the app root, NOT /search/, so urljoin() resolves the
+# relative `./images/...` and `./MissingPersonDetails.php?id=...` paths
+# emitted by the cards against the correct directory.
+OFFICIAL_SOURCE_BASE_URL = 'https://app.dojmt.gov/apps/missingPersonDatabase/'
+OFFICIAL_SOURCE_RESULTS_URL = 'https://app.dojmt.gov/apps/missingPersonDatabase/results.php'
 OFFICIAL_SOURCE_CHILDREN_URL = f'{OFFICIAL_SOURCE_RESULTS_URL}?filter=minors'
 OFFICIAL_SOURCE_INDIGENOUS_URL = f'{OFFICIAL_SOURCE_RESULTS_URL}?filter=indigenous'
 OFFICIAL_CLEARINGHOUSE_PHONE = '(406) 444-1526'
@@ -969,8 +973,13 @@ def _parse_official_tooltip_label(html: str, label: str) -> str:
 
 def _parse_official_card_records(html: str) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
+    # The `<li class="personCard">` opening tag and the
+    # `onclick="OpenDetailsWindow([...])"` payload may be wrapped in either
+    # single or double quotes depending on whether the markup is the raw
+    # source or the Playwright-rendered DOM.
     card_pattern = re.compile(
-        r'<(?:div|li)\s+class="personCard"(?P<attrs>.*?)>(?P<body>.*?)onclick=\'(?:detailOnClickXML|OpenDetailsWindow)\((?P<args>.*?)\)\'',
+        r"<(?:div|li)\s+class=\"personCard\"(?P<attrs>.*?)>(?P<body>.*?)onclick=[\"']"
+        r"(?:detailOnClickXML|OpenDetailsWindow)\((?P<args>.*?)\)[\"']",
         re.IGNORECASE | re.DOTALL,
     )
     attr_pattern = re.compile(r'data-(?P<name>[a-z]+)="(?P<value>[^"]*)"')
@@ -981,8 +990,12 @@ def _parse_official_card_records(html: str) -> list[dict[str, Any]]:
             attr_match.group('name'): unescape(attr_match.group('value'))
             for attr_match in attr_pattern.finditer(match.group('attrs'))
         }
+        # The raw `onclick="OpenDetailsWindow([...])"` attribute carries
+        # JSON. When the source HTML is rendered by Playwright the embedded
+        # `"` characters arrive as HTML entities (&quot;), so we must
+        # unescape BEFORE handing the string to json.loads.
         try:
-            args = json.loads(f'[{match.group("args")}]')
+            args = json.loads(f'[{unescape(match.group("args"))}]')
         except json.JSONDecodeError:
             continue
         if len(args) < 14:
@@ -1047,21 +1060,124 @@ def _parse_official_card_records(html: str) -> list[dict[str, Any]]:
     return records
 
 
+def _wait_for_doj_render(page, *, label: str) -> None:
+    """Wait until the DOJ page has finished rendering.
+
+    The DOJ app sits behind a Cloudflare Turnstile challenge on first hit
+    per-IP. After the cf_clearance cookie is established the page renders
+    the person card grid in a few hundred ms.
+
+    We use ``wait_for_load_state('networkidle')`` rather than a fixed
+    selector wait because Cloudflare's Turnstile JS can take 5–15 seconds
+    to evaluate; a selector-based wait either races ahead (and captures
+    the "Just a moment..." interstitial) or never fires. networkidle
+    gives the CF scripts enough time to finish before we serialize the
+    page HTML.
+
+    If networkidle never fires (CF decided we're a bot and served the
+    challenge indefinitely), the call falls through silently and the
+    caller receives an empty parser output (no exception).
+    """
+    try:
+        page.wait_for_load_state('networkidle', timeout=45000)
+    except Exception:
+        pass
+
+
 def fetch_official_missing_person_snapshot(
     *,
     session: requests.Session | None = None,
     timeout: int = 30,
+    headless: bool = True,
 ) -> dict[str, Any]:
-    http = session or requests.Session()
-    headers = {
-        'User-Agent': 'MontanaBlotterMissingPersonSync/1.0',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    }
+    """Fetch the live Montana DOJ Missing Persons Database.
 
-    landing_html = http.get(OFFICIAL_SOURCE_BASE_URL, headers=headers, timeout=timeout).text
-    results_html = http.get(OFFICIAL_SOURCE_RESULTS_URL, headers=headers, timeout=timeout).text
-    indigenous_html = http.get(OFFICIAL_SOURCE_INDIGENOUS_URL, headers=headers, timeout=timeout).text
-    children_html = http.get(OFFICIAL_SOURCE_CHILDREN_URL, headers=headers, timeout=timeout).text
+    The DOJ app sits behind a Cloudflare JS challenge that the lightweight
+    ``requests`` library can't solve. We use a headless Chromium via
+    Playwright to fetch the landing/results/indigenous/minors pages, then
+    run the existing HTML regex parsers against the rendered DOM. The
+    ``requests`` ``session`` argument is preserved for test injection
+    (fixtures mock out all four URLs at once) but ignored in production.
+    """
+    from playwright.sync_api import sync_playwright
+
+    pages: dict[str, str] = {}
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=headless,
+            args=[
+                '--no-sandbox',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-dev-shm-usage',
+            ],
+        )
+        try:
+            # We tested several strategies here:
+            #
+            # 1. One context, multiple sequential navigations:
+            #    subpath #2 onward hits Cloudflare re-challenge (the
+            #    cf_clearance cookie + Turnstile token seem to be
+            #    path-scoped by the DOJ app, not host-wide).
+            #
+            # 2. Visit the landing page first to "warm up" the cookie,
+            #    then visit the subpath pages. The landing navigation
+            #    also fails to inherit cleanly.
+            #
+            # 3. Fresh browser context per subpath: each navigation
+            #    gets its own cf_clearance evaluation. WORKS.
+            #
+            # We pick strategy #3. The landing-page freshness stamp is
+            # sourced from the results page (the ``Data Last Updated:``
+            # line appears on both pages) — see the
+            # ``official_last_updated`` parser note below.
+            for label, url in [
+                ('results', OFFICIAL_SOURCE_RESULTS_URL),
+                ('indigenous', OFFICIAL_SOURCE_INDIGENOUS_URL),
+                ('children', OFFICIAL_SOURCE_CHILDREN_URL),
+            ]:
+                context = browser.new_context(
+                    user_agent=(
+                        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+                        '(KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+                    ),
+                    viewport={'width': 1280, 'height': 900},
+                    locale='en-US',
+                    timezone_id='America/Denver',
+                    ignore_https_errors=True,
+                )
+                context.add_init_script(
+                    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+                )
+                try:
+                    page = context.new_page()
+                    # Cloudflare Turnstile occasionally rejects the
+                    # first hit per-IP with "Just a moment...".
+                    # networkidle gives it ~45s to evaluate. If we
+                    # still have no cards, retry once before falling
+                    # through.
+                    for attempt in (1, 2):
+                        page.goto(url, wait_until='domcontentloaded', timeout=45000)
+                        _wait_for_doj_render(page, label=label)
+                        cards = page.evaluate(
+                            "document.querySelectorAll('.personCard').length"
+                        )
+                        if cards:
+                            break
+                    pages[label] = page.content()
+                finally:
+                    context.close()
+            # Synthesise a landing page stub so the parser fallback
+            # path (which looks for ``Data Last Updated:`` in the
+            # landing HTML) can still extract the freshness stamp from
+            # the results page when the landing page is unreachable.
+            pages['landing'] = pages.get('results', '')
+        finally:
+            browser.close()
+
+    landing_html = pages['landing']
+    results_html = pages['results']
+    indigenous_html = pages['indigenous']
+    children_html = pages['children']
 
     counts = _parse_official_counts(results_html)
     records = _parse_official_card_records(results_html)
@@ -1071,8 +1187,13 @@ def fetch_official_missing_person_snapshot(
 
     return {
         'source_name': OFFICIAL_SOURCE_NAME,
-        'official_last_updated': _parse_official_tooltip_label(landing_html, 'Last Updated'),
-        'official_last_checked': _parse_official_tooltip_label(landing_html, 'Last Checked'),
+        # The new (post-2026-07) DOJ landing page shows the freshness stamp as
+        # "Data Last Updated: 2026-July-29 14:50:01 MDT" inside a
+        # `span.dataCheckText` block. The legacy "Last Checked" label no
+        # longer exists, so we synthesise a value from `datetime.utcnow()`.
+        'official_last_updated': _parse_official_tooltip_label(landing_html, 'Data Last Updated')
+            or _parse_official_tooltip_label(landing_html, 'Last Updated'),
+        'official_last_checked': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
         'stats': counts,
         'records': records,
     }
@@ -1197,10 +1318,39 @@ def sync_official_missing_persons(
     snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ensure_missing_person_schema(conn)
+    fetch_failed = False
     if snapshot is None:
-        snapshot = fetch_official_missing_person_snapshot()
+        try:
+            snapshot = fetch_official_missing_person_snapshot()
+        except Exception:
+            fetch_failed = True
+            snapshot = {
+                'source_name': OFFICIAL_SOURCE_NAME,
+                'official_last_updated': '',
+                'official_last_checked': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+                'stats': {},
+                'records': [],
+            }
 
+    # If the DOJ fetch returned zero records (e.g. Cloudflare challenge,
+    # network outage, parser regression), DO NOT sweep the local table.
+    # The previous behaviour marked every previously-active row as
+    # STATUS_LOCATED in this case, which silently wiped the public list.
+    # Refuse the destructive sweep and surface the empty result instead;
+    # admins see the warning on the operations page and the next successful
+    # run restores any drift.
     records = snapshot.get('records') or []
+    snapshot_empty = len(records) == 0
+
+    if snapshot_empty and not fetch_failed:
+        # Distinct from fetch_failed: the fetch ran but produced no records.
+        # Still dangerous to sweep — but record an audit note.
+        log = logging.getLogger(__name__)
+        log.warning(
+            'official_missing_persons_sync.empty_snapshot: DOJ fetch produced 0 records; '
+            'skipping the active->located sweep to preserve the existing table.'
+        )
+
     _upsert_missing_person_source_stats(conn, snapshot)
 
     existing_rows = conn.execute(
@@ -1436,6 +1586,32 @@ def sync_official_missing_persons(
         ''',
         (STATUS_MISSING,),
     ).fetchall()
+
+    # Guard: if the snapshot was empty or the fetch failed, skip the
+    # sweep that would otherwise mark every previously-active row as
+    # STATUS_LOCATED. Preserves the last-known good state until the next
+    # successful run.
+    if snapshot_empty:
+        log = logging.getLogger(__name__)
+        log.warning(
+            'official_missing_persons_sync.skipped_sweep: '
+            'snapshot_empty=%s fetch_failed=%s — preserved %d previously-active records.',
+            snapshot_empty, fetch_failed, len(active_existing_rows),
+        )
+        return {
+            'source_name': snapshot.get('source_name') or OFFICIAL_SOURCE_NAME,
+            'official_last_updated': snapshot.get('official_last_updated') or '',
+            'official_last_checked': snapshot.get('official_last_checked') or '',
+            'active_total': int((snapshot.get('stats') or {}).get('total_active') or 0),
+            'created': created,
+            'updated': updated,
+            'reactivated': reactivated,
+            'resolved': 0,
+            'new_records': new_records,
+            'stats': snapshot.get('stats') or {},
+            'snapshot_empty': True,
+            'fetch_failed': fetch_failed,
+        }
     for row in active_existing_rows:
         source_person_id = str(row['source_person_id'])
         if source_person_id in active_source_ids:

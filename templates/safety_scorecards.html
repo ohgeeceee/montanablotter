@@ -31,8 +31,10 @@
   .methodology { margin-top:24px; padding:16px; background:var(--panel); border:1px solid #1e293b; border-radius:10px; font-size:13px; color:var(--muted); }
   .methodology h3 { margin:0 0 8px; color:var(--text); font-size:14px; }
 </style>
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-newspaper.css">{% endif %}
 </head>
-<body>
+<body{% if request.args.get('newspaper') != '0' %} class="mb-newspaper-body"{% endif %}>
+{% if request.args.get('newspaper') != '0' %}<div class="mb-newspaper-stage"><div class="mb-newspaper-stack"><article class="mb-newspaper mb-newspaper--dark-inset">{% endif %}
 <div class="container">
   <h1>Neighborhood Safety Scorecards</h1>
   <p class="lead">Synthesized incident metrics by area. Lower incident volume and severity yield higher safety scores.</p>
@@ -107,5 +109,6 @@
     counties.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
   });
 </script>
+{% if request.args.get('newspaper') != '0' %}</article></div></div>{% endif %}
 </body>
 </html>

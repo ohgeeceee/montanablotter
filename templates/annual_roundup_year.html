@@ -34,16 +34,11 @@
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6">
-    <div class="max-w-6xl mx-auto">
-        <span class="inline-block bg-red-500/20 text-red-300 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4">
-            Annual Roundup
-        </span>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight mb-3">{{ title }}</h1>
-        <p class="text-slate-300 text-sm max-w-3xl">
-            {% if partial_label %}{{ partial_label }}.{% endif %}
-            This page summarizes the strongest counties, incident patterns, and linked local pages visible in the Montana Blotter archive for {{ year }}.
-        </p>
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div><p class="public-eyebrow" style="color: var(--public-red);">Annual Roundup</p><h1 class="public-title public-title--medium">{{ title }}</h1><p class="public-copy">{% if partial_label %}{{ partial_label }}. {% endif %}This page summarizes the strongest counties, incident patterns, and linked local pages visible in the Montana Blotter archive for {{ year }}.</p></div>
+        </div>
     </div>
 </section>
 {% endblock %}

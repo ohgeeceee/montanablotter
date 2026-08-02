@@ -81,8 +81,10 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
   #county-panel{width:calc(100vw - 24px);right:12px;top:auto;bottom:12px}
 }
 </style>
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-newspaper.css">{% endif %}
 </head>
-<body>
+<body{% if request.args.get('newspaper') != '0' %} class="mb-newspaper-body"{% endif %}>
+{% if request.args.get('newspaper') != '0' %}<div class="mb-newspaper-stage"><div class="mb-newspaper-stack"><article class="mb-newspaper mb-newspaper--dark-inset">{% endif %}
 <div id="app">
   <aside id="sidebar">
     <a class="nav-back" href="/">← MontanaBlotter.com</a>
@@ -464,5 +466,6 @@ document.getElementById('panelClose').addEventListener('click', () => {
 
 initMap().catch(console.error);
 </script>
+{% if request.args.get('newspaper') != '0' %}</article></div></div>{% endif %}
 </body>
 </html>

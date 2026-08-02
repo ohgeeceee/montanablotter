@@ -129,38 +129,200 @@
     {% if recaptcha_site_key and not request.args.get('noads') %}
     <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
     {% endif %}
+    {# Newspaper treatment is the default site-wide as of 2026-07-29.
+       The `?newspaper=0` query param suppresses it for A/B comparison;
+       remove this conditional to revert to the chrome-only look. #}
+    {% if request.args.get('newspaper') != '0' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='mb-newspaper.css') }}">
+    {% endif %}
 </head>
-<body class="public-app {% block body_class %}{% endblock %}">
+<body class="{% if request.args.get('newspaper') != '0' %}mb-newspaper-body{% else %}public-app mb-newspaper-off{% endif %} {% block body_class %}{% endblock %}">
+    {% if request.args.get('newspaper') == '0' %}
     {% include "includes/public_official_banner.html" %}
 
     {% block pre_header %}{% endblock %}
 
     {% include "includes/public_nav_header.html" %}
+    {% endif %}
 
+    {# Render the child template's body content once, captured into a Jinja
+       variable. Each branch below then emits the captured HTML inline. #}
+    {% set _mb_body %}
+      {% block breadcrumb %}{% endblock %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="mb-np-flash-wrap">
+        {% for category, message in messages %}
+        <div class="mb-np-flash mb-np-flash--{{ 'success' if category == 'message' else category }}">
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+      {% block hero %}{% endblock %}
+      <div class="{% if request.path == '/' %}pb-4 md:pb-0{% else %}pb-16 md:pb-0{% endif %}">
+      {% block content %}{% endblock %}
+      </div>
+    {% endset %}
+
+    {% if request.args.get('newspaper') != '0' %}
+    {# ===================== NEWSPAPER TREATMENT ===================== #}
+    <div class="mb-newspaper-stage">
+      <div class="mb-newspaper-stack">
+        <article class="mb-newspaper">
+
+          {# Edition strip + masthead title + ink stamp #}
+          <header class="mb-np-masthead">
+            <div class="mb-np-masthead__emblem" aria-hidden="true">
+              <svg viewBox="0 0 56 56" width="56" height="56" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="28" cy="28" r="25" fill="#fbf8f0" stroke="#15110a" stroke-width="1.5"/>
+                <path d="M28 8 L30 16 L28 24 L26 16 Z" fill="#15110a"/>
+                <path d="M28 48 L26 40 L28 32 L30 40 Z" fill="#15110a"/>
+                <path d="M8 28 L16 26 L24 28 L16 30 Z" fill="#15110a"/>
+                <path d="M48 28 L40 30 L32 28 L40 26 Z" fill="#15110a"/>
+                <text x="28" y="32" font-size="14" font-weight="900" text-anchor="middle"
+                      fill="#96261f" font-family="Playfair Display, Georgia, serif">MB</text>
+              </svg>
+            </div>
+            <div class="mb-np-masthead__center">
+              <div class="mb-np-edition">
+                <div class="mb-np-edition__date">{{ np_edition_date or 'DAILY EDITION' }}</div>
+                <div class="mb-np-edition__vol">{{ np_vol or 'VOL. III' }} &middot; {{ np_no or 'NO. 514' }}</div>
+                <div class="mb-np-edition__price">Price: Free &middot; Records open to the public</div>
+              </div>
+              <div id="mb-np-masthead-title" class="mb-np-masthead__title" role="img" aria-label="The Montana Blotter">The Montana Blotter</div>
+              <div class="mb-np-masthead__tag">Public records, reported plainly &mdash; from every county in the Treasure State.</div>
+              <div class="mb-np-stamp" aria-hidden="true">
+                Filed &middot; Daily Edition
+                <span>{{ np_edition_date or '' }}</span>
+              </div>
+            </div>
+            <div class="mb-np-masthead__est">
+              {# Account — chip when logged in, sign-in links when logged out #}
+              {% if public_user %}
+              <div class="mb-np-account">
+                <button id="user-chip-btn" type="button" class="mb-np-user-chip" aria-haspopup="true" aria-expanded="false" aria-controls="user-dropdown">
+                  <span class="mb-np-user-chip__avatar" aria-hidden="true">{{ public_user.display_name[:1] | upper }}</span>
+                  <span class="mb-np-user-chip__name">{{ public_user.display_name }}</span>
+                  <svg class="mb-np-user-chip__caret" viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div id="user-dropdown" class="mb-np-user-menu" role="menu" hidden>
+                  <a href="/account" class="mb-np-user-menu__link" role="menuitem">My Account</a>
+                  <a href="/account#digest" class="mb-np-user-menu__link" role="menuitem">Email Alerts</a>
+                  <a href="/account#password-settings" class="mb-np-user-menu__link" role="menuitem">Change Password</a>
+                  <a href="/logout?next={{ request.full_path | urlencode }}" class="mb-np-user-menu__link mb-np-user-menu__link--danger" role="menuitem">Sign Out</a>
+                </div>
+              </div>
+              {% else %}
+              <div class="mb-np-account mb-np-account--signed-out">
+                <a href="/login?next={{ request.full_path | urlencode }}" class="mb-np-account__link">Sign In</a>
+                <span class="mb-np-account__sep" aria-hidden="true">/</span>
+                <a href="/register?next={{ request.full_path | urlencode }}" class="mb-np-account__link mb-np-account__link--cta">Create Account</a>
+              </div>
+              {% endif %}
+              <div class="mb-np-masthead__est-label">Established 2026</div>
+            </div>
+          </header>
+
+          {# Secondary top-of-paper nav #}
+          <nav class="mb-np-nav" aria-label="Primary sections">
+            <a href="/">Front Page</a>
+            <a href="/blotter">Blotter</a>
+            <a href="/counties">Counties</a>
+            <a href="/detention">Bookings</a>
+            <a href="/missing-persons">Missing</a>
+            <a href="/wanted">Warrants</a>
+            <a href="/bail-bonds">Bail Bonds</a>
+            <a href="/lawyers">Lawyers</a>
+            <a href="/crime-map">Crime Map</a>
+            <a href="/crime-atlas">Crime Atlas</a>
+            <a href="/about">About</a>
+            <a href="/corrections">Careers</a>
+          </nav>
+
+          {# Dateline strip — live record counts #}
+          <div class="mb-np-dateline" aria-label="Edition statistics">
+            <div class="mb-np-dateline__item">
+              <span class="mb-np-dateline__label">Edition</span>
+              <span class="mb-np-dateline__value">{{ np_edition_date or 'Daily' }}</span>
+            </div>
+            <div class="mb-np-dateline__item">
+              <span class="mb-np-dateline__label">Helena</span>
+              <span class="mb-np-dateline__value">{{ np_weather_temp }} &middot; {{ np_weather_sky }}</span>
+            </div>
+            <div class="mb-np-dateline__item">
+              <span class="mb-np-dateline__label">Records</span>
+              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_records or 0) }}</span>
+            </div>
+            <div class="mb-np-dateline__item">
+              <span class="mb-np-dateline__label">Blotters</span>
+              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_blotters or 0) }}</span>
+            </div>
+            <div class="mb-np-dateline__item">
+              <span class="mb-np-dateline__label">Bookings</span>
+              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_jails or 0) }}</span>
+            </div>
+            <div class="mb-np-dateline__item">
+              <span class="mb-np-dateline__label">Court Ev.</span>
+              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_courts or 0) }}</span>
+            </div>
+            <div class="mb-np-dateline__item">
+              <span class="mb-np-dateline__label">Sanctions</span>
+              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_sanctions or 0) }}</span>
+            </div>
+            <div class="mb-np-dateline__item">
+              <span class="mb-np-dateline__label">Mt. Counties</span>
+              <span class="mb-np-dateline__value">{{ np_counties or 56 }}</span>
+            </div>
+          </div>
+
+          {# OTBAR / On-the-beat strip #}
+          <div class="mb-np-otbar" aria-label="Beat status">
+            <span class="mb-np-otbar__pulse" aria-hidden="true"></span>
+            <span class="mb-np-otbar__label">Late Edition:</span>
+            <span class="mb-np-otbar__text">Records refreshed {{ np_edition_date or 'today' }} &middot; <strong>{{ np_counties or 56 }}</strong> Counties updated within the last hour.</span>
+          </div>
+
+          {# Breadcrumb inside the broadsheet — emit the captured body content #}
+          <nav class="mb-np-breadcrumb" aria-label="Breadcrumb">
+            <a href="/">Montana Blotter</a>
+          </nav>
+
+          {{ _mb_body }}
+
+          {# Folio footer inside the broadsheet #}
+          <div class="mb-np-folio" aria-label="Colophon">
+            <div class="mb-np-folio__left">{{ np_edition_date or 'Daily Edition' }}</div>
+            <div class="mb-np-folio__center">&mdash; A-1 &mdash;</div>
+            <div class="mb-np-folio__right">&copy; 2026 Montana Blotter &middot; Free Public Records</div>
+          </div>
+
+        </article>
+      </div>
+    </div>
+    {# =================== /NEWSPAPER TREATMENT ====================== #}
+    {% else %}
+    {# ===================== LEGACY CHROME MODE ====================== #}
     <div class="public-breadcrumb-bar">
         <div class="public-breadcrumb max-w-7xl mx-auto px-4 sm:px-6">
             <a href="/">Montana Blotter</a>
-            {% block breadcrumb %}{% endblock %}
         </div>
     </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-2">
-        {% for category, message in messages %}
-        <div class="rounded-2xl border px-4 py-3 text-sm {% if category == 'error' %}border-rose-200 bg-rose-50 text-rose-700{% elif category == 'warning' %}border-amber-200 bg-amber-50 text-amber-800{% else %}border-emerald-200 bg-emerald-50 text-emerald-700{% endif %}">
-            {{ message }}
-        </div>
-        {% endfor %}
-    </div>
+    {{ _mb_body }}
     {% endif %}
-    {% endwith %}
 
-    {% block hero %}{% endblock %}
-
-    <div class="{% if request.path == '/' %}pb-4 md:pb-0{% else %}pb-16 md:pb-0{% endif %}">
-    {% block content %}{% endblock %}
-    </div>
+    {% if request.args.get('newspaper') != '0' %}
+    <footer class="mb-newspaper-fineprint" style="max-width:1320px;margin:14px auto 0;padding:14px 24px 0;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:rgba(251,248,240,0.55);border-top:1px solid rgba(251,248,240,0.15);">
+      <a href="/about" style="color:inherit;text-decoration:none;">About</a>
+      &middot; <a href="/corrections" style="color:inherit;text-decoration:none;">Corrections</a>
+      &middot; <a href="/standards" style="color:inherit;text-decoration:none;">Standards</a>
+      &middot; <a href="/privacy" style="color:inherit;text-decoration:none;">Privacy</a>
+      &middot; <a href="/terms" style="color:inherit;text-decoration:none;">Terms</a>
+      &middot; <a href="/transparency" style="color:inherit;text-decoration:none;">Transparency</a>
+      &middot; <a href="/support" style="color:inherit;text-decoration:none;">Support</a>
+    </footer>
+    {% else %}
 
     <footer class="public-footer">
         <div class="public-footer__grid max-w-7xl mx-auto px-6">
@@ -192,6 +354,7 @@
             </div>
         </div>
     </footer>
+    {% endif %}
 
     <script>
     (function(){
@@ -288,13 +451,19 @@
         if (chipBtn && chipDropdown) {
             chipBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                var isOpen = !chipDropdown.hidden;
-                chipDropdown.hidden = isOpen;
-                chipBtn.setAttribute('aria-expanded', String(!isOpen));
+                var wasOpen = !chipDropdown.hidden;
+                chipDropdown.hidden = wasOpen;
+                chipBtn.setAttribute('aria-expanded', String(!wasOpen));
             });
             document.addEventListener('click', function() {
                 chipDropdown.hidden = true;
                 chipBtn.setAttribute('aria-expanded', 'false');
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !chipDropdown.hidden) {
+                    chipDropdown.hidden = true;
+                    chipBtn.setAttribute('aria-expanded', 'false');
+                }
             });
         }
 
@@ -340,8 +509,8 @@
     </script>
     {% block extra_scripts %}{% endblock %}
 
-    <!-- ohgeeceee network bar: links every sibling site. Hosted on the hub; edit the registry once in ogc-network.js. -->
-    <script src="https://ohgeec.com/ogc-network.js" data-ogc-theme="light" defer></script>
+    <!-- ohgeeceee network registry: kept for sibling-site bootstrap; bar disabled. -->
+    <script src="https://ohgeec.com/ogc-network.js" data-ogc-theme="light" data-ogc-bar="off" defer></script>
 
 <!-- ═══════════════════════════ FOOTER MODALS ═══ -->
 
