@@ -49,6 +49,7 @@ from blueprints.sex_offender import register_sex_offender_blueprint
 from blueprints.public_salaries import register_public_salaries_blueprint
 from blueprints.government_spending import register_government_spending_blueprint
 from blueprints.watchdog import register_watchdog_blueprint
+from blueprints.api_lea import register_api_lea
 from blueprints.recovery_ads import recovery_ads_bp
 from blueprints.attorney_ads import attorney_ads_bp
 from blueprints.lawyer_ads import lawyer_ads_bp
@@ -15732,6 +15733,7 @@ register_sex_offender_blueprint(app, get_db=get_db)
 register_public_salaries_blueprint(app, get_db=get_db)
 register_government_spending_blueprint(app, get_db=get_db)
 register_watchdog_blueprint(app)
+register_api_lea(app)
 app.register_blueprint(recovery_ads_bp)
 app.register_blueprint(attorney_ads_bp)
 app.register_blueprint(lawyer_ads_bp)
@@ -15746,6 +15748,13 @@ app.after_request(after_api_request)
 @app.route("/new")
 def new_frontend():
     return app.send_static_file("new/index.html")
+
+
+@app.route("/docs/<path:filename>")
+def serve_docs(filename):
+    return send_from_directory(
+        os.path.join(app.root_path, "docs"), filename
+    )
 
 
 # ==========================================
@@ -16591,32 +16600,112 @@ def _pick_attorneys_for_county(county: str, limit: int = 1):
 def attorneys_directory():
     """Public directory of Montana defense attorneys by county.
 
-    Sponsored Gold > Silver > free listings, then by sort_order, then by name.
+    Sponsored Gold > Silver > free, then by sort_order, then by name.
+    One row can cover multiple counties via the JSON `counties` column;
+    statewide resources have counties == ["*"] and are duplicated into
+    every county bucket.
     """
+    import json as _json
+
+    COUNTIES_CANONICAL = [
+        'Beaverhead', 'Big Horn', 'Blaine', 'Broadwater', 'Carbon',
+        'Carter', 'Cascade', 'Chouteau', 'Custer', 'Daniels',
+        'Dawson', 'Deer Lodge', 'Fallon', 'Fergus', 'Flathead',
+        'Gallatin', 'Garfield', 'Glacier', 'Golden Valley', 'Granite',
+        'Hill', 'Jefferson', 'Judith Basin', 'Lake', 'Lewis and Clark',
+        'Liberty', 'Lincoln', 'Madison', 'McCone', 'Meagher',
+        'Mineral', 'Missoula', 'Musselshell', 'Park', 'Petroleum',
+        'Phillips', 'Pondera', 'Powder River', 'Powell', 'Prairie',
+        'Ravalli', 'Richland', 'Roosevelt', 'Rosebud', 'Sanders',
+        'Sheridan', 'Silver Bow', 'Stillwater', 'Sweet Grass', 'Teton',
+        'Toole', 'Treasure', 'Valley', 'Wheatland', 'Wibaux',
+        'Yellowstone',
+    ]
+
     conn = get_db()
     rows = conn.execute(
         '''
         SELECT id, county, name, firm, phone, email, website, practice_areas, blurb,
-               sponsored, sponsor_tier, logo_path, photo_path, tagline
+               sponsored, sponsor_tier, logo_path, photo_path, tagline, counties
         FROM attorney_referrals
         WHERE is_active = 1
         ORDER BY
-            county ASC,
             CASE sponsor_tier WHEN 'gold' THEN 0 WHEN 'silver' THEN 1 ELSE 2 END,
             sort_order ASC,
             name ASC
         '''
     ).fetchall()
     conn.close()
+
     by_county: dict = {}
+    statewide_entries: list = []
+    statewide_count = 0
+
     for r in rows:
-        by_county.setdefault(r['county'], []).append(dict(r))
+        d = dict(r)
+        try:
+            counties = _json.loads(d.get('counties') or '[]')
+        except Exception:
+            counties = []
+        if not counties or counties == [d['county']] or d['county'] == 'Statewide':
+            # legacy rows: cover only their own county
+            coverage = [d['county']] if d['county'] != 'Statewide' else []
+        else:
+            coverage = counties
+
+        if not coverage:
+            statewide_entries.append(d)
+            continue
+
+        if '*' in coverage:
+            # apply to every canonical county
+            for c in COUNTIES_CANONICAL:
+                by_county.setdefault(c, []).append(d)
+        else:
+            for c in coverage:
+                by_county.setdefault(c, []).append(d)
+
+    # Make sure every county appears in the dict, even if empty
+    for c in COUNTIES_CANONICAL:
+        by_county.setdefault(c, [])
+
+    # By-the-numbers: report regional office coverage honestly.
+    # total_attorneys counts only regional-office rows; statewide resources
+    # get their own counter so users aren't misled by 7× inflation from the
+    # "every county bucket" duplication.
+    counties_with_listings = sum(1 for v in by_county.values() if v)
+
+    conn = get_db()
+    # Regional offices: active rows whose coverage is a real county list,
+    # not the "*" statewide sentinel.
+    regional_count = conn.execute(
+        """
+        SELECT COUNT(*) FROM attorney_referrals
+        WHERE is_active = 1
+          AND counties NOT IN ('["*"]', '[]')
+          AND counties NOT LIKE '%"*%'
+        """
+    ).fetchone()[0]
+    statewide_count_db = conn.execute(
+        """
+        SELECT COUNT(*) FROM attorney_referrals
+        WHERE is_active = 1
+          AND (counties = '["*"]' OR counties LIKE '%"*%')
+        """
+    ).fetchone()[0]
+    conn.close()
+
     return render_template(
         'attorneys.html',
         current_year=datetime.now().year,
         by_county=by_county,
-        total_attorneys=len(rows),
-        total_counties=len(by_county),
+        counties_canonical=COUNTIES_CANONICAL,
+        statewide_entries=statewide_entries,
+        # For the by-the-numbers card: show REGIONAL count, not the inflated
+        # total. Statewide gets a separate chip.
+        total_attorneys=regional_count,
+        total_counties=counties_with_listings,
+        total_statewide=statewide_count_db,
         canonical_url=f'{BASE_URL}/attorneys',
         active_nav='resources_attorneys',
     )
