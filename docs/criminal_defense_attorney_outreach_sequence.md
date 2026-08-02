@@ -1,245 +1,228 @@
-# Montana Blotter — Criminal Defense Attorney Cold Outreach Sequence
-## "Felony Alert Sidebar" + "24-Hour Hotline Header" Monetization Campaign
+# Montana Blotter — Criminal Defense Attorney Outreach Sequence
+
+> **Status:** Internal sales doc — 2026-07-30 rewrite. The previous version of
+> this file pitched a "Felony Alert Sidebar" and a "24-Hour Hotline Header"
+> placement that were never built and never shipped. This version matches the
+> products that actually exist in code today: `/lawyers` Bronze / Silver /
+> Gold directory listings plus the optional real-time arrest-alert add-on
+> described below.
 
 ---
 
-## EMAIL 1: The Hook — Emotional Urgency + Speed-to-Lead
+## What we are actually selling
 
-**Subject Line:** A felony booking in [County] just happened. Their family is searching now.
+Three packages on `/lawyers`, billed through Stripe Checkout. Annual billing
+is approximately 15% below twelve monthly payments.
 
-**Preview Text:** 4-hour head start on retained cases. See how it works →
+| Package | Price | Public page | In code |
+| --- | --- | --- | --- |
+| Bronze Listing | $149/mo · $1,520/yr | `/lawyers` (standard card) | `blueprints/lawyer_ads.py::_PACKAGES[0]` |
+| Silver Featured | $299/mo · $3,050/yr | `/lawyers` (logo + pinned above Bronze) | `blueprints/lawyer_ads.py::_PACKAGES[1]` |
+| Gold Priority | $599/mo · $6,110/yr | `/lawyers` (top, photo, tagline, priority lead routing) | `blueprints/lawyer_ads.py::_PACKAGES[2]` |
+
+Every active advertiser also gets the **free `/attorneys` directory** entry
+(opt-in) and is eligible for the **real-time arrest-alert add-on** wired in
+`services/alerts/lawyer_arrest_alerts.py` and
+`scripts/ops/lawyer_arrest_alerts_watcher.py`. The alert watcher emails a
+new booking to every active advertiser in the matching county within minutes
+of ingestion. Gold-tier advertisers are contacted first.
+
+Per-county inventory is capped at 1 Gold / 2 Silver / 2 Bronze. The cap is
+enforced both at the public Stripe webhook (`_county_capacity_blocked`) and
+in admin manual entry. If a county fills, new orders land in
+`status='capacity_blocked'` until a slot opens.
 
 ---
+
+## Outreach sequence
+
+### Day 1 — initial email
+
+Subject: `Montana families searching for a defense attorney in [County]`
 
 Hi [First Name],
 
-I run Montana Blotter — the statewide public records platform that indexed 16.7 million page views and 2,586 jail bookings across Yellowstone, Missoula, Flathead, and Jefferson counties last year.
+I run Montana Blotter — the open public-records platform that indexes jail
+rosters, court activity, warrants, and blotter reports from all 56 Montana
+counties.
 
-**Here's why I'm reaching out:**
+When someone is arrested or booked in [County], their family usually starts
+searching within the hour. They search "[County] criminal defense attorney"
+or "[County] jail roster" — and Montana Blotter is the page that ranks for
+those searches because the records are the page.
 
-When a felony gets booked in [County], two things happen within the hour:
-1. The family panics and starts Googling "criminal defense attorney [City]"
-2. They land on Montana Blotter because we rank #1 for "[county] jail roster" and "[county] arrests today"
+We just opened a paid directory at `/lawyers` that puts a firm's name,
+phone, and intake link directly on those pages. Listings are county-targeted
+and tiered: Bronze, Silver Featured, and Gold Priority. Public intake
+inquiries from those county pages route to every active advertiser in the
+county, with Gold-tier firms notified first.
 
-**The problem:** Right now, your competitor is the only name they see.
+[Mock county page screenshot: link to the live `/lawyers/yellowstone` page
+with a redacted example firm name for the screenshot]
 
-**The opportunity:** We just opened two premium placements designed specifically for defense attorneys who want to intercept that search at the moment of highest emotional urgency:
+If this is the right time, I can send a one-page sample report showing the
+exact metrics the firm will receive each month. Reply "SEND REPORT" and
+I'll get it to you today.
 
-**→ The Felony Alert Sidebar** ($300/mo)
-Persistent sidebar placement on every arrest record, warrant page, and county blotter in your target jurisdiction. Stays visible on scroll. Built for mobile tap-to-call. Your phone number + "24-Hour Criminal Defense" headline follows the reader through the entire session.
+— Jon
+Montana Blotter · advertising@montanablotter.com
 
-**→ The 24-Hour Hotline Header** ($450/mo)
-Top-of-page banner above all arrest traffic in your county. 970x250 premium placement. "Arrested in [County]? Call Now — 24-Hour Defense" — positioned before they even scroll to the booking photo.
+P.S. — [County] currently has [N] active listings and [N] of [Cap] Gold
+slots open. The Gold slot goes to whichever firm commits first.
 
-**Both placements include:**
-- Real-time felony booking alerts (SMS + email) so you know the second a new case hits
-- County-exclusive lockout (one attorney per county per placement)
-- Monthly impression + click reporting
-- 7-day free trial, cancel anytime
+### Day 3 — phone follow-up
 
-**The math:** One retained felony case pays for 18 months of placement. Most of our attorneys see 3–5 qualified calls in the first 30 days.
+Call the office. Ask who owns intake and paid marketing. Do not pitch the
+receptionist for ten minutes. Confirm the firm actually serves [County] and
+has working intake coverage. If yes, email the mock placement and the
+sample monthly report. If no, remove from the list.
 
-I can activate a 7-day free trial for [County] this week if you want to test the lead flow. No contract, no setup fee — just real cases from real people in crisis.
+### Day 5 — sample report email
 
-**Reply "TRIAL" and I'll send your preview link.**
-
-[Your Name]
-Montana Blotter
-[Phone] | [Email]
-
-P.S. — [County] had [X] felony bookings in the last 30 days. That's [X] families who needed an attorney and searched while the booking was still fresh. The attorney who owns this placement gets the first call.
-
----
-
-## EMAIL 2: The Follow-Up — Social Proof + Platform Authority
-
-**Subject Line:** 19,000+ indexed records. Your name could be on every one.
-
-**Preview Text:** The data behind why Montana families trust Montana Blotter first.
-
----
+Subject: `Sample monthly report — [Firm Name] on /lawyers/[County]`
 
 Hi [First Name],
 
-Quick follow-up on the felony alert placement for [County].
+Attached / linked: a one-page sample monthly report showing the exact
+metrics the firm would receive.
 
-I wanted to share the platform data that explains why this works — and why defense attorneys who wait usually lose the county to a competitor:
+What you'll see in the report:
 
-**MONTANA BLOTTER BY THE NUMBERS**
+- Directory impressions in [County] (deduped per visitor per day)
+- Tap-to-call actions
+- Website / target URL clicks
+- Consumer intake leads delivered to your inbox
+- Delivery failures (with the destination that bounced)
+- Advertiser-reported contact / consultation / retained counts — the firm
+  fills these in
+- Cost per delivered lead
+- Cost per consultation and retained matter when those numbers exist
 
-→ 16,717,364 total page views (indexed)
-→ 2,586 jail bookings on file
-→ 810 new bookings in the last 30 days alone
-→ 114 blog posts driving organic search traffic
-→ 307 public meetings indexed
-→ 95 court cases tracked
-→ 25 active email alert subscribers (growing weekly)
+The report is real data, not estimates. We will not promise case volume or
+ROI before we have cohort data. After 90 days we can talk about the
+conversion numbers we are actually seeing.
 
-**What this means for you:**
+— Jon
 
-Montana Blotter isn't a directory people browse when they're "thinking about" hiring an attorney. It's where they land at 2:17 AM when their son just got booked on a DUI-felony in [County] and they need someone who answers the phone.
+### Day 10 — close
 
-**Our search dominance by county:**
-- Yellowstone County: 1,391 bookings indexed — we rank #1 for "Yellowstone County jail roster"
-- Missoula County: 786 bookings indexed — we rank #1 for "Missoula arrests today"
-- Flathead County: 292 bookings indexed — we rank #1 for "Flathead County blotter"
-- Jefferson County: 78 bookings indexed — exclusive opportunity, low competition
-
-**The Felony Alert Sidebar + 24-Hour Hotline Header bundle** ($650/mo, 15% discount applied) puts your name in both positions simultaneously. One attorney per county. First to commit gets the lockout.
-
-**Current county availability:**
-- [County]: [AVAILABLE / HOLD PENDING / CLAIMED BY [Competitor Name]]
-
-I can send you a live preview of how your placement would look on today's [County] jail roster. Just reply "PREVIEW" and I'll build it in 10 minutes.
-
-**Or book a 5-minute call:** [Calendly Link]
-
-[Your Name]
-Montana Blotter
-
-P.S. — Last month, a Missoula defense attorney using the sidebar placement received 4 calls from families within 48 hours of booking. 2 became retained cases. His ROI for the month: 11x. I can share the redacted analytics if helpful.
-
----
-
-## EMAIL 3: The Closer — Scarcity + Final Call
-
-**Subject Line:** [County] lockout expires Friday — felony alert placement
-
-**Preview Text:** One attorney per county. Current holder: [Competitor/None].
-
----
+Subject: `Final check-in — [County] Gold slot`
 
 Hi [First Name],
 
-This is my last email on this — I don't want to clutter your inbox.
+Closing the loop on the [County] listing.
 
-**The [County] Felony Alert Sidebar + 24-Hour Hotline Header placement is being held for you until Friday.** After that, it goes back into open rotation and I'll reach out to the next attorney on my list.
+If the timing isn't right, no problem. Reply "PASS" and I'll remove you
+from the active list. You can always come back later.
 
-**What you're walking away from:**
+If you want to move forward: the [County] Gold slot is currently open. I
+can have your firm live within 24 hours of payment.
 
-- 810 felony + misdemeanor bookings in the last 30 days across our indexed counties
-- Families searching at the exact moment of crisis (not "someday" — tonight, at 2 AM)
-- A placement your competitor can't replicate once you lock the county
-- 7-day free trial with zero risk
+Reply "GO" and I'll send the checkout link.
 
-**What one retained case is worth to your practice?**
-
-For most felony defense attorneys in Montana, a single retained case generates $3,000–$15,000 in fees. The Felony Alert Sidebar is $300/month. The math isn't complicated.
-
-**Reply "LOCK [County]" and I'll activate your 7-day trial before Friday.**
-
-If this isn't the right timing, I understand — just reply "PASS" and I'll remove you from this sequence (but keep you on the early-access list for when we open new counties).
-
-[Your Name]
-Montana Blotter
-[Phone]
-
-P.S. — If you want to see the live placement before deciding, reply "PREVIEW" and I'll build your mockup today. Takes 10 minutes. No obligation.
+— Jon
 
 ---
 
-## EMAIL 4: The Re-engagement — Win-Back (Sent 30 days later if no response)
+## Compliance notes
 
-**Subject Line:** [County] just had [X] new bookings. Still no attorney placement.
+These are the lines we will not cross, ever. They're also the lines a
+Montana State Bar reviewer will look at first, so every prospect-facing
+email is built around them.
 
-**Preview Text:** Your competitor's phone number is still the only one they see.
+- **MRPC 7.1 (Truthful statements about legal services).** No "Top Rated",
+  "Best", "Expert", "Guaranteed", or unsubstantiated comparisons in any
+  listing copy or pitch. The current plan uses "Priority Placement",
+  "Featured", and "Sponsored" only.
+- **MRPC 7.2 (Referrals).** The directory is opt-in and compensated. We
+  disclose the paid nature on every listing card and on the directory
+  landing page. We do not steer specific leads to specific firms.
+- **MRPC 7.3 (Solicitation).** The public intake form is the consumer's
+  choice, not ours. The consumer checks the consent box. We don't cold-DM
+  consumers from this product.
+- **MRPC 7.4 (Identification of practice).** Every listing shows firm
+  name, contact, practice area, and bar number. The state bar's lawyer
+  referral service is linked from `/lawyers` as an alternative.
+- **MRPC 7.5 (Firm names).** Listing firm names are not edited by
+  Montana Blotter. If the firm uses a trade name, that's the firm's
+  responsibility under 7.5.
 
----
-
-Hi [First Name],
-
-I checked the [County] jail roster this morning: [X] new bookings in the last 7 days. [X] of them were felony-level.
-
-**Every one of those families searched for an attorney.**
-
-And every one of them saw Montana Blotter in the search results — because we still rank #1 for "[County] jail roster" and "[County] arrests today."
-
-**The Felony Alert Sidebar in [County] is still unclaimed.**
-
-I'm not going to hard-sell you. You know the value of being first. You know what a retained felony case is worth. You know that families in crisis don't compare three attorneys — they call the first number that looks like help.
-
-**If you want to test it:** 7-day free trial. No contract. I'll build your preview today.
-
-**Reply "TRIAL" or pass this to your marketing person.** Either way, I'll stop reaching out after this.
-
-[Your Name]
-Montana Blotter
-
----
-
-## SUBJECT LINE VARIATIONS (A/B Test Pool)
-
-### Email 1 Variants:
-- A felony booking in [County] just happened. Their family is searching now.
-- 810 Montana bookings this month. How many families called you first?
-- Your competitor's number is on every [County] arrest page. Here's how to change that.
-- [First Name], want a 4-hour head start on [County] felony cases?
-- The #1 search result for "[County] jail roster" — your name could be on it.
-
-### Email 2 Variants:
-- 19,000+ indexed records. Your name could be on every one.
-- Montana Blotter: 16.7M views. 2,586 bookings. One [County] placement left.
-- The data behind why families trust Montana Blotter first (and why attorneys advertise here)
-- [County] had [X] felony bookings last month. Who got the calls?
-- Social proof: 11x ROI in 30 days. Here's the breakdown.
-
-### Email 3 Variants:
-- [County] lockout expires Friday — felony alert placement
-- Last call: [County] Felony Alert Sidebar
-- One attorney per county. [County] is still open (for now).
-- Friday deadline: [County] placement goes to next attorney on the list
-- [First Name], should I hold [County] or release it?
+A real Montana Rules of Professional Conduct review is still on the
+project's launch checklist (see `docs/plans/2026-07-30-montana-lawyer-mrpc-review.md`).
+Until that review is logged, do not change copy in a way that implies
+endorsement, exclusivity, or outcome guarantees.
 
 ---
 
-## PERSONALIZATION TOKENS
+## Voice and tone
 
-| Token | Source | Example |
-|-------|--------|---------|
-| [First Name] | Attorney first name | "Sarah" |
-| [County] | Target county | "Yellowstone" |
-| [City] | County seat | "Billings" |
-| [X] | Dynamic booking count | "47" (last 30 days) |
-| [Competitor Name] | Known competitor | "Johnson Defense" |
-| [Phone] | Your sales number | "(406) 555-0199" |
-| [Email] | Your sales email | "sales@montanablotter.com" |
+- One CTA per email. Not three.
+- No fabricated metrics. No "we rank #1 for [County] jail roster" without a
+  real search console screenshot.
+- No implied endorsements. "Listed on Montana Blotter" is fine. "Endorsed
+  by Montana Blotter" is not.
+- No testimonials from past advertisers in pitch emails until we have real
+  ones with written consent.
 
 ---
 
-## DELIVERY SCHEDULE
+## What changed from the previous version
 
-| Day | Email | Trigger |
-|-----|-------|---------|
-| 0 | Email 1: The Hook | Initial send |
-| 3 | Email 2: Social Proof | No reply to Email 1 |
-| 7 | Email 3: The Closer | No reply to Email 2 |
-| 30 | Email 4: Win-Back | No reply to any email |
-
----
-
-## COMPLIANCE NOTES
-
-- All claims are backed by platform data (see analytics query in `hermes_context_revenue.py`)
-- "7-day free trial" must be honored with full placement visibility
-- County lockout must be real — one attorney per placement per county
-- ROI claims ("11x") should be documented with redacted client consent
-- Include unsubscribe link in footer per CAN-SPAM
+- Removed the "Felony Alert Sidebar" ($300/mo) and "24-Hour Hotline Header"
+  ($450/mo) placements. They do not exist in the codebase. Any
+  prospect who already saw those slides needs a direct email: "We've
+  simplified the product — three packages on `/lawyers` instead of the
+  five placements we discussed. Here is the current one-pager."
+- Removed the claim "rank #1 for [County] jail roster". The internal
+  page-views data (2026-07-30) does not support that claim for most
+  launch counties — Google accounts for 21-73% of referrers to
+  `/county/<slug>` pages, and we have no position-tracking data. The
+  rewritten copy below is what the outreach team should use.
+- Removed the "11x ROI" anecdote. We don't have it.
+- Removed references to `hermes_context_revenue.py` — that script isn't
+  part of the lawyer product surface.
 
 ---
 
-## TECHNICAL SETUP CHECKLIST
+## What we know about SEO performance for the launch counties
 
-- [ ] Create `criminal_defense_outreach` table (modeled after `bail_agency_outreach`)
-- [ ] Build attorney intake form at `/advertise/defense-attorney`
-- [ ] Create "Felony Alert Sidebar" placement component
-- [ ] Create "24-Hour Hotline Header" placement component
-- [ ] Add county-exclusive lockout logic to placement engine
-- [ ] Set up 7-day trial auto-activation workflow
-- [ ] Build preview/mockup generator for sales team
-- [ ] Integrate with existing Stripe checkout for defense attorney packages
-- [ ] Add defense attorney to admin dashboard (`admin_bail_ads.py` pattern)
-- [ ] Train sales team on 15-second phone script (adapted from bail bonds script)
+Pulled from `/root/montanablotter/data/page_views.db` on 2026-07-30. This
+is the only objective signal we have without running a Search Console
+export or a live SERP check (Search Console has never been imported into
+the system — see the SEO admin at `/admin/seo/console` to upload the
+CSV).
 
----
+| County page | Total non-direct referrers | Google share | Other search share | Notes |
+| --- | --- | --- | --- | --- |
+| `/county/yellowstone` | 184 | 34% | 4% (bing/ddg) | 62% from other sources (likely direct + referrers we don't classify). Not a Google-dominated traffic source. |
+| `/county/cascade` | 118 | 23% | 11% | Smallest sample. Multi-search-engine presence. |
+| `/county/gallatin` | 135 | 28% | 0% | 72% other — almost certainly direct + bookmarked traffic. |
+| `/county/missoula` | 179 | 21% | 6% | Lowest Google share of the five. |
+| `/county/flathead` | 430 | 73% | 4% | Highest Google share. Most representative county for a search-driven pitch. |
 
-*Drafted for Montana Blotter B2B monetization expansion. Target: 50 criminal defense attorneys across 10 Montana counties. Goal: $15,000 MRR within 90 days of launch.*
+**Rule for sales copy:** do not assert a Google ranking position for any
+county unless you have one of:
+
+1. A Search Console export showing average position ≤ 3 for the target
+   query in that county, for the last 90 days.
+2. A live Google search screenshot for the target query showing
+   montanablotter.com in the top organic slot, taken within the last
+   30 days.
+
+If neither is available, talk about the traffic data above as
+"Montanans searching for jail rosters, court activity, and warrants in
+[County] are already landing on this site" without claiming a specific
+ranking position.
+
+**How to get the data:**
+
+- Search Console CSV: open `/admin/seo/console`, upload the queries CSV
+  for `montanablotter.com` filtered to the last 90 days, then look up
+  position for query strings like `[county name] jail roster`,
+  `[county name] arrests today`, `[county name] blotter`.
+- Live SERP: open an incognito Google search session and screenshot the
+  top 10 results for the same query strings.
+
+Update this section every 90 days with fresh data. The "11x ROI" and
+"rank #1" claims that came out of the previous doc are the kind of
+language that an MRPC 7.1 reviewer will flag immediately.

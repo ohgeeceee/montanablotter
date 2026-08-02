@@ -1,0 +1,161 @@
+{% extends "admin_base.html" %}
+{% block title %}Lawyer Outreach — Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <h1>Lawyer Outreach — Per-Firm Workflow</h1>
+  <p style="color:#64748b;font-size:.9rem;margin-bottom:1.5rem;">
+    Day 1 / Day 3 / Day 5 / Day 10 cadence for the 55 firms in
+    <code>scripts/attorney_outreach/target_list.csv</code>. <strong>This is the only SMTP
+    path for outreach mail</strong> — the cron queues drafts, you send them.
+    Sales plan: <code>docs/plans/2026-07-28-montana-lawyer-advertising-plan.md</code>.
+    Pitch templates: <code>docs/criminal_defense_attorney_outreach_sequence.md</code>.
+  </p>
+
+  <div style="display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap;">
+    <div style="background:#f8fafc;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:110px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#0f172a;">{{ stats.total or 0 }}</div>
+      <div style="color:#64748b;font-size:.85rem;">Total Prospects</div>
+    </div>
+    <div style="background:#f0fdf4;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:110px;">
+      <div style="font-size:1.75rem;font-weight:700;color:#047857;">{{ stats.active or 0 }}</div>
+      <div style="color:#047857;font-size:.85rem;">Active</div>
+    </div>
+    <div style="background:#fefce8;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:90px;">
+      <div style="font-size:1.5rem;font-weight:700;color:#a16207;">{{ stats.day_1 or 0 }}</div>
+      <div style="color:#854d0e;font-size:.8rem;">Day 1</div>
+    </div>
+    <div style="background:#fef3c7;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:90px;">
+      <div style="font-size:1.5rem;font-weight:700;color:#92400e;">{{ stats.day_3 or 0 }}</div>
+      <div style="color:#92400e;font-size:.8rem;">Day 3</div>
+    </div>
+    <div style="background:#fee2e2;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:90px;">
+      <div style="font-size:1.5rem;font-weight:700;color:#b91c1c;">{{ stats.day_5 or 0 }}</div>
+      <div style="color:#b91c1c;font-size:.8rem;">Day 5</div>
+    </div>
+    <div style="background:#f1f5f9;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:90px;">
+      <div style="font-size:1.5rem;font-weight:700;color:#475569;">{{ stats.day_10 or 0 }}</div>
+      <div style="color:#475569;font-size:.8rem;">Day 10</div>
+    </div>
+    <div style="background:#ecfdf5;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:90px;">
+      <div style="font-size:1.5rem;font-weight:700;color:#047857;">{{ stats.won or 0 }}</div>
+      <div style="color:#047857;font-size:.8rem;">Won</div>
+    </div>
+    <div style="background:#f3f4f6;border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:90px;">
+      <div style="font-size:1.5rem;font-weight:700;color:#6b7280;">{{ stats.lost or 0 }}</div>
+      <div style="color:#6b7280;font-size:.8rem;">Lost</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
+    <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_run_worker') }}"
+          style="display:inline;">
+      <button type="submit" class="btn btn-primary"
+              style="padding:.5rem 1rem;background:#1e40af;color:#fff;border-radius:4px;border:none;cursor:pointer;">
+        Run cadence worker now
+      </button>
+    </form>
+    <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_import_csv') }}"
+          style="display:inline;">
+      <button type="submit" class="btn btn-secondary"
+              style="padding:.5rem 1rem;background:#475569;color:#fff;border-radius:4px;border:none;cursor:pointer;">
+        Re-import target_list.csv
+      </button>
+    </form>
+    <span style="font-size:.85rem;color:#64748b;">
+      Cron runs nightly (see <code>crontab.txt</code> · <code>lawyer_outreach_cadence</code>).
+      Use the buttons above for ad-hoc triggers.
+    </span>
+  </div>
+
+  <h2 style="margin-top:2rem;">Pending emails ({{ pending_emails|length }})</h2>
+  {% if pending_emails %}
+  <table style="width:100%;border-collapse:collapse;margin-bottom:2rem;font-size:.9rem;">
+    <thead>
+      <tr style="background:#1e293b;color:#fff;">
+        <th style="padding:.5rem;text-align:left;">Firm</th>
+        <th style="padding:.5rem;text-align:left;">County</th>
+        <th style="padding:.5rem;text-align:left;">Stage</th>
+        <th style="padding:.5rem;text-align:left;">To</th>
+        <th style="padding:.5rem;text-align:left;">Subject</th>
+        <th style="padding:.5rem;text-align:right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for em in pending_emails %}
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:.5rem;"><a href="{{ url_for('admin.admin_lawyer_outreach_prospect', prospect_id=em.prospect_id) }}" style="color:#1e40af;">{{ em.firm_name }}</a></td>
+        <td style="padding:.5rem;">{{ em.county }}</td>
+        <td style="padding:.5rem;font-family:monospace;font-size:.85rem;">{{ em.stage }}</td>
+        <td style="padding:.5rem;font-family:monospace;font-size:.8rem;color:#475569;">{{ em.to_addr }}</td>
+        <td style="padding:.5rem;">{{ em.subject[:80] }}{% if em.subject|length > 80 %}…{% endif %}</td>
+        <td style="padding:.5rem;text-align:right;">
+          <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_email_send', email_id=em.id) }}" style="display:inline;">
+            <button type="submit" style="background:#047857;color:#fff;border:none;padding:.3rem .7rem;border-radius:4px;cursor:pointer;">Send</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_email_skip', email_id=em.id) }}" style="display:inline;">
+            <button type="submit" style="background:#9ca3af;color:#fff;border:none;padding:.3rem .7rem;border-radius:4px;cursor:pointer;">Skip</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#64748b;font-size:.9rem;">No pending emails. Run the cadence worker to queue the next batch.</p>
+  {% endif %}
+
+  <h2 style="margin-top:2rem;">Prospects ({{ prospects|length }})</h2>
+  <form method="GET" style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search firm, county, contact…"
+           style="padding:.5rem .75rem;border:1px solid #ccc;border-radius:4px;flex:1;min-width:200px;">
+    <select name="stage" style="padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      <option value="" {% if not stage_filter %}selected{% endif %}>All stages</option>
+      {% for s in stages %}
+      <option value="{{ s }}" {% if stage_filter == s %}selected{% endif %}>{{ stage_label(s) }}</option>
+      {% endfor %}
+    </select>
+    <select name="status" style="padding:.5rem;border:1px solid #ccc;border-radius:4px;">
+      <option value="" {% if not status_filter %}selected{% endif %}>All statuses</option>
+      <option value="queued" {% if status_filter == 'queued' %}selected{% endif %}>Queued</option>
+      <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In progress</option>
+      <option value="won" {% if status_filter == 'won' %}selected{% endif %}>Won</option>
+      <option value="lost" {% if status_filter == 'lost' %}selected{% endif %}>Lost</option>
+      <option value="unqualified" {% if status_filter == 'unqualified' %}selected{% endif %}>Unqualified</option>
+    </select>
+    <button type="submit" style="padding:.5rem 1rem;background:#1e40af;color:#fff;border-radius:4px;border:none;cursor:pointer;">Filter</button>
+  </form>
+
+  {% if prospects %}
+  <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+    <thead>
+      <tr style="background:#1e293b;color:#fff;">
+        <th style="padding:.5rem;text-align:left;">Firm</th>
+        <th style="padding:.5rem;text-align:left;">County</th>
+        <th style="padding:.5rem;text-align:left;">Contact</th>
+        <th style="padding:.5rem;text-align:left;">Stage</th>
+        <th style="padding:.5rem;text-align:left;">Status</th>
+        <th style="padding:.5rem;text-align:left;">Last action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in prospects %}
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:.5rem;"><a href="{{ url_for('admin.admin_lawyer_outreach_prospect', prospect_id=p.id) }}" style="color:#1e40af;">{{ p.firm_name }}</a></td>
+        <td style="padding:.5rem;">{{ p.county }}</td>
+        <td style="padding:.5rem;">
+          {{ p.contact_name or '—' }}{% if p.contact_email %}<br>
+          <span style="font-family:monospace;font-size:.8rem;color:#475569;">{{ p.contact_email }}</span>{% endif %}
+        </td>
+        <td style="padding:.5rem;font-family:monospace;font-size:.85rem;">{{ stage_label(p.stage) }}</td>
+        <td style="padding:.5rem;font-family:monospace;font-size:.85rem;">{{ p.status }}</td>
+        <td style="padding:.5rem;font-family:monospace;font-size:.8rem;color:#475569;">{{ p.last_action_at or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#64748b;font-size:.9rem;">No prospects match. Re-import target_list.csv or clear filters.</p>
+  {% endif %}
+</div>
+{% endblock %}
