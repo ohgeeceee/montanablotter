@@ -15,11 +15,18 @@ log = logging.getLogger(__name__)
 
 import config
 from db import get_db
+from init_db import ensure_advertise_sales_lead_schema
 
-# Warrant Access subscription — created 2026-05-31
-_WARRANT_MONTHLY_PRICE_ID = 'price_1Td9jmGL8T8btZcu5OXZzr9g'
-_WARRANT_TRIAL_FEE_PRICE_ID = 'price_1Td9jmGL8T8btZcumpWLuzLf'
-_WARRANT_PAYMENT_LINK = 'https://buy.stripe.com/14A4gzajyeoAcDU4qh8EM03'
+# Warrant Access subscription — created 2026-05-31, updated 2026-08-05
+_WARRANT_WEEKLY_PRICE_ID = 'price_1U0yjyGL8T8btZcugYUCqjFi'
+_WARRANT_MONTHLY_PRICE_ID = 'price_1U0yjyGL8T8btZcuwKuJehB6'
+_WARRANT_ANNUAL_PRICE_ID = 'price_1U0yjyGL8T8btZcuVkNduXBf'
+
+_WARRANT_PAYMENT_LINKS = {
+    'weekly': 'https://buy.stripe.com/9B6bJ14Zebco0Vc5ul8EM0b',
+    'monthly': 'https://buy.stripe.com/bJe5kD1N21BOfQ66yp8EM0d',
+    'annual': 'https://buy.stripe.com/28E00j4ZegwI33kaOF8EM0c',
+}
 
 
 payments_bp = Blueprint('payments', __name__)
@@ -91,8 +98,9 @@ def _app():
 def _warrant_access_price_ids():
     """Return the active Stripe price IDs for warrant access."""
     return {
-        'weekly': (getattr(config, 'WARRANT_WEEKLY_PRICE_ID', '') or '').strip(),
+        'weekly': (getattr(config, 'WARRANT_WEEKLY_PRICE_ID', '') or _WARRANT_WEEKLY_PRICE_ID or '').strip(),
         'monthly': (getattr(config, 'WARRANT_MONTHLY_PRICE_ID', '') or _WARRANT_MONTHLY_PRICE_ID or '').strip(),
+        'annual': (getattr(config, 'WARRANT_ANNUAL_PRICE_ID', '') or _WARRANT_ANNUAL_PRICE_ID or '').strip(),
     }
 
 
@@ -449,6 +457,56 @@ def advertise_redirect():
     return redirect(url_for('.advertise_bail_bonds'))
 
 
+@payments_bp.route('/advertise/bail-bonds/contact', methods=['POST'])
+def advertise_bail_bonds_contact():
+    """Sales-call lead intake from the /advertise/bail-bonds landing page.
+
+    Persists to `advertise_sales_leads` (product='bail') so the team can
+    follow up. Mirrors the lawyer-side route in blueprints/lawyer_ads.py.
+    """
+    form = request.form
+    name = (form.get('name') or '').strip()[:200]
+    agency = (form.get('agency') or form.get('firm') or '').strip()[:200]
+    email = (form.get('email') or '').strip().lower()[:200]
+    phone = (form.get('phone') or '').strip()[:40]
+    message = (form.get('message') or '').strip()[:1500]
+    source = (form.get('source') or request.args.get('source') or 'advertise_bail_landing').strip()[:80]
+
+    errors = []
+    if not name:
+        errors.append('Name is required.')
+    if not email or '@' not in email:
+        errors.append('A valid email is required.')
+    if errors:
+        for e in errors:
+            flash(e, 'error')
+        return redirect(url_for('payments.advertise_bail_bonds') + '?contact=error#schedule-a-call')
+
+    from app import _client_ip
+    ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:32]
+    user_agent = (request.headers.get('User-Agent') or '')[:500]
+
+    conn = get_db()
+    try:
+        ensure_advertise_sales_lead_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO advertise_sales_leads (
+                product, name, firm_or_agency, email, phone,
+                county, package_interest, message, source,
+                ip_hash, user_agent, status
+            ) VALUES (?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, 'new')
+            ''',
+            ('bail', name, agency, email, phone, message, source, ip_hash, user_agent),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    flash('Thanks. We will be in touch within one business day.', 'success')
+    return redirect(url_for('payments.advertise_bail_bonds') + '?contact=submitted#schedule-a-call')
+
+
 @payments_bp.route('/advertise/bail-bonds', methods=['GET', 'POST'])
 @payments_bp.route('/advertise/bail-bonds/', methods=['GET', 'POST'])
 def advertise_bail_bonds():
@@ -458,6 +516,53 @@ def advertise_bail_bonds():
     pricing_cards = m._bail_ad_pricing_cards(package_options)
     help_contact = m._bail_help_contact()
     contract_info = m._bail_ad_contract_context()
+
+    # Live storefront stats: pull active placements and county coverage
+    # from the database so the landing page reflects real inventory, not
+    # copy.
+    import sqlite3 as _sqlite3
+    coverage_stats = {
+        'active_orders': 0,
+        'counties_with_coverage': 0,
+        'header_slots_filled': 0,
+        'sidebar_slots_filled': 0,
+        'county_slots_filled': 0,
+        'bundle_slots_filled': 0,
+        'header_cap': 1,
+        'sidebar_cap': 1,
+        'bundle_cap': 2,
+    }
+    try:
+        stats_conn = get_db()
+        try:
+            rows = stats_conn.execute(
+                """
+                SELECT package_id, county_targets
+                FROM bail_ad_orders
+                WHERE status = 'active'
+                """
+            ).fetchall()
+            counties_covered = set()
+            for r in rows:
+                pid = (r['package_id'] or '').strip()
+                if pid == 'featured_bondsman_banner':
+                    coverage_stats['header_slots_filled'] += 1
+                elif pid == 'emergency_call_sidebar':
+                    coverage_stats['sidebar_slots_filled'] += 1
+                elif pid == 'gold_bond_bundle':
+                    coverage_stats['bundle_slots_filled'] += 1
+                elif pid == 'exclusive_county_sponsorship':
+                    coverage_stats['county_slots_filled'] += 1
+                coverage_stats['active_orders'] += 1
+                for c in (r['county_targets'] or '').split(','):
+                    token = c.strip()
+                    if token:
+                        counties_covered.add(token.lower())
+            coverage_stats['counties_with_coverage'] = len(counties_covered)
+        finally:
+            stats_conn.close()
+    except _sqlite3.OperationalError:
+        pass
 
     form_data = {
         'business_name': '',
@@ -571,6 +676,7 @@ def advertise_bail_bonds():
         form_data=form_data,
         form_errors=errors,
         submitted=submitted,
+        coverage_stats=coverage_stats,
         active_nav='advertise',
         current_year=datetime.now().year,
     )
@@ -1063,8 +1169,8 @@ def checkout_warrant_access():
     except Exception:
         log.exception('warrant-access checkout: DB error fetching user %s', public_user_id)
 
-    plan = (request.args.get('plan') or 'monthly').strip().lower()
-    if plan not in {'weekly', 'monthly'}:
+    plan = (request.args.get('plan') or 'weekly').strip().lower()
+    if plan not in {'weekly', 'monthly', 'annual'}:
         flash('Please select a valid warrant access plan.', 'error')
         return redirect('/wanted/subscribe')
 
@@ -1108,13 +1214,14 @@ def checkout_warrant_access():
             return redirect(checkout_url)
         raise RuntimeError('Stripe checkout session did not return a URL')
     except Exception:
-        # Keep the existing Payment Link path as a fallback if Checkout Session
+        # Keep the Payment Link per-plan fallback if Checkout Session
         # creation is unavailable in this environment.
         params = {'client_reference_id': str(public_user_id)}
         if email:
             params['prefilled_email'] = email
-        dest = f"{_WARRANT_PAYMENT_LINK}?{urlencode(params)}"
-        log.exception('warrant-access checkout: falling back to payment link for user %s', public_user_id)
+        payment_link = _WARRANT_PAYMENT_LINKS.get(plan) or _WARRANT_PAYMENT_LINKS.get('weekly', '')
+        dest = f"{payment_link}?{urlencode(params)}"
+        log.exception('warrant-access checkout: falling back to payment link for user %s plan=%s', public_user_id, plan)
         return redirect(dest)
 
 
@@ -1131,28 +1238,22 @@ def checkout_warrant_access_success():
 @payments_bp.route('/wanted/subscribe')
 def wanted_subscribe():
     from services.monetization.paywall import (
-        get_ad_unlock_remaining_seconds,
         user_has_warrant_access,
     )
     public_user_id = session.get('public_user_id')
     is_logged_in = bool(public_user_id)
     already_subscribed = is_logged_in and user_has_warrant_access()
-    ad_unlock_remaining_seconds = (
-        get_ad_unlock_remaining_seconds(int(public_user_id)) if public_user_id else 0
-    )
     next_url = request.args.get('next', '/wanted/subscribe')
     return render_template(
         'wanted_subscribe.html',
         active_nav='wanted',
         page_title='Subscribe — Montana Active Warrants',
-        meta_description='Get full access to Montana active warrant records for $1 trial week, then $7/month.',
+        meta_description='Get full access to Montana active warrant records — from $3.99/week.',
         canonical_url=f'{_app().BASE_URL}/wanted/subscribe',
         current_year=datetime.now().year,
         is_logged_in=is_logged_in,
         already_subscribed=already_subscribed,
         next_url=next_url,
-        ad_unlock_active=ad_unlock_remaining_seconds > 0,
-        ad_unlock_remaining_seconds=ad_unlock_remaining_seconds,
     )
 
 

@@ -41,13 +41,13 @@
     </a>
     {% else %}
     <!-- Pricing cards -->
-    <div class="grid md:grid-cols-2 gap-4 mb-6">
+    <div class="grid md:grid-cols-3 gap-4 mb-6">
         <!-- Weekly plan -->
         <div class="rounded-3xl border-2 border-red-200 bg-white shadow-xl overflow-hidden flex flex-col">
             <div class="bg-gradient-to-br from-red-600 to-red-800 px-6 py-6 text-white text-center">
                 <p class="text-[11px] font-black uppercase tracking-[0.18em] text-red-200">Weekly</p>
                 <div class="mt-2 flex items-end justify-center gap-2">
-                    <span class="text-5xl font-black">$1</span>
+                    <span class="text-5xl font-black">$3.99</span>
                     <span class="mb-2 text-lg text-red-200">/week</span>
                 </div>
                 <p class="text-sm text-red-100">Cancel anytime</p>
@@ -64,26 +64,27 @@
                 {% if is_logged_in %}
                 <a href="/checkout/warrant-access?plan=weekly"
                    class="mt-auto block w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
-                    Subscribe Weekly &mdash; $1
+                    Subscribe $3.99/week
                 </a>
                 {% else %}
                 <a href="/register?next=/checkout/warrant-access%3Fplan%3Dweekly"
                    class="mt-auto block w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
-                    Create Account & Subscribe &mdash; $1/week
+                    Create Account & Subscribe &mdash; $3.99/week
                 </a>
                 {% endif %}
             </div>
         </div>
 
         <!-- Monthly plan -->
-        <div class="rounded-3xl border-2 border-red-200 bg-white shadow-xl overflow-hidden flex flex-col">
-            <div class="bg-gradient-to-br from-red-700 to-red-900 px-6 py-6 text-white text-center">
+        <div class="rounded-3xl border-2 border-red-200 bg-white shadow-xl overflow-hidden flex flex-col relative">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black uppercase tracking-[0.18em] px-3 py-1 rounded-full">Popular</div>
+            <div class="bg-gradient-to-br from-red-700 to-red-900 px-6 py-6 text-white text-center pt-7">
                 <p class="text-[11px] font-black uppercase tracking-[0.18em] text-red-200">Monthly</p>
                 <div class="mt-2 flex items-end justify-center gap-2">
-                    <span class="text-5xl font-black">$8</span>
+                    <span class="text-5xl font-black">$12</span>
                     <span class="mb-2 text-lg text-red-200">/month</span>
                 </div>
-                <p class="text-sm text-red-100">Cancel anytime</p>
+                <p class="text-sm text-red-100">Save ~25% vs weekly</p>
             </div>
             <div class="px-6 py-6 flex-1 flex flex-col">
                 <ul class="space-y-3 mb-6">
@@ -97,12 +98,45 @@
                 {% if is_logged_in %}
                 <a href="/checkout/warrant-access?plan=monthly"
                    class="mt-auto block w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
-                    Subscribe Monthly &mdash; $8
+                    Subscribe $12/month
                 </a>
                 {% else %}
                 <a href="/register?next=/checkout/warrant-access%3Fplan%3Dmonthly"
                    class="mt-auto block w-full rounded-xl bg-red-600 py-4 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
-                    Create Account & Subscribe &mdash; $8/month
+                    Create Account & Subscribe &mdash; $12/month
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Annual plan -->
+        <div class="rounded-3xl border-2 border-amber-200 bg-white shadow-xl overflow-hidden flex flex-col">
+            <div class="bg-gradient-to-br from-amber-600 to-amber-800 px-6 py-6 text-white text-center">
+                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-amber-200">Annual</p>
+                <div class="mt-2 flex items-end justify-center gap-2">
+                    <span class="text-5xl font-black">$99</span>
+                    <span class="mb-2 text-lg text-amber-200">/year</span>
+                </div>
+                <p class="text-sm text-amber-100">Save ~52% vs weekly</p>
+            </div>
+            <div class="px-6 py-6 flex-1 flex flex-col">
+                <ul class="space-y-3 mb-6">
+                    {% for benefit in benefits %}
+                    <li class="flex items-center gap-3 text-sm text-slate-700">
+                        <i class="fas fa-check-circle text-amber-500 w-4"></i>
+                        {{ benefit }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% if is_logged_in %}
+                <a href="/checkout/warrant-access?plan=annual"
+                   class="mt-auto block w-full rounded-xl bg-amber-600 py-4 text-base font-black text-white hover:bg-amber-700 transition-colors text-center">
+                    Subscribe $99/year
+                </a>
+                {% else %}
+                <a href="/register?next=/checkout/warrant-access%3Fplan%3Dannual"
+                   class="mt-auto block w-full rounded-xl bg-amber-600 py-4 text-base font-black text-white hover:bg-amber-700 transition-colors text-center">
+                    Create Account & Subscribe &mdash; $99/year
                 </a>
                 {% endif %}
             </div>
@@ -113,44 +147,6 @@
         Secure Stripe checkout for paid warrant access &bull; Cancel anytime &bull; No hidden fees
     </p>
 
-    <!-- Free ad-unlock path -->
-    <div class="my-6 flex items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-        <span class="flex-1 border-t border-slate-200"></span>
-        <span>or unlock for free</span>
-        <span class="flex-1 border-t border-slate-200"></span>
-    </div>
-
-    {% if is_logged_in %}
-        {% if ad_unlock_active %}
-        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-5 py-4 mb-3 text-sm text-emerald-800">
-            <p class="font-bold mb-1"><i class="fas fa-check-circle mr-2 text-emerald-600"></i>You have free ad-access</p>
-            <p class="text-emerald-700">
-                <span class="font-bold" data-ad-unlock-remaining>{{ (ad_unlock_remaining_seconds // 3600) }}h {{ ((ad_unlock_remaining_seconds % 3600) // 60) }}m</span>
-                of warrant access remaining. Watch another ad to extend, or jump straight to the database.
-            </p>
-        </div>
-        <div class="grid grid-cols-2 gap-2 mb-8">
-            <a href="/ad/watch"
-               class="rounded-xl bg-slate-900 py-3 text-sm font-black text-white hover:bg-slate-800 transition-colors text-center">
-                Watch Ad &amp; Extend
-            </a>
-            <a href="/wanted"
-               class="rounded-xl bg-white border border-slate-300 py-3 text-sm font-black text-slate-700 hover:bg-slate-50 transition-colors text-center">
-                Browse Warrants
-            </a>
-        </div>
-        {% else %}
-        <a href="/ad/watch"
-           class="block w-full rounded-xl bg-slate-900 py-3.5 text-base font-black text-white hover:bg-slate-800 transition-colors text-center mb-8">
-            <i class="fas fa-play-circle mr-2"></i>Watch a short ad &mdash; free 24h access
-        </a>
-        {% endif %}
-    {% else %}
-    <a href="/register?next=/ad/watch"
-       class="block w-full rounded-xl bg-slate-900 py-3.5 text-base font-black text-white hover:bg-slate-800 transition-colors text-center mb-8">
-        <i class="fas fa-play-circle mr-2"></i>Create account & watch a short ad &mdash; free 24h access
-    </a>
-    {% endif %}
     {% endif %}
 
     <div class="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 text-center text-sm text-slate-500">
