@@ -1,0 +1,299 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Know Your Rights in Montana" %}
+{% set meta_description = "A free, plain-English course from Montana Blotter on Montana law — written for residents, drivers, renters, outdoorspeople, and parents. Every claim links to the Montana Code Annotated." %}
+{% set canonical_url = "https://montanablotter.com/learn" %}
+{% set og_title = "Know Your Rights in Montana | Montana Blotter" %}
+{% set og_description = "A free, plain-English course on Montana law. Every claim links to the Montana Code Annotated." %}
+{% set og_type = "article" %}
+{% set active_nav = "learn" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Course",
+  "name": "Know Your Rights in Montana",
+  "description": "A free, plain-English course on Montana law for residents, drivers, renters, outdoorspeople, and parents.",
+  "provider": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "sameAs": "https://montanablotter.com/"
+  },
+  "isAccessibleForFree": true,
+  "inLanguage": "en-US",
+  "hasCourseInstance": {
+    "@type": "CourseInstance",
+    "courseMode": "online",
+    "courseWorkload": "PT2H",
+    "instructor": {
+      "@type": "Organization",
+      "name": "Montana Blotter Editorial Team"
+    }
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Montana Blotter", "item": "https://montanablotter.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Know Your Rights", "item": "https://montanablotter.com/learn"}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block body_class %}learn-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Know Your Rights</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow" style="color: var(--public-steel);">
+                    <i class="fas fa-graduation-cap mr-2"></i>Free Course
+                </p>
+                <h1 class="public-title public-title--medium">Know Your Rights in Montana</h1>
+                <p class="public-copy">
+                    A plain-English guide to the Montana Code Annotated — written
+                    for residents, drivers, renters, outdoorspeople, and parents.
+                    Every claim links to the current statute on
+                    <a href="https://leg.mt.gov/bills/mca/" target="_blank" class="underline" style="color: var(--public-red);">leg.mt.gov</a>.
+                </p>
+                <div class="flex flex-wrap gap-3 mt-5 text-xs">
+                    <span class="public-pill">{{ chapters|length }} chapters</span>
+                    <span class="public-pill">~{{ total_words }} words</span>
+                    <span class="public-pill public-pill--accent">Free to read</span>
+                    <span class="public-pill">Last reviewed {{ last_reviewed }}</span>
+                </div>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">How to use this course</p>
+                    <h2 class="public-card__title">Pick the chapter that fits tonight's situation.</h2>
+                    <p class="public-card__text">
+                        Each chapter is written so you can read one and walk
+                        away with something usable. Skim the table of contents,
+                        or jump straight to the chapter that fits.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout max-w-7xl mx-auto px-4 sm:px-6 py-10">
+
+    <main class="public-main-stack">
+
+        {# Disclaimer callout — every chapter has one, the index should too #}
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Disclaimer</span>
+                </div>
+                <h2 class="public-detail-title">Not legal advice.</h2>
+                <p class="public-detail-subtitle">
+                    This course summarizes published Montana law. Statutes change.
+                    Verify every citation against the current text at
+                    <a class="public-policy-inline-link" href="https://leg.mt.gov/bills/mca/" target="_blank">leg.mt.gov/bills/mca</a>
+                    and consult a licensed Montana attorney for your specific situation.
+                </p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-policy-stack">
+
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">Editorial standards</h3>
+                        <p class="public-policy-copy">
+                            Every claim in this course links to a primary Montana Code section on
+                            <a class="public-policy-inline-link" href="https://leg.mt.gov/bills/mca/" target="_blank">leg.mt.gov</a>.
+                            Where a chapter refers to a real case, we cite the public court record.
+                            We do not invent scenarios, fictional stops, or made-up dispositions.
+                        </p>
+                        <p class="public-policy-copy">
+                            The site's
+                            <a class="public-policy-inline-link" href="/standards">Sourcing Standards</a>
+                            and
+                            <a class="public-policy-inline-link" href="/corrections">Corrections Policy</a>
+                            control this course. If you spot a citation that has drifted from the
+                            current statute, email
+                            <a class="public-policy-inline-link" href="mailto:records@montanablotter.com?subject=Course%20Citation%20Update">records@montanablotter.com</a>
+                            with subject line <strong>Course Citation Update</strong>.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">The chapters</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            {% for ch in chapters %}
+                            <a href="/learn/{{ ch.slug }}" class="public-card p-5 transition hover:bg-slate-50 group">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm
+                                        {% if ch.number == 1 %}bg-red-100 text-red-700
+                                        {% elif ch.number == 2 %}bg-yellow-100 text-yellow-700
+                                        {% elif ch.number == 3 %}bg-emerald-100 text-emerald-700
+                                        {% elif ch.number == 4 %}bg-green-100 text-green-700
+                                        {% elif ch.number == 5 %}bg-indigo-100 text-indigo-700
+                                        {% elif ch.number == 6 %}bg-pink-100 text-pink-700
+                                        {% else %}bg-slate-100 text-slate-700{% endif %}">
+                                        {{ ch.number }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h4 class="font-black text-slate-900 group-hover:text-red-700 transition">
+                                            {{ ch.title }}
+                                        </h4>
+                                        <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+                                            {{ ch.summary }}
+                                        </p>
+                                        <p class="mt-2 text-xs text-slate-500 font-mono">
+                                            {{ ch.word_count }} words · ~{{ ch.read_minutes }} min read
+                                        </p>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">What this course is not</h3>
+                        <ul class="public-policy-list">
+                            <li>
+                                <strong>Not legal advice.</strong>
+                                If you are facing an actual legal problem, talk to a licensed
+                                Montana attorney. The
+                                <a class="public-policy-inline-link" href="https://montanabar.org/" target="_blank">Montana State Bar</a>
+                                has a lawyer referral service.
+                            </li>
+                            <li>
+                                <strong>Not a substitute for the MCA.</strong>
+                                The MCA is free and authoritative. This course paraphrases it.
+                            </li>
+                            <li>
+                                <strong>Not a guarantee that citations will stay current.</strong>
+                                The Montana Legislature meets every two years. Statutes change.
+                                Email
+                                <a class="public-policy-inline-link" href="mailto:records@montanablotter.com?subject=Course%20Citation%20Update">records@montanablotter.com</a>
+                                if you find one that has drifted.
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">How this course is maintained</h3>
+                        <p class="public-policy-copy">
+                            Montana Blotter is a small team in Great Falls. This course is updated
+                            annually after each regular session of the Montana Legislature, and on
+                            an ad-hoc basis when we receive a citation correction. Each chapter
+                            carries a last-reviewed date. The site's
+                            <a class="public-policy-inline-link" href="/standards">Sourcing Standards</a>
+                            page explains our editorial process; the
+                            <a class="public-policy-inline-link" href="/corrections">Corrections Policy</a>
+                            explains how to report something that is wrong.
+                        </p>
+                    </section>
+
+                    <section class="public-policy-section">
+                        <h3 class="public-policy-heading">How to help</h3>
+                        <ul class="public-policy-list">
+                            <li>
+                                <strong>Report a citation drift.</strong>
+                                If a section number has changed or a statute has been amended,
+                                email us with the chapter number, the section heading, and the URL we linked.
+                            </li>
+                            <li>
+                                <strong>Tell us what is missing.</strong>
+                                If a chapter glosses over the part you actually need, tell us.
+                            </li>
+                            <li>
+                                <strong>Share the course.</strong>
+                                It is free and it is intended to be read. The link is
+                                <a class="public-policy-inline-link" href="/learn">montanablotter.com/learn</a>.
+                            </li>
+                            <li>
+                                <strong>Fund the work.</strong>
+                                Montana Blotter is supported by reader donations and a small
+                                handful of civic-tech sponsors. See the
+                                <a class="public-policy-inline-link" href="/transparency">transparency page</a>.
+                            </li>
+                        </ul>
+                    </section>
+
+                </div>
+            </div>
+        </article>
+
+    </main>
+
+    {# Sidebar — quick links to authorities, most-read chapters, contact #}
+    <aside class="public-side-stack">
+
+        <div class="public-card">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h3 class="font-black text-slate-900" style="font-family: 'Playfair Display', Georgia, serif;">Quick links</h3>
+            </div>
+            <div class="px-5 py-3 text-sm">
+                <ul class="divide-y divide-slate-100">
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://leg.mt.gov/bills/mca/" target="_blank">Montana Code Annotated</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://courts.mt.gov/" target="_blank">Montana Judicial Branch</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://publicdefender.mt.gov/" target="_blank">State Public Defender</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://dojmt.gov/" target="_blank">Department of Justice</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://fwp.mt.gov/" target="_blank">Fish, Wildlife &amp; Parks</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://montanabar.org/" target="_blank">Montana State Bar</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="public-card">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h3 class="font-black text-slate-900" style="font-family: 'Playfair Display', Georgia, serif;">Most-read chapters</h3>
+            </div>
+            <div class="px-5 py-3 text-sm">
+                <ul class="divide-y divide-slate-100">
+                    {% for ch in chapters[:4] %}
+                    <li class="py-2">
+                        <a class="public-policy-inline-link" href="/learn/{{ ch.slug }}">
+                            <span class="text-xs font-bold text-slate-400 mr-2">{{ ch.number }}.</span>{{ ch.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="public-card">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h3 class="font-black text-slate-900" style="font-family: 'Playfair Display', Georgia, serif;">About the course</h3>
+            </div>
+            <div class="px-5 py-3 text-sm text-slate-600 space-y-2">
+                <p>{{ chapters|length }} chapters. About {{ total_words }} words total. Written by the Montana Blotter editorial team. Every claim links to the Montana Code Annotated.</p>
+                <p class="text-xs text-slate-500">Nothing here is a substitute for a licensed Montana attorney.</p>
+                <p class="text-xs text-slate-500 pt-2 border-t border-slate-100">Last reviewed {{ last_reviewed }}.</p>
+            </div>
+        </div>
+
+        <div class="public-card">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h3 class="font-black text-slate-900" style="font-family: 'Playfair Display', Georgia, serif;">Report a citation drift</h3>
+            </div>
+            <div class="px-5 py-3 text-sm text-slate-600 space-y-2">
+                <p>If you find a section number that has changed, a statute that has been amended, or a case that has been overruled, email
+                <a class="public-policy-inline-link" href="mailto:records@montanablotter.com?subject=Course%20Citation%20Update">records@montanablotter.com</a>
+                with subject line <strong>Course Citation Update</strong>. Include the chapter number, the section heading, and the URL we linked. We review against the live MCA.</p>
+            </div>
+        </div>
+
+    </aside>
+
+</div>
+{% endblock %}

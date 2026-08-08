@@ -6800,6 +6800,7 @@ def inject_public_nav():
             'title': 'News & help',
             'items': [
                 {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
+                {'id': 'learn', 'href': '/learn', 'label': 'Know Your Rights'},
                 {'id': 'support', 'href': '/support', 'label': 'Help & Support'},
             ],
         },
@@ -6849,6 +6850,8 @@ def inject_public_nav():
         {'href': '/jail-rosters', 'label': 'Jail Rosters'},
         {'href': '/bail-bonds', 'label': 'Bail Bonds'},
         {'href': '/jail-bookings', 'label': 'New Bookings'},
+        {'href': '/blog', 'label': 'Blog'},
+        {'href': '/learn', 'label': 'Know Your Rights'},
         {'href': '/bondsman/command-center', 'label': 'Bondsman Portal'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
         {'href': '/support', 'label': 'Support'},
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
@@ -14548,6 +14551,176 @@ def embed_widget_demo():
         'embed_demo.html',
         current_year=datetime.now().year,
         counties=[r['county'] for r in county_rows],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Know Your Rights course
+# ---------------------------------------------------------------------------
+# Source-of-truth chapter files live in app_content/learn/. Each chapter's
+# first H1 in the markdown is the title; everything after the editorial
+# scaffold (disclaimer + standards blocks) is rendered through the site-wide
+# markdown filter and sanitizer. Word counts are precomputed at module load
+# so the index page can show "~13,500 words" without re-counting on every
+# request. Last-reviewed date is the most recent mtime across chapter files.
+
+import os as _os
+import re as _re
+from pathlib import Path as _Path
+
+_LEARN_CONTENT_DIR = _Path(_os.path.dirname(_os.path.abspath(__file__))) / 'app_content' / 'learn'
+
+# Static per-chapter metadata — number, title, slug, one-line summary.
+# Authored once; if a chapter is added, update this list AND drop the .md
+# file into _LEARN_CONTENT_DIR with the matching slug.
+_LEARN_CHAPTER_META = [
+    {
+        'number': 1,
+        'slug': '01-encounters',
+        'title': 'When a police officer walks up to you',
+        'summary': 'Stopped on the street, in your car, at your door. What you must do, what you may refuse, and what the MCA actually says.',
+    },
+    {
+        'number': 2,
+        'slug': '02-traffic',
+        'title': 'Traffic stops and DUI',
+        'summary': 'Why you were pulled over, implied consent, field sobriety, the 10-minute rule, what happens to your license.',
+    },
+    {
+        'number': 3,
+        'slug': '03-home-and-property',
+        'title': 'Your home and your stuff',
+        'summary': 'Warrants, consent searches, landlord entry, eviction notice, property on open range.',
+    },
+    {
+        'number': 4,
+        'slug': '04-outdoors',
+        'title': 'Outside: hunting, fishing, public land',
+        'summary': 'Art. II §12 (constitutional carry), FWP stops, hunter orange, trespass to hunt, recording in the field.',
+    },
+    {
+        'number': 5,
+        'slug': '05-arrest-and-court',
+        'title': 'If you are arrested or summoned',
+        'summary': 'Miranda in Montana, the 48-hour rule, bonds, public defenders, how to read your charging document.',
+    },
+    {
+        'number': 6,
+        'slug': '06-family-and-schools',
+        'title': 'Kids, schools, and family',
+        'summary': 'Search of a minor, school resource officers, CPS contact, juvenile court, parental rights.',
+    },
+    {
+        'number': 7,
+        'slug': '07-records-and-meetings',
+        'title': 'Public records and open meetings',
+        'summary': 'The Montana Public Records Act, how to file a request, exceptions, the Open Meeting Law, court records.',
+    },
+]
+
+
+def _learn_chapter_word_count(text):
+    if not text:
+        return 0
+    return len(_re.findall(r'\b\w+\b', text))
+
+
+def _learn_load_chapter(slug):
+    """Return dict with title/body/body_html/word_count/read_minutes for a slug, or None."""
+    md_path = _LEARN_CONTENT_DIR / f'{slug}.md'
+    if not md_path.is_file():
+        return None
+    raw = md_path.read_text(encoding='utf-8')
+    # First H1 is the title; strip it and the editorial scaffold header so
+    # the rendered body starts at the chapter's actual content. The H1 is
+    # already shown by the page hero — repeating it would double up.
+    h1_match = _re.match(r'^\s*#\s+(.+?)\s*\n', raw)
+    if h1_match:
+        body = raw[h1_match.end():].lstrip('\n')
+    else:
+        body = raw
+    wc = _learn_chapter_word_count(body)
+    return {
+        'slug': slug,
+        'body': body,
+        'body_html': render_markdown(body),
+        'word_count': wc,
+        'read_minutes': max(1, round(wc / 220)),  # ~220 wpm
+    }
+
+
+def _learn_load_all_chapters():
+    """Resolve all chapters declared in _LEARN_CHAPTER_META against disk.
+    Chapters whose file is missing are silently dropped from the index —
+    the route still 404s on direct slugs."""
+    out = []
+    for meta in _LEARN_CHAPTER_META:
+        ch = _learn_load_chapter(meta['slug'])
+        if ch is None:
+            continue
+        ch.update({
+            'number': meta['number'],
+            'title': meta['title'],
+            'summary': meta['summary'],
+        })
+        out.append(ch)
+    return out
+
+
+def _learn_last_reviewed(chapters):
+    """Most recent mtime across chapter files, formatted YYYY-MM-DD."""
+    if not chapters:
+        return datetime.now().strftime('%Y-%m-%d')
+    latest = max(
+        (_LEARN_CONTENT_DIR / f"{c['slug']}.md").stat().st_mtime
+        for c in chapters
+        if (_LEARN_CONTENT_DIR / f"{c['slug']}.md").exists()
+    )
+    return datetime.fromtimestamp(latest).strftime('%Y-%m-%d')
+
+
+@app.route('/learn')
+def learn_index():
+    """Public-facing index for the Montana Blotter 'Know Your Rights' course."""
+    chapters = _learn_load_all_chapters()
+    last_reviewed = _learn_last_reviewed(chapters)
+    total_words = sum(c['word_count'] for c in chapters)
+    return render_template(
+        'learn.html',
+        current_year=datetime.now().year,
+        chapters=chapters,
+        total_words=f'{total_words:,}',
+        last_reviewed=last_reviewed,
+    )
+
+
+@app.route('/learn/<slug>')
+def learn_chapter(slug):
+    """Single-chapter reader. Slug must match a meta entry AND have a file on disk."""
+    meta_by_slug = {m['slug']: m for m in _LEARN_CHAPTER_META}
+    if slug not in meta_by_slug:
+        abort(404)
+    chapter = _learn_load_chapter(slug)
+    if chapter is None:
+        abort(404)
+    chapter.update({
+        'number': meta_by_slug[slug]['number'],
+        'title': meta_by_slug[slug]['title'],
+        'summary': meta_by_slug[slug]['summary'],
+    })
+    chapters = _learn_load_all_chapters()
+    last_reviewed = _learn_last_reviewed(chapters)
+    n = chapter['number']
+    prev_chapter = next((c for c in chapters if c['number'] == n - 1), None)
+    next_chapter = next((c for c in chapters if c['number'] == n + 1), None)
+    return render_template(
+        'learn_chapter.html',
+        current_year=datetime.now().year,
+        chapter=chapter,
+        chapters=chapters,
+        prev_chapter=prev_chapter,
+        next_chapter=next_chapter,
+        last_reviewed=last_reviewed,
     )
 
 
