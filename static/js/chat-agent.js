@@ -7,6 +7,7 @@
   let messages = [];
   let sending = false;
   let online = true;
+  let statusChecked = false;
 
   function loadHistory() {
     try {
@@ -50,6 +51,8 @@
   function renderWidget() {
     const existing = document.getElementById('mb-chat-widget');
     if (existing) existing.remove();
+
+    if (statusChecked && !online) return;
 
     const container = el('div', { id: 'mb-chat-widget' });
 
@@ -221,6 +224,12 @@
   }
 
   function sendMessage(text) {
+    if (!online) {
+      sending = false;
+      renderWidget();
+      return;
+    }
+
     messages.push({ role: 'user', content: text });
     const assistantId = 'a-' + Date.now();
     messages.push({ role: 'assistant', content: '', streaming: true, id: assistantId });
@@ -302,8 +311,16 @@
   function init() {
     fetch('/api/chat/', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
-      .then(function (data) { online = Boolean(data.online); renderWidget(); })
-      .catch(function () { online = false; renderWidget(); });
+      .then(function (data) {
+        online = Boolean(data.online);
+        statusChecked = true;
+        renderWidget();
+      })
+      .catch(function () {
+        online = false;
+        statusChecked = true;
+        renderWidget();
+      });
 
     loadHistory();
     renderWidget();
