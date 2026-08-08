@@ -1,0 +1,14 @@
+{
+  "agents": {
+    "main": "discord:1503384391613812928",
+    "reporter": "discord:1503384443413467187",
+    "scout": "discord:1503384476665778267",
+    "clerk": "discord:1503384510585241692",
+    "bailbot": "discord:1503384526192381952",
+    "orchestrator": "discord:1503384594416795719",
+    "scraper": "discord:1503384617456242708",
+    "analyst": "discord:1503384640122261706",
+    "publisher": "discord:1503384672632180737"
+  },
+  "default": "discord:1503380694016069715"
+}

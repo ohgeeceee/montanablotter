@@ -1,0 +1,16 @@
+{% extends "public_page_base.html" %}
+{% set active_nav = "sponsored_checkout" %}
+
+{% block content %}
+<div class="max-w-lg mx-auto px-4 py-20 sm:px-6 text-center">
+    <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+        <i class="fas fa-check text-2xl text-emerald-600"></i>
+    </div>
+    <h1 class="text-3xl font-black text-slate-900 mb-3">{{ title }}</h1>
+    <p class="text-base text-slate-600 leading-7">{{ message }}</p>
+    <div class="mt-8 space-x-4">
+        <a href="/sponsored/admin/listings" class="inline-block rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white hover:bg-slate-800 transition">Manage Listings</a>
+        <a href="/jail-bookings" class="inline-block rounded-xl border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition">View Booking Pages</a>
+    </div>
+</div>
+{% endblock %}

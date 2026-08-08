@@ -488,7 +488,7 @@ def _build_live_report(
         'disclaimer': (
             'Real data from your active placement. Advertiser-reported '
             'counts (contacted / consultations / retained) are filled in '
-            'by the firm — ask advertising@montanablotter.com for the '
+            'by the firm — ask support@montanablotter.com for the '
             'monthly reporting form when ready.'
         ),
         'report_id': f'live-{prospect["id"]}-{now.strftime("%Y%m%d%H%M%S")}-{secrets.token_hex(3)}',

@@ -92,6 +92,7 @@ def register_admin_blueprint(app):
     from blueprints.admin import social_shares   # noqa: F401
     from blueprints.admin import sponsored_digests  # noqa: F401
     from blueprints.admin import case_watch  # noqa: F401
+    from blueprints.admin import lea_management  # noqa: F401
     # outreach / for_the_record / civic_requests: source files are missing
     # from disk (2026-07-29 — only stale __pycache__ remained, no git
     # history to restore from). Skipped so the rest of /admin and the

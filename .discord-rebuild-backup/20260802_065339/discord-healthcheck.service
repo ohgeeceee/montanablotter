@@ -1,0 +1,27 @@
+[Unit]
+Description=Discord healthcheck bot for VPS sites
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/discord-healthcheck
+EnvironmentFile=/etc/discord-healthcheck.env
+ExecStart=/opt/discord-healthcheck/venv/bin/python /opt/discord-healthcheck/bot.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=discord-healthcheck
+
+# Hardening (token is in EnvironmentFile, lock the rest down)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/discord-healthcheck
+
+[Install]
+WantedBy=multi-user.target

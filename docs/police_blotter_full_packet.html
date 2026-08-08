@@ -1,0 +1,2740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Montana Blotter &mdash; Police Blotter Letters Packet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&family=Great+Vibes&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; }
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    background: #f4f1ea;
+    color: #14212b;
+    line-height: 1.6;
+    padding: 0;
+  }
+
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+    width: 8.5in;
+    height: 11in;
+    margin: 0 auto;
+    padding: 0.5in 0.75in 0.35in 0.75in;
+    background: white;
+    position: relative;
+    box-shadow: 0 0 0 1px #ddd;
+  }
+  @media print {
+    body { margin: 0; padding: 0; background: white; }
+    .page-break { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  }
+
+  .letterhead {
+    border-bottom: 3px solid #c3423f;
+    padding-bottom: 0.35in;
+    margin-bottom: 0.35in;
+  }
+  .letterhead-title {
+    font-family: "Playfair Display", serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: #c3423f;
+    margin-bottom: 0;
+  }
+  .letterhead-tagline {
+    font-size: 11px;
+    color: #29607b;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .letterhead-contact {
+    font-size: 10px;
+    color: #5c6d78;
+    margin-top: 0.25in;
+    line-height: 1.4;
+  }
+  .date { font-size: 12px; color: #14212b; margin-bottom: 0.25in; margin-top: 0.25in; }
+  .salutation { font-size: 12px; margin-bottom: 0.18in; color: #14212b; }
+  .body { font-size: 11px; line-height: 1.65; color: #14212b; margin-bottom: 0.25in; }
+  .body p { margin-bottom: 0.18in; }
+  .closing { font-size: 12px; margin-top: 0.25in; margin-bottom: 0.1in; }
+  .signature-name { font-family: "Great Vibes", cursive; font-size: 22px; color: #14212b; margin-bottom: 0; line-height: 1; }
+  .signature-type { font-size: 10px; font-weight: 600; color: #14212b; margin-top: 0.05in; }
+  .agency-info {
+    background: rgba(195, 66, 63, 0.05);
+    border-left: 3px solid #c3423f;
+    padding: 0.15in 0.12in;
+    margin: 0.25in 0 0.15in 0;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .agency-info-label { font-weight: 600; color: #c3423f; }
+  .footer-line {
+    border-top: 1px solid #ad7a2d;
+    padding-top: 0.12in;
+    margin-top: 0.3in;
+    font-size: 9px;
+    color: #5c6d78;
+  }
+
+  /* Envelope panel */
+  .envelope-panel {
+    margin-top: 0.3in;
+    padding-top: 0.18in;
+    border-top: 2px dashed #bbb;
+  }
+  .envelope-label {
+    font-size: 8px;
+    font-weight: 600;
+    color: #5c6d78;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.08in;
+  }
+  .envelope-addr {
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #14212b;
+    padding: 0.08in 0.12in;
+    border: 1px solid #ddd;
+    display: inline-block;
+    min-width: 3in;
+  }
+  .envelope-addr strong { font-size: 13px; }
+
+  /* Label sheets */
+  .label-sheet {
+    width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in 0.469in 0.5in 0.437in;
+    background: white;
+    page-break-after: always;
+    break-after: page;
+    box-shadow: 0 0 0 1px #ddd;
+  }
+  .label-sheet-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #c3423f;
+    margin-bottom: 0.05in;
+  }
+  .label-sheet-sub {
+    font-size: 9px;
+    color: #5c6d78;
+    margin-bottom: 0.18in;
+  }
+  .label-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 2.625in);
+    gap: 0;
+  }
+  .label {
+    width: 2.625in;
+    height: 1in;
+    padding: 0.08in 0.1in 0.06in 0.1in;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    border: 0.5px dotted #bbb;
+  }
+  .label-name {
+    font-weight: 700;
+    font-size: 10px;
+    margin-bottom: 1px;
+    color: #c3423f;
+  }
+  .label-addr {
+    font-size: 9px;
+    color: #14212b;
+    line-height: 1.3;
+  }
+
+  .return-label .label-name {
+    color: #29607b;
+    font-size: 8px;
+  }
+  .return-label .label-addr {
+    font-size: 7px;
+    color: #5c6d78;
+  }
+</style>
+</head>
+<body>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Beaverhead Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Beaverhead from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://beaverheadcountymt.gov/355/Records-Request<br>
+        <span class="agency-info-label">Agency phone:</span> 406-683-3707
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Beaverhead Sheriff's Office</strong><br>
+      88 W. Reed St<br>
+      Dillon MT 59725
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Big Horn Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Big Horn from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.bighorncountymt.gov/238/Sheriffs-Office<br>
+        <span class="agency-info-label">Agency phone:</span> 406-665-9770
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Big Horn Sheriff's Office</strong><br>
+      RR1<br>
+      Hardin MT 59034
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Blaine Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Blaine from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://blainecounty-mt.gov/sheriff-coroner/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-357-3260
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Blaine Sheriff's Office</strong><br>
+      420 Ohio St<br>
+      Chinook MT 59523
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Broadwater Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Broadwater from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.broadwatercountysheriff.org/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-266-9100
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Broadwater Sheriff's Office</strong><br>
+      124 N Walnut<br>
+      Townsend MT 59644
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Carbon Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Carbon from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://carbonmt.gov/sheriff/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-446-1234
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Carbon Sheriff's Office</strong><br>
+      224 N Broadway Ave<br>
+      Red Lodge MT 59068
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Cascade Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Cascade from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.cascadecountymt.gov/283/Sheriffs-Office<br>
+        <span class="agency-info-label">Agency phone:</span> 406-454-6840
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Cascade Sheriff's Office</strong><br>
+      3801 Ulm N Frontage Rd<br>
+      Great Falls MT 59404
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Chouteau Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Chouteau from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://chouteaucountysheriff.com/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-622-5451
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Chouteau Sheriff's Office</strong><br>
+      301 Main St<br>
+      Fort Benton MT 59442
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Custer Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Custer from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://custercountymt.gov/emergency-enforcement/sheriff/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-874-3320
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Custer Sheriff's Office</strong><br>
+      1010 Main St<br>
+      Miles City MT 59301
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Dawson Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Dawson from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.dawsonmt.gov/departments/sheriff/index.php<br>
+        <span class="agency-info-label">Agency phone:</span> 406-377-5291
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Dawson Sheriff's Office</strong><br>
+      207 W Bell St<br>
+      Glendive MT 59330
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Deer Lodge Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Deer Lodge from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.anacondadeerlodge.mt.gov/sheriff/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-563-8441
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Deer Lodge Sheriff's Office</strong><br>
+      800 S Pennsylvania<br>
+      Anaconda MT 59711
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Fallon Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Fallon from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://falloncountymt.gov/sheriff<br>
+        <span class="agency-info-label">Agency phone:</span> 406-778-2222
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Fallon Sheriff's Office</strong><br>
+      10 W Fallon Ave<br>
+      Baker MT 59313
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Fergus Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Fergus from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://fergusmt.gov/sheriffs-office<br>
+        <span class="agency-info-label">Agency phone:</span> 406-535-8115
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Fergus Sheriff's Office</strong><br>
+      712 W Main<br>
+      Lewistown MT 59457
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Flathead Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Flathead from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://flathead.mt.gov/sheriff/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-758-5610
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Flathead Sheriff's Office</strong><br>
+      920 S Main St<br>
+      Kalispell MT 59901
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Gallatin Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Gallatin from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://gallatinmt.gov/sheriff/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-582-2100
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Gallatin Sheriff's Office</strong><br>
+      615 S 16th<br>
+      Bozeman MT 59715
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Glacier Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Glacier from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://glaciercountymt.gov/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-873-2711
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Glacier Sheriff's Office</strong><br>
+      512 E Railroad<br>
+      Cut Bank MT 59427
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Golden Valley Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Golden Valley from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.goldenvalleycountysheriffsoffice.org/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-568-2321
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Golden Valley Sheriff's Office</strong><br>
+      107 Kemp St<br>
+      Ryegate MT 59074
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Jefferson Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Jefferson from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://jeffersoncountymt.gov/sheriffs-office<br>
+        <span class="agency-info-label">Agency phone:</span> 406-225-4075
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Jefferson Sheriff's Office</strong><br>
+      110 S Washington<br>
+      Boulder MT 59632
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Judith Basin Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Judith Basin from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.judithbasincounty.com/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-535-3860
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Judith Basin Sheriff's Office</strong><br>
+      215 Central Ave<br>
+      Stanford MT 59479
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Lake Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Lake from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.lakemt.gov/directory.aspx<br>
+        <span class="agency-info-label">Agency phone:</span> 406-883-7301
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Lake Sheriff's Office</strong><br>
+      106 4th Ave E<br>
+      Polson MT 59860
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Lewis And Clark Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Lewis And Clark from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.lccountymt.gov/FormCenter/Sheriffs-Office-<br>
+        <span class="agency-info-label">Agency phone:</span> 406-447-8235
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Lewis And Clark Sheriff's Office</strong><br>
+      228 Broadway<br>
+      Helena MT 59601
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Lincoln Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Lincoln from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://lincolncountymt.us/sheriff-home/detention/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-283-2447
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Lincoln Sheriff's Office</strong><br>
+      512 California Ave<br>
+      Libby MT 59923
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Madison Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Madison from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.madisoncountymt.gov/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-843-5230
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Madison Sheriff's Office</strong><br>
+      110 N Wallace<br>
+      Virginia City MT 59755
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Meagher Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Meagher from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://meaghercountymt.gov/sheriff<br>
+        <span class="agency-info-label">Agency phone:</span> 406-547-2212
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Meagher Sheriff's Office</strong><br>
+      200 W Fowler<br>
+      White Sulphur Springs MT 59645
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Mineral Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Mineral from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://co.mineral.mt.us/departments/sheriff/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-822-3555
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Mineral Sheriff's Office</strong><br>
+      PO Box 7<br>
+      Superior MT 59872
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Missoula Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Missoula from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.missoulacounty.us/government/sheriff/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-258-4810
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Missoula Sheriff's Office</strong><br>
+      200 W Broadway St<br>
+      Missoula MT 59802
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Musselshell Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Musselshell from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://musselshellcounty.org/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-323-1402
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Musselshell Sheriff's Office</strong><br>
+      PO Box 65<br>
+      Roundup MT 59072
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Phillips Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Phillips from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://phillipscosheriff.com/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-654-2020
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Phillips Sheriff's Office</strong><br>
+      PO Box 1294<br>
+      Malta MT 59538
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Powder River Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Powder River from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://prco.mt.gov/contact<br>
+        <span class="agency-info-label">Agency phone:</span> 406-436-2361
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Powder River Sheriff's Office</strong><br>
+      PO Box 250<br>
+      Broadus MT 59317
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Powell Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Powell from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.powellcountymt.gov/sheriff/page/detention-facility<br>
+        <span class="agency-info-label">Agency phone:</span> 406-846-2711
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Powell Sheriff's Office</strong><br>
+      409 4th Ave<br>
+      Deer Lodge MT 59722
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Ravalli Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Ravalli from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://ravallicounty.gov/239/Adult-Detention-Center<br>
+        <span class="agency-info-label">Agency phone:</span> 406-363-3030
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Ravalli Sheriff's Office</strong><br>
+      205 Bedford<br>
+      Hamilton MT 59840
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Richland Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Richland from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.richland.org/detention-centers.html<br>
+        <span class="agency-info-label">Agency phone:</span> 406-433-2919
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Richland Sheriff's Office</strong><br>
+      300 12th Ave NW<br>
+      Sidney MT 59270
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Roosevelt Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Roosevelt from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.rooseveltcountymt.gov/sheriff-coroner/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-653-1700
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Roosevelt Sheriff's Office</strong><br>
+      124 5th Ave SE<br>
+      Wolf Point MT 59201
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Rosebud Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Rosebud from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.rosebudcountymt.gov/sheriff<br>
+        <span class="agency-info-label">Agency phone:</span> 406-346-2780
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Rosebud Sheriff's Office</strong><br>
+      PO Box 69<br>
+      Forsyth MT 59327
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Sanders Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Sanders from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://sanders-mt.publiclogs.com/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-827-3584
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Sanders Sheriff's Office</strong><br>
+      PO Box 519<br>
+      Thompson Falls MT 59873
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Sheridan Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Sheridan from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.sheridancountymt.gov/sheriff<br>
+        <span class="agency-info-label">Agency phone:</span> 406-765-3400
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Sheridan Sheriff's Office</strong><br>
+      100 W Laurel Ave<br>
+      Plentywood MT 59254
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Silver Bow Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Silver Bow from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://co.silverbow.mt.us/3274/Detention-Center<br>
+        <span class="agency-info-label">Agency phone:</span> 406-497-1120
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Silver Bow Sheriff's Office</strong><br>
+      155 W Quartz St<br>
+      Butte MT 59701
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Stillwater Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Stillwater from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://stillwatercountymt.gov/sheriff<br>
+        <span class="agency-info-label">Agency phone:</span> 406-322-5326
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Stillwater Sheriff's Office</strong><br>
+      PO Box 167<br>
+      Columbus MT 59019
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Teton Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Teton from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://tetoncountymt.gov/sheriff<br>
+        <span class="agency-info-label">Agency phone:</span> 406-466-5701
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Teton Sheriff's Office</strong><br>
+      PO Box 608<br>
+      Choteau MT 59422
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Toole Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Toole from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://toolecountymt.gov/sheriffs-office/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-424-8300
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Toole Sheriff's Office</strong><br>
+      226 1st St S<br>
+      Shelby MT 59474
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Treasure Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Treasure from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.treasurecountymt.gov/tcsheriff<br>
+        <span class="agency-info-label">Agency phone:</span> 406-342-5211
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Treasure Sheriff's Office</strong><br>
+      PO Box 1511<br>
+      Hysham MT 59038
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Valley Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Valley from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.valleycountymt.gov/1288/Jail-Roster<br>
+        <span class="agency-info-label">Agency phone:</span> 406-228-4333
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Valley Sheriff's Office</strong><br>
+      501 Court Sq #10<br>
+      Glasgow MT 59230
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Wheatland Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Wheatland from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://wheatlandcountymt.gov/sheriff<br>
+        <span class="agency-info-label">Agency phone:</span> 406-632-5614
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Wheatland Sheriff's Office</strong><br>
+      PO Box 218<br>
+      Harlowton MT 59036
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Wibaux Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Wibaux from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://wibauxmt.com/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-796-2415
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Wibaux Sheriff's Office</strong><br>
+      PO Box 166<br>
+      Wibaux MT 59353
+    </div>
+  </div>
+
+</div>
+<div class="page-break">
+    <div class="letterhead">
+      <div class="letterhead-title">Montana Blotter</div>
+      <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+      <div class="letterhead-contact">
+        Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+        records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+        https://montanablotter.com
+      </div>
+    </div>
+
+    <div class="date">August 02, 2026</div>
+
+    <div class="salutation">Dear Records Custodian:</div>
+
+    <div class="body">
+      <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+      <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Yellowstone Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+      <p style="margin-left:0.2in;margin-right:0.2in;margin-bottom:0.15in;">
+        <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+        <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+        <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+        <strong>Option 4.</strong> Authenticated API read of your records system
+      </p>
+
+      <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Yellowstone from the pipeline.</p>
+
+      <div class="agency-info">
+        <span class="agency-info-label">Your records-request contact form:</span><br>
+        https://www.yellowstonecountymt.gov/Sheriff/<br>
+        <span class="agency-info-label">Agency phone:</span> 406-256-2910
+      </div>
+
+      <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+    </div>
+
+    <div class="closing">Sincerely,</div>
+    <div class="signature-name">John Currie</div>
+    <div class="signature-type">Montana Blotter</div>
+
+    <div class="footer-line">
+      Representing Montana&rsquo;s 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+    </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope address (cut &amp; tape or use label below)</div>
+    <div class="envelope-addr">
+      <strong>Yellowstone Sheriff's Office</strong><br>
+      PO Box 35010<br>
+      Billings MT 59107
+    </div>
+  </div>
+
+</div>
+<div class="label-sheet">
+<div class="label-sheet-title">Montana Blotter &mdash; Address Labels</div>
+<div class="label-sheet-sub">Avery 5160 / 8160 &mdash; 3 cols &times; 10 rows = 30 labels per sheet</div>
+<div class="label-grid">
+<div class="label"><div class="label-name">Beaverhead Sheriff's Office</div><div class="label-addr">88 W. Reed St<br>Dillon MT 59725</div></div>
+<div class="label"><div class="label-name">Big Horn Sheriff's Office</div><div class="label-addr">RR1<br>Hardin MT 59034</div></div>
+<div class="label"><div class="label-name">Blaine Sheriff's Office</div><div class="label-addr">420 Ohio St<br>Chinook MT 59523</div></div>
+<div class="label"><div class="label-name">Broadwater Sheriff's Office</div><div class="label-addr">124 N Walnut<br>Townsend MT 59644</div></div>
+<div class="label"><div class="label-name">Carbon Sheriff's Office</div><div class="label-addr">224 N Broadway Ave<br>Red Lodge MT 59068</div></div>
+<div class="label"><div class="label-name">Cascade Sheriff's Office</div><div class="label-addr">3801 Ulm N Frontage Rd<br>Great Falls MT 59404</div></div>
+<div class="label"><div class="label-name">Chouteau Sheriff's Office</div><div class="label-addr">301 Main St<br>Fort Benton MT 59442</div></div>
+<div class="label"><div class="label-name">Custer Sheriff's Office</div><div class="label-addr">1010 Main St<br>Miles City MT 59301</div></div>
+<div class="label"><div class="label-name">Dawson Sheriff's Office</div><div class="label-addr">207 W Bell St<br>Glendive MT 59330</div></div>
+<div class="label"><div class="label-name">Deer Lodge Sheriff's Office</div><div class="label-addr">800 S Pennsylvania<br>Anaconda MT 59711</div></div>
+<div class="label"><div class="label-name">Fallon Sheriff's Office</div><div class="label-addr">10 W Fallon Ave<br>Baker MT 59313</div></div>
+<div class="label"><div class="label-name">Fergus Sheriff's Office</div><div class="label-addr">712 W Main<br>Lewistown MT 59457</div></div>
+<div class="label"><div class="label-name">Flathead Sheriff's Office</div><div class="label-addr">920 S Main St<br>Kalispell MT 59901</div></div>
+<div class="label"><div class="label-name">Gallatin Sheriff's Office</div><div class="label-addr">615 S 16th<br>Bozeman MT 59715</div></div>
+<div class="label"><div class="label-name">Glacier Sheriff's Office</div><div class="label-addr">512 E Railroad<br>Cut Bank MT 59427</div></div>
+<div class="label"><div class="label-name">Golden Valley Sheriff's Office</div><div class="label-addr">107 Kemp St<br>Ryegate MT 59074</div></div>
+<div class="label"><div class="label-name">Jefferson Sheriff's Office</div><div class="label-addr">110 S Washington<br>Boulder MT 59632</div></div>
+<div class="label"><div class="label-name">Judith Basin Sheriff's Office</div><div class="label-addr">215 Central Ave<br>Stanford MT 59479</div></div>
+<div class="label"><div class="label-name">Lake Sheriff's Office</div><div class="label-addr">106 4th Ave E<br>Polson MT 59860</div></div>
+<div class="label"><div class="label-name">Lewis And Clark Sheriff's Office</div><div class="label-addr">228 Broadway<br>Helena MT 59601</div></div>
+<div class="label"><div class="label-name">Lincoln Sheriff's Office</div><div class="label-addr">512 California Ave<br>Libby MT 59923</div></div>
+<div class="label"><div class="label-name">Madison Sheriff's Office</div><div class="label-addr">110 N Wallace<br>Virginia City MT 59755</div></div>
+<div class="label"><div class="label-name">Meagher Sheriff's Office</div><div class="label-addr">200 W Fowler<br>White Sulphur Springs MT 59645</div></div>
+<div class="label"><div class="label-name">Mineral Sheriff's Office</div><div class="label-addr">PO Box 7<br>Superior MT 59872</div></div>
+<div class="label"><div class="label-name">Missoula Sheriff's Office</div><div class="label-addr">200 W Broadway St<br>Missoula MT 59802</div></div>
+<div class="label"><div class="label-name">Musselshell Sheriff's Office</div><div class="label-addr">PO Box 65<br>Roundup MT 59072</div></div>
+<div class="label"><div class="label-name">Phillips Sheriff's Office</div><div class="label-addr">PO Box 1294<br>Malta MT 59538</div></div>
+<div class="label"><div class="label-name">Powder River Sheriff's Office</div><div class="label-addr">PO Box 250<br>Broadus MT 59317</div></div>
+<div class="label"><div class="label-name">Powell Sheriff's Office</div><div class="label-addr">409 4th Ave<br>Deer Lodge MT 59722</div></div>
+<div class="label"><div class="label-name">Ravalli Sheriff's Office</div><div class="label-addr">205 Bedford<br>Hamilton MT 59840</div></div></div>
+</div>
+<div class="label-sheet page-break">
+<div class="label-grid">
+<div class="label"><div class="label-name">Richland Sheriff's Office</div><div class="label-addr">300 12th Ave NW<br>Sidney MT 59270</div></div>
+<div class="label"><div class="label-name">Roosevelt Sheriff's Office</div><div class="label-addr">124 5th Ave SE<br>Wolf Point MT 59201</div></div>
+<div class="label"><div class="label-name">Rosebud Sheriff's Office</div><div class="label-addr">PO Box 69<br>Forsyth MT 59327</div></div>
+<div class="label"><div class="label-name">Sanders Sheriff's Office</div><div class="label-addr">PO Box 519<br>Thompson Falls MT 59873</div></div>
+<div class="label"><div class="label-name">Sheridan Sheriff's Office</div><div class="label-addr">100 W Laurel Ave<br>Plentywood MT 59254</div></div>
+<div class="label"><div class="label-name">Silver Bow Sheriff's Office</div><div class="label-addr">155 W Quartz St<br>Butte MT 59701</div></div>
+<div class="label"><div class="label-name">Stillwater Sheriff's Office</div><div class="label-addr">PO Box 167<br>Columbus MT 59019</div></div>
+<div class="label"><div class="label-name">Teton Sheriff's Office</div><div class="label-addr">PO Box 608<br>Choteau MT 59422</div></div>
+<div class="label"><div class="label-name">Toole Sheriff's Office</div><div class="label-addr">226 1st St S<br>Shelby MT 59474</div></div>
+<div class="label"><div class="label-name">Treasure Sheriff's Office</div><div class="label-addr">PO Box 1511<br>Hysham MT 59038</div></div>
+<div class="label"><div class="label-name">Valley Sheriff's Office</div><div class="label-addr">501 Court Sq #10<br>Glasgow MT 59230</div></div>
+<div class="label"><div class="label-name">Wheatland Sheriff's Office</div><div class="label-addr">PO Box 218<br>Harlowton MT 59036</div></div>
+<div class="label"><div class="label-name">Wibaux Sheriff's Office</div><div class="label-addr">PO Box 166<br>Wibaux MT 59353</div></div>
+<div class="label"><div class="label-name">Yellowstone Sheriff's Office</div><div class="label-addr">PO Box 35010<br>Billings MT 59107</div></div><div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+<div class="label" style="border:none;"></div>
+</div>
+</div>
+<div class="label-sheet page-break">
+<div class="label-sheet-title">Montana Blotter &mdash; Return Address Labels</div>
+<div class="label-sheet-sub">Peel and stick on envelope top-left corner (Avery 5160)</div>
+<div class="label-grid">
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div>
+<div class="label return-label"><div class="label-name">Montana Blotter</div><div class="label-addr">Great Falls, Montana<br>406-290-3337 &middot; https://montanablotter.com</div></div></div>
+</div>
+</body>
+</html>

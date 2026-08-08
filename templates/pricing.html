@@ -1,117 +1,161 @@
 {% extends "public_page_base.html" %}
 
-{% set page_title = 'Pricing' %}
-{% set meta_description = 'Montana Blotter subscription plans. Scout is free. Upgrade to Insider or Professional for full incident details, jail booking records, crime map popups, data exports, and API access.' %}
-{% set canonical_url = 'https://montanablotter.com/pricing' %}
-{% set active_nav = 'pricing' %}
+{% set active_nav = "pricing" %}
 
 {% block content %}
-<main class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+<div class="max-w-5xl mx-auto px-4 py-14 sm:px-6">
+
     <div class="text-center mb-12">
-        <h1 class="text-3xl sm:text-4xl font-black text-slate-900" style="font-family:'Playfair Display',Georgia,serif;">Choose Your Access Level</h1>
-        <p class="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            Montana Blotter is funded by readers. Free access keeps headlines public.
-            Subscribers unlock full detail pages, deeper search, and data tools.
-        </p>
+        <div class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-red-700 mb-4">
+            Montana Blotter
+        </div>
+        <h1 class="text-4xl font-black tracking-tight text-slate-900">Choose Your Plan</h1>
+        <p class="mt-3 text-base text-slate-500 leading-7">Access Montana public records — from daily incident reports to statewide warrant data, court filings, and more.</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-        <!-- Scout -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
-            <div class="mb-6">
-                <p class="text-sm font-black uppercase tracking-widest text-slate-400">Scout</p>
-                <div class="mt-3 flex items-baseline gap-2">
+    {% if already_subscribed %}
+    <div class="rounded-xl bg-green-50 border border-green-200 px-5 py-4 mb-6 text-sm text-green-800">
+        <p class="font-bold mb-1"><i class="fas fa-check-circle mr-2 text-green-600"></i>You already have an active subscription</p>
+        <p class="text-green-700">Head to the <a href="/account/subscription" class="underline font-bold">subscription settings</a> to manage your plan.</p>
+    </div>
+    {% endif %}
+
+    <!-- Pricing cards -->
+    <div class="grid md:grid-cols-3 gap-6 mb-10">
+
+        <!-- Free -->
+        <div class="rounded-3xl border-2 border-slate-200 bg-white shadow-lg overflow-hidden flex flex-col">
+            <div class="px-6 py-7 text-center">
+                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 mb-3">Free</p>
+                <div class="flex items-end justify-center gap-1">
                     <span class="text-4xl font-black text-slate-900">$0</span>
-                    <span class="text-slate-500">/mo</span>
                 </div>
-                <p class="mt-2 text-sm text-slate-500">Free public access</p>
+                <p class="text-sm text-slate-500 mt-1">Public access</p>
             </div>
-            <ul class="space-y-3 text-sm text-slate-700 mb-8">
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Headlines & list views</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Basic search</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Crime map pins & heatmap</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Free email alerts</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>3 detail previews / day</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>5 detail previews / week</li>
-            </ul>
-            <a href="/register?next={{ request.full_path | urlencode }}" class="public-btn public-btn--secondary w-full block text-center">Get Started Free</a>
+            <div class="px-6 pb-6 flex-1 flex flex-col">
+                <ul class="space-y-3 mb-6 text-sm">
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> Current incident reports</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> 7 days of history</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> Basic search &amp; filters</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> 1 county alert</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> Public-safety alerts</li>
+                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> Ad-free browsing</li>
+                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> Saved searches</li>
+                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> Name watchlists</li>
+                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> CSV / PDF exports</li>
+                </ul>
+                <div class="mt-auto">
+                    <span class="block w-full rounded-xl bg-slate-100 py-3.5 text-sm font-bold text-slate-400 text-center cursor-default">Current Plan</span>
+                </div>
+            </div>
         </div>
 
-        <!-- Insider -->
-        <div class="rounded-2xl border-2 border-slate-900 bg-white p-6 sm:p-8 relative">
-            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full">Most Popular</div>
-            <div class="mb-6">
-                <p class="text-sm font-black uppercase tracking-widest text-slate-400">Insider</p>
-                <div class="mt-3 flex items-baseline gap-2">
-                    <span class="text-4xl font-black text-slate-900">$7.99</span>
-                    <span class="text-slate-500">/mo</span>
+        <!-- Plus -->
+        <div class="rounded-3xl border-2 border-red-200 bg-white shadow-xl overflow-hidden flex flex-col relative">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black uppercase tracking-[0.18em] px-3 py-1 rounded-full z-10">Most Popular</div>
+            <div class="bg-gradient-to-br from-red-600 to-red-800 px-6 py-7 text-white text-center">
+                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-red-200">Blotter Plus</p>
+                <div class="mt-2 flex items-end justify-center gap-2">
+                    <span class="text-4xl font-black">$5.99</span>
+                    <span class="mb-1.5 text-lg text-red-200">/month</span>
                 </div>
-                <p class="mt-2 text-sm text-slate-500">$69.99/yr (~27% off)</p>
+                <p class="text-sm text-red-100">or <strong>$59/year</strong> &mdash; save 18%</p>
             </div>
-            <ul class="space-y-3 text-sm text-slate-700 mb-8">
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Everything in Scout</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i><strong>Unlimited</strong> incident details</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i><strong>Unlimited</strong> jail booking details</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Crime map detail popups</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Deeper search filters</li>
-            </ul>
-            <a href="{{ monthly_subscription_link }}"
-               class="public-btn public-btn--primary w-full block text-center"
-               rel="noopener noreferrer">
-                Subscribe Monthly
-            </a>
-            <form action="/checkout/subscription" method="POST" class="mt-2">
-                <input type="hidden" name="plan" value="insider">
-                <input type="hidden" name="interval" value="yearly">
-                <button type="submit" class="public-btn public-btn--secondary w-full">Subscribe Yearly — $69.99</button>
-            </form>
+            <div class="px-6 py-6 flex-1 flex flex-col">
+                <ul class="space-y-3 mb-6 text-sm">
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> <strong>12 months</strong> of searchable history</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> Up to <strong>5 counties</strong></li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> County, city &amp; agency alerts</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> <strong>5 name/keyword</strong> watchlists</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> <strong>10 saved searches</strong></li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> Daily digest email</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> <strong>Ad-free</strong> browsing</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> Track up to 5 cases</li>
+                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> PDF exports</li>
+                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> CSV exports / API access</li>
+                </ul>
+                {% if is_logged_in %}
+                <a href="/checkout/plus?interval=monthly"
+                   class="mt-auto block w-full rounded-xl bg-red-600 py-3.5 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
+                    Subscribe <span class="text-red-200">$5.99</span>/mo
+                </a>
+                <a href="/checkout/plus?interval=annual"
+                   class="mt-2 block w-full rounded-xl border border-red-300 bg-white py-2.5 text-sm font-bold text-red-700 hover:bg-red-50 transition-colors text-center">
+                    or <strong>$59/year</strong>
+                </a>
+                {% else %}
+                <a href="/register?next=/checkout/plus%3Finterval%3Dmonthly"
+                   class="mt-auto block w-full rounded-xl bg-red-600 py-3.5 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
+                    Create Account & Subscribe
+                </a>
+                {% endif %}
+            </div>
         </div>
 
-        <!-- Professional -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
-            <div class="mb-6">
-                <p class="text-sm font-black uppercase tracking-widest text-slate-400">Professional</p>
-                <div class="mt-3 flex items-baseline gap-2">
-                    <span class="text-4xl font-black text-slate-900">$14.99</span>
-                    <span class="text-slate-500">/mo</span>
+        <!-- Pro -->
+                <div class="rounded-3xl border-2 border-amber-200 bg-white shadow-xl overflow-hidden flex flex-col">
+                    <div class="bg-gradient-to-br from-amber-600 to-amber-800 px-6 py-7 text-white text-center">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-amber-200">Blotter Pro</p>
+                        <div class="mt-2 flex items-end justify-center gap-2">
+                            <span class="text-4xl font-black">$19.99</span>
+                            <span class="mb-1.5 text-lg text-amber-200">/month</span>
+                        </div>
+                        <p class="text-sm text-amber-100">or <strong>$199/year</strong> &mdash; save 17%</p>
+                        <p class="mt-3 text-[11px] leading-5 text-amber-200/80 max-w-[240px] mx-auto">
+                            Built for attorneys, journalists, investigators &amp; bail services who need the full statewide picture.
+                        </p>
+                    </div>
+                    <div class="px-6 py-6 flex-1 flex flex-col">
+                        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-amber-600 mb-3">For Attorneys &amp; Journalists</p>
+                        <ul class="space-y-3 mb-6 text-sm">
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> <strong>Full archive</strong> — search everything, no time limit</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> <strong>Statewide</strong> alerts &amp; unlimited counties</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Unlimited name/keyword watchlists</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Unlimited saved searches</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Unlimited case tracking with status notifications</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> CSV &amp; PDF exports — admissible format</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> API access — 1,000 requests/day</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Webhook alerts — get notified in your tools</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> County &amp; statewide analytics &amp; trends</li>
+                            <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Priority support</li>
+                        </ul>
+                {% if is_logged_in %}
+                <a href="/checkout/pro?interval=monthly"
+                   class="mt-auto block w-full rounded-xl bg-amber-600 py-3.5 text-base font-black text-white hover:bg-amber-700 transition-colors text-center">
+                    Subscribe <span class="text-amber-200">$19.99</span>/mo
+                </a>
+                <a href="/checkout/pro?interval=annual"
+                   class="mt-2 block w-full rounded-xl border border-amber-300 bg-white py-2.5 text-sm font-bold text-amber-700 hover:bg-amber-50 transition-colors text-center">
+                    or <strong>$199/year</strong>
+                </a>
+                {% else %}
+                <a href="/register?next=/checkout/pro%3Finterval%3Dmonthly"
+                   class="mt-auto block w-full rounded-xl bg-amber-600 py-3.5 text-base font-black text-white hover:bg-amber-700 transition-colors text-center">
+                    Create Account & Subscribe
+                </a>
+                {% endif %}
+                <div class="mt-3 text-center">
+                    <a href="/pro" class="text-xs font-bold text-amber-600 hover:text-amber-800">Learn more &rarr;</a>
                 </div>
-                <p class="mt-2 text-sm text-slate-500">$129.99/yr (~27% off)</p>
             </div>
-            <ul class="space-y-3 text-sm text-slate-700 mb-8">
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Everything in Insider</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Data exports (CSV)</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>API access</li>
-                <li class="flex items-start gap-3"><i class="fas fa-check text-emerald-500 mt-0.5"></i>Priority alerts</li>
-            </ul>
-            <a href="{{ monthly_subscription_link }}"
-               class="public-btn public-btn--primary w-full block text-center"
-               rel="noopener noreferrer">
-                Subscribe Monthly
-            </a>
-            <form action="/checkout/subscription" method="POST" class="mt-2">
-                <input type="hidden" name="plan" value="professional">
-                <input type="hidden" name="interval" value="yearly">
-                <button type="submit" class="public-btn public-btn--secondary w-full">Subscribe Yearly — $129.99</button>
-            </form>
         </div>
+
     </div>
 
-    <div class="max-w-3xl mx-auto text-center">
-        <h2 class="text-xl font-black text-slate-900 mb-4">Frequently Asked Questions</h2>
-        <div class="text-left space-y-4">
-            <details class="rounded-xl border border-slate-200 bg-white p-4">
-                <summary class="font-semibold text-slate-800 cursor-pointer">What happens when I hit my preview limit?</summary>
-                <p class="mt-2 text-sm text-slate-600">You'll see a blurred summary of the incident or booking with an option to upgrade. List views, search, and the crime map remain fully accessible.</p>
-            </details>
-            <details class="rounded-xl border border-slate-200 bg-white p-4">
-                <summary class="font-semibold text-slate-800 cursor-pointer">Can I cancel anytime?</summary>
-                <p class="mt-2 text-sm text-slate-600">Yes. Cancel from your account page or by contacting support. You'll keep access until the end of your billing period.</p>
-            </details>
-            <details class="rounded-xl border border-slate-200 bg-white p-4">
-                <summary class="font-semibold text-slate-800 cursor-pointer">Is my payment secure?</summary>
-                <p class="mt-2 text-sm text-slate-600">All payments are processed securely through Stripe. We never store your card details.</p>
-            </details>
-        </div>
+    <p class="text-center text-[11px] text-slate-400 mb-6">
+        Secure Stripe checkout &bull; Cancel anytime &bull; No hidden fees
+    </p>
+
+    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 text-center text-sm text-slate-500">
+        Already have an account?
+        <a href="/login?next=/pricing" class="font-bold text-slate-700 hover:text-slate-900 underline">Sign in to subscribe</a>
     </div>
-</main>
+
+    <div class="mt-8 text-center">
+        <a href="/" class="text-sm text-slate-400 hover:text-slate-600">
+            &larr; Back to Montana Blotter
+        </a>
+    </div>
+
+</div>
 {% endblock %}

@@ -32,7 +32,7 @@
     <div class="mb-alert mb-alert--alert" role="status" style="margin-bottom: var(--space-5);">
       <div class="mb-alert__body">
         Secure checkout is not configured. Please contact
-        <a href="mailto:advertising@montanablotter.com" style="color: inherit; text-decoration: underline;">advertising@montanablotter.com</a>
+        <a href="mailto:support@montanablotter.com" style="color: inherit; text-decoration: underline;">support@montanablotter.com</a>
         to set up your listing.
       </div>
     </div>
@@ -106,26 +106,26 @@
       <fieldset class="mb-record-card">
         <legend style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); padding: 0 var(--space-2);">Package</legend>
 
-        <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3);">
+        <div style="display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-4);">
           {% for pkg in packages %}
-          <label class="mb-checkbox" style="padding: var(--space-3); border: {% if form_data.package_id == pkg.id %}2px solid #b8860b{% else %}var(--rule-light){% endif %}; border-radius: var(--radius-md); background: {% if form_data.package_id == pkg.id %}#fffdf0{% else %}var(--surface-card){% endif %}; align-items: flex-start;">
-            <input type="radio" name="package_id" value="{{ pkg.id }}" {% if form_data.package_id == pkg.id %}checked{% endif %} required style="margin-top: 0.2rem;">
-            <span style="display: flex; flex-direction: column; gap: var(--space-1);">
-              <strong style="color: var(--text-headline);">{{ pkg.name }} — {{ pkg.price_label }}</strong>
+          <label class="mb-radio-row{% if form_data.package_id == pkg.id %} mb-radio-row--selected{% endif %}">
+            <input type="radio" name="package_id" value="{{ pkg.id }}" {% if form_data.package_id == pkg.id %}checked{% endif %} required>
+            <span>
+              <strong>{{ pkg.name }} — {{ pkg.price_label }}</strong>
               <span style="font-size: var(--text-caption); color: var(--text-secondary);">{{ pkg.short_description }}</span>
             </span>
           </label>
           {% endfor %}
         </div>
 
-        <div style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
-          <label class="mb-checkbox">
+        <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+          <label class="mb-radio-row" style="flex: 1 1 auto; min-width: 12rem;">
             <input type="radio" name="billing_cycle" value="monthly" {% if form_data.billing_cycle != 'annual' %}checked{% endif %}>
-            <span>Monthly</span>
+            <span><strong>Monthly</strong></span>
           </label>
-          <label class="mb-checkbox">
+          <label class="mb-radio-row" style="flex: 1 1 auto; min-width: 12rem;">
             <input type="radio" name="billing_cycle" value="annual">
-            <span>Annual (save ~15%)</span>
+            <span><strong>Annual (save ~15%)</strong></span>
           </label>
         </div>
       </fieldset>

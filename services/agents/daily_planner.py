@@ -127,6 +127,28 @@ def _open_db() -> sqlite3.Connection | None:
         return None
 
 
+def _open_page_views() -> sqlite3.Connection | None:
+    """Open the local-only page_views.db for read-only analytics queries.
+
+    Returns None if the DB doesn't exist yet (first run, or before any
+    request has been served). Callers should treat that as "no data"
+    rather than an error.
+    """
+    try:
+        from db import _PAGE_VIEWS_DB_PATH
+    except Exception:
+        return None
+    import os
+    if not os.path.exists(_PAGE_VIEWS_DB_PATH):
+        return None
+    try:
+        conn = sqlite3.connect(str(_PAGE_VIEWS_DB_PATH), timeout=10)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception:
+        return None
+
+
 # ── Data-collection helpers ──────────────────────────────────────────────────
 
 def _county_ingest_gaps(conn: sqlite3.Connection) -> list[dict]:
@@ -609,10 +631,19 @@ def _generate_parser_tasks(conn: sqlite3.Connection | None) -> None:
                 "\n".join(lines))
 
 
-def _top_pages(conn: sqlite3.Connection, days: int = 7, limit: int = 10) -> list[dict]:
-    """Return top pages by view count over the last N days."""
+def _top_pages(conn: sqlite3.Connection | None = None, days: int = 7, limit: int = 10) -> list[dict]:
+    """Return top pages by view count over the last N days.
+
+    Reads from `page_views.db` (the dedicated local-only table for
+    page-view analytics) rather than the main `blotter.db`. The optional
+    `conn` arg is preserved for backward compatibility with test
+    fixtures; production callers should leave it None.
+    """
+    pv = conn if conn is not None else _open_page_views()
+    if pv is None:
+        return []
     try:
-        rows = conn.execute(
+        rows = pv.execute(
             "SELECT path, COUNT(*) AS views FROM page_views "
             "WHERE created_at >= datetime('now', ?) "
             "GROUP BY path ORDER BY views DESC LIMIT ?",
@@ -621,12 +652,21 @@ def _top_pages(conn: sqlite3.Connection, days: int = 7, limit: int = 10) -> list
         return [{"path": r["path"], "views": r["views"]} for r in rows]
     except Exception:
         return []
+    finally:
+        if conn is None:
+            try:
+                pv.close()
+            except Exception:
+                pass
 
 
-def _top_referrers(conn: sqlite3.Connection, days: int = 7, limit: int = 10) -> list[dict]:
-    """Return top external referrers over the last N days."""
+def _top_referrers(conn: sqlite3.Connection | None = None, days: int = 7, limit: int = 10) -> list[dict]:
+    """Return top external referrers over the last N days. See `_top_pages`."""
+    pv = conn if conn is not None else _open_page_views()
+    if pv is None:
+        return []
     try:
-        rows = conn.execute(
+        rows = pv.execute(
             "SELECT referrer, COUNT(*) AS visits FROM page_views "
             "WHERE created_at >= datetime('now', ?) "
             "AND referrer IS NOT NULL AND referrer != '' "
@@ -636,17 +676,33 @@ def _top_referrers(conn: sqlite3.Connection, days: int = 7, limit: int = 10) -> 
         return [{"referrer": r["referrer"], "visits": r["visits"]} for r in rows]
     except Exception:
         return []
+    finally:
+        if conn is None:
+            try:
+                pv.close()
+            except Exception:
+                pass
 
 
-def _total_views(conn: sqlite3.Connection, days: int) -> int:
+def _total_views(days: int, conn: sqlite3.Connection | None = None) -> int:
+    """Return total page views in the last N days. See `_top_pages`."""
+    pv = conn if conn is not None else _open_page_views()
+    if pv is None:
+        return 0
     try:
-        row = conn.execute(
+        row = pv.execute(
             "SELECT COUNT(*) AS n FROM page_views WHERE created_at >= datetime('now', ?)",
             (f"-{days} days",),
         ).fetchone()
         return int(row["n"]) if row else 0
     except Exception:
         return 0
+    finally:
+        if conn is None:
+            try:
+                pv.close()
+            except Exception:
+                pass
 
 
 # Weekly research track: day-of-week → (slug, title, body-intro)
@@ -784,10 +840,14 @@ def _generate_growth_tasks(conn: sqlite3.Connection | None) -> None:
     dow = now.weekday()  # 0=Monday … 6=Sunday
 
     # ── Daily intelligence report ────────────────────────────────────────────
-    views_7d = _total_views(conn, 7) if conn else 0
-    views_1d = _total_views(conn, 1) if conn else 0
-    top_pages = _top_pages(conn, days=7) if conn else []
-    top_refs = _top_referrers(conn, days=7) if conn else []
+    # Page-view helpers default to opening page_views.db themselves. We
+    # only pass `conn` here when the planner was called with a custom
+    # test fixture (production callers pass conn=None).
+    _pv_conn = conn if conn is not None else None
+    views_7d = _total_views(7, _pv_conn)
+    views_1d = _total_views(1, _pv_conn)
+    top_pages = _top_pages(_pv_conn, days=7)
+    top_refs = _top_referrers(_pv_conn, days=7)
 
     lines = ["# Daily Growth Intelligence", ""]
 

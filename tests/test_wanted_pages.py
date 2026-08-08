@@ -5,6 +5,7 @@ import unittest
 from datetime import datetime, timezone
 
 from app import app
+from blueprints import payments
 from services.ingestion.warrants.models import ensure_warrant_schema
 from services.ingestion.warrants.scraper import resolve_stale_warrants, upsert_warrants
 from services.ingestion.warrants.models import WarrantRecord
@@ -33,8 +34,10 @@ class WantedPagesTestCase(unittest.TestCase):
         )
         app.config["TESTING"] = True
         self._original_get_db = app.view_functions["wanted_index"].__globals__["get_db"]
+        self._original_payments_get_db = payments.get_db
         app.view_functions["wanted_index"].__globals__["get_db"] = lambda: self.conn
         app.view_functions["wanted_detail"].__globals__["get_db"] = lambda: self.conn
+        payments.get_db = lambda: self.conn
         # Reset the paywall function to the real implementation in case another
         # test file left it patched.
         from services.monetization.paywall import user_has_warrant_access as real_user_has_warrant_access
@@ -108,6 +111,7 @@ class WantedPagesTestCase(unittest.TestCase):
     def tearDown(self):
         app.view_functions["wanted_index"].__globals__["get_db"] = self._original_get_db
         app.view_functions["wanted_detail"].__globals__["get_db"] = self._original_get_db
+        payments.get_db = self._original_payments_get_db
         if self._original_pick_attorneys is None:
             app.view_functions["wanted_detail"].__globals__.pop(
                 "_pick_attorneys_for_county", None
@@ -152,6 +156,23 @@ class WantedPagesTestCase(unittest.TestCase):
         resp = self.client.get("/wanted?q=Jane")
         self.assertEqual(resp.status_code, 302)
         self.assertIn("/wanted/subscribe", resp.headers.get("Location", ""))
+
+    def test_wanted_subscribe_previews_mugshot_records(self):
+        self.conn.execute(
+            "UPDATE warrants SET mugshot_url = ? WHERE source_record_id = ?",
+            ("https://example.com/mugshot.jpg", "test-warrant:jane-doe"),
+        )
+        self.conn.commit()
+
+        resp = self.client.get("/wanted/subscribe?next=/wanted")
+
+        self.assertEqual(resp.status_code, 200)
+        body = resp.get_data(as_text=True)
+        self.assertIn("Jane Doe", body)
+        self.assertIn("https://example.com/mugshot.jpg", body)
+        self.assertIn("wanted-poster-card__photo", body)
+        self.assertIn("Subscribe", body)
+        self.assertIn("/register?next=/checkout/warrant-access%3Fplan%3Dmonthly", body)
 
     def test_wanted_index_renders_record_with_access(self):
         with self._with_warrant_access():

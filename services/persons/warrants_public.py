@@ -398,6 +398,56 @@ def warrant_homepage_context(
     }
 
 
+def warrant_paywall_preview_context(
+    conn: sqlite3.Connection, *, limit: int = 3
+) -> dict[str, Any]:
+    """Build a locked preview for the paid wanted subscription page.
+
+    Prefer photo-bearing active records so the subscription page can show a
+    real mugshot when official or staff-approved photos are available.
+    """
+    ensure_warrant_schema(conn)
+    preview_limit = max(0, int(limit or 0))
+    photo_rows = _fetch_warrant_rows(
+        conn,
+        status=STATUS_ACTIVE,
+        sort='random',
+        limit=preview_limit,
+        with_photo=True,
+    ) if preview_limit else []
+
+    rows_by_id: dict[int, sqlite3.Row] = {int(row['id']): row for row in photo_rows}
+    if len(rows_by_id) < preview_limit:
+        fallback_rows = _fetch_warrant_rows(
+            conn,
+            status=STATUS_ACTIVE,
+            sort='random',
+            limit=preview_limit,
+        )
+        for row in fallback_rows:
+            rows_by_id.setdefault(int(row['id']), row)
+            if len(rows_by_id) >= preview_limit:
+                break
+
+    active_count = conn.execute(
+        "SELECT COUNT(*) AS total FROM warrants WHERE status = 'active'",
+    ).fetchone()['total']
+    photo_count = conn.execute(
+        f"SELECT COUNT(*) AS total FROM warrants WHERE status = 'active' AND {_HAS_PHOTO_CLAUSE}",
+    ).fetchone()['total']
+    latest_updated = conn.execute(
+        "SELECT MAX(updated_at) AS latest FROM warrants WHERE status = 'active'",
+    ).fetchone()['latest']
+
+    return {
+        'preview_rows': [_decorate_warrant_row(row) for row in list(rows_by_id.values())[:preview_limit]],
+        'preview_total_active': int(active_count or 0),
+        'preview_photo_count': int(photo_count or 0),
+        'preview_latest_update': latest_updated or '',
+        'preview_latest_update_label': _display_datetime(latest_updated) if latest_updated else '',
+    }
+
+
 def warrant_city_context(
     conn: sqlite3.Connection,
     city_name: str,

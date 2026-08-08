@@ -1,0 +1,60 @@
+{% extends "admin.html" %}
+{% set active_nav = "sponsored" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-10">
+    <h1 class="text-3xl font-black text-slate-900 mb-2">Sponsored Listings</h1>
+    <p class="text-sm text-slate-500 mb-8">Bail bond and attorney paid placements on county booking pages.</p>
+
+    <table class="w-full text-sm border-collapse">
+        <thead>
+            <tr class="bg-slate-100 text-left">
+                <th class="px-4 py-3 font-bold">Business</th>
+                <th class="px-4 py-3 font-bold">Type</th>
+                <th class="px-4 py-3 font-bold">County</th>
+                <th class="px-4 py-3 font-bold">Status</th>
+                <th class="px-4 py-3 font-bold">Impressions</th>
+                <th class="px-4 py-3 font-bold">Created</th>
+                <th class="px-4 py-3 font-bold">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for listing in listings %}
+            <tr class="border-t border-slate-200">
+                <td class="px-4 py-3 font-semibold">{{ listing.business_name }}</td>
+                <td class="px-4 py-3">{{ 'Bail Bond' if listing.business_type == 'bail_bond' else 'Attorney' }}</td>
+                <td class="px-4 py-3">{{ listing.county_slug.title() }}</td>
+                <td class="px-4 py-3">
+                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide
+                        {% if listing.status == 'active' %}bg-emerald-100 text-emerald-700
+                        {% elif listing.status == 'pending' %}bg-amber-100 text-amber-700
+                        {% else %}bg-slate-100 text-slate-500{% endif %}">
+                        {{ listing.status }}
+                    </span>
+                </td>
+                <td class="px-4 py-3">{{ listing.total_impressions }}</td>
+                <td class="px-4 py-3 text-slate-500">{{ listing.created_at[:10] if listing.created_at else '-' }}</td>
+                <td class="px-4 py-3">
+                    <form method="POST" action="/sponsored/admin/listings/{{ listing.id }}/toggle">
+                        <button type="submit" class="text-sm font-bold
+                            {% if listing.is_active %}text-red-600 hover:text-red-800{% else %}text-emerald-600 hover:text-emerald-800{% endif %}">
+                            {{ 'Deactivate' if listing.is_active else 'Activate' }}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-slate-400">No sponsored listings yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mt-8 rounded-xl bg-slate-50 border border-slate-200 p-6">
+        <h2 class="font-bold text-slate-900 mb-3">Quick Link</h2>
+        <p class="text-sm text-slate-600 mb-3">Use this link to send potential advertisers to the checkout:</p>
+        <code class="block rounded-lg bg-slate-800 px-4 py-3 text-sm text-green-400 font-mono">https://montanablotter.com/sponsored/checkout?type=bail_bond&county=cascade</code>
+    </div>
+</div>
+{% endblock %}

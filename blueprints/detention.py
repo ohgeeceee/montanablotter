@@ -319,6 +319,18 @@ def booking_detail(booking_id):
         paywall_allowed, paywall_counts = preview_allowed(resource_type='booking', resource_id=booking_id)
         paywall_blocked = not paywall_allowed
 
+        # Load sponsored listings for this county
+        sponsored_ads = []
+        if booking['county_slug']:
+            from blueprints.sponsored_listings import get_sponsored_for_county, record_impression
+            sponsored_ads = get_sponsored_for_county(conn, booking['county_slug'])
+            # Record impressions per active listing
+            for ad in sponsored_ads:
+                try:
+                    record_impression(conn, ad['id'])
+                except Exception:
+                    pass
+
         return render_template(
             'booking_detail.html',
             booking=booking,
@@ -331,6 +343,7 @@ def booking_detail(booking_id):
             canonical_url=f"https://montanablotter.com/booking/{booking_id}",
             paywall_blocked=paywall_blocked,
             paywall_counts=paywall_counts,
+            sponsored_ads=sponsored_ads,
         )
     finally:
         conn.close()

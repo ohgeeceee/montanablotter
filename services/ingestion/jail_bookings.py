@@ -51,6 +51,13 @@ from services.ingestion.fetchers.lewis_clark_inmate import fetch_lewis_clark_boo
 from services.ingestion.fetchers.lincoln_inmate import fetch_lincoln_bookings
 from services.ingestion.fetchers.silver_bow_inmate import fetch_silver_bow_bookings
 from services.ingestion.fetchers.yellowstone_inmate import fetch_bookings as _fetch_yellowstone_bookings_raw
+from services.ingestion.fetchers.public_roster_inmate import (
+    fetch_big_horn_bookings,
+    fetch_fallon_bookings,
+    fetch_fergus_bookings,
+    fetch_glacier_bookings,
+    fetch_roosevelt_bookings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,15 +67,14 @@ DB_LOCK_RETRY_ATTEMPTS = int(getattr(config, "DB_LOCK_RETRY_ATTEMPTS", 5))
 DB_LOCK_RETRY_SLEEP_SECONDS = float(getattr(config, "DB_LOCK_RETRY_SLEEP_SECONDS", 3.0))
 PUBLISHER_PAYLOAD_PATH = str(getattr(config, "NEXTJS_JAIL_BOOKING_PAYLOAD_PATH", "") or "").strip()
 
-SUPPORTED_ADAPTERS = {"beaverhead", "broadwater", "cascade", "carbon", "custer", "flathead", "gallatin", "jefferson", "lake", "lewis_clark", "lincoln", "madison", "meagher", "missoula", "park", "ravalli", "roosevelt", "rosebud", "sanders", "silver_bow", "stillwater", "valley", "wheatland", "yellowstone"}
+SUPPORTED_ADAPTERS = {"beaverhead", "big-horn", "broadwater", "cascade", "carbon", "custer", "fallon", "fergus", "flathead", "gallatin", "glacier", "jefferson", "lake", "lewis-and-clark", "lincoln", "madison", "meagher", "missoula", "park", "ravalli", "roosevelt", "rosebud", "sanders", "silver-bow", "stillwater", "valley", "wheatland", "yellowstone"}
 SKIPPED_SOURCES = {
     "broadwater": "Official roster host is timing out from the ingest machine.",
-    "beaverhead": "Official roster endpoint no longer serves a PDF; generic HTML parser is not supported.",
 }
 
 ZUERCHER_COUNTIES = frozenset({
     "jefferson", "ravalli", "madison", "carbon",
-    "stillwater", "meagher", "wheatland", "valley", "roosevelt",
+    "stillwater", "meagher", "wheatland", "roosevelt",
     "broadwater", "gallatin",
 })
 TRACKED_SOURCES = {
@@ -203,15 +209,7 @@ TRACKED_SOURCES = {
     "valley": {
         "county_name": "Valley",
         "facility_name": "Valley County Detention Center",
-        "roster_url": "https://valley-so-mt.zuercherportal.com/#/inmates",
-        "phone": None,
-        "coverage_tier": "standard",
-        "is_featured": 0,
-    },
-    "roosevelt": {
-        "county_name": "Roosevelt",
-        "facility_name": "Roosevelt County Detention Center",
-        "roster_url": "https://roosevelt-so-mt.zuercherportal.com/#/inmates",
+        "roster_url": "https://www.valleycountymt.gov/1288/Jail-Roster",
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
@@ -248,13 +246,69 @@ TRACKED_SOURCES = {
         "coverage_tier": "standard",
         "is_featured": 0,
     },
-    "silver_bow": {
+    "beaverhead": {
+        "county_name": "Beaverhead",
+        "facility_name": "Beaverhead County Detention Center",
+        "roster_url": "https://beaverheadcountymt.gov/wp-content/uploads/2026/03/Jail-Roster.pdf",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "big-horn": {
+        "county_name": "Big Horn",
+        "facility_name": "Big Horn County Detention Center",
+        "roster_url": "https://www.bighorncountymt.gov/239/Detention",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "fallon": {
+        "county_name": "Fallon",
+        "facility_name": "Fallon County Detention Center",
+        "roster_url": "https://falloncountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "fergus": {
+        "county_name": "Fergus",
+        "facility_name": "Fergus County Detention Center",
+        "roster_url": "https://fergusmt.gov/detention-center-roster",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "glacier": {
+        "county_name": "Glacier",
+        "facility_name": "Glacier County Detention Center",
+        "roster_url": "https://glaciercountymt.gov/category/jail-roster/",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "lewis-and-clark": {
+        "county_name": "Lewis and Clark",
+        "facility_name": "Lewis and Clark County Detention Center",
+        "roster_url": "https://www.lccountymt.gov/Sheriff/Detention-Center",
+        "phone": "406-447-8235",
+        "coverage_tier": "major",
+        "is_featured": 1,
+    },
+    "silver-bow": {
         "county_name": "Silver Bow",
         "facility_name": "Butte-Silver Bow Detention Center",
-        "roster_url": "https://www.co.silverbow.mt.us/3274/Detention-Center",
+        "roster_url": "https://co.silverbow.mt.us/3274/Detention-Center",
         "phone": "406-497-1120",
         "coverage_tier": "major",
         "is_featured": 1,
+    },
+    "roosevelt": {
+        "county_name": "Roosevelt",
+        "facility_name": "Roosevelt County Detention Center",
+        "roster_url": "https://www.rooseveltcountymt.gov/sheriff-coroner/",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
     },
 }
 
@@ -1291,6 +1345,23 @@ def _sync_records(
 def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[JailBookingRecord]:
     """Fetch records for a single source. Network/OCR work happens here, outside DB transactions."""
     county_slug = source["county_slug"]
+    if county_slug == "big-horn":
+        return fetch_big_horn_bookings(roster_url)
+    if county_slug == "fallon":
+        return fetch_fallon_bookings(roster_url)
+    if county_slug == "fergus":
+        return fetch_fergus_bookings(roster_url)
+    if county_slug == "glacier":
+        return fetch_glacier_bookings(roster_url)
+    if county_slug == "roosevelt":
+        return fetch_roosevelt_bookings(roster_url)
+    if county_slug == "lewis-and-clark":
+        return fetch_lewis_clark_bookings(roster_url)
+    if county_slug == "silver-bow":
+        return fetch_silver_bow_bookings(roster_url)
+    if county_slug == "valley":
+        from services.ingestion.fetchers.valley_inmate import fetch_valley_bookings
+        return fetch_valley_bookings(roster_url)
     if county_slug == "broadwater":
         return fetch_broadwater_bookings(roster_url)
     if county_slug == "flathead":

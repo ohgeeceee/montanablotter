@@ -173,15 +173,20 @@ class EmailWorker:
         return self._validate_accounts()
 
     def _connect_imap(self, account: _ImapAccount, retries: int = 3) -> imaplib.IMAP4_SSL:
-        """Connect and authenticate to a specific IMAP account with exponential backoff."""
+        """Connect and authenticate to a specific IMAP account with exponential backoff.
+
+        Uses a 30-second socket timeout so a hanging IMAP server never stalls
+        the email pipeline for hours.
+        """
+        import socket
         delay = 2
         last_exc: Exception = RuntimeError(f"IMAP connection failed for {account.label}")
         for attempt in range(retries):
             try:
-                mail = imaplib.IMAP4_SSL(account.server, account.port)
+                mail = imaplib.IMAP4_SSL(account.server, account.port, timeout=30)
                 mail.login(account.user, account.password)
                 return mail
-            except (imaplib.IMAP4.error, OSError) as exc:
+            except (imaplib.IMAP4.error, OSError, socket.timeout) as exc:
                 last_exc = exc
                 if attempt < retries - 1:
                     logging.warning(

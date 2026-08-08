@@ -85,14 +85,15 @@ def _fetch_html(url: str, *, timeout: int = 45) -> str:
 def _parse_flathead_roster(page_html: str, source_url: str) -> list[FlatheadBookingRecord]:
     records: list[FlatheadBookingRecord] = []
     entry_matches = re.findall(
-        r'<div class="inmate-entry">\s*(.*?)<div class="inmate-entry-footer"></div>\s*</div>',
+        r'(?:<article\s+class="inmate-entry"\s*>(.*?)</article>|<div class="inmate-entry">\s*(.*?)<div class="inmate-entry-footer"></div>\s*</div>)',
         page_html,
         re.IGNORECASE | re.DOTALL,
     )
+    entry_matches = [next((part for part in match if part), "") for match in entry_matches]
 
     def extract_stat(entry_html: str, label: str) -> str:
         match = re.search(
-            rf'<div class="inmate-stat">\s*<h6>\s*{re.escape(label)}:\s*</h6>\s*<p>(.*?)</p>\s*</div>',
+            rf'<div class="inmate-stat">\s*(?:<h6>\s*{re.escape(label)}:\s*</h6>|<span class="stat-label">\s*{re.escape(label)}:\s*</span>)\s*<p>(.*?)</p>\s*</div>',
             entry_html,
             re.IGNORECASE | re.DOTALL,
         )

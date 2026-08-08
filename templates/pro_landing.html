@@ -1,0 +1,284 @@
+{% extends "public_page_base.html" %}
+{% set active_nav = "pro" %}
+{% set page_title = "Blotter Pro — For Attorneys, Journalists & Investigators" %}
+{% set meta_description = "Montana Blotter Pro gives legal professionals, journalists, and investigators statewide access to jail bookings, court records, blotter incident reports, and public data — with full archive search, API access, and data exports." %}
+{% set canonical_url = "https://montanablotter.com/pro" %}
+{% set og_title = "Blotter Pro | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "Montana Blotter Pro",
+  "description": "Professional statewide access to Montana public records — jail bookings, court filings, blotter reports, and data tools for attorneys, journalists, and investigators.",
+  "offers": {
+    "@type": "AggregateOffer",
+    "lowPrice": "199",
+    "highPrice": "239.88",
+    "priceCurrency": "USD",
+    "offerCount": "2",
+    "availability": "https://schema.org/InStock"
+  }
+}
+</script>
+<style>
+  .mb-pro-cta {
+    align-items: center;
+    border-radius: 0.75rem;
+    display: inline-flex;
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 1.5rem;
+    padding: 1rem 1.75rem;
+    text-decoration: none;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  }
+
+  .mb-pro-cta--light {
+    background: #ffffff;
+    color: #78350f;
+  }
+
+  .mb-pro-cta--light:hover {
+    background: #fffbeb;
+    color: #78350f;
+  }
+
+  .mb-pro-cta--outline {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+  }
+
+  .mb-pro-cta--outline:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+  }
+
+  .mb-pro-cta--amber {
+    background: #d97706;
+    color: #ffffff;
+  }
+
+  .mb-pro-cta--amber:hover {
+    background: #b45309;
+    color: #ffffff;
+  }
+
+  .mb-pro-cta--dark {
+    background: #0f172a;
+    color: #ffffff;
+  }
+
+  .mb-pro-cta--dark:hover {
+    background: #1e293b;
+    color: #ffffff;
+  }
+
+  .mb-pro-cta__note--amber {
+    color: #fde68a;
+  }
+
+  .mb-pro-cta__note--slate {
+    color: #cbd5e1;
+  }
+
+  article.mb-newspaper .mb-pro-cta--light,
+  article.mb-newspaper .mb-pro-cta--light:hover {
+    color: #78350f;
+  }
+
+  article.mb-newspaper .mb-pro-cta--outline,
+  article.mb-newspaper .mb-pro-cta--outline:hover,
+  article.mb-newspaper .mb-pro-cta--amber,
+  article.mb-newspaper .mb-pro-cta--amber:hover,
+  article.mb-newspaper .mb-pro-cta--dark,
+  article.mb-newspaper .mb-pro-cta--dark:hover {
+    color: #ffffff;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="bg-gradient-to-br from-amber-900 via-amber-800 to-amber-700 text-white py-20 px-4 sm:px-6">
+    <div class="max-w-5xl mx-auto">
+        <div class="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-amber-200 mb-4">
+            Blotter Pro
+        </div>
+        <h1 class="text-5xl font-black tracking-tight max-w-3xl">
+            The statewide Montana public-records tool for <span class="text-amber-200">professionals</span>
+        </h1>
+        <p class="mt-6 text-lg leading-8 text-amber-100 max-w-2xl">
+            One subscription gives you every county, every record, every agency — from jail bookings to court filings to incident reports. No more calling five sheriff's offices.
+        </p>
+        <div class="mt-10 flex flex-wrap gap-4">
+            <a href="/checkout/pro?interval=monthly" class="mb-pro-cta mb-pro-cta--light">
+                Start Pro — $19.99/mo
+            </a>
+            <a href="/checkout/pro?interval=annual" class="mb-pro-cta mb-pro-cta--outline">
+                $199/year <span class="ml-2 text-sm mb-pro-cta__note--amber">(save 17%)</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Sell copy: two personas -->
+<section class="py-16 px-4 sm:px-6 bg-white">
+    <div class="max-w-5xl mx-auto">
+        <p class="text-center text-[11px] font-black uppercase tracking-[0.18em] text-amber-600 mb-2">Two workflows, one tool</p>
+        <h2 class="text-center text-3xl font-black text-slate-900 mb-12">Built for the way you work</h2>
+
+        <div class="grid md:grid-cols-2 gap-8">
+
+            <!-- Attorney card -->
+            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-8">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900">
+                        <i class="fas fa-gavel text-xl text-white"></i>
+                    </div>
+                    <div>
+                        <p class="font-black text-slate-900 text-lg">For Attorneys</p>
+                        <p class="text-sm text-slate-500">Conflict checks, case monitoring, client intake</p>
+                    </div>
+                </div>
+                <ul class="space-y-4 text-sm text-slate-700">
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>Conflict checks across all 56 counties</strong> — one query replaces 45 minutes of phone calls.</span>
+                    </li>
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>Case status notifications</strong> — get alerts when a client's charges change, a hearing is set, or a case closes.</span>
+                    </li>
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>Searchable full archive</strong> — find past bookings, charges, and dispositions going back years.</span>
+                    </li>
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>PDF exports</strong> — admissible-format booking records for discovery and filing.</span>
+                    </li>
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>Name/keyword watchlists</strong> — monitor new bookings matching client names, charges, or locations.</span>
+                    </li>
+                </ul>
+                <p class="mt-6 text-xs text-slate-400 text-center border-t border-slate-100 pt-4">
+                    "1 hour of paralegal time ($35-50) vs. one month of Pro ($20)"
+                </p>
+            </div>
+
+            <!-- Journalist card -->
+            <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-8">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900">
+                        <i class="fas fa-newspaper text-xl text-white"></i>
+                    </div>
+                    <div>
+                        <p class="font-black text-slate-900 text-lg">For Journalists</p>
+                        <p class="text-sm text-slate-500">Beat monitoring, data reporting, trend analysis</p>
+                    </div>
+                </div>
+                <ul class="space-y-4 text-sm text-slate-700">
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>Statewide beat monitoring</strong> — one alert watches every county for your beat topic, person, or agency.</span>
+                    </li>
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>CSV data exports</strong> — pull booking trends, charge frequencies, and county comparisons for your next data story.</span>
+                    </li>
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>Full archive search</strong> — find historical incidents, past bookings, and court filings across every county.</span>
+                    </li>
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>County analytics &amp; trends</strong> — see arrest patterns, seasonal changes, and agency-level breakdowns.</span>
+                    </li>
+                    <li class="flex gap-3">
+                        <i class="fas fa-check text-emerald-500 mt-0.5"></i>
+                        <span><strong>API access</strong> — integrate Montana public records data into your own research tools and databases.</span>
+                    </li>
+                </ul>
+                <p class="mt-6 text-xs text-slate-400 text-center border-t border-slate-100 pt-4">
+                    "Stop calling 56 county clerks. Start writing."
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Feature grid -->
+<section class="py-16 px-4 sm:px-6 bg-slate-50">
+    <div class="max-w-5xl mx-auto">
+        <h2 class="text-center text-3xl font-black text-slate-900 mb-12">Everything in Pro</h2>
+        <div class="grid md:grid-cols-3 gap-6">
+            <div class="rounded-xl bg-white p-6 border border-slate-200">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 mb-4">
+                    <i class="fas fa-database"></i>
+                </div>
+                <h3 class="font-black text-slate-900 mb-2">Full Archive</h3>
+                <p class="text-sm text-slate-600">Search every record going back years across all 56 Montana counties. No cutoff.</p>
+            </div>
+            <div class="rounded-xl bg-white p-6 border border-slate-200">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 mb-4">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <h3 class="font-black text-slate-900 mb-2">Unlimited Watchlists</h3>
+                <p class="text-sm text-slate-600">Monitor names, charges, case numbers, agencies, and keywords across all counties simultaneously.</p>
+            </div>
+            <div class="rounded-xl bg-white p-6 border border-slate-200">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 mb-4">
+                    <i class="fas fa-file-export"></i>
+                </div>
+                <h3 class="font-black text-slate-900 mb-2">CSV &amp; PDF Exports</h3>
+                <p class="text-sm text-slate-600">Export booking records, charges, and court data in CSV for analysis or PDF for filing.</p>
+            </div>
+            <div class="rounded-xl bg-white p-6 border border-slate-200">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 mb-4">
+                    <i class="fas fa-key"></i>
+                </div>
+                <h3 class="font-black text-slate-900 mb-2">API Access</h3>
+                <p class="text-sm text-slate-600">1,000 requests/day with Bearer token auth. Query jail bookings, court records, and blotter data programmatically.</p>
+            </div>
+            <div class="rounded-xl bg-white p-6 border border-slate-200">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 mb-4">
+                    <i class="fas fa-code-branch"></i>
+                </div>
+                <h3 class="font-black text-slate-900 mb-2">Webhook Alerts</h3>
+                <p class="text-sm text-slate-600">Forward alerts to your own systems — Slack, email, custom endpoints. Never miss a filing.</p>
+            </div>
+            <div class="rounded-xl bg-white p-6 border border-slate-200">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 mb-4">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h3 class="font-black text-slate-900 mb-2">Trends &amp; Analytics</h3>
+                <p class="text-sm text-slate-600">See booking volumes, charge frequency, and county-level trends over time. Data you can cite.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="py-16 px-4 sm:px-6 bg-white">
+    <div class="max-w-3xl mx-auto text-center">
+        <h2 class="text-3xl font-black text-slate-900 mb-4">Start your Pro subscription</h2>
+        <p class="text-slate-600 mb-8">Full access. No limits. Cancel anytime.</p>
+        <div class="flex flex-wrap justify-center gap-4">
+            <a href="/checkout/pro?interval=monthly" class="mb-pro-cta mb-pro-cta--amber">
+                $19.99/month
+            </a>
+            <a href="/checkout/pro?interval=annual" class="mb-pro-cta mb-pro-cta--dark">
+                $199/year <span class="ml-2 text-sm mb-pro-cta__note--slate">(save 17%)</span>
+            </a>
+        </div>
+        <p class="mt-6 text-xs text-slate-400">Secure Stripe checkout &bull; Email receipt &bull; Manage online</p>
+    </div>
+</section>
+
+{% endblock %}

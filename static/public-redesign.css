@@ -3169,6 +3169,44 @@ a.mb-record-card:hover {
   accent-color: var(--public-amber);
 }
 
+/* Row layout for a <label> wrapping a radio + multi-line text.
+   Use this when the label content is more than a single word (package cards,
+   billing-cycle radios with "(save ~15%)" annotations, etc.). */
+.mb-radio-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--rule-light);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.mb-radio-row:hover {
+  border-color: var(--public-border-strong, #d8d2c4);
+}
+.mb-radio-row input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.2rem;
+  accent-color: var(--public-amber);
+  flex: 0 0 auto;
+}
+.mb-radio-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.mb-radio-row strong {
+  color: var(--text-headline);
+}
+.mb-radio-row--selected {
+  border: 2px solid #b8860b;
+  background: #fffdf0;
+}
+
 /* Print + reduced-motion niceties */
 @media (prefers-reduced-motion: reduce) {
   .mb-record-card,

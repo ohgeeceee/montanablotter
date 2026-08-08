@@ -41,11 +41,15 @@
                     <div style="display:flex;gap:1.25rem;margin-top:0.5rem;">
                         <div>
                             <div style="font-size:1.8rem;font-weight:700;line-height:1;">{{ total_attorneys }}</div>
-                            <div style="font-size:0.85rem;color:#475569;">attorneys</div>
+                            <div style="font-size:0.85rem;color:#475569;">regional offices</div>
                         </div>
                         <div>
                             <div style="font-size:1.8rem;font-weight:700;line-height:1;">{{ total_counties }}</div>
-                            <div style="font-size:0.85rem;color:#475569;">counties</div>
+                            <div style="font-size:0.85rem;color:#475569;">counties covered</div>
+                        </div>
+                        <div>
+                            <div style="font-size:1.8rem;font-weight:700;line-height:1;">{{ total_statewide }}</div>
+                            <div style="font-size:0.85rem;color:#475569;">statewide</div>
                         </div>
                     </div>
                 </div>
@@ -59,46 +63,75 @@
 <div class="public-route-layout">
     <main class="public-main-stack">
 
-        {% if by_county %}
-            {% for county, attorneys in by_county.items() %}
-            <article class="public-detail-frame">
+        {% set has_any = by_county and by_county.values()|map('length')|sum > 0 or statewide_entries %}
+        {% if has_any %}
+            <article class="public-detail-frame" style="background: linear-gradient(180deg, #fffdf0 0%, #fff 60%); border-left: 4px solid #c9a227;">
                 <div class="public-detail-frame__header">
-                    <h2 class="public-detail-title">{{ county }} County</h2>
-                    <p class="public-detail-subtitle">{{ attorneys|length }} attorney{{ '' if attorneys|length == 1 else 's' }} listed</p>
+                    <h2 class="public-detail-title">Statewide resources</h2>
+                    <p class="public-detail-subtitle">{{ statewide_entries|length }} resource{{ '' if statewide_entries|length == 1 else 's' }} · available to all 56 counties</p>
                 </div>
                 <div class="public-detail-frame__body">
+                    <p style="font-size:0.9rem;color:#475569;margin:0 0 1rem;">
+                        These free, public resources are useful regardless of which county you live in. They appear in every county below as well.
+                    </p>
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
-                    {% for a in attorneys %}
-                        <div class="public-card" style="{% if a.sponsor_tier == 'gold' %}border:2px solid #c9a227;background:linear-gradient(180deg,#fffdf0 0%,#fff 60%);{% elif a.sponsor_tier == 'silver' %}border:1px solid #94a3b8;{% endif %}{% if a.sponsor_tier == 'gold' %}box-shadow:0 4px 12px rgba(201,162,39,.15);{% endif %}">
-                            <div class="public-card__body">
-                                {% if a.sponsor_tier == 'gold' %}
-                                <p style="display:inline-block;background:#c9a227;color:#fff;font-size:.65rem;font-weight:800;letter-spacing:.14em;padding:.15rem .55rem;border-radius:999px;margin:0 0 .4rem;text-transform:uppercase;">🏆 Priority Placement</p>
-                                {% elif a.sponsor_tier == 'silver' %}
-                                <p style="display:inline-block;background:#475569;color:#fff;font-size:.65rem;font-weight:800;letter-spacing:.14em;padding:.15rem .55rem;border-radius:999px;margin:0 0 .4rem;text-transform:uppercase;">⭐ Featured</p>
-                                {% endif %}
-                                {% if a.tagline %}
-                                <p style="font-size:.78rem;color:#a16207;font-weight:600;margin:0 0 .25rem;">{{ a.tagline }}</p>
-                                {% endif %}
-                                <p class="public-card__eyebrow" style="margin-bottom:0.25rem;">{{ a.firm or 'Independent' }}</p>
-                                <h3 class="public-card__title" style="font-size:1.15rem;">{{ a.name }}</h3>
-                                {% if a.blurb %}
-                                <p style="font-size:0.9rem;color:#475569;margin:0.4rem 0;">{{ a.blurb }}</p>
-                                {% endif %}
-                                {% if a.practice_areas %}
-                                <p style="font-size:0.8rem;color:#64748b;margin:0.4rem 0;">
-                                    <strong>Practice:</strong> {{ a.practice_areas }}
-                                </p>
-                                {% endif %}
-                                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;font-size:0.85rem;">
-                                    {% if a.phone %}<a href="tel:{{ a.phone }}" style="color:#2563eb;text-decoration:none;">📞 {{ a.phone }}</a>{% endif %}
-                                    {% if a.website %}<a href="{{ a.website }}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none;">Website →</a>{% endif %}
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
+                        {% for a in statewide_entries %}
+                            {% include 'partials/_attorney_card.html' %}
+                        {% endfor %}
                     </div>
                 </div>
             </article>
+
+            {# Render every canonical county in alphabetical order. Each county
+               bucket shows the matching regional office(s) PLUS a subsection
+               with statewide resources (because those apply everywhere). #}
+            {% for county in counties_canonical %}
+                {% set county_attorneys = by_county.get(county, []) %}
+                <article class="public-detail-frame">
+                    <div class="public-detail-frame__header">
+                        <h2 class="public-detail-title">{{ county }} County</h2>
+                        <p class="public-detail-subtitle">
+                            {% if county_attorneys %}
+                                {{ county_attorneys|length }} regional resource{{ '' if county_attorneys|length == 1 else 's' }}
+                            {% else %}
+                                No regional office listed · statewide resources available
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="public-detail-frame__body">
+                        {% if county_attorneys %}
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
+                                {% for a in county_attorneys %}
+                                    {% include 'partials/_attorney_card.html' %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div style="background: var(--surface-page, #f8fafc); border: 1px dashed var(--public-border-strong, #d8d2c4); border-radius: var(--radius-md); padding: 1rem;">
+                                <p style="margin:0 0 0.5rem; font-size: 0.95rem;">
+                                    No regional public-defender office is currently listed for {{ county }} County. Statewide resources (above) apply to you. For a referral, contact the Montana State Bar's Find-a-Lawyer service.
+                                </p>
+                                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;font-size:0.9rem;">
+                                    <a href="https://www.montanabar.org/page/findalawyer" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none;">State Bar Referral →</a>
+                                    <a href="https://www.mtlsa.org" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none;">MLSA →</a>
+                                    <a href="/advertise/lawyers" style="color:#2563eb;text-decoration:none;">Are you a {{ county }} attorney? Get listed →</a>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if statewide_entries %}
+                            <details style="margin-top:1rem;">
+                                <summary style="cursor:pointer; font-size:0.85rem; color:#64748b; user-select:none;">
+                                    + Show {{ statewide_entries|length }} statewide resource{{ '' if statewide_entries|length == 1 else 's' }} that apply to {{ county }} County
+                                </summary>
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:0.5rem;">
+                                    {% for a in statewide_entries %}
+                                        {% include 'partials/_attorney_card.html' %}
+                                    {% endfor %}
+                                </div>
+                            </details>
+                        {% endif %}
+                    </div>
+                </article>
             {% endfor %}
         {% else %}
         <article class="public-detail-frame">
