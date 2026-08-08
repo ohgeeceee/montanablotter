@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 def connect_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA busy_timeout = 30000")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -180,13 +181,21 @@ def create_draft_from_candidate(conn: sqlite3.Connection, candidate_id: int) -> 
     body = _build_body(title, facts)
     slug = _slugify(f"{title}-{candidate_id}")
 
-    cursor = conn.execute(
-        """
-        INSERT INTO blog_posts (title, slug, body, excerpt, author, published)
-        VALUES (?, ?, ?, ?, ?, 0)
-        """,
-        (title, slug, body, excerpt, "Montana Blotter News Writer"),
-    )
+    # Retry with suffix if slug collides (long headlines can truncate -{id} off)
+    for attempt in range(5):
+        try:
+            cursor = conn.execute(
+                """
+                INSERT INTO blog_posts (title, slug, body, excerpt, author, published)
+                VALUES (?, ?, ?, ?, ?, 0)
+                """,
+                (title, slug, body, excerpt, "Montana Blotter News Writer"),
+            )
+            break
+        except sqlite3.IntegrityError:
+            if attempt == 4:
+                raise
+            slug = _slugify(f"{title}-{candidate_id}-{attempt + 2}")
     post_id = int(cursor.lastrowid)
     conn.execute(
         """

@@ -1,0 +1,28 @@
+county,coverage_mode,host_facility,official_url,public_roster_url,contact_email,contact_phone,status,notes
+Blaine,hosted,Valley County Detention Center,https://blainecounty-mt.gov/sheriff-coroner/,https://www.valleycountymt.gov/1288/Jail-Roster,,406-357-3260,partially covered,Valley roster currently includes Blaine County holds.
+Carter,outreach,Unconfirmed,https://cartercountymt.gov/services/law_enforcement.php,,ccso@midrivers.com,406-775-8743,contact required,Official sheriff page exposes no public roster.
+Chouteau,outreach,Unconfirmed,https://co.chouteau.mt.us/,,,,contact required,Official county page found; custody host still needs confirmation.
+Daniels,outreach,Unconfirmed,https://www.danielscountymt.gov/sheriff,,sheriff@danielscomt.us,406-487-2691,contact required,Official sheriff page exposes no public roster.
+Dawson,outreach,Dawson County correctional facility,https://www.dawsoncountymontana.com/sheriff,,,,blocked,Official site currently returns a Cloudflare challenge.
+Deer Lodge,outreach,Unconfirmed,,,,,contact required,Custody host and official delivery contact need confirmation.
+Garfield,outreach,Garfield County Sheriff (no direct email; Clerk relays),https://garfieldcountymt.gov/department-contacts/,clerk@garfieldcountymt.gov,406-557-2540,contact required,Contact email is county clerk; sheriff's office email is not published.
+Golden Valley,outreach,Unconfirmed,https://www.goldenvalleycountysheriffsoffice.org/,,,406-568-2321,contact required,Official sheriff site exposes no public roster.
+Granite,outreach,Granite County Sheriff,https://www.granitecountymt.gov/Directory.aspx,chrisr@granitecosheriff.org,406-859-3771,contact required,CivicPlus directory exposes sheriff staff email; no published inmate roster.
+Judith Basin,hosted,Fergus County Detention Center,https://www.judithbasincounty.com/sheriff,https://fergusmt.gov/detention-center-roster,,,partially covered,Fergus roster currently includes Judith Basin court holds.
+Liberty,outreach,Unconfirmed,https://www.libertycountymt.gov/sheriff,,sheriff@libertycountymt.gov,406-759-5171,contact required,Official sheriff page exposes no public roster.
+McCone,outreach,Unconfirmed,https://mcconecountymt.gov/departments/sheriff-coroner,,mcso@mcconecountymt.gov,406-485-3405,contact required,Official sheriff page exposes no public roster.
+Mineral,outreach,Mineral County Detention Center,https://co.mineral.mt.us/departments/sheriff/,,,406-822-3555,contact required,County confirms it administers a detention center but publishes no roster.
+Musselshell,outreach,Unconfirmed,,,,,contact required,Current sheriff URL unresolved.
+Petroleum,outreach,Petroleum County Sheriff,https://petroleumcountymt.org/departments/sheriffs-department/,sheriff@petroleummt.gov,406-429-6551,contact required,Official domain is petroleumcountymt.org; .com variant is squatted by gambling spam.
+Phillips,hosted,Valley County Detention Center,https://phillipscosheriff.com/inmates/,https://www.valleycountymt.gov/1288/Jail-Roster,,406-654-2020,partially covered,Phillips website times out; Valley roster currently includes Phillips County holds.
+Pondera,outreach,Pondera County detention center,https://www.ponderacountymontana.org/sheriff,robert.skorupa@ponderacountymt.gov,406-271-4060,contact required,Official staff email published; canonical Pondera domain is ponderacountymontana.org. Public inmate-search host is challenged.
+Powder River,outreach,Unconfirmed,https://www.powderrivercountymt.com/,,,,contact required,Current domain content is not a reliable official roster source.
+Powell,outreach,Powell County Detention Facility,https://www.powellcountymt.gov/sheriff/page/detention-facility,,,406-846-2711,blocked,Official page is behind Cloudflare and no direct roster was recovered.
+Prairie,outreach,Unconfirmed,https://prairiecountymt.gov/offices/sheriff/,,info@prairiecountymt.gov,406-635-5738,contact required,Official sheriff page exposes no public roster.
+Richland,outreach,Richland County Jail,https://www.richland.org/detention-centers.html,,,406-433-2919,contact required,County confirms a 40-bed jail but publishes no roster.
+Sheridan,outreach,Unconfirmed,,,,,contact required,Montana official domain and custody host need confirmation.
+Sweet Grass,outreach,Unconfirmed,https://sgcountymt.gov/government-departments/county-govt/sheriff/,,aronneberg@sgcountymt.gov,406-932-5143,contact required,Official sheriff page exposes no roster.
+Teton,outreach,Unconfirmed,https://tetoncountymt.gov/,,,,blocked,Official site returns a Cloudflare challenge.
+Toole,outreach,Toole County detention operation,https://toolecountymt.gov/sheriffs-office/,,,406-424-8300,contact required,Official page lists detention officers but no roster.
+Treasure,hosted,Rosebud County Detention Facility,https://www.treasurecountymt.gov/tcsheriff,https://rosebudcountymt.gov/departments/sheriff/,tcsheriff@treasurecountymt.com,406-342-5211,covered by host,Treasure explicitly directs current inmate-roster users to Rosebud County.
+Wibaux,outreach,Unconfirmed,https://wibauxcounty.net/,,,,contact required,Current domain is a placeholder.

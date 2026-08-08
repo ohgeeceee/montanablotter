@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 52" fill="none">
+  <defs>
+    <linearGradient id="lc-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6C63FF"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="lc-accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6C63FF"/>
+      <stop offset="100%" stop-color="#00D4AA"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield -->
+  <path d="M4 10c0-4 6-6 16-8 10 2 16 4 16 8v18c0 12-16 22-16 22S4 40 4 28V10z" fill="url(#lc-grad)" opacity="0.15"/>
+  <path d="M4 10c0-4 6-6 16-8 10 2 16 4 16 8v18c0 12-16 22-16 22S4 40 4 28V10z" stroke="url(#lc-accent)" stroke-width="1.5" opacity="0.5"/>
+  <path d="M12 24l4 5 8-9" stroke="url(#lc-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Text -->
+  <text x="44" y="34" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="22" fill="#FFFFFF" letter-spacing="1.5">LEA</text>
+  <text x="110" y="34" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-weight="400" font-size="22" fill="#8B9DC3" letter-spacing="3">CONNECT</text>
+</svg>

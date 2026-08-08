@@ -52,6 +52,7 @@ from blueprints.watchdog import register_watchdog_blueprint
 from blueprints.api_lea import register_api_lea
 from blueprints.lea_panel import register_lea_panel
 from blueprints.lea_portal import register_lea_portal
+from blueprints.lea_connect import register_lea_connect
 from blueprints.recovery_ads import recovery_ads_bp
 from blueprints.attorney_ads import attorney_ads_bp
 from blueprints.lawyer_ads import lawyer_ads_bp
@@ -1014,6 +1015,8 @@ _CSRF_PROTECTED_PATHS = (
     '/advertise/recovery/checkout',
     '/advertise/bail-bonds/checkout',
     '/checkout/warrant-access',
+    '/checkout/plus',
+    '/checkout/pro',
     '/lawyer-control-panel/',
 )
 _SAFE_URL_SCHEMES = {'http', 'https', 'mailto', 'tel'}
@@ -1225,6 +1228,7 @@ _SIGNIN_WALL_EXEMPT_EXACT = {
     '/sources',
     '/lawyers',
     '/advertise/lawyers',  # landing page for the paid directory
+    '/learn',
 }
 
 
@@ -1265,7 +1269,9 @@ def enforce_signin_wall():
     if request.path == '/' and request.method == 'GET':
         return
     flash('Please sign in or create a free account to continue.', 'info')
-    return redirect(url_for('auth.public_login', next=request.path))
+    # Cap next= to 300 chars to prevent bots from building infinite redirect loops
+    next_path = request.path[:300] if request.path else '/'
+    return redirect(url_for('auth.public_login', next=next_path))
 
 
 @app.after_request
@@ -4053,15 +4059,27 @@ def _apply_subscription_stripe_event(conn, event):
     data_object = (event.get('data') or {}).get('object') or {}
     metadata = data_object.get('metadata') or {}
     plan = (metadata.get('plan') or '').strip().lower()
+    # Backward compat: map legacy plan names to new tiers
+    if plan == 'warrant_access':
+        plan = 'plus'
+    elif plan == 'insider':
+        plan = 'plus'
+    elif plan == 'professional':
+        plan = 'pro'
+    # If no plan in metadata (Payment Links), derive from subscription metadata later
     public_user_id = (metadata.get('public_user_id') or '').strip()
     subscription_id = ''
     customer_id = ''
     status = ''
 
+    # For Payment Link fallback: client_reference_id carries the user ID
+    if not public_user_id or not public_user_id.isdigit():
+        public_user_id = (data_object.get('client_reference_id') or '').strip()
+
     if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
         subscription_id = (data_object.get('subscription') or '').strip()
         customer_id = (data_object.get('customer') or '').strip()
-        if public_user_id.isdigit() and plan in {'insider', 'professional'}:
+        if public_user_id.isdigit() and plan in {'plus', 'pro'}:
             conn.execute(
                 '''
                 UPDATE public_users
@@ -4081,6 +4099,20 @@ def _apply_subscription_stripe_event(conn, event):
                 ''',
                 (int(public_user_id), event.get('id'), event_type, json.dumps(data_object)),
             )
+            # Auto-provision a Pro API key
+            if plan == 'pro':
+                try:
+                    from init_db import ensure_api_auth_schema
+                    from services.api.auth import create_client
+                    ensure_api_auth_schema(conn)
+                    plaintext, client_id = create_client(
+                        conn,
+                        name=f'pro_user_{public_user_id}_auto',
+                        tier='pro',
+                    )
+                    print(f"✅ Auto-provisioned Pro API key for user {public_user_id}")
+                except Exception as exc:
+                    print(f"⚠️ Failed to auto-provision API key for user {public_user_id}: {exc}")
     elif event_type == 'invoice.paid':
         subscription_id = (data_object.get('subscription') or '').strip()
         if subscription_id:
@@ -4121,92 +4153,6 @@ def _apply_subscription_stripe_event(conn, event):
                     (status or 'canceled', subscription_id),
                 )
 
-
-def _apply_warrant_access_stripe_event(conn, event):
-    """Handle Stripe webhook events for warrant_access subscriptions."""
-    event_type = (event.get('type') or '').strip()
-    data_object = (event.get('data') or {}).get('object') or {}
-    metadata = data_object.get('metadata') or {}
-
-    # Payment Links send client_reference_id; programmatic checkout sends metadata.public_user_id
-    public_user_id = (
-        (data_object.get('client_reference_id') or '')
-        or (metadata.get('public_user_id') or '')
-    ).strip()
-
-    # Fallback: match by customer email when no user ID is present
-    customer_email = ''
-    customer_details = data_object.get('customer_details') or {}
-    if customer_details:
-        customer_email = (customer_details.get('email') or '').strip().lower()
-
-    if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
-        subscription_id = (data_object.get('subscription') or '').strip()
-        if public_user_id.isdigit():
-            conn.execute(
-                '''
-                UPDATE public_users
-                SET is_subscribed = 1,
-                    subscriber_plan = 'warrant_access',
-                    stripe_subscription_id = ?,
-                    subscription_status = 'trialing',
-                    subscription_activated_at = COALESCE(subscription_activated_at, datetime('now'))
-                WHERE id = ?
-                ''',
-                (subscription_id, int(public_user_id)),
-            )
-        elif customer_email:
-            # Logged-out purchase — match or create by email
-            conn.execute(
-                '''
-                UPDATE public_users
-                SET is_subscribed = 1,
-                    subscriber_plan = 'warrant_access',
-                    stripe_subscription_id = ?,
-                    subscription_status = 'trialing',
-                    subscription_activated_at = COALESCE(subscription_activated_at, datetime('now'))
-                WHERE LOWER(TRIM(email)) = ?
-                ''',
-                (subscription_id, customer_email),
-            )
-    elif event_type == 'invoice.paid':
-        subscription_id = (data_object.get('subscription') or '').strip()
-        if subscription_id:
-            conn.execute(
-                '''
-                UPDATE public_users
-                SET subscription_status = 'active',
-                    subscriber_plan = 'warrant_access'
-                WHERE stripe_subscription_id = ? AND subscriber_plan = 'warrant_access'
-                ''',
-                (subscription_id,),
-            )
-    elif event_type in {'customer.subscription.deleted', 'customer.subscription.updated'}:
-        subscription_id = (data_object.get('id') or '').strip()
-        status = (data_object.get('status') or '').strip().lower()
-        if subscription_id:
-            if status in {'active', 'trialing'}:
-                conn.execute(
-                    '''
-                    UPDATE public_users
-                    SET is_subscribed = 1, subscription_status = ?
-                    WHERE stripe_subscription_id = ? AND subscriber_plan = 'warrant_access'
-                    ''',
-                    (status, subscription_id),
-                )
-            else:
-                conn.execute(
-                    '''
-                    UPDATE public_users
-                    SET is_subscribed = 0,
-                        subscriber_plan = 'scout',
-                        stripe_subscription_id = '',
-                        subscription_status = ?,
-                        subscription_canceled_at = datetime('now')
-                    WHERE stripe_subscription_id = ? AND subscriber_plan = 'warrant_access'
-                    ''',
-                    (status or 'canceled', subscription_id),
-                )
 
 
 def _apply_disposition_api_stripe_event(conn, event):
@@ -4401,17 +4347,16 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
     if (metadata.get('flow') or '').strip() == 'bail_ad':
         return
     if (metadata.get('flow') or '').strip() == 'lawyer_ad':
-        # Lawyer ad checkout/subscription events are dispatched directly from
-        # the Stripe webhook in blueprints/payments.py via
-        # blueprints.lawyer_ads.apply_stripe_lawyer_ad_event. Short-circuit
-        # here so the donation / supporter / warrant-access fallbacks
-        # below don't also touch the session.
+        return
+    if (metadata.get('flow') or '').strip() == 'sponsored_listing':
+        from blueprints.sponsored_listings import apply_stripe_sponsored_event
+        apply_stripe_sponsored_event(conn, event)
         return
     if (metadata.get('flow') or '').strip() == 'subscription':
         _apply_subscription_stripe_event(conn, event)
         return
     if (metadata.get('flow') or '').strip() == 'warrant_access':
-        _apply_warrant_access_stripe_event(conn, event)
+        _apply_subscription_stripe_event(conn, event)
         return
     if (metadata.get('flow') or '').strip() == 'disposition_api':
         _apply_disposition_api_stripe_event(conn, event)
@@ -4422,30 +4367,30 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
     if not event_type:
         return
 
-    # Fallback: detect Payment Link warrant-access checkouts that have no 'flow' metadata.
+    # Fallback: detect Payment Link subscription checkouts that have no 'flow' metadata.
     # Stripe Payment Links don't auto-include custom metadata on checkout sessions unless
-    # explicitly configured in the dashboard.  Payment Links pass the user ID via
+    # explicitly configured in the dashboard. Payment Links pass the user ID via
     # client_reference_id; programmatic subscription checkouts use metadata.public_user_id
     # instead, so a numeric client_reference_id + non-empty subscription field uniquely
     # identifies this flow.
     if event_type in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
         _cr = (data_object.get('client_reference_id') or '').strip()
         if _cr.isdigit() and (data_object.get('subscription') or '').strip():
-            _apply_warrant_access_stripe_event(conn, event)
+            _apply_subscription_stripe_event(conn, event)
             return
 
-    # Fallback: route subscription/invoice lifecycle events for existing warrant_access users
-    # when those events lack flow metadata (subscription objects don't carry checkout metadata).
+    # Fallback: route subscription/invoice lifecycle events when those events lack flow
+    # metadata (subscription objects don't carry checkout metadata).
     if event_type in {'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid'}:
         _sub_id = (data_object.get('subscription') or data_object.get('id') or '').strip()
         if _sub_id:
             try:
-                _warrant_row = conn.execute(
-                    "SELECT id FROM public_users WHERE stripe_subscription_id = ? AND subscriber_plan = 'warrant_access'",
+                _plan_row = conn.execute(
+                    "SELECT id, subscriber_plan FROM public_users WHERE stripe_subscription_id = ? AND subscriber_plan IN ('plus', 'pro', 'warrant_access')",
                     (_sub_id,),
                 ).fetchone()
-                if _warrant_row:
-                    _apply_warrant_access_stripe_event(conn, event)
+                if _plan_row:
+                    _apply_subscription_stripe_event(conn, event)
                     return
             except Exception:
                 pass
@@ -5970,7 +5915,7 @@ def _homepage_recent_records(
             COALESCE(latest_post.case_status, 'pending') AS case_status
         FROM records
         LEFT JOIN (
-            SELECT p.id, p.blotter_id, p.title, p.agency_name, p.city,
+            SELECT p.id, p.blotter_id, p.title, p.summary, p.agency_name, p.city,
                    p.case_status, p.audit_status
             FROM posts p
             WHERE p.id = (
@@ -10323,6 +10268,12 @@ def robots_txt():
         "User-agent: *",
         "Allow: /",
         "Disallow: /admin/",
+        "Disallow: /login",
+        "Disallow: /register",
+        "User-agent: GPTBot",
+        "Disallow: /login",
+        "Disallow: /register",
+        "Disallow: /admin/",
         f"Sitemap: {BASE_URL}/sitemap.xml",
         f"Sitemap: {BASE_URL}/sitemap-seo.xml",
         "",
@@ -11861,6 +11812,8 @@ def _sync_jail_booking_sources(conn):
     if _jail_sources_synced:
         return
     _jail_sources_synced = True
+    # Wait up to 8s for DB lock (email_worker may be writing)
+    conn.execute("PRAGMA busy_timeout=8000")
     for county_slug, meta in COUNTY_DIRECTORY.items():
         if not meta.get('has_online_roster'):
             conn.execute(
@@ -15333,6 +15286,20 @@ def about_page():
     )
 
 
+@app.route('/learn')
+def learn_page():
+    return render_template(
+        'learn.html',
+        active_nav='learn',
+        page_title='How to Use Montana Blotter',
+        meta_description='Learn how to search, filter, and monitor Montana public records on Montana Blotter. Get daily alerts, track cases, and choose the plan that fits your needs.',
+        canonical_url=f'{BASE_URL}/learn',
+        og_title='How to Use Montana Blotter',
+        og_description='A step-by-step guide to searching police blotters, jail bookings, court records, and warrants — plus subscription tiers, alerts, and tips for getting the most out of the platform.',
+        current_year=datetime.now().year,
+    )
+
+
 # ---------------------------------------------------------------------------
 # /sources — public coverage page listing every Montana county's jail roster
 # source, sync health, and disclosed gaps. Modeled on /court-sources; this is
@@ -15738,9 +15705,14 @@ register_watchdog_blueprint(app)
 register_api_lea(app)
 register_lea_panel(app)
 register_lea_portal(app)
+register_lea_connect(app)
 app.register_blueprint(recovery_ads_bp)
 app.register_blueprint(attorney_ads_bp)
 app.register_blueprint(lawyer_ads_bp)
+from blueprints.sponsored_listings import sponsored_bp
+app.register_blueprint(sponsored_bp)
+from blueprints.api_keys import api_keys_bp
+app.register_blueprint(api_keys_bp)
 from blueprints.admin_geocode import admin_geocode_bp
 app.register_blueprint(admin_geocode_bp)
 app.register_blueprint(threedhub_bp)

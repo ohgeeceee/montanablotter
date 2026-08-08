@@ -17,16 +17,38 @@ import config
 from db import get_db
 from init_db import ensure_advertise_sales_lead_schema
 
-# Warrant Access subscription — created 2026-05-31, updated 2026-08-05
-_WARRANT_WEEKLY_PRICE_ID = 'price_1U0yjyGL8T8btZcugYUCqjFi'
-_WARRANT_MONTHLY_PRICE_ID = 'price_1U0yjyGL8T8btZcuwKuJehB6'
-_WARRANT_ANNUAL_PRICE_ID = 'price_1U0yjyGL8T8btZcuVkNduXBf'
+# Subscription tier pricing — created 2026-08-05
+_PLUS_MONTHLY_PRICE_ID = 'price_1U1ASIGL8T8btZcuzB9kv1Vx'
+_PLUS_ANNUAL_PRICE_ID = 'price_1U1ASIGL8T8btZcuVdB0VRSx'
+_PRO_MONTHLY_PRICE_ID = 'price_1U1ASIGL8T8btZcubZ3yUd2B'
+_PRO_ANNUAL_PRICE_ID = 'price_1U1ASIGL8T8btZcu6xdYIHLR'
 
-_WARRANT_PAYMENT_LINKS = {
-    'weekly': 'https://buy.stripe.com/9B6bJ14Zebco0Vc5ul8EM0b',
-    'monthly': 'https://buy.stripe.com/bJe5kD1N21BOfQ66yp8EM0d',
-    'annual': 'https://buy.stripe.com/28E00j4ZegwI33kaOF8EM0c',
+_PLUS_PAYMENT_LINKS = {
+    'monthly': 'https://buy.stripe.com/eVq6oH3Va1BOfQ6aOF8EM0e',
+    'annual': 'https://buy.stripe.com/6oU9ATezO94g8nE4qh8EM0f',
 }
+
+_PRO_PAYMENT_LINKS = {
+    'monthly': 'https://buy.stripe.com/fZufZh1N2bco9rI9KB8EM0g',
+    'annual': 'https://buy.stripe.com/3cI00jdvK0xK9rI9KB8EM0h',
+}
+
+PLAN_PRICE_IDS = {
+    ('plus', 'monthly'): _PLUS_MONTHLY_PRICE_ID,
+    ('plus', 'annual'): _PLUS_ANNUAL_PRICE_ID,
+    ('pro', 'monthly'): _PRO_MONTHLY_PRICE_ID,
+    ('pro', 'annual'): _PRO_ANNUAL_PRICE_ID,
+}
+
+PLAN_PAYMENT_LINKS = {
+    ('plus', 'monthly'): _PLUS_PAYMENT_LINKS['monthly'],
+    ('plus', 'annual'): _PLUS_PAYMENT_LINKS['annual'],
+    ('pro', 'monthly'): _PRO_PAYMENT_LINKS['monthly'],
+    ('pro', 'annual'): _PRO_PAYMENT_LINKS['annual'],
+}
+
+VALID_PLANS = {'plus', 'pro'}
+VALID_INTERVALS = {'monthly', 'annual'}
 
 
 payments_bp = Blueprint('payments', __name__)
@@ -95,12 +117,13 @@ def _app():
     return _app_module
 
 
-def _warrant_access_price_ids():
-    """Return the active Stripe price IDs for warrant access."""
+def _plan_price_ids(plan: str) -> dict[str, str]:
+    """Return the active Stripe price IDs for a given subscription plan."""
     return {
-        'weekly': (getattr(config, 'WARRANT_WEEKLY_PRICE_ID', '') or _WARRANT_WEEKLY_PRICE_ID or '').strip(),
-        'monthly': (getattr(config, 'WARRANT_MONTHLY_PRICE_ID', '') or _WARRANT_MONTHLY_PRICE_ID or '').strip(),
-        'annual': (getattr(config, 'WARRANT_ANNUAL_PRICE_ID', '') or _WARRANT_ANNUAL_PRICE_ID or '').strip(),
+        'monthly': (getattr(config, 'PLAN_MONTHLY_PRICE_IDS', {}).get(plan, '') or
+                     PLAN_PRICE_IDS.get((plan, 'monthly'), '')),
+        'annual': (getattr(config, 'PLAN_ANNUAL_PRICE_IDS', {}).get(plan, '') or
+                    PLAN_PRICE_IDS.get((plan, 'annual'), '')),
     }
 
 
@@ -1146,19 +1169,19 @@ def checkout_subscription_cancel():
 
 
 # ---------------------------------------------------------------------------
-# Warrant Access checkout — $1/week or $8/month recurring subscription
+# Subscription checkout — Plus and Pro tiers
 # ---------------------------------------------------------------------------
 
-@payments_bp.route('/checkout/warrant-access', methods=['GET', 'POST'])
-def checkout_warrant_access():
+@payments_bp.route('/checkout/<any(plus, pro):plan>', methods=['GET'])
+def checkout_tier(plan):
+    """Create a Stripe Checkout Session for the given plan."""
     from urllib.parse import urlencode
     m = _app()
     public_user_id = session.get('public_user_id')
-    log.info('warrant-access checkout: public_user_id=%s', public_user_id)
+    log.info('subscription checkout: public_user_id=%s plan=%s', public_user_id, plan)
     if not public_user_id:
-        log.warning('warrant-access checkout: no session — redirecting to login')
         flash('Please log in or create an account to subscribe.', 'info')
-        return redirect('/login?next=/wanted/subscribe')
+        return redirect('/login?next=/subscribe')
     email = None
     try:
         conn = get_db()
@@ -1167,32 +1190,124 @@ def checkout_warrant_access():
         if row:
             email = row['email'] or None
     except Exception:
+        log.exception('subscription checkout: DB error fetching user %s', public_user_id)
+
+    interval = (request.args.get('interval') or 'monthly').strip().lower()
+    if interval not in {'monthly', 'annual'}:
+        flash('Please select a valid billing interval.', 'error')
+        return redirect('/subscribe')
+
+    keys = m._stripe_keys()
+    base_url = (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
+    stripe.api_key = keys['secret_key']
+    price_ids = _plan_price_ids(plan)
+    price_id = price_ids.get(interval)
+
+    if not price_id:
+        # Fallback to Payment Link
+        params = {'client_reference_id': str(public_user_id)}
+        if email:
+            params['prefilled_email'] = email
+        payment_link = PLAN_PAYMENT_LINKS.get((plan, interval), '')
+        if not payment_link:
+            flash('Subscription plan is not available right now.', 'error')
+            return redirect('/subscribe')
+        dest = f"{payment_link}?{urlencode(params)}"
+        log.info('subscription checkout: falling back to payment link %s %s/%s', public_user_id, plan, interval)
+        return redirect(dest)
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            mode='subscription',
+            client_reference_id=str(public_user_id),
+            customer_email=email or None,
+            line_items=[{'price': price_id, 'quantity': 1}],
+            success_url=f"{base_url}/subscribe/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base_url}/pricing?canceled=1",
+            subscription_data={
+                'metadata': {
+                    'flow': 'subscription',
+                    'plan': plan,
+                    'interval': interval,
+                    'public_user_id': str(public_user_id),
+                },
+            },
+            metadata={
+                'flow': 'subscription',
+                'plan': plan,
+                'interval': interval,
+                'public_user_id': str(public_user_id),
+            },
+        )
+        checkout_url = _checkout_redirect_url(checkout_session)
+        if checkout_url:
+            log.info('subscription checkout: created Stripe Checkout Session for user %s plan=%s/%s', public_user_id, plan, interval)
+            return redirect(checkout_url)
+        raise RuntimeError('Stripe checkout session did not return a URL')
+    except Exception:
+        # Fallback to Payment Link
+        params = {'client_reference_id': str(public_user_id)}
+        if email:
+            params['prefilled_email'] = email
+        payment_link = PLAN_PAYMENT_LINKS.get((plan, interval), '')
+        if not payment_link:
+            flash('Subscription could not be processed. Please try again.', 'error')
+            return redirect('/subscribe')
+        dest = f"{payment_link}?{urlencode(params)}"
+        log.exception('subscription checkout: error, falling back to payment link %s %s/%s', public_user_id, plan, interval)
+        return redirect(dest)
+
+
+def _warrant_access_price_ids() -> dict[str, str]:
+    """Return the active Stripe price IDs for warrant access."""
+    return {
+        'weekly': (getattr(config, 'WARRANT_WEEKLY_PRICE_ID', '') or '').strip(),
+        'monthly': (getattr(config, 'WARRANT_MONTHLY_PRICE_ID', '') or '').strip(),
+        'annual': (getattr(config, 'WARRANT_ANNUAL_PRICE_ID', '') or '').strip(),
+    }
+
+
+@payments_bp.route('/checkout/warrant-access', methods=['GET', 'POST'])
+def checkout_warrant_access():
+    """Create a Stripe Checkout Session for the paid wanted/warrant add-on."""
+    m = _app()
+    public_user_id = session.get('public_user_id')
+    if not public_user_id:
+        flash('Please log in or create an account to subscribe.', 'info')
+        return redirect('/login?next=/wanted/subscribe')
+
+    email = None
+    try:
+        conn = get_db()
+        row = conn.execute(
+            'SELECT email FROM public_users WHERE id = ? AND is_active = 1',
+            (int(public_user_id),),
+        ).fetchone()
+        conn.close()
+        if row:
+            email = row['email'] or None
+    except Exception:
         log.exception('warrant-access checkout: DB error fetching user %s', public_user_id)
 
-    plan = (request.args.get('plan') or 'weekly').strip().lower()
+    plan = (request.args.get('plan') or 'monthly').strip().lower()
     if plan not in {'weekly', 'monthly', 'annual'}:
         flash('Please select a valid warrant access plan.', 'error')
+        return redirect('/wanted/subscribe')
+
+    price_id = _warrant_access_price_ids().get(plan, '')
+    if not price_id:
+        flash('Warrant access checkout is not available right now.', 'error')
         return redirect('/wanted/subscribe')
 
     keys = m._stripe_keys()
     base_url = (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
     stripe.api_key = keys['secret_key']
-    price_ids = _warrant_access_price_ids()
-
     try:
-        price_id = price_ids.get(plan)
-        if not price_id:
-            raise RuntimeError(f'Warrant access {plan} Stripe price ID is not configured')
         checkout_session = stripe.checkout.Session.create(
             mode='subscription',
             client_reference_id=str(public_user_id),
             customer_email=email or None,
-            line_items=[
-                {
-                    'price': price_id,
-                    'quantity': 1,
-                },
-            ],
+            line_items=[{'price': price_id, 'quantity': 1}],
             success_url=f"{base_url}/checkout/warrant-access/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{base_url}/wanted/subscribe?canceled=1",
             subscription_data={
@@ -1210,19 +1325,17 @@ def checkout_warrant_access():
         )
         checkout_url = _checkout_redirect_url(checkout_session)
         if checkout_url:
-            log.info('warrant-access checkout: created Stripe Checkout Session for user %s plan=%s', public_user_id, plan)
+            log.info(
+                'warrant-access checkout: created Stripe Checkout Session for user %s plan=%s',
+                public_user_id,
+                plan,
+            )
             return redirect(checkout_url)
         raise RuntimeError('Stripe checkout session did not return a URL')
     except Exception:
-        # Keep the Payment Link per-plan fallback if Checkout Session
-        # creation is unavailable in this environment.
-        params = {'client_reference_id': str(public_user_id)}
-        if email:
-            params['prefilled_email'] = email
-        payment_link = _WARRANT_PAYMENT_LINKS.get(plan) or _WARRANT_PAYMENT_LINKS.get('weekly', '')
-        dest = f"{payment_link}?{urlencode(params)}"
-        log.exception('warrant-access checkout: falling back to payment link for user %s plan=%s', public_user_id, plan)
-        return redirect(dest)
+        log.exception('warrant-access checkout: Stripe session creation failed for user %s plan=%s', public_user_id, plan)
+        flash('Unable to start warrant access checkout. Please try again.', 'error')
+        return redirect('/wanted/subscribe')
 
 
 @payments_bp.route('/checkout/warrant-access/success')
@@ -1235,25 +1348,74 @@ def checkout_warrant_access_success():
     )
 
 
-@payments_bp.route('/wanted/subscribe')
-def wanted_subscribe():
-    from services.monetization.paywall import (
-        user_has_warrant_access,
+@payments_bp.route('/subscribe/success')
+def subscribe_success():
+    return render_template(
+        'checkout_subscription_success.html',
+        active_nav='subscribe',
+        page_title='Subscription Activated',
+        current_year=datetime.now().year,
     )
+
+
+@payments_bp.route('/pro')
+def pro_landing():
+    """Dedicated Pro landing page for attorneys, journalists, and investigators."""
+    return render_template(
+        'pro_landing.html',
+        active_nav='pro',
+        current_year=datetime.now().year,
+    )
+
+
+@payments_bp.route('/pricing')
+def pricing_page():
+    from services.monetization.paywall import user_has_warrant_access
     public_user_id = session.get('public_user_id')
     is_logged_in = bool(public_user_id)
     already_subscribed = is_logged_in and user_has_warrant_access()
-    next_url = request.args.get('next', '/wanted/subscribe')
+    next_url = request.args.get('next', '/subscribe')
+    return render_template(
+        'pricing.html',
+        active_nav='subscribe',
+        page_title='Montana Blotter Subscription Plans',
+        meta_description='Choose the right plan for Montana public records access — from Free to Pro.',
+        canonical_url=f'{_app().BASE_URL}/pricing',
+        current_year=datetime.now().year,
+        is_logged_in=is_logged_in,
+        already_subscribed=already_subscribed,
+        next_url=next_url,
+    )
+
+
+@payments_bp.route('/wanted/subscribe')
+def wanted_subscribe():
+    """Paid landing page for the active-warrant database."""
+    from services.monetization.paywall import user_has_warrant_access
+    from services.persons.warrants_public import warrant_paywall_preview_context
+
+    public_user_id = session.get('public_user_id')
+    is_logged_in = bool(public_user_id)
+    already_subscribed = is_logged_in and user_has_warrant_access()
+    next_url = request.args.get('next') or '/wanted'
+
+    conn = get_db()
+    try:
+        preview_context = warrant_paywall_preview_context(conn, limit=3)
+    finally:
+        conn.close()
+
     return render_template(
         'wanted_subscribe.html',
         active_nav='wanted',
-        page_title='Subscribe — Montana Active Warrants',
-        meta_description='Get full access to Montana active warrant records — from $3.99/week.',
+        page_title='Montana Active Warrants Subscription',
+        meta_description='Subscribe for paid access to the Montana active warrant database, with wanted posters, mugshots when available, county filters, and daily updates.',
         canonical_url=f'{_app().BASE_URL}/wanted/subscribe',
         current_year=datetime.now().year,
         is_logged_in=is_logged_in,
         already_subscribed=already_subscribed,
         next_url=next_url,
+        **preview_context,
     )
 
 

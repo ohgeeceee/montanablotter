@@ -1,4 +1,3 @@
-annotated-types==0.7.0
 anthropic==0.87.0
 anyio==4.13.0
 bcrypt==5.0.0
@@ -6,7 +5,7 @@ blinker==1.9.0
 certifi==2026.2.25
 cffi==2.0.0
 charset-normalizer==3.4.6
-click==8.3.1
+click==8.3.3
 croniter==6.2.2
 fastapi==0.115.8
 uvicorn==0.34.0
@@ -31,7 +30,7 @@ grpcio-status
 gunicorn==25.3.0
 h11==0.16.0
 httpcore==1.0.9
-httplib2==0.31.2
+httplib2==0.32.0
 httpx==0.28.1
 idna==3.15
 iniconfig==2.3.0
@@ -60,6 +59,7 @@ pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.12.5
+pydantic-settings==2.14.2
 pydantic_core==2.41.5
 pyee==13.0.1
 Pygments==2.20.0
@@ -75,6 +75,7 @@ rq==2.8.0
 rsa==4.9.1
 six==1.17.0
 sniffio==1.3.1
+soupsieve==2.8.4
 stripe==14.4.0
 tenacity==9.1.4
 tqdm==4.67.3
@@ -87,3 +88,12 @@ Werkzeug==3.1.7
 libsql-experimental>=0.0.55
 matplotlib>=3.10
 pywebpush>=2.0
+# Security: aiohttp kept loose to allow transitive needs of anthropic/google SDKs
+# but pinned away from the vulnerable 3.13.x line.
+aiohttp>=3.14.1
+# Security: starlette bumps require FastAPI compatibility; pinned to the
+# range Dependabot accepts without breaking FastAPI 0.115.x's Starlette need.
+starlette>=0.49.1
+# Dev/build tool pins — kept here so pip-audit sees the floor.
+pip>=26.1.2
+setuptools>=83.0.0

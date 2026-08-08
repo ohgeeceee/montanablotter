@@ -332,10 +332,10 @@ class SampleReportLiveModeTests(unittest.TestCase):
         r = sample_report.generate(self.conn, prospect_id=self.pid)
         self.assertIn('30', r['period_label'])
 
-    def test_live_disclaimer_points_to_advertising_email(self):
+    def test_live_disclaimer_points_to_support_email(self):
         _seed_order(self.conn, firm='Alpine Law', counties='Yellowstone', package_id='gold')
         r = sample_report.generate(self.conn, prospect_id=self.pid)
-        self.assertIn('advertising@montanablotter.com', r['disclaimer'])
+        self.assertIn('support@montanablotter.com', r['disclaimer'])
 
     def test_firm_in_different_county_does_not_trigger_live_mode(self):
         # Prospect says county=Yellowstone; order's counties_served is

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEA Connect — Law Enforcement Agency Publishing Platform</title>
+  <meta name="description" content="LEA Connect is the secure, enterprise-grade platform for Montana law enforcement agencies to self-publish police blotters, jail rosters, and public records in real time.">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="LEA Connect — Law Enforcement Agency Publishing Platform">
+  <meta property="og:description" content="Self-publish police blotters and jail rosters in real time. Built for Montana law enforcement. CJIS-compliant. Free for agencies.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.montanablotter.com/lea_connect/">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+  <!-- Brand stylesheet -->
+  <link rel="stylesheet" href="/static/lea-connect.css">
+</head>
+<body>
+
+  <!-- Animated background mesh (Malwarebytes-style) -->
+  <div class="bg-mesh" aria-hidden="true">
+    <div class="orb"></div>
+    <div class="orb"></div>
+    <div class="orb"></div>
+  </div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- ========== HEADER ========== -->
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <a href="/lea_connect/" class="header-logo">
+        <img src="/static/lea-connect-logo.svg" alt="LEA Connect" width="200" height="36">
+      </a>
+      <nav class="header-nav" id="mainNav" aria-label="Main navigation">
+        <a href="#features">Platform</a>
+        <a href="#security">Security</a>
+        <a href="#testimonials">Testimonials</a>
+        <a href="/panel/login" class="header-cta">
+          <i class="fas fa-shield-halved"></i> Agency Login
+        </a>
+      </nav>
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu" aria-expanded="false">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <i class="fas fa-shield-halved"></i>&nbsp; Montana Law Enforcement Agency Platform
+      </div>
+      <h1>
+        Your Records.<br>
+        Your Control.<br>
+        Published Instantly.
+      </h1>
+      <p>
+        LEA Connect gives Montana law enforcement agencies a secure, CJIS-compliant
+        portal to self-publish police blotters, jail rosters, and public records
+        directly to <strong>montanablotter.com</strong> — with full audit, PII redaction,
+        and role-based access built in.
+      </p>
+      <div class="hero-actions">
+        <a href="/panel/login" class="btn btn-primary btn-lg">
+          <i class="fas fa-shield-halved"></i> Agency Login
+        </a>
+        <a href="#features" class="btn btn-secondary btn-lg">
+          <i class="fas fa-chevron-down"></i> Explore the Platform
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-value">56</div>
+          <div class="hero-stat-label">Montana Counties</div>
+        </div>
+        <div>
+          <div class="hero-stat-value">&lt;10<span style="font-size:0.9rem">min</span></div>
+          <div class="hero-stat-label">Time to Publish</div>
+        </div>
+        <div>
+          <div class="hero-stat-value">100%</div>
+          <div class="hero-stat-label">Free for Agencies</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FEATURES ========== -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Platform</div>
+        <h2 class="section-title">Built for Law Enforcement</h2>
+        <p class="section-subtitle">
+          Every feature was designed from the ground up around the workflows,
+          security requirements, and statutory obligations of Montana law enforcement agencies.
+        </p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-bolt"></i></div>
+          <h3>Real-Time Publishing</h3>
+          <p>Submit an incident and it appears on montanablotter.com in under 10 minutes. No more 3&ndash;7 day scraping delays.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-check-double"></i></div>
+          <h3>Review &amp; Approval Workflow</h3>
+          <p>Draft, review, approve, or reject submissions through your agency dashboard. Two-person control ensures nothing goes live without authorization.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+          <h3>Batch Upload &amp; CSV Import</h3>
+          <p>Upload dozens of incidents at once from your RMS/CAD export. Preview every record before publishing. Full validation built in.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-user-shield"></i></div>
+          <h3>Role-Based Access Control</h3>
+          <p>Granular permissions for Agency Admin, Records Officer, and PIO. Each role sees exactly what it needs and nothing more.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-code"></i></div>
+          <h3>REST API Integration</h3>
+          <p>Connect your existing RMS via secure token-based API. Rate-limited, logged, and CJIS-compliant out of the box.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-history"></i></div>
+          <h3>Immutable Audit Trail</h3>
+          <p>Every action &mdash; submission, approval, rejection, edit &mdash; is logged with timestamp, user, IP, and previous state. No deletions.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== HOW IT WORKS ========== -->
+  <section class="section steps-section" id="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Workflow</div>
+        <h2 class="section-title">Three Steps to Publication</h2>
+        <p class="section-subtitle">
+          From your dashboard to the public record in minutes. No IT setup required.
+        </p>
+      </div>
+      <div class="steps-container">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <h3>Submit</h3>
+          <p>An officer or records staff submits an incident through the dashboard or API. It saves as a secure draft, visible only to your agency.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <h3>Review &amp; Approve</h3>
+          <p>A supervisor or PIO reviews the submission. PII is automatically flagged. The record is approved or returned with revision notes.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <h3>Publish</h3>
+          <p>Approved records are normalized, PII-redacted, and published to montanablotter.com within minutes. Your agency maintains full control.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== SECURITY ========== -->
+  <section class="section" id="security">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Security &amp; Compliance</div>
+        <h2 class="section-title">CJIS-Compliant by Design</h2>
+        <p class="section-subtitle">
+          LEA Connect was architected from day one to meet the Criminal Justice Information Services
+          security standards required by Montana law enforcement.
+        </p>
+      </div>
+      <div class="trust-grid">
+        <div class="trust-card">
+          <div class="icon"><i class="fas fa-shield-alt"></i></div>
+          <h4>CJIS Security Policy</h4>
+          <p>Access control, audit logging, transmission security, and personnel screening enforced at every layer.</p>
+        </div>
+        <div class="trust-card">
+          <div class="icon"><i class="fas fa-fingerprint"></i></div>
+          <h4>Agency Verification</h4>
+          <p>Every agency is verified via ORI number matching and government-issued email domain (<code>.gov</code>, <code>.mt.us</code>) before gaining access.</p>
+        </div>
+        <div class="trust-card">
+          <div class="icon"><i class="fas fa-file-contract"></i></div>
+          <h4>Immutable Audit Log</h4>
+          <p>All actions logged with cryptographic integrity. Logs cannot be altered or deleted &mdash; meeting evidentiary standards for public records.</p>
+        </div>
+      </div>
+      <div class="trust-footer">
+        <span><i class="fas fa-check-circle check"></i> End-to-end TLS</span>
+        <span><i class="fas fa-check-circle check"></i> PII auto-redaction</span>
+        <span><i class="fas fa-check-circle check"></i> Brute-force protection</span>
+        <span><i class="fas fa-check-circle check"></i> Session encryption</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TESTIMONIALS ========== -->
+  <section class="section" id="testimonials">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">Trusted by Agencies</div>
+        <h2 class="section-title">What Law Enforcement Says</h2>
+        <p class="section-subtitle">
+          Montana agencies are already using LEA Connect to streamline public records publishing.
+        </p>
+      </div>
+      <div class="testimonial-grid">
+        <div class="testimonial-card">
+          <blockquote>"We were waiting up to a week for our blotter to show up online. Now I hit submit and it's live before my shift ends. The PII auto-flagging alone saves us hours every week."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">JD</div>
+            <div>
+              <div class="testimonial-name">Records Supervisor</div>
+              <div class="testimonial-role">Montana Sheriff's Office</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <blockquote>"The RBAC and audit trail gave our command staff exactly the confidence they needed. Every submission is tracked, every approval logged. It's built the right way."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">MK</div>
+            <div>
+              <div class="testimonial-name">Chief of Police</div>
+              <div class="testimonial-role">Montana Police Department</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <blockquote>"We do a weekly CSV dump from our RMS. With the batch upload, we went from 45 minutes of manual data entry to under 5. Night and day difference."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">TR</div>
+            <div>
+              <div class="testimonial-name">IT Administrator</div>
+              <div class="testimonial-role">Montana County Detention Center</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CTA ========== -->
+  <section class="cta-section" id="contact">
+    <div class="container">
+      <h2>Ready to Connect?</h2>
+      <p>
+        Set up your agency account today. Free for all Montana law enforcement agencies.
+        Already have an account? Sign in below.
+      </p>
+      <div class="cta-actions">
+        <a href="/panel/login" class="btn btn-primary btn-lg">
+          <i class="fas fa-shield-halved"></i> Agency Login
+        </a>
+        <a href="mailto:lea@montanablotter.com" class="btn btn-secondary btn-lg">
+          <i class="fas fa-envelope"></i> Contact Us
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="/lea_connect/" class="header-logo" style="font-size:0.95rem;">
+            <img src="/static/lea-connect-logo.svg" alt="LEA Connect" width="160" height="30">
+          </a>
+          <p>
+            LEA Connect is a free platform for Montana law enforcement agencies
+            to self-publish public records. Built by Montana Blotter in
+            Great Falls, Montana.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="#features">Features</a>
+          <a href="#security">Security</a>
+          <a href="#testimonials">Testimonials</a>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <a href="/panel/login">Agency Login</a>
+          <a href="mailto:lea@montanablotter.com">Support</a>
+          <a href="https://www.montanablotter.com">Montana Blotter</a>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <a href="https://www.montanablotter.com/privacy">Privacy Policy</a>
+          <a href="https://www.montanablotter.com/terms">Terms of Service</a>
+          <a href="mailto:lea@montanablotter.com">Contact</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 Montana Blotter. All rights reserved. Not affiliated with any government agency.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="X / Twitter"><i class="fab fa-x-twitter"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+          <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========== JAVASCRIPT ========== -->
+  <script>
+    (function() {
+      const header = document.getElementById('siteHeader');
+      const toggle = document.getElementById('menuToggle');
+      const nav = document.getElementById('mainNav');
+
+      // Mobile menu
+      if (toggle && nav) {
+        toggle.addEventListener('click', function() {
+          const open = nav.classList.toggle('open');
+          toggle.setAttribute('aria-expanded', open);
+          toggle.innerHTML = open ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+        });
+        nav.querySelectorAll('a').forEach(function(link) {
+          link.addEventListener('click', function() {
+            nav.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.innerHTML = '<i class="fas fa-bars"></i>';
+          });
+        });
+      }
+
+      // Scroll shadow
+      let ticking = false;
+      window.addEventListener('scroll', function() {
+        if (!ticking) {
+          window.requestAnimationFrame(function() {
+            header.classList.toggle('scrolled', window.scrollY > 40);
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

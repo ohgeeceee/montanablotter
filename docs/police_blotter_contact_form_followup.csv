@@ -1,0 +1,45 @@
+county,contact_form_url,phone,mailing_address,script_section
+beaverhead,https://beaverheadcountymt.gov/355/Records-Request,406-683-3707,"88 W. Reed St, Dillon MT 59725",script_01
+big-horn,https://www.bighorncountymt.gov/238/Sheriffs-Office,406-665-9770,"RR1, Hardin MT 59034",script_02
+blaine,https://blainecounty-mt.gov/sheriff-coroner/,406-357-3260,"420 Ohio St, Chinook MT 59523",script_03
+broadwater,https://www.broadwatercountysheriff.org/contact,406-266-9100,"124 N Walnut, Townsend MT 59644",script_04
+carbon,https://carbonmt.gov/sheriff/,406-446-1234,"224 N Broadway Ave, Red Lodge MT 59068",script_05
+cascade,https://www.cascadecountymt.gov/283/Sheriffs-Office,406-454-6840,"3801 Ulm N Frontage Rd, Great Falls MT 59404",script_06
+chouteau,https://chouteaucountysheriff.com/contact,406-622-5451,"301 Main St, Fort Benton MT 59442",script_07
+custer,https://custercountymt.gov/emergency-enforcement/sheriff/,406-874-3320,"1010 Main St, Miles City MT 59301",script_08
+dawson,https://www.dawsonmt.gov/departments/sheriff/index.php,406-377-5291,"207 W Bell St, Glendive MT 59330",script_09
+deer-lodge,https://www.anacondadeerlodge.mt.gov/sheriff/,406-563-8441,"800 S Pennsylvania, Anaconda MT 59711",script_10
+fallon,https://falloncountymt.gov/sheriff,406-778-2222,"10 W Fallon Ave, Baker MT 59313",script_11
+fergus,https://fergusmt.gov/sheriffs-office,406-535-8115,"712 W Main, Lewistown MT 59457",script_12
+flathead,https://flathead.mt.gov/sheriff/,406-758-5610,"920 S Main St, Kalispell MT 59901",script_13
+gallatin,https://gallatinmt.gov/sheriff/,406-582-2100,"615 S 16th, Bozeman MT 59715",script_14
+glacier,https://glaciercountymt.gov/contact,406-873-2711,"512 E Railroad, Cut Bank MT 59427",script_15
+golden-valley,https://www.goldenvalleycountysheriffsoffice.org/,406-568-2321,"107 Kemp St, Ryegate MT 59074",script_16
+jefferson,https://jeffersoncountymt.gov/sheriffs-office,406-225-4075,"110 S Washington, Boulder MT 59632",script_17
+judith-basin,https://www.judithbasincounty.com/contact,406-535-3860,"215 Central Ave, Stanford MT 59479",script_18
+lake,https://www.lakemt.gov/directory.aspx,406-883-7301,"106 4th Ave E, Polson MT 59860",script_19
+lewis-and-clark,https://www.lccountymt.gov/FormCenter/Sheriffs-Office-,406-447-8235,"228 Broadway, Helena MT 59601",script_20
+lincoln,https://lincolncountymt.us/sheriff-home/detention/,406-283-2447,"512 California Ave, Libby MT 59923",script_21
+madison,https://www.madisoncountymt.gov/contact,406-843-5230,"110 N Wallace, Virginia City MT 59755",script_22
+meagher,https://meaghercountymt.gov/sheriff,406-547-2212,"200 W Fowler, White Sulphur Springs MT 59645",script_23
+mineral,https://co.mineral.mt.us/departments/sheriff/,406-822-3555,"PO Box 7, Superior MT 59872",script_24
+missoula,https://www.missoulacounty.us/government/sheriff/contact,406-258-4810,"200 W Broadway St, Missoula MT 59802",script_25
+musselshell,https://musselshellcounty.org/contact,406-323-1402,"PO Box 65, Roundup MT 59072",script_26
+phillips,https://phillipscosheriff.com/contact,406-654-2020,"PO Box 1294, Malta MT 59538",script_27
+powder-river,https://prco.mt.gov/contact,406-436-2361,"PO Box 250, Broadus MT 59317",script_28
+powell,https://www.powellcountymt.gov/sheriff/page/detention-facility,406-846-2711,"409 4th Ave, Deer Lodge MT 59722",script_29
+ravalli,https://ravallicounty.gov/239/Adult-Detention-Center,406-363-3030,"205 Bedford, Hamilton MT 59840",script_30
+richland,https://www.richland.org/detention-centers.html,406-433-2919,"300 12th Ave NW, Sidney MT 59270",script_31
+roosevelt,https://www.rooseveltcountymt.gov/sheriff-coroner/,406-653-1700,"124 5th Ave SE, Wolf Point MT 59201",script_32
+rosebud,https://www.rosebudcountymt.gov/sheriff,406-346-2780,"PO Box 69, Forsyth MT 59327",script_33
+sanders,https://sanders-mt.publiclogs.com/,406-827-3584,"PO Box 519, Thompson Falls MT 59873",script_34
+sheridan,https://www.sheridancountymt.gov/sheriff,406-765-3400,"100 W Laurel Ave, Plentywood MT 59254",script_35
+silver-bow,https://co.silverbow.mt.us/3274/Detention-Center,406-497-1120,"155 W Quartz St, Butte MT 59701",script_36
+stillwater,https://stillwatercountymt.gov/sheriff,406-322-5326,"PO Box 167, Columbus MT 59019",script_37
+teton,https://tetoncountymt.gov/sheriff,406-466-5701,"PO Box 608, Choteau MT 59422",script_38
+toole,https://toolecountymt.gov/sheriffs-office/,406-424-8300,"226 1st St S, Shelby MT 59474",script_39
+treasure,https://www.treasurecountymt.gov/tcsheriff,406-342-5211,"PO Box 1511, Hysham MT 59038",script_40
+valley,https://www.valleycountymt.gov/1288/Jail-Roster,406-228-4333,"501 Court Sq #10, Glasgow MT 59230",script_41
+wheatland,https://wheatlandcountymt.gov/sheriff,406-632-5614,"PO Box 218, Harlowton MT 59036",script_42
+wibaux,https://wibauxmt.com/,406-796-2415,"PO Box 166, Wibaux MT 59353",script_43
+yellowstone,https://www.yellowstonecountymt.gov/Sheriff/,406-256-2910,"PO Box 35010, Billings MT 59107",script_44

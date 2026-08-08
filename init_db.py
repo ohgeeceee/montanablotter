@@ -1335,6 +1335,8 @@ def migrate():
     ensure_agency_contacts_schema(conn)
     ensure_civic_records_requests_schema(conn)
 
+    ensure_sponsored_listing_schema(conn)
+
     # LEA Panel: multi-tenant agency self-service tables
     ensure_lea_schema(conn)
     ensure_lea_security_policies(conn)
@@ -2801,6 +2803,122 @@ def migrate():
     conn.commit()
     conn.close()
     print("✅ Migration complete")
+
+    _ensure_subscription_feature_tables()
+    print("✅ Subscription feature tables ensured")
+
+
+def ensure_sponsored_listing_schema(conn: sqlite3.Connection) -> None:
+    """Create sponsored_listings table for bail bond agencies and criminal defense
+    attorneys that pay for placement on county jail booking pages."""
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS sponsored_listings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            business_name TEXT NOT NULL,
+            business_type TEXT NOT NULL CHECK(business_type IN ('bail_bond', 'attorney')),
+            contact_name TEXT,
+            email TEXT NOT NULL,
+            phone TEXT,
+            website TEXT,
+            county_slug TEXT NOT NULL,
+            ad_text TEXT,
+            logo_path TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 100,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            stripe_customer_id TEXT,
+            stripe_subscription_id TEXT,
+            stripe_session_id TEXT UNIQUE,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT DEFAULT (datetime('now')),
+            activated_at TEXT,
+            expires_at TEXT
+        )
+    ''')
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sl_county_active ON sponsored_listings(county_slug, is_active, sort_order)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sl_type ON sponsored_listings(business_type)'
+    )
+
+    # Track impressions/clicks per listing
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS sponsored_listing_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            listing_id INTEGER NOT NULL REFERENCES sponsored_listings(id),
+            impression_date TEXT NOT NULL DEFAULT (date('now')),
+            impressions INTEGER NOT NULL DEFAULT 0,
+            clicks INTEGER NOT NULL DEFAULT 0
+        )
+    ''')
+    conn.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_sls_listing_date ON sponsored_listing_stats(listing_id, impression_date)'
+    )
+    conn.commit()
+
+
+def _ensure_subscription_feature_tables():
+    """Create tables for saved_searches and watchlists (used by Plus/Pro tiers)."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS saved_searches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                public_user_id INTEGER NOT NULL,
+                label TEXT NOT NULL DEFAULT '',
+                query_json TEXT NOT NULL,
+                filters_json TEXT DEFAULT '{}',
+                notify_on_match INTEGER NOT NULL DEFAULT 0,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (public_user_id) REFERENCES public_users(id)
+            )
+        ''')
+        conn.execute('''
+            CREATE INDEX IF NOT EXISTS idx_saved_searches_user
+            ON saved_searches(public_user_id, active)
+        ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS watchlists (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                public_user_id INTEGER NOT NULL,
+                label TEXT NOT NULL,
+                watch_type TEXT NOT NULL DEFAULT 'name',
+                watch_value TEXT NOT NULL,
+                county TEXT DEFAULT '',
+                notify INTEGER NOT NULL DEFAULT 1,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (public_user_id) REFERENCES public_users(id)
+            )
+        ''')
+        conn.execute('''
+            CREATE INDEX IF NOT EXISTS idx_watchlists_user
+            ON watchlists(public_user_id, active)
+        ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS tracked_cases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                public_user_id INTEGER NOT NULL,
+                case_number TEXT NOT NULL,
+                case_type TEXT DEFAULT '',
+                county TEXT DEFAULT '',
+                label TEXT DEFAULT '',
+                notify_on_update INTEGER NOT NULL DEFAULT 1,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (public_user_id) REFERENCES public_users(id)
+            )
+        ''')
+        conn.execute('''
+            CREATE INDEX IF NOT EXISTS idx_tracked_cases_user
+            ON tracked_cases(public_user_id, active)
+        ''')
+        conn.commit()
+    finally:
+        conn.close()
 
 
 

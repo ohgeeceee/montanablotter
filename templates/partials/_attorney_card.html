@@ -1,0 +1,28 @@
+{# Reusable attorney card. Expects `a` in scope with keys: name, firm, blurb,
+   practice_areas, phone, website, sponsor_tier, tagline. Used on /attorneys. #}
+<div class="public-card" style="{% if a.sponsor_tier == 'gold' %}border:2px solid #c9a227;background:linear-gradient(180deg,#fffdf0 0%,#fff 60%);{% elif a.sponsor_tier == 'silver' %}border:1px solid #94a3b8;{% endif %}{% if a.sponsor_tier == 'gold' %}box-shadow:0 4px 12px rgba(201,162,39,.15);{% endif %}">
+    <div class="public-card__body">
+        {% if a.sponsor_tier == 'gold' %}
+        <p style="display:inline-block;background:#c9a227;color:#fff;font-size:.65rem;font-weight:800;letter-spacing:.14em;padding:.15rem .55rem;border-radius:999px;margin:0 0 .4rem;text-transform:uppercase;">🏆 Priority Placement</p>
+        {% elif a.sponsor_tier == 'silver' %}
+        <p style="display:inline-block;background:#475569;color:#fff;font-size:.65rem;font-weight:800;letter-spacing:.14em;padding:.15rem .55rem;border-radius:999px;margin:0 0 .4rem;text-transform:uppercase;">⭐ Featured</p>
+        {% endif %}
+        {% if a.tagline %}
+        <p style="font-size:.78rem;color:#a16207;font-weight:600;margin:0 0 .25rem;">{{ a.tagline }}</p>
+        {% endif %}
+        <p class="public-card__eyebrow" style="margin-bottom:0.25rem;">{{ a.firm or 'Independent' }}</p>
+        <h3 class="public-card__title" style="font-size:1.15rem;">{{ a.name }}</h3>
+        {% if a.blurb %}
+        <p style="font-size:0.9rem;color:#475569;margin:0.4rem 0;">{{ a.blurb }}</p>
+        {% endif %}
+        {% if a.practice_areas %}
+        <p style="font-size:0.8rem;color:#64748b;margin:0.4rem 0;">
+            <strong>Practice:</strong> {{ a.practice_areas }}
+        </p>
+        {% endif %}
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;font-size:0.85rem;">
+            {% if a.phone %}<a href="tel:{{ a.phone }}" style="color:#2563eb;text-decoration:none;">📞 {{ a.phone }}</a>{% endif %}
+            {% if a.website %}<a href="{{ a.website }}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none;">Website →</a>{% endif %}
+        </div>
+    </div>
+</div>

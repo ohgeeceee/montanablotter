@@ -1,0 +1,16 @@
+[Unit]
+Description=OpenClaw Discord Webhook Bridge
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/montanablotter
+ExecStart=/root/montanablotter/venv/bin/uvicorn discord_webhook_server:app --host 127.0.0.1 --port 8090
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

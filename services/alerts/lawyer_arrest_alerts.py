@@ -95,7 +95,7 @@ def _send_arrest_alert_email(order: sqlite3.Row, post: sqlite3.Row, claim_token:
     msg['Subject'] = f'New {county} arrest matching your practice area'
     msg['From'] = f'Montana Blotter <{user}>'
     msg['To'] = destination
-    msg['Reply-To'] = 'advertising@montanablotter.com'
+    msg['Reply-To'] = 'support@montanablotter.com'
     plain = (
         f'A new arrest was just published in {post["county"]} matching your listing.\n\n'
         f'{post["title"]}\n{post["summary"]}\n\n'

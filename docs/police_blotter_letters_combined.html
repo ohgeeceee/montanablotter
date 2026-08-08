@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Montana Blotter — Letters + Address Labels + Return Labels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Great+Vibes&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; }
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    background: #f4f1ea;
+    color: #14212b;
+    line-height: 1.6;
+    padding: 0;
+  }
+
+  /* ===== LETTER STYLES ===== */
+  .page-break {
+    page-break-after: always;
+    page-break-inside: avoid;
+    break-after: page;
+    width: 8.5in;
+    height: 11in;
+    margin: 0 auto;
+    padding: 0.5in 0.75in 0.35in 0.75in;
+    background: white;
+    position: relative;
+    box-shadow: 0 0 0 1px #ddd;
+  }
+  @media print {
+    body { margin: 0; padding: 0; background: white; }
+    .page-break { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  }
+  .letterhead {
+    border-bottom: 3px solid #c3423f;
+    padding-bottom: 0.35in;
+    margin-bottom: 0.35in;
+  }
+  .letterhead-title {
+    font-family: "Playfair Display", serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: #c3423f;
+    margin-bottom: 0;
+  }
+  .letterhead-tagline {
+    font-size: 11px;
+    color: #29607b;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .letterhead-contact {
+    font-size: 10px;
+    color: #5c6d78;
+    margin-top: 0.25in;
+    line-height: 1.4;
+  }
+  .date {
+    font-size: 12px;
+    color: #14212b;
+    margin-bottom: 0.25in;
+    margin-top: 0.25in;
+  }
+  .salutation {
+    font-size: 12px;
+    margin-bottom: 0.18in;
+    color: #14212b;
+  }
+  .body {
+    font-size: 11px;
+    line-height: 1.65;
+    color: #14212b;
+    margin-bottom: 0.25in;
+  }
+  .body p { margin-bottom: 0.18in; }
+  .closing {
+    font-size: 12px;
+    margin-top: 0.25in;
+    margin-bottom: 0.1in;
+  }
+  .signature-name {
+    font-family: "Great Vibes", cursive;
+    font-size: 22px;
+    color: #14212b;
+    margin-bottom: 0;
+    line-height: 1;
+  }
+  .signature-type {
+    font-size: 10px;
+    font-weight: 600;
+    color: #14212b;
+    margin-top: 0.05in;
+  }
+  .agency-info {
+    background: rgba(195, 66, 63, 0.05);
+    border-left: 3px solid #c3423f;
+    padding: 0.15in 0.12in;
+    margin: 0.25in 0 0.15in 0;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .agency-info-label { font-weight: 600; color: #c3423f; }
+  .footer-line {
+    border-top: 1px solid #ad7a2d;
+    padding-top: 0.12in;
+    margin-top: 0.3in;
+    font-size: 9px;
+    color: #5c6d78;
+  }
+
+  /* ===== ENVELOPE ADDRESS PANEL ===== */
+  .envelope-panel {
+    margin-top: 0.35in;
+    padding-top: 0.25in;
+    border-top: 2px dashed #ccc;
+    font-size: 11px;
+  }
+  .envelope-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #5c6d78;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.1in;
+  }
+  .envelope-addr {
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #14212b;
+    padding: 0.08in 0.12in;
+    border: 1px solid #ddd;
+    display: inline-block;
+    min-width: 3in;
+  }
+  .envelope-addr strong { font-size: 13px; }
+  .env-return {
+    font-size: 8px;
+    color: #5c6d78;
+    margin-top: 0.08in;
+  }
+
+  /* ===== LABEL SHEET (Avery 5160) ===== */
+  .label-sheet {
+    width: 8.5in;
+    margin: 0 auto;
+    padding: 0.5in 0.469in 0.5in 0.437in;
+    background: white;
+  }
+  .label-sheet-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #c3423f;
+    margin-bottom: 0.1in;
+  }
+  .label-sheet-sub {
+    font-size: 10px;
+    color: #5c6d78;
+    margin-bottom: 0.2in;
+  }
+  .label-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 2.625in);
+    gap: 0;
+  }
+  .label {
+    width: 2.625in;
+    height: 1in;
+    padding: 0.08in 0.1in 0.06in 0.1in;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    border: 0.5px dotted #bbb;
+  }
+  .label-name {
+    font-weight: 700;
+    font-size: 10px;
+    margin-bottom: 1px;
+    color: #c3423f;
+  }
+  .label-addr {
+    font-size: 9px;
+    color: #14212b;
+    line-height: 1.3;
+  }
+
+  /* Return address label variation */
+  .return-label .label-name {
+    color: #29607b;
+    font-size: 8px;
+  }
+  .return-label .label-addr {
+    font-size: 7px;
+    color: #5c6d78;
+  }
+</style>
+</head>
+<body>
+
+<!-- ================================================================== -->
+<!-- LETTER 1: Beaverhead -->
+<!-- ================================================================== -->
+<div class="page-break">
+  <div class="letterhead">
+    <div class="letterhead-title">Montana Blotter</div>
+    <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+    <div class="letterhead-contact">
+      Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+      records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+      https://montanablotter.com
+    </div>
+  </div>
+
+  <div class="date">August 02, 2026</div>
+
+  <div class="salutation">Dear Records Custodian:</div>
+
+  <div class="body">
+    <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+    <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Beaverhead Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+    <p style="margin-left: 0.2in; margin-right: 0.2in; margin-bottom: 0.15in;">
+      <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+      <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+      <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+      <strong>Option 4.</strong> Authenticated API read of your records system
+    </p>
+
+    <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Beaverhead from the pipeline.</p>
+
+    <div class="agency-info">
+      <span class="agency-info-label">Your records-request contact form:</span><br>
+      https://beaverheadcountymt.gov/355/Records-Request<br>
+      <span class="agency-info-label">Agency phone:</span> 406-683-3707
+    </div>
+
+    <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+  </div>
+
+  <div class="closing">Sincerely,</div>
+  <div class="signature-name">John Currie</div>
+  <div class="signature-type">Montana Blotter</div>
+
+  <div class="footer-line">
+    Representing Montana's 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+  </div>
+
+  <!-- Envelope address panel -->
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope Address Panel</div>
+    <div class="envelope-addr">
+      <strong>Beaverhead Sheriff's Office</strong><br>
+      88 W. Reed St<br>
+      Dillon MT 59725
+    </div>
+    <div class="env-return">Return: Montana Blotter, Great Falls, MT</div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- LETTER 2: Big Horn -->
+<!-- ================================================================== -->
+<div class="page-break">
+  <div class="letterhead">
+    <div class="letterhead-title">Montana Blotter</div>
+    <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+    <div class="letterhead-contact">
+      Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+      records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+      https://montanablotter.com
+    </div>
+  </div>
+
+  <div class="date">August 02, 2026</div>
+
+  <div class="salutation">Dear Records Custodian:</div>
+
+  <div class="body">
+    <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+    <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Big Horn Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?</p>
+
+    <p style="margin-left: 0.2in; margin-right: 0.2in; margin-bottom: 0.15in;">
+      <strong>Option 1.</strong> Daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain text<br>
+      <strong>Option 2.</strong> Nightly FTP or HTTPS upload to a URL your agency provides<br>
+      <strong>Option 3.</strong> Direct access to a daily-updated PDF or HTML page on your public website<br>
+      <strong>Option 4.</strong> Authenticated API read of your records system
+    </p>
+
+    <p>For a daily police blotter, we extract: incident number, date and time, location, agency, incident type, and disposition (when available). We publish the official source, update time, and a direct link back to your agency with every entry. If you prefer we stop drawing from the feed, simply let us know and we will remove Big Horn from the pipeline.</p>
+
+    <div class="agency-info">
+      <span class="agency-info-label">Your records-request contact form:</span><br>
+      https://www.bighorncountymt.gov/238/Sheriffs-Office<br>
+      <span class="agency-info-label">Agency phone:</span> 406-665-9770
+    </div>
+
+    <p>Please reply with any questions or a commitment to share the blotter. Also let us know the best contact person and preferred method for delivery issues or follow-up.</p>
+  </div>
+
+  <div class="closing">Sincerely,</div>
+  <div class="signature-name">John Currie</div>
+  <div class="signature-type">Montana Blotter</div>
+
+  <div class="footer-line">
+    Representing Montana's 56 counties. Visit https://montanablotter.com to search over 1 million public records.
+  </div>
+
+  <div class="envelope-panel">
+    <div class="envelope-label">&#9654; Envelope Address Panel</div>
+    <div class="envelope-addr">
+      <strong>Big Horn Sheriff's Office</strong><br>
+      RR1<br>
+      Hardin MT 59034
+    </div>
+    <div class="env-return">Return: Montana Blotter, Great Falls, MT</div>
+  </div>
+</div>
+
+<!-- ================================================================== -->
+<!-- LETTER 3: Blaine -->
+<!-- ================================================================== -->
+<div class="page-break">
+  <div class="letterhead">
+    <div class="letterhead-title">Montana Blotter</div>
+    <div class="letterhead-tagline">Montana Public Records &bull; Open &amp; Free</div>
+    <div class="letterhead-contact">
+      Great Falls, Montana &nbsp;|&nbsp; 406-290-3337<br>
+      records@montanablotter.com &nbsp;|&nbsp; support@montanablotter.com<br>
+      https://montanablotter.com
+    </div>
+  </div>
+
+  <div class="date">August 02, 2026</div>
+
+  <div class="salutation">Dear Records Custodian:</div>
+
+  <div class="body">
+    <p>Montana Blotter is a free, open-source statewide public-records service. We aggregate daily police blotters from every Montana county into a single, searchable feed at https://montanablotter.com&mdash;making arrest and incident data accessible to the public, media, researchers, and civic watchdogs.</p>
+
+    <p>We have been unable to locate a regularly updated, machine-readable police-blotter feed from Blaine Sheriff's Office. Would your agency be willing to share a copy of your daily blotter with us through one of these channels?.....</p>
+  </div>
+</div>
+</body>
+</html>

@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import sqlite3
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -30,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 def connect_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA busy_timeout = 30000")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -72,10 +74,17 @@ def normalize_candidate_packet(*, source_type: str, source_url: str, headline_hi
     if not is_allowed_source_url(source_url):
         raise ValueError(f"Source URL is not allow-listed: {source_url}")
 
+    # Clean title: truncate to first 100 chars, strip repeated word artifacts
+    clean_hint = headline_hint.strip()
+    if len(clean_hint) > 100:
+        clean_hint = clean_hint[:100].rsplit(" ", 1)[0]
+    # Remove triple+ consecutive word repetitions
+    clean_hint = re.sub(r"\b(\w+)(\s+\1){2,}", r"\1", clean_hint)
+
     packet = {
         "source_type": source_type,
         "source_url": source_url,
-        "headline_hint": headline_hint.strip(),
+        "headline_hint": clean_hint,
         "facts_json": json.dumps(facts, sort_keys=True),
         "location_label": str(facts.get("county") or facts.get("location") or "").strip(),
         "occurred_at": str(facts.get("occurred_at") or facts.get("incident_date") or datetime.now(UTC).isoformat()),

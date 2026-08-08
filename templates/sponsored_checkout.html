@@ -1,0 +1,82 @@
+{% extends "public_page_base.html" %}
+{% set active_nav = "sponsored_checkout" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-14 sm:px-6">
+    <h1 class="text-3xl font-black text-slate-900 mb-2">Get Your Business Seen</h1>
+    <p class="text-slate-500 mb-8">Sponsored placement on Montana Blotter county jail booking pages — appear alongside the people who need you most.</p>
+
+    {% if error %}
+    <div class="rounded-xl bg-red-50 border border-red-200 px-5 py-4 mb-6 text-sm text-red-700">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/sponsored/checkout/create" class="space-y-5">
+        <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Business Type</label>
+            <select name="type" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm" required>
+                <option value="">Select your business type...</option>
+                {% for key, plan in pricing.items() %}
+                <option value="{{ key }}" {% if selected_type == key %}selected{% endif %}>
+                    {{ plan.label }} — {{ plan.monthly_label }} / {{ plan.annual_label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">County</label>
+            <input type="text" name="county" value="{{ county_slug }}" placeholder="e.g. cascade, gallatin, missoula" required
+                   class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            <p class="mt-1 text-xs text-slate-400">Enter the county slug (e.g. cascade, gallatin, lewis-and-clark)</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Business Name *</label>
+                <input type="text" name="business_name" required
+                       class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Email *</label>
+                <input type="email" name="email" required
+                       class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Phone</label>
+                <input type="tel" name="phone"
+                       class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Website</label>
+                <input type="url" name="website" placeholder="https://"
+                       class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Billing Interval</label>
+            <div class="flex gap-4">
+                <label class="flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-3 cursor-pointer hover:bg-slate-50">
+                    <input type="radio" name="interval" value="monthly" {% if billing == 'monthly' %}checked{% endif %}>
+                    <span class="text-sm font-semibold">Monthly</span>
+                </label>
+                <label class="flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-3 cursor-pointer hover:bg-slate-50">
+                    <input type="radio" name="interval" value="annual" {% if billing == 'annual' %}checked{% endif %}>
+                    <span class="text-sm font-semibold">Annual <span class="text-emerald-600">(save ~16%)</span></span>
+                </label>
+            </div>
+        </div>
+
+        <button type="submit" class="w-full rounded-xl bg-slate-900 py-4 text-base font-black text-white hover:bg-slate-800 transition">
+            Continue to Payment
+        </button>
+    </form>
+
+    <p class="mt-6 text-center text-xs text-slate-400">
+        Secure Stripe checkout. Cancel anytime. Your listing appears on the selected county's jail booking pages.
+    </p>
+</div>
+{% endblock %}

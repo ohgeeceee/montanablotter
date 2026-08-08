@@ -1,0 +1,930 @@
+Montana Blotter police-blotter records-request packet — generated 2026-08-02
+
+Return completed or scanned responses to:
+
+  Montana Blotter, PO Box 1174, Helena, MT 59624
+  records@montanablotter.com
+
+========================================================================
+Section script_01: Beaverhead County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  88 W. Reed St, Dillon MT 59725
+Agency contact form (if used): https://beaverheadcountymt.gov/355/Records-Request
+Agency phone (for follow-up): 406-683-3707
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://beaverheadcountymt.gov/355/Records-Request
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_02: Big-Horn County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  RR1, Hardin MT 59034
+Agency contact form (if used): https://www.bighorncountymt.gov/238/Sheriffs-Office
+Agency phone (for follow-up): 406-665-9770
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.bighorncountymt.gov/238/Sheriffs-Office
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_03: Blaine County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  420 Ohio St, Chinook MT 59523
+Agency contact form (if used): https://blainecounty-mt.gov/sheriff-coroner/
+Agency phone (for follow-up): 406-357-3260
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://blainecounty-mt.gov/sheriff-coroner/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_04: Broadwater County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  124 N Walnut, Townsend MT 59644
+Agency contact form (if used): https://www.broadwatercountysheriff.org/contact
+Agency phone (for follow-up): 406-266-9100
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.broadwatercountysheriff.org/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_05: Carbon County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  224 N Broadway Ave, Red Lodge MT 59068
+Agency contact form (if used): https://carbonmt.gov/sheriff/
+Agency phone (for follow-up): 406-446-1234
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://carbonmt.gov/sheriff/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_06: Cascade County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  3801 Ulm N Frontage Rd, Great Falls MT 59404
+Agency contact form (if used): https://www.cascadecountymt.gov/283/Sheriffs-Office
+Agency phone (for follow-up): 406-454-6840
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.cascadecountymt.gov/283/Sheriffs-Office
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_07: Chouteau County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  301 Main St, Fort Benton MT 59442
+Agency contact form (if used): https://chouteaucountysheriff.com/contact
+Agency phone (for follow-up): 406-622-5451
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://chouteaucountysheriff.com/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_08: Custer County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  1010 Main St, Miles City MT 59301
+Agency contact form (if used): https://custercountymt.gov/emergency-enforcement/sheriff/
+Agency phone (for follow-up): 406-874-3320
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://custercountymt.gov/emergency-enforcement/sheriff/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_09: Dawson County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  207 W Bell St, Glendive MT 59330
+Agency contact form (if used): https://www.dawsonmt.gov/departments/sheriff/index.php
+Agency phone (for follow-up): 406-377-5291
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.dawsonmt.gov/departments/sheriff/index.php
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_10: Deer-Lodge County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  800 S Pennsylvania, Anaconda MT 59711
+Agency contact form (if used): https://www.anacondadeerlodge.mt.gov/sheriff/
+Agency phone (for follow-up): 406-563-8441
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.anacondadeerlodge.mt.gov/sheriff/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_11: Fallon County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  10 W Fallon Ave, Baker MT 59313
+Agency contact form (if used): https://falloncountymt.gov/sheriff
+Agency phone (for follow-up): 406-778-2222
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://falloncountymt.gov/sheriff
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_12: Fergus County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  712 W Main, Lewistown MT 59457
+Agency contact form (if used): https://fergusmt.gov/sheriffs-office
+Agency phone (for follow-up): 406-535-8115
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://fergusmt.gov/sheriffs-office
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_13: Flathead County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  920 S Main St, Kalispell MT 59901
+Agency contact form (if used): https://flathead.mt.gov/sheriff/
+Agency phone (for follow-up): 406-758-5610
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://flathead.mt.gov/sheriff/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_14: Gallatin County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  615 S 16th, Bozeman MT 59715
+Agency contact form (if used): https://gallatinmt.gov/sheriff/
+Agency phone (for follow-up): 406-582-2100
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://gallatinmt.gov/sheriff/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_15: Glacier County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  512 E Railroad, Cut Bank MT 59427
+Agency contact form (if used): https://glaciercountymt.gov/contact
+Agency phone (for follow-up): 406-873-2711
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://glaciercountymt.gov/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_16: Golden-Valley County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  107 Kemp St, Ryegate MT 59074
+Agency contact form (if used): https://www.goldenvalleycountysheriffsoffice.org/
+Agency phone (for follow-up): 406-568-2321
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.goldenvalleycountysheriffsoffice.org/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_17: Jefferson County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  110 S Washington, Boulder MT 59632
+Agency contact form (if used): https://jeffersoncountymt.gov/sheriffs-office
+Agency phone (for follow-up): 406-225-4075
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://jeffersoncountymt.gov/sheriffs-office
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_18: Judith-Basin County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  215 Central Ave, Stanford MT 59479
+Agency contact form (if used): https://www.judithbasincounty.com/contact
+Agency phone (for follow-up): 406-535-3860
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.judithbasincounty.com/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_19: Lake County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  106 4th Ave E, Polson MT 59860
+Agency contact form (if used): https://www.lakemt.gov/directory.aspx
+Agency phone (for follow-up): 406-883-7301
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.lakemt.gov/directory.aspx
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_20: Lewis-And-Clark County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  228 Broadway, Helena MT 59601
+Agency contact form (if used): https://www.lccountymt.gov/FormCenter/Sheriffs-Office-
+Agency phone (for follow-up): 406-447-8235
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.lccountymt.gov/FormCenter/Sheriffs-Office-
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_21: Lincoln County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  512 California Ave, Libby MT 59923
+Agency contact form (if used): https://lincolncountymt.us/sheriff-home/detention/
+Agency phone (for follow-up): 406-283-2447
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://lincolncountymt.us/sheriff-home/detention/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_22: Madison County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  110 N Wallace, Virginia City MT 59755
+Agency contact form (if used): https://www.madisoncountymt.gov/contact
+Agency phone (for follow-up): 406-843-5230
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.madisoncountymt.gov/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_23: Meagher County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  200 W Fowler, White Sulphur Springs MT 59645
+Agency contact form (if used): https://meaghercountymt.gov/sheriff
+Agency phone (for follow-up): 406-547-2212
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://meaghercountymt.gov/sheriff
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_24: Mineral County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 7, Superior MT 59872
+Agency contact form (if used): https://co.mineral.mt.us/departments/sheriff/
+Agency phone (for follow-up): 406-822-3555
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://co.mineral.mt.us/departments/sheriff/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_25: Missoula County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  200 W Broadway St, Missoula MT 59802
+Agency contact form (if used): https://www.missoulacounty.us/government/sheriff/contact
+Agency phone (for follow-up): 406-258-4810
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.missoulacounty.us/government/sheriff/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_26: Musselshell County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 65, Roundup MT 59072
+Agency contact form (if used): https://musselshellcounty.org/contact
+Agency phone (for follow-up): 406-323-1402
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://musselshellcounty.org/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_27: Phillips County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 1294, Malta MT 59538
+Agency contact form (if used): https://phillipscosheriff.com/contact
+Agency phone (for follow-up): 406-654-2020
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://phillipscosheriff.com/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_28: Powder-River County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 250, Broadus MT 59317
+Agency contact form (if used): https://prco.mt.gov/contact
+Agency phone (for follow-up): 406-436-2361
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://prco.mt.gov/contact
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_29: Powell County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  409 4th Ave, Deer Lodge MT 59722
+Agency contact form (if used): https://www.powellcountymt.gov/sheriff/page/detention-facility
+Agency phone (for follow-up): 406-846-2711
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.powellcountymt.gov/sheriff/page/detention-facility
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_30: Ravalli County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  205 Bedford, Hamilton MT 59840
+Agency contact form (if used): https://ravallicounty.gov/239/Adult-Detention-Center
+Agency phone (for follow-up): 406-363-3030
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://ravallicounty.gov/239/Adult-Detention-Center
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_31: Richland County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  300 12th Ave NW, Sidney MT 59270
+Agency contact form (if used): https://www.richland.org/detention-centers.html
+Agency phone (for follow-up): 406-433-2919
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.richland.org/detention-centers.html
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_32: Roosevelt County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  124 5th Ave SE, Wolf Point MT 59201
+Agency contact form (if used): https://www.rooseveltcountymt.gov/sheriff-coroner/
+Agency phone (for follow-up): 406-653-1700
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.rooseveltcountymt.gov/sheriff-coroner/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_33: Rosebud County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 69, Forsyth MT 59327
+Agency contact form (if used): https://www.rosebudcountymt.gov/sheriff
+Agency phone (for follow-up): 406-346-2780
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.rosebudcountymt.gov/sheriff
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_34: Sanders County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 519, Thompson Falls MT 59873
+Agency contact form (if used): https://sanders-mt.publiclogs.com/
+Agency phone (for follow-up): 406-827-3584
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://sanders-mt.publiclogs.com/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_35: Sheridan County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  100 W Laurel Ave, Plentywood MT 59254
+Agency contact form (if used): https://www.sheridancountymt.gov/sheriff
+Agency phone (for follow-up): 406-765-3400
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.sheridancountymt.gov/sheriff
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_36: Silver-Bow County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  155 W Quartz St, Butte MT 59701
+Agency contact form (if used): https://co.silverbow.mt.us/3274/Detention-Center
+Agency phone (for follow-up): 406-497-1120
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://co.silverbow.mt.us/3274/Detention-Center
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_37: Stillwater County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 167, Columbus MT 59019
+Agency contact form (if used): https://stillwatercountymt.gov/sheriff
+Agency phone (for follow-up): 406-322-5326
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://stillwatercountymt.gov/sheriff
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_38: Teton County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 608, Choteau MT 59422
+Agency contact form (if used): https://tetoncountymt.gov/sheriff
+Agency phone (for follow-up): 406-466-5701
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://tetoncountymt.gov/sheriff
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_39: Toole County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  226 1st St S, Shelby MT 59474
+Agency contact form (if used): https://toolecountymt.gov/sheriffs-office/
+Agency phone (for follow-up): 406-424-8300
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://toolecountymt.gov/sheriffs-office/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_40: Treasure County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 1511, Hysham MT 59038
+Agency contact form (if used): https://www.treasurecountymt.gov/tcsheriff
+Agency phone (for follow-up): 406-342-5211
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.treasurecountymt.gov/tcsheriff
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_41: Valley County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  501 Court Sq #10, Glasgow MT 59230
+Agency contact form (if used): https://www.valleycountymt.gov/1288/Jail-Roster
+Agency phone (for follow-up): 406-228-4333
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.valleycountymt.gov/1288/Jail-Roster
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_42: Wheatland County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 218, Harlowton MT 59036
+Agency contact form (if used): https://wheatlandcountymt.gov/sheriff
+Agency phone (for follow-up): 406-632-5614
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://wheatlandcountymt.gov/sheriff
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_43: Wibaux County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 166, Wibaux MT 59353
+Agency contact form (if used): https://wibauxmt.com/
+Agency phone (for follow-up): 406-796-2415
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://wibauxmt.com/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team
+
+========================================================================
+Section script_44: Yellowstone County Sheriff
+========================================================================
+Mail one printed copy of this section to:
+  PO Box 35010, Billings MT 59107
+Agency contact form (if used): https://www.yellowstonecountymt.gov/Sheriff/
+Agency phone (for follow-up): 406-256-2910
+
+Montana Blotter
+Montana Blotter, PO Box 1174, Helena, MT 59624
+August 02, 2026
+
+Dear Records Custodian,
+
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter feed for your office. Would your agency share a copy of the daily blotter through one of these channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; (2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the agency site. For a daily blotter we extract incident number, date and time, location, agency, incident type, and disposition when available. We publish the official source and update time with the data, link back to the agency, and stop drawing from the feed if you tell us to. If a public records request form is the right path, here is the agency link: https://www.yellowstonecountymt.gov/Sheriff/
+
+Please also tell us the best contact for delivery issues and how you would prefer follow-up questions.
+
+Sincerely,
+Montana Blotter records team

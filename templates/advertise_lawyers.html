@@ -2,136 +2,676 @@
 
 {% set page_title = page_title or "Advertise Your Law Firm on Montana Blotter" %}
 {% set meta_description = meta_description or "Reach Montana families at the moment they search for a lawyer. Bronze $149/mo, Silver $299/mo, Gold $599/mo." %}
-{% set canonical_url = "https://montanablotter.com/advertise/lawyers" %}
+{% set canonical_url = canonical_url or "https://montanablotter.com/advertise/lawyers" %}
+{% set og_title = og_title or (page_title ~ " | Montana Blotter") %}
+{% set og_description = og_description or meta_description %}
 
 {% block body_class %}advertise-lawyers-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "Montana Blotter Lawyer Directory placement",
+  "description": "Paid placement on the Montana Blotter /lawyers directory. Tap-to-call, lead capture intake, county targeting, and Gold-tier priority lead routing.",
+  "brand": {"@type": "Brand", "name": "Montana Blotter"},
+  "offers": [
+    {"@type": "Offer", "name": "Bronze Listing",     "price": "149.00",  "priceCurrency": "USD", "category": "monthly"},
+    {"@type": "Offer", "name": "Silver Featured",   "price": "299.00",  "priceCurrency": "USD", "category": "monthly"},
+    {"@type": "Offer", "name": "Gold Priority",     "price": "599.00",  "priceCurrency": "USD", "category": "monthly"}
+  ]
+}
+</script>
+<style>
+  .adlvl-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: 1.1rem;
+  }
+  .adlvl-stat {
+    border: 1px solid var(--public-border, rgba(20,14,4,0.18));
+    border-radius: 14px;
+    background: rgba(255,255,255,0.7);
+    padding: 0.7rem 0.9rem;
+  }
+  .adlvl-stat__label {
+    color: var(--public-dim, #5b5141);
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 0.54rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .adlvl-stat__value {
+    color: var(--public-text, #1c140a);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-top: 0.18rem;
+  }
+  .adlvl-stat__sub {
+    color: var(--public-muted, #4a3a26);
+    font-size: 0.74rem;
+    margin-top: 0.18rem;
+  }
+
+  /* Tier cards */
+  .adlvl-tier {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    border: 1px solid var(--public-border, rgba(20,14,4,0.18));
+    border-radius: 22px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.94), rgba(251,250,247,0.96));
+    box-shadow: var(--public-shadow, 0 12px 30px -22px rgba(20,14,4,0.35));
+    padding: 1.4rem 1.3rem 1.3rem;
+    position: relative;
+    height: 100%;
+  }
+  .adlvl-tier--featured {
+    border: 2px solid #b8860b;
+    background:
+      radial-gradient(circle at top right, rgba(216, 156, 70, 0.18), transparent 32%),
+      linear-gradient(180deg, #fffdf0 0%, #fff8e8 100%);
+    box-shadow: 0 16px 38px -16px rgba(184, 134, 11, 0.45);
+  }
+  .adlvl-tier__ribbon {
+    position: absolute;
+    top: -0.65rem;
+    left: 1.1rem;
+    background: #b8860b;
+    color: #1c140a;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    box-shadow: 0 4px 10px -3px rgba(184, 134, 11, 0.45);
+  }
+  .adlvl-tier__kicker {
+    color: var(--public-dim, #5b5141);
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .adlvl-tier__name {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--public-text, #1c140a);
+    line-height: 1.1;
+  }
+  .adlvl-tier__price {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--public-text, #1c140a);
+  }
+  .adlvl-tier__price--featured { color: #b8860b; }
+  .adlvl-tier__sub {
+    color: var(--public-muted, #4a3a26);
+    font-size: 0.78rem;
+  }
+  .adlvl-tier__copy {
+    color: var(--public-muted, #4a3a26);
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
+  .adlvl-tier__features {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.45rem;
+    font-size: 0.85rem;
+    color: var(--public-text, #1c140a);
+  }
+  .adlvl-tier__features li {
+    display: flex;
+    gap: 0.55rem;
+    align-items: flex-start;
+  }
+  .adlvl-tier__features li::before {
+    content: "✓";
+    color: #047857;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .adlvl-tier__cta {
+    margin-top: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: transform 120ms ease, background-color 120ms ease;
+  }
+  .adlvl-tier__cta--primary {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+    color: #ffffff;
+  }
+  .adlvl-tier__cta--primary:hover { transform: translateY(-1px); background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+  .adlvl-tier__cta--featured {
+    background: linear-gradient(135deg, #b8860b 0%, #92650a 100%);
+    color: #ffffff;
+  }
+  .adlvl-tier__cta--featured:hover { transform: translateY(-1px); background: linear-gradient(135deg, #d49c46 0%, #b8860b 100%); }
+  .adlvl-tier__cta--ghost {
+    background: #ffffff;
+    color: var(--public-text, #1c140a);
+    border: 1px solid var(--public-border, rgba(20,14,4,0.18));
+  }
+  .adlvl-tier__cta--ghost:hover { background: #f8f5ec; }
+
+  /* Comparison table */
+  .adlvl-compare {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.9rem;
+  }
+  .adlvl-compare thead th {
+    text-align: left;
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--public-dim, #5b5141);
+    padding: 0.8rem 0.9rem;
+    border-bottom: 1px solid var(--public-border, rgba(20,14,4,0.18));
+  }
+  .adlvl-compare thead th.adlvl-compare--featured { color: #b8860b; }
+  .adlvl-compare tbody td {
+    padding: 0.75rem 0.9rem;
+    border-bottom: 1px dashed var(--public-border, rgba(20,14,4,0.12));
+    color: var(--public-text, #1c140a);
+  }
+  .adlvl-compare tbody tr:last-child td { border-bottom: 0; }
+  .adlvl-compare__yes { color: #047857; font-weight: 800; }
+  .adlvl-compare__no  { color: var(--public-dim, #5b5141); }
+
+  /* Process strip */
+  .adlvl-steps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.7rem;
+    counter-reset: adlvl;
+  }
+  .adlvl-step {
+    position: relative;
+    border: 1px solid var(--public-border, rgba(20,14,4,0.18));
+    border-radius: 14px;
+    background: rgba(255,255,255,0.74);
+    padding: 0.95rem 0.95rem 0.85rem;
+  }
+  .adlvl-step::before {
+    counter-increment: adlvl;
+    content: counter(adlvl, decimal-leading-zero);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--public-amber, #b8860b);
+    display: block;
+    margin-bottom: 0.4rem;
+  }
+  .adlvl-step__title {
+    font-weight: 800;
+    color: var(--public-text, #1c140a);
+    font-size: 0.9rem;
+    line-height: 1.25;
+  }
+  .adlvl-step__copy {
+    color: var(--public-muted, #4a3a26);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    margin-top: 0.3rem;
+  }
+
+  /* Sample report card */
+  .adlvl-metric {
+    border: 1px solid var(--public-border, rgba(20,14,4,0.18));
+    border-radius: 14px;
+    padding: 0.7rem 0.9rem;
+    background: rgba(255,255,255,0.74);
+  }
+  .adlvl-metric__label {
+    color: var(--public-dim, #5b5141);
+    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 0.55rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .adlvl-metric__value {
+    color: var(--public-text, #1c140a);
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-top: 0.2rem;
+  }
+  .adlvl-metric__sub {
+    color: var(--public-muted, #4a3a26);
+    font-size: 0.72rem;
+    margin-top: 0.15rem;
+  }
+
+  /* Schedule-a-call form */
+  .adlvl-call-form input,
+  .adlvl-call-form select,
+  .adlvl-call-form textarea {
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  @media (max-width: 880px) {
+    .adlvl-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .adlvl-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
+    .adlvl-steps { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
 
 {% block breadcrumb %}
 <span class="mx-2">/</span>
 <a href="/lawyers" style="color: var(--text-body);">Lawyers</a>
 <span class="mx-2">/</span>
-<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">Advertise</span>
+<span class="text-slate-900 font-semibold">Advertise</span>
 {% endblock %}
 
 {% block hero %}
-<section style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color: var(--text-inverse); padding: var(--space-12) var(--page-gutter); border-bottom: var(--rule-heavy);">
-  <div style="max-width: 80rem; margin: 0 auto;">
-    <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: #fbbf24; text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
-      For Montana Attorneys
-    </p>
-    <h1 style="margin-top: var(--space-4); font-family: var(--font-serif-display); font-size: clamp(2rem, 4vw, var(--text-display)); font-weight: var(--weight-display); line-height: var(--leading-display); letter-spacing: var(--tracking-display); color: var(--text-inverse);">
-      Reach Montana families at the moment they search for a lawyer.
-    </h1>
-    <p style="margin-top: var(--space-4); color: #cbd5e1; font-size: var(--text-body-md); line-height: var(--leading-body); max-width: 56ch;">
-      Montana Blotter serves tens of thousands of Montanans each month — people navigating
-      arrests, custody issues, injuries, and life events who actively need a lawyer. Get in
-      front of them with tap-to-call, lead capture intake, and county-targeted placement.
-    </p>
-  </div>
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow" style="color: var(--public-amber);">For Montana Attorneys · Advertising</p>
+                <h1 class="public-title public-title--medium">Reach Montana families at the moment they search for a lawyer.</h1>
+                <p class="public-copy">A paid placement on the Montana Blotter /lawyers directory puts your firm in front of people navigating arrests, custody issues, injuries, and life events who actively need a lawyer — with tap-to-call, lead capture intake, and county-targeted placement.</p>
+
+                <div class="adlvl-stats" role="list">
+                    <div class="adlvl-stat" role="listitem">
+                        <div class="adlvl-stat__label">Active listings</div>
+                        <div class="adlvl-stat__value">{{ coverage_stats.active_listings }}</div>
+                        <div class="adlvl-stat__sub">lawyers on the directory</div>
+                    </div>
+                    <div class="adlvl-stat" role="listitem">
+                        <div class="adlvl-stat__label">Counties covered</div>
+                        <div class="adlvl-stat__value">{{ coverage_stats.counties_with_coverage }}</div>
+                        <div class="adlvl-stat__sub">across Montana</div>
+                    </div>
+                    <div class="adlvl-stat" role="listitem">
+                        <div class="adlvl-stat__label">Gold slots filled</div>
+                        <div class="adlvl-stat__value">{{ coverage_stats.gold_count }} / 56</div>
+                        <div class="adlvl-stat__sub">1 per county, by design</div>
+                    </div>
+                    <div class="adlvl-stat" role="listitem">
+                        <div class="adlvl-stat__label">Plans from</div>
+                        <div class="adlvl-stat__value">$149<span style="font-size:0.7em;font-weight:700;color:var(--public-muted);">/mo</span></div>
+                        <div class="adlvl-stat__sub">cancel any time</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
 {% endblock %}
 
 {% block content %}
-<main class="mb-main">
-  <div style="max-width: 80rem; margin: 0 auto; padding: var(--space-10) var(--page-gutter); display: flex; flex-direction: column; gap: var(--space-8);">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
 
-    <article class="mb-record-card">
-      <header class="mb-section-header">
-        <div>
-          <p class="mb-section-header__kicker">Pricing</p>
-          <h2 class="mb-section-header__title">Choose your package</h2>
+    {# --------------------------------------------------------------- #}
+    {# Pricing — three tier cards                                      #}
+    {# --------------------------------------------------------------- #}
+    <section id="pricing" class="public-card p-5 sm:p-6">
+        <div class="flex items-end justify-between gap-3 flex-wrap mb-5">
+            <div>
+                <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="color: var(--public-amber);">Pricing</p>
+                <h2 class="text-2xl font-black text-slate-900 mt-1">Choose your package</h2>
+                <p class="text-sm text-slate-600 mt-1">Monthly or annual. Cancel any time. Montana State Bar number required for all paid placements.</p>
+            </div>
+            {% if not checkout_ready %}
+            <div class="text-[11px] uppercase tracking-[0.14em] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Stripe checkout offline — contact <a class="underline" href="mailto:support@montanablotter.com">support@montanablotter.com</a>
+            </div>
+            {% endif %}
         </div>
-      </header>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); margin-top: var(--space-4);">
-        {% for pkg in packages %}
-        <article style="border: {% if pkg.featured %}3px solid #b8860b{% else %}var(--rule-light){% endif %}; border-radius: var(--radius-md); padding: var(--space-5); background: {% if pkg.featured %}linear-gradient(180deg, #fffdf0 0%, #fff 70%){% else %}var(--surface-card){% endif %}; position: relative; {% if pkg.featured %}box-shadow: 0 6px 18px rgba(184, 134, 11, 0.15);{% endif %}">
-          {% if pkg.featured %}
-          <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #b8860b; color: var(--text-inverse); padding: var(--space-1) var(--space-4); border-radius: var(--radius-full); font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); letter-spacing: var(--tracking-kicker); text-transform: uppercase;">RECOMMENDED</div>
-          {% endif %}
-          <h3 style="font-family: var(--font-serif-display); font-size: var(--text-headline-sm); font-weight: var(--weight-display); color: var(--text-headline); margin: 0 0 var(--space-2);">{{ pkg.name }}</h3>
-          <p style="font-family: var(--font-serif-display); font-size: 1.5rem; font-weight: var(--weight-display); margin: var(--space-2) 0; color: {% if pkg.featured %}#b8860b{% else %}#1e3a8a{% endif %};">{{ pkg.price_label }}</p>
-          <p style="font-size: var(--text-caption); color: var(--text-secondary); margin-bottom: var(--space-4);">or {{ pkg.price_label_annual }} billed annually</p>
-          <p style="color: var(--text-body); font-size: var(--text-body-sm); margin-bottom: var(--space-4); line-height: var(--leading-body);">{{ pkg.short_description }}</p>
-          <ul style="list-style: none; padding: 0; margin: 0 0 var(--space-5); font-size: var(--text-body-sm); color: var(--text-body);">
-            {% for f in pkg.features %}
-            <li style="padding: var(--space-2) 0; border-bottom: 1px solid var(--ink-100);">✓ {{ f }}</li>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {% for pkg in packages %}
+            <article class="adlvl-tier {% if pkg.featured %}adlvl-tier--featured{% endif %}">
+                {% if pkg.featured %}<span class="adlvl-tier__ribbon">Recommended</span>{% endif %}
+                <p class="adlvl-tier__kicker">Package · {{ loop.index }} of 3</p>
+                <h3 class="adlvl-tier__name">{{ pkg.name }}</h3>
+                <div>
+                    <div class="adlvl-tier__price {% if pkg.featured %}adlvl-tier__price--featured{% endif %}">{{ pkg.price_label }}</div>
+                    <div class="adlvl-tier__sub">or {{ pkg.price_label_annual }} billed annually — save two months</div>
+                </div>
+                <p class="adlvl-tier__copy">{{ pkg.short_description }}</p>
+                <ul class="adlvl-tier__features">
+                    {% for f in pkg.features %}<li>{{ f }}</li>{% endfor %}
+                </ul>
+                <a href="{{ url_for('lawyer_ads.advertise_lawyers_checkout', package=pkg.id) }}"
+                   class="adlvl-tier__cta {% if pkg.featured %}adlvl-tier__cta--featured{% else %}adlvl-tier__cta--primary{% endif %}">
+                    Get started
+                </a>
+            </article>
             {% endfor %}
-          </ul>
-          <a href="{{ url_for('lawyer_ads.advertise_lawyers_checkout', package=pkg.id) }}" class="mb-button mb-button--primary mb-button--md" style="width: 100%;">
-            Get Started &rarr;
-          </a>
+        </div>
+    </section>
+
+    {# --------------------------------------------------------------- #}
+    {# Tier comparison — at-a-glance                                   #}
+    {# --------------------------------------------------------------- #}
+    <section class="public-card p-5 sm:p-6">
+        <div class="mb-4">
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="color: var(--public-amber);">Compare</p>
+            <h2 class="text-xl font-black text-slate-900 mt-1">What is in each package</h2>
+        </div>
+        <div class="overflow-x-auto -mx-2">
+            <table class="adlvl-compare">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        {% for pkg in packages %}
+                        <th class="{% if pkg.featured %}adlvl-compare--featured{% endif %}">{{ pkg.name }}<br><span style="font-weight:600;color:var(--public-muted);">{{ pkg.price_label }}</span></th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set feature_rows = [
+                        ('Profile listing on /lawyers',                  {'bronze': True,  'silver': True,  'gold': True}),
+                        ('Tap-to-call + tap-to-email',                   {'bronze': True,  'silver': True,  'gold': True}),
+                        ('Tap-to-text',                                  {'bronze': True,  'silver': True,  'gold': True}),
+                        ('Public intake lead routing',                   {'bronze': True,  'silver': True,  'gold': True}),
+                        ('Logo on your profile card',                    {'bronze': False, 'silver': True,  'gold': True}),
+                        ('Firm description (chars)',                    {'bronze': 200,   'silver': 500,   'gold': 1000}),
+                        ('Pinned above Bronze in your counties',         {'bronze': False, 'silver': True,  'gold': True}),
+                        ('Top of every county section you serve',        {'bronze': False, 'silver': False, 'gold': True}),
+                        ('Photo on your profile card',                   {'bronze': False, 'silver': False, 'gold': True}),
+                        ('Custom callout / tagline',                     {'bronze': False, 'silver': False, 'gold': True}),
+                        ('Priority lead routing',                        {'bronze': False, 'silver': False, 'gold': True}),
+                        ('Immediate email lead alerts',                  {'bronze': False, 'silver': False, 'gold': True}),
+                        ('Monthly performance + conversion report',      {'bronze': False, 'silver': False, 'gold': True}),
+                    ] %}
+                    {% for label, vals in feature_rows %}
+                    <tr>
+                        <td><strong>{{ label }}</strong></td>
+                        {% for pkg in packages %}
+                        <td>
+                            {% set v = vals[pkg.id] %}
+                            {% if v is sameas true %}<span class="adlvl-compare__yes">✓</span>
+                            {% elif v is sameas false %}<span class="adlvl-compare__no">—</span>
+                            {% else %}<span>{{ v }} chars</span>{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {# --------------------------------------------------------------- #}
+    {# Why advertise here — 3 feature columns                          #}
+    {# --------------------------------------------------------------- #}
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <article class="public-card p-5">
+            <p class="text-[11px] uppercase tracking-[0.16em] font-black" style="color: var(--public-amber);">Targeted</p>
+            <h3 class="text-lg font-black text-slate-900 mt-1">County-by-county placement</h3>
+            <p class="text-sm text-slate-600 mt-2">Pick the counties you actually serve. Only your placement shows up in those county pages. Caps keep competition fair — 1 Gold / 2 Silver / 2 Bronze per county.</p>
         </article>
-        {% endfor %}
-      </div>
-    </article>
+        <article class="public-card p-5">
+            <p class="text-[11px] uppercase tracking-[0.16em] font-black" style="color: var(--public-amber);">Direct intent</p>
+            <h3 class="text-lg font-black text-slate-900 mt-1">Tap-to-call, tap-to-text, lead form</h3>
+            <p class="text-sm text-slate-600 mt-2">Every listing has one-tap calling and texting on mobile, and the public intake form on /lawyers routes the consumer directly to your inbox. No middleman.</p>
+        </article>
+        <article class="public-card p-5">
+            <p class="text-[11px] uppercase tracking-[0.16em] font-black" style="color: var(--public-amber);">Reporting</p>
+            <h3 class="text-lg font-black text-slate-900 mt-1">Monthly performance report</h3>
+            <p class="text-sm text-slate-600 mt-2">Silver and Gold advertisers get monthly impression, click, call, and lead counts. Gold gets a full conversion report with cost-per-consultation and cost-per-retained metrics.</p>
+        </article>
+    </section>
 
-    <article class="mb-record-card" style="background: var(--surface-page);">
-      <header class="mb-section-header">
-        <div>
-          <p class="mb-section-header__kicker">Why advertise here</p>
-          <h2 class="mb-section-header__title">Built for lawyers who care about ROI</h2>
+    {# --------------------------------------------------------------- #}
+    {# Process — 5 steps                                                #}
+    {# --------------------------------------------------------------- #}
+    <section class="public-card p-5 sm:p-6">
+        <div class="mb-4">
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="color: var(--public-amber);">Process</p>
+            <h2 class="text-xl font-black text-slate-900 mt-1">From signup to live the same day</h2>
         </div>
-      </header>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-5); margin-top: var(--space-4);">
-        <div>
-          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
-            Targeted
-          </p>
-          <p style="margin: var(--space-1) 0 0; color: var(--text-body); font-size: var(--text-body-sm); line-height: var(--leading-body);">Pick the counties you serve. Only your placements appear there.</p>
+        <div class="adlvl-steps">
+            <div class="adlvl-step">
+                <div class="adlvl-step__title">Pick your package</div>
+                <p class="adlvl-step__copy">Bronze, Silver, or Gold. Monthly or annual billing.</p>
+            </div>
+            <div class="adlvl-step">
+                <div class="adlvl-step__title">Submit firm details</div>
+                <p class="adlvl-step__copy">Firm name, Bar number, counties, contact, and (for Silver/Gold) your logo.</p>
+            </div>
+            <div class="adlvl-step">
+                <div class="adlvl-step__title">Stripe checkout</div>
+                <p class="adlvl-step__copy">Pay securely with card. The order activates immediately on confirmation.</p>
+            </div>
+            <div class="adlvl-step">
+                <div class="adlvl-step__title">Listing goes live</div>
+                <p class="adlvl-step__copy">Your firm shows up in the selected counties on /lawyers. Tap-to-call and lead routing enabled.</p>
+            </div>
+            <div class="adlvl-step">
+                <div class="adlvl-step__title">Receive leads + report</div>
+                <p class="adlvl-step__copy">Consumer leads email you instantly. Monthly performance report at the start of each month.</p>
+            </div>
         </div>
-        <div>
-          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
-            Tap-to-call
-          </p>
-          <p style="margin: var(--space-1) 0 0; color: var(--text-body); font-size: var(--text-body-sm); line-height: var(--leading-body);">Every listing has one-tap calling on mobile. No friction.</p>
-        </div>
-        <div>
-          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
-            Lead capture
-          </p>
-          <p style="margin: var(--space-1) 0 0; color: var(--text-body); font-size: var(--text-body-sm); line-height: var(--leading-body);">Public intake form routes directly to active advertisers.</p>
-        </div>
-        <div>
-          <p style="font-family: var(--font-mono); font-size: var(--text-kicker); font-weight: var(--weight-bold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
-            Reporting
-          </p>
-          <p style="margin: var(--space-1) 0 0; color: var(--text-body); font-size: var(--text-body-sm); line-height: var(--leading-body);">Monthly impression, click, and lead counts in your control panel.</p>
-        </div>
-      </div>
-    </article>
+    </section>
 
-    <article class="mb-record-card">
-      <header class="mb-section-header">
-        <div>
-          <p class="mb-section-header__kicker">Process</p>
-          <h2 class="mb-section-header__title">How it works</h2>
+    {# --------------------------------------------------------------- #}
+    {# Sample report — 6 metrics, what they'll actually receive        #}
+    {# --------------------------------------------------------------- #}
+    <section class="public-card p-5 sm:p-6">
+        <div class="flex items-end justify-between gap-3 flex-wrap mb-5">
+            <div>
+                <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="color: var(--public-amber);">Sample report</p>
+                <h2 class="text-xl font-black text-slate-900 mt-1">What a Gold advertiser's month looks like</h2>
+                <p class="text-sm text-slate-600 mt-1">Redacted example from the same monthly report we email to every paid advertiser at the start of each month.</p>
+            </div>
+            <a href="/advertise/lawyers/sample-report" class="text-xs font-black uppercase tracking-[0.12em] text-blue-700 underline">See full sample report →</a>
         </div>
-      </header>
-      <ol style="margin: var(--space-4) 0 0; padding-left: var(--space-5); color: var(--text-body); font-size: var(--text-body-md); line-height: var(--leading-body); display: flex; flex-direction: column; gap: var(--space-2);">
-        <li>Pick your package and submit your firm details.</li>
-        <li>We send you a Stripe checkout for monthly or annual billing.</li>
-        <li>After payment, your listing goes live on /lawyers for the counties you picked.</li>
-        <li>Leads from the public intake form are routed to you instantly.</li>
-        <li>Cancel anytime from your control panel — no contracts.</li>
-      </ol>
-    </article>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="adlvl-metric">
+                <div class="adlvl-metric__label">Impressions</div>
+                <div class="adlvl-metric__value">4,218</div>
+                <div class="adlvl-metric__sub">listing card views</div>
+            </div>
+            <div class="adlvl-metric">
+                <div class="adlvl-metric__label">Clicks</div>
+                <div class="adlvl-metric__value">187</div>
+                <div class="adlvl-metric__sub">tap-throughs</div>
+            </div>
+            <div class="adlvl-metric">
+                <div class="adlvl-metric__label">Calls</div>
+                <div class="adlvl-metric__value">42</div>
+                <div class="adlvl-metric__sub">tap-to-call events</div>
+            </div>
+            <div class="adlvl-metric">
+                <div class="adlvl-metric__label">Leads delivered</div>
+                <div class="adlvl-metric__value">17</div>
+                <div class="adlvl-metric__sub">intake form submissions</div>
+            </div>
+            <div class="adlvl-metric">
+                <div class="adlvl-metric__label">Cost / lead</div>
+                <div class="adlvl-metric__value">$35</div>
+                <div class="adlvl-metric__sub">advertiser-reported</div>
+            </div>
+            <div class="adlvl-metric">
+                <div class="adlvl-metric__label">Cost / retained</div>
+                <div class="adlvl-metric__value">$300</div>
+                <div class="adlvl-metric__sub">advertiser-reported</div>
+            </div>
+        </div>
+    </section>
 
-    <p style="color: var(--text-secondary); font-size: var(--text-body-sm); margin: 0;">
-      Questions? Email <a href="mailto:advertising@montanablotter.com" style="color: var(--text-link);">advertising@montanablotter.com</a>.
-      Montana State Bar number required for all paid placements.
-    </p>
-    <p style="color: var(--text-secondary); font-size: var(--text-body-sm); margin: 0;">
-      Need a printable summary? See the
-      <a href="/advertise/lawyers/one-pager" style="color: var(--text-link);">one-pager</a>
-      or a
-      <a href="/advertise/lawyers/sample-report" style="color: var(--text-link);">sample monthly report</a>.
-    </p>
-    <p style="color: var(--text-secondary); font-size: var(--text-body-sm); margin: 0;">
-      Not interested in a paid placement? The free
-      <a href="/attorneys" style="color: var(--text-link);">/attorneys directory</a>
-      is opt-in for licensed Montana defense attorneys.
-    </p>
+    {# --------------------------------------------------------------- #}
+    {# Schedule a call — closing form                                  #}
+    {# --------------------------------------------------------------- #}
+    <section class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        <article class="lg:col-span-3 public-card p-5 sm:p-6" id="schedule-a-call">
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="color: var(--public-amber);">Schedule a call</p>
+            <h2 class="text-xl font-black text-slate-900 mt-1">Want a 10-minute walkthrough?</h2>
+            <p class="text-sm text-slate-600 mt-1">No pressure. We will show you the directory, the controls panel, and the monthly report — and answer any pricing or contract questions. We will get back to you within one business day.</p>
 
-  </div>
-</main>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages and request.args.get('contact') == 'submitted' %}
+              <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 mt-4" role="status">
+                Thanks. We will be in touch within one business day.
+              </div>
+            {% elif form_errors %}
+              <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 mt-4" role="alert">
+                {{ form_errors[0] }}
+              </div>
+            {% endif %}
+            {% endwith %}
+
+            <form method="post" action="/advertise/lawyers/contact" class="mt-5 space-y-3 adlvl-call-form">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-bold text-slate-700 mb-1" for="call_name">Your name *</label>
+                        <input id="call_name" type="text" name="name" required placeholder="Full name" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-bold text-slate-700 mb-1" for="call_firm">Law firm *</label>
+                        <input id="call_firm" type="text" name="firm" required placeholder="Firm name" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-bold text-slate-700 mb-1" for="call_email">Email *</label>
+                        <input id="call_email" type="email" name="email" required placeholder="you@firm.com" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-bold text-slate-700 mb-1" for="call_phone">Phone (optional)</label>
+                        <input id="call_phone" type="tel" name="phone" placeholder="(406) 555-0123" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-bold text-slate-700 mb-1" for="call_county">Primary county</label>
+                        <select id="call_county" name="county" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                            <option value="">Select county</option>
+                            {% for c in counties_list %}
+                            <option value="{{ c }}">{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase tracking-[0.14em] font-bold text-slate-700 mb-1" for="call_practice">Practice area</label>
+                        <select id="call_practice" name="practice" class="rounded-xl border border-slate-300 px-4 py-3 text-sm">
+                            <option value="">No preference</option>
+                            {% for p in practice_areas %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] uppercase tracking-[0.14em] font-bold text-slate-700 mb-1" for="call_message">Anything we should know? (optional)</label>
+                    <textarea id="call_message" name="message" rows="3" placeholder="Bar number, partner count, or specific counties you have in mind." class="rounded-xl border border-slate-300 px-4 py-3 text-sm"></textarea>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 text-xs font-black uppercase tracking-[0.14em]">
+                        Request a call
+                    </button>
+                    <a href="mailto:support@montanablotter.com" class="text-sm text-slate-700 underline">or email support@montanablotter.com</a>
+                </div>
+            </form>
+        </article>
+
+        <aside class="lg:col-span-2 space-y-4">
+            <article class="public-card p-5">
+                <p class="text-[11px] uppercase tracking-[0.16em] font-black" style="color: var(--public-amber);">Sales materials</p>
+                <h3 class="text-lg font-black text-slate-900 mt-1">Want something to share internally?</h3>
+                <p class="text-sm text-slate-600 mt-2">Printable one-pager and a full sample monthly report — both publicly available, no signup required.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <a href="/advertise/lawyers/one-pager" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">One-pager</a>
+                    <a href="/advertise/lawyers/sample-report" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">Sample report</a>
+                </div>
+            </article>
+            <article class="public-card p-5 bg-slate-50">
+                <p class="text-[11px] uppercase tracking-[0.16em] font-black text-slate-700">Free directory</p>
+                <h3 class="text-lg font-black text-slate-900 mt-1">Don't need a paid placement?</h3>
+                <p class="text-sm text-slate-600 mt-2">The free <a href="/attorneys" class="text-blue-700 underline">/attorneys</a> directory is opt-in for licensed Montana attorneys.</p>
+            </article>
+            <article class="public-card p-5">
+                <p class="text-[11px] uppercase tracking-[0.16em] font-black text-slate-700">Editorial standards</p>
+                <p class="text-sm text-slate-600 mt-2">All paid placements must provide a valid Montana State Bar number. Montana Blotter reserves the right to reject listings that don't meet basic standards.</p>
+            </article>
+        </aside>
+    </section>
+
+    {# --------------------------------------------------------------- #}
+    {# FAQ                                                             #}
+    {# --------------------------------------------------------------- #}
+    <section class="public-card p-5 sm:p-6">
+        <div class="mb-4">
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="color: var(--public-amber);">FAQ</p>
+            <h2 class="text-xl font-black text-slate-900 mt-1">Frequently asked questions</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <article>
+                <p class="font-semibold text-slate-900">How fast will my listing go live?</p>
+                <p class="mt-1 text-sm text-slate-600">Immediately after Stripe checkout confirms. The directory updates in real time — you can refresh /lawyers and see your card.</p>
+            </article>
+            <article>
+                <p class="font-semibold text-slate-900">Do you require a Montana State Bar number?</p>
+                <p class="mt-1 text-sm text-slate-600">Yes. All paid placements must provide a valid Montana State Bar number. We may verify it before activating your listing.</p>
+            </article>
+            <article>
+                <p class="font-semibold text-slate-900">What does Gold priority lead routing mean?</p>
+                <p class="mt-1 text-sm text-slate-600">When a consumer submits the intake form on /lawyers, Gold advertisers in that county get the lead first. Silver and Bronze are notified only if the Gold advertiser doesn't claim it within a short window.</p>
+            </article>
+            <article>
+                <p class="font-semibold text-slate-900">What if a county is full?</p>
+                <p class="mt-1 text-sm text-slate-600">Caps are 1 Gold / 2 Silver / 2 Bronze per county. If your county is full, you can join a waitlist or pick a different county. We will reach out when a slot opens.</p>
+            </article>
+            <article>
+                <p class="font-semibold text-slate-900">Can I cancel?</p>
+                <p class="mt-1 text-sm text-slate-600">Yes. Cancel any time from your control panel. No contracts, no fees. Your listing comes down at the end of the current billing period.</p>
+            </article>
+            <article>
+                <p class="font-semibold text-slate-900">Do I have to provide a logo?</p>
+                <p class="mt-1 text-sm text-slate-600">Logos are required for Silver and Gold, optional for Bronze. We accept JPG, PNG, and WebP up to 2 MB.</p>
+            </article>
+        </div>
+    </section>
+
+    {# --------------------------------------------------------------- #}
+    {# Closing strip                                                   #}
+    {# --------------------------------------------------------------- #}
+    <div class="public-card p-5 sm:p-6 text-center" style="background: radial-gradient(circle at top right, rgba(216, 156, 70, 0.14), transparent 28%), linear-gradient(180deg, rgba(255,255,255,0.94), rgba(251,250,247,0.96));">
+        <p class="text-[11px] uppercase tracking-[0.18em] font-black" style="color: var(--public-amber);">Ready when you are</p>
+        <h2 class="text-2xl font-black text-slate-900 mt-1">Pick a package, go live the same day.</h2>
+        <p class="text-sm text-slate-600 mt-2 max-w-2xl mx-auto">Checkout takes a few minutes. Your listing goes live on /lawyers as soon as Stripe confirms and we clear the Bar-number check. Cancel any time.</p>
+        <div class="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <a href="#pricing" class="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 text-xs font-black uppercase tracking-[0.14em]">See packages</a>
+            <a href="mailto:support@montanablotter.com" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em]">Email support@</a>
+        </div>
+    </div>
+</div>
 {% endblock %}

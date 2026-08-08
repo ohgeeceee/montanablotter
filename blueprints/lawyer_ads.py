@@ -34,7 +34,7 @@ from werkzeug.utils import secure_filename
 
 import config
 from db import get_db
-from init_db import ensure_lawyer_ad_schema
+from init_db import ensure_lawyer_ad_schema, ensure_advertise_sales_lead_schema
 
 lawyer_ads_bp = Blueprint('lawyer_ads', __name__)
 
@@ -272,7 +272,7 @@ def _send_lawyer_lead_email(order: dict, lead: dict) -> tuple[bool, str]:
     msg['Subject'] = f'New Montana Blotter lead for {firm_name}'
     msg['From'] = f'Montana Blotter <{user}>'
     msg['To'] = destination
-    msg['Reply-To'] = 'advertising@montanablotter.com'
+    msg['Reply-To'] = 'support@montanablotter.com'
     plain = (
         f'New consumer inquiry routed to {order.get("firm_name") or "your firm"}.\n\n'
         f'Name: {lead.get("full_name") or ""}\n'
@@ -919,12 +919,51 @@ def api_lawyer_ads_event():
 @lawyer_ads_bp.route('/advertise/lawyers')
 def advertise_lawyers():
     """Landing page for lawyers advertising."""
+    import sqlite3
+    conn = get_db()
+    try:
+        ensure_lawyer_ad_schema(conn)
+        live_row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN package_id = 'gold' THEN 1 ELSE 0 END), 0) AS gold,
+                COALESCE(SUM(CASE WHEN package_id = 'silver' THEN 1 ELSE 0 END), 0) AS silver,
+                COALESCE(SUM(CASE WHEN package_id = 'bronze' THEN 1 ELSE 0 END), 0) AS bronze
+            FROM lawyer_ad_orders
+            WHERE status = 'active'
+            """
+        ).fetchone()
+        county_row = conn.execute(
+            """
+            SELECT COUNT(DISTINCT o.counties_served) AS counties_with_coverage
+            FROM lawyer_ad_orders o
+            WHERE o.status = 'active'
+            """
+        ).fetchone()
+    except sqlite3.OperationalError:
+        live_row = {'total': 0, 'gold': 0, 'silver': 0, 'bronze': 0}
+        county_row = {'counties_with_coverage': 0}
+    finally:
+        conn.close()
+
+    active_count = int(live_row['total'] or 0)
+    coverage_stats = {
+        'active_listings': active_count,
+        'counties_with_coverage': int(county_row['counties_with_coverage'] or 0),
+        'gold_count': int(live_row['gold'] or 0),
+        'silver_count': int(live_row['silver'] or 0),
+        'bronze_count': int(live_row['bronze'] or 0),
+    }
+
     return render_template(
         'advertise_lawyers.html',
         packages=_PACKAGES,
         package_lookup=_package_lookup(),
         practice_areas=_PRACTICE_AREAS,
+        counties_list=_MONTANA_COUNTIES,
         checkout_ready=_checkout_ready(),
+        coverage_stats=coverage_stats,
         page_title='Advertise Your Law Firm on Montana Blotter',
         meta_description=(
             'Reach Montana families at the moment they search for a lawyer. '
@@ -935,6 +974,56 @@ def advertise_lawyers():
         active_nav='advertise',
         current_year=datetime.now().year,
     )
+
+
+@lawyer_ads_bp.route('/advertise/lawyers/contact', methods=['POST'])
+def advertise_lawyers_contact():
+    """Sales-call lead intake from the /advertise/lawyers landing page.
+
+    Persists to `advertise_sales_leads` (product='lawyer') so the team
+    can follow up. Mirrors the bail-side route in blueprints/payments.py.
+    """
+    form = request.form
+    name = (form.get('name') or '').strip()[:200]
+    firm = (form.get('firm') or form.get('agency') or '').strip()[:200]
+    email = (form.get('email') or '').strip().lower()[:200]
+    phone = (form.get('phone') or '').strip()[:40]
+    message = (form.get('message') or '').strip()[:1500]
+    source = (form.get('source') or request.args.get('source') or 'advertise_lawyers_landing').strip()[:80]
+
+    errors = []
+    if not name:
+        errors.append('Name is required.')
+    if not email or '@' not in email:
+        errors.append('A valid email is required.')
+    if errors:
+        for e in errors:
+            flash(e, 'error')
+        return redirect(url_for('lawyer_ads.advertise_lawyers') + '?contact=error#schedule-a-call')
+
+    from app import _client_ip
+    ip_hash = _hash_ip(_client_ip() or '')
+    user_agent = (request.headers.get('User-Agent') or '')[:500]
+
+    conn = get_db()
+    try:
+        ensure_advertise_sales_lead_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO advertise_sales_leads (
+                product, name, firm_or_agency, email, phone,
+                county, package_interest, message, source,
+                ip_hash, user_agent, status
+            ) VALUES (?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, 'new')
+            ''',
+            ('lawyer', name, firm, email, phone, message, source, ip_hash, user_agent),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    flash('Thanks. We will be in touch within one business day.', 'success')
+    return redirect(url_for('lawyer_ads.advertise_lawyers') + '?contact=submitted#schedule-a-call')
 
 
 @lawyer_ads_bp.route('/advertise/lawyers/one-pager')

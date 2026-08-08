@@ -95,7 +95,7 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         fake_session.url = 'https://checkout.stripe.com/c/pay/test_session'
 
         with patch('blueprints.payments.stripe.checkout.Session.create', return_value=fake_session) as create_mock:
-            response = self.client.post('/checkout/warrant-access', follow_redirects=False)
+            response = self.client.get('/checkout/warrant-access', follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers['Location'], fake_session.url)
@@ -118,7 +118,7 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         fake_session.url = 'https://checkout.stripe.com/c/pay/test_session'
 
         with patch('blueprints.payments.stripe.checkout.Session.create', return_value=fake_session) as create_mock:
-            response = self.client.post('/checkout/warrant-access?plan=weekly', follow_redirects=False)
+            response = self.client.get('/checkout/warrant-access?plan=weekly', follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
         kwargs = create_mock.call_args.kwargs
@@ -139,7 +139,7 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         config.WARRANT_MONTHLY_PRICE_ID = 'price_monthly_config_override'
         try:
             with patch('blueprints.payments.stripe.checkout.Session.create', return_value=fake_session) as create_mock:
-                response = self.client.post('/checkout/warrant-access?plan=weekly', follow_redirects=False)
+                response = self.client.get('/checkout/warrant-access?plan=weekly', follow_redirects=False)
 
             self.assertEqual(response.status_code, 302)
             kwargs = create_mock.call_args.kwargs
@@ -148,7 +148,7 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
             config.WARRANT_WEEKLY_PRICE_ID = original_weekly
             config.WARRANT_MONTHLY_PRICE_ID = original_monthly
 
-    def test_wanted_subscribe_page_shows_both_plans(self):
+    def test_wanted_subscribe_page_shows_warrant_access_plans(self):
         with self.client.session_transaction() as session_:
             session_['public_user_id'] = 7
 
@@ -157,10 +157,12 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('This is the paid warrant access plan.', html)
-        self.assertIn('$1', html)
+        self.assertIn('$3.99', html)
         self.assertIn('/week', html)
-        self.assertIn('$8', html)
+        self.assertIn('$12', html)
         self.assertIn('/month', html)
+        self.assertIn('$99', html)
+        self.assertIn('/year', html)
         self.assertIn('Secure Stripe checkout for paid warrant access', html)
 
 

@@ -76,11 +76,24 @@ UA = "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)"
 def _discover_pdf_url(session: requests.Session, base_url: str = BASE_URL) -> str | None:
     """Scrape the Silver Bow detention page for the current jail roster PDF link."""
     logger.info("Fetching Silver Bow detention page: %s", base_url)
-    resp = session.get(base_url, timeout=30, verify=False, headers={"User-Agent": UA})
-    resp.raise_for_status()
+    try:
+        resp = session.get(base_url, timeout=75, verify=False, headers={"User-Agent": UA})
+        resp.raise_for_status()
+        page_html = resp.text
+    except requests.exceptions.RequestException:
+        logger.warning("Direct Silver Bow page fetch failed; trying curl fallback", exc_info=True)
+        import subprocess
+        result = subprocess.run(
+            ["curl", "-L", "-sS", "--max-time", "90", "-A", UA, base_url],
+            capture_output=True,
+            text=True,
+            timeout=100,
+            check=True,
+        )
+        page_html = result.stdout
 
     parser = _AnchorCollector()
-    parser.feed(resp.text)
+    parser.feed(page_html)
 
     candidates: list[tuple[str, str]] = []
     for item in parser.items:
@@ -104,14 +117,27 @@ def _discover_pdf_url(session: requests.Session, base_url: str = BASE_URL) -> st
 
 
 def _download_pdf(session: requests.Session, url: str) -> bytes:
-    resp = session.get(url, timeout=60, verify=False, headers={"User-Agent": UA})
-    resp.raise_for_status()
-    content_type = resp.headers.get("Content-Type", "").lower()
-    if "text/html" in content_type or b"<!DOCTYPE html" in resp.content[:256].lower():
+    try:
+        resp = session.get(url, timeout=120, verify=False, headers={"User-Agent": UA})
+        resp.raise_for_status()
+        content = resp.content
+        content_type = resp.headers.get("Content-Type", "").lower()
+    except requests.exceptions.RequestException:
+        logger.warning("Direct Silver Bow PDF fetch failed; trying curl fallback", exc_info=True)
+        import subprocess
+        result = subprocess.run(
+            ["curl", "-L", "-sS", "--max-time", "150", "-A", UA, url],
+            capture_output=True,
+            timeout=160,
+            check=True,
+        )
+        content = result.stdout
+        content_type = "application/pdf"
+    if "text/html" in content_type or b"<!DOCTYPE html" in content[:256].lower():
         raise RuntimeError(f"Expected PDF but received HTML from {url}")
-    if len(resp.content) < 512:
-        raise RuntimeError(f"PDF from {url} is unusually small ({len(resp.content)} bytes)")
-    return resp.content
+    if len(content) < 512:
+        raise RuntimeError(f"PDF from {url} is unusually small ({len(content)} bytes)")
+    return content
 
 
 def _ocr_pdf(pdf_bytes: bytes, dpi: int = 150) -> str:
@@ -235,7 +261,7 @@ def fetch_silver_bow_bookings(source_url: str | None = None) -> list[JailBooking
     if not pdf_url:
         return []
     pdf_bytes = _download_pdf(session, pdf_url)
-    pdf_text = _ocr_pdf(pdf_bytes)
+    pdf_text = _ocr_pdf(pdf_bytes, dpi=120)
     return _parse_roster_text(pdf_text, pdf_url)
 
 

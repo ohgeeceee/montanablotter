@@ -182,6 +182,35 @@
             </div>
         </section>
 
+        {% if sponsored_ads %}
+        <section class="public-sidebar-card p-5">
+            <h2 class="public-sidebar-card__eyebrow mb-4">
+                <i class="fas fa-star text-amber-500 mr-1"></i> Sponsored
+            </h2>
+            <div class="space-y-3">
+                {% for ad in sponsored_ads %}
+                <div class="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-amber-600 mb-1">
+                        {% if ad.business_type == 'bail_bond' %}Bail Bond Agency{% else %}Criminal Defense{% endif %}
+                    </p>
+                    <p class="font-bold text-slate-900 text-sm">{{ ad.business_name }}</p>
+                    {% if ad.ad_text %}
+                    <p class="mt-1 text-xs text-slate-600">{{ ad.ad_text }}</p>
+                    {% endif %}
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        {% if ad.phone %}
+                        <a href="tel:{{ ad.phone }}" class="text-xs font-bold text-blue-700 hover:text-blue-900">{{ ad.phone }}</a>
+                        {% endif %}
+                        {% if ad.website %}
+                        <a href="{{ ad.website }}" target="_blank" rel="noopener" class="text-xs font-bold text-blue-700 hover:text-blue-900">Visit Website</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
         <section class="public-sidebar-card p-5">
             <h2 class="public-sidebar-card__eyebrow mb-4">Booking Timeline</h2>
             <div class="space-y-3 text-sm">

@@ -8,38 +8,38 @@
 {% endblock %}
 
 {% block hero %}
-<section class="bg-gradient-to-br from-slate-950 via-amber-950 to-slate-900 text-white py-12 px-4 sm:px-6">
+<section style="background: linear-gradient(135deg, #0f172a 0%, #451a03 50%, #0f172a 100%); color: #fff; padding: 3rem 1.5rem;">
     <div class="max-w-7xl mx-auto">
         <div class="max-w-4xl">
-            <div class="inline-flex items-center rounded-full bg-amber-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
+            <div style="display: inline-flex; align-items: center; border-radius: 9999px; background: rgba(217,119,6,0.15); padding: 0.25rem 0.75rem; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.18em; color: #fcd34d;">
                 Montana Missing Persons Database
             </div>
-            <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Search active alerts, track new cases, and watch resolved records move to found.</h1>
-            <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+            <h1 style="margin-top: 1rem; font-size: 2.25rem; font-weight: 900; letter-spacing: -0.025em; line-height: 1.1; color: #fff;">Search active alerts, track new cases, and watch resolved records move to found.</h1>
+            <p style="margin-top: 1rem; max-width: 48rem; font-size: 0.875rem; line-height: 1.75; color: #cbd5e1;">
                 This page is built like a public records database: filter the current list, open an individual record, and scan the newest alerts and located updates without losing the broader statewide context.
             </p>
         </div>
 
-        <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Active Alerts</p>
-                <p class="mt-2 text-3xl font-black">{{ summary.active }}</p>
+        <div style="margin-top: 2rem; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+            <div style="border-radius: 1rem; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); padding: 1.25rem;">
+                <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: #94a3b8;">Active Alerts</p>
+                <p style="margin-top: 0.5rem; font-size: 1.875rem; font-weight: 900; color: #fff;">{{ summary.active }}</p>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Located / Resolved</p>
-                <p class="mt-2 text-3xl font-black">{{ summary.located }}</p>
+            <div style="border-radius: 1rem; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); padding: 1.25rem;">
+                <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: #94a3b8;">Located / Resolved</p>
+                <p style="margin-top: 0.5rem; font-size: 1.875rem; font-weight: 900; color: #fff;">{{ summary.located }}</p>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">New in 7 Days</p>
-                <p class="mt-2 text-3xl font-black">{{ summary.new_7d }}</p>
+            <div style="border-radius: 1rem; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); padding: 1.25rem;">
+                <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: #94a3b8;">New in 7 Days</p>
+                <p style="margin-top: 0.5rem; font-size: 1.875rem; font-weight: 900; color: #fff;">{{ summary.new_7d }}</p>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Children</p>
-                <p class="mt-2 text-3xl font-black">{{ summary.children }}</p>
+            <div style="border-radius: 1rem; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); padding: 1.25rem;">
+                <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: #94a3b8;">Children</p>
+                <p style="margin-top: 0.5rem; font-size: 1.875rem; font-weight: 900; color: #fff;">{{ summary.children }}</p>
             </div>
-            <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-5 py-4">
-                <p class="text-[10px] font-black uppercase tracking-[0.16em] text-amber-200">Official Last Updated</p>
-                <p class="mt-2 text-sm leading-6 text-amber-50">{{ summary.official_last_updated or 'Not synced yet' }}</p>
+            <div style="border-radius: 1rem; border: 1px solid rgba(251,191,36,0.2); background: rgba(245,158,11,0.1); padding: 1.25rem;">
+                <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.16em; color: #fde68a;">Official Last Updated</p>
+                <p style="margin-top: 0.5rem; font-size: 0.875rem; line-height: 1.5; color: #fffbeb;">{{ summary.official_last_updated or 'Not synced yet' }}</p>
             </div>
         </div>
     </div>
