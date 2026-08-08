@@ -1,0 +1,234 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = chapter.title %}
+{% set meta_description = chapter.summary %}
+{% set canonical_url = "https://montanablotter.com/learn/" ~ chapter.slug %}
+{% set og_title = chapter.title ~ " | Know Your Rights in Montana" %}
+{% set og_description = chapter.summary %}
+{% set og_type = "article" %}
+{% set active_nav = "learn" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{ chapter.title }}",
+  "description": "{{ chapter.summary }}",
+  "inLanguage": "en-US",
+  "isPartOf": {
+    "@type": "Course",
+    "name": "Know Your Rights in Montana",
+    "url": "https://montanablotter.com/learn"
+  },
+  "position": {{ chapter.number }},
+  "dateModified": "{{ last_reviewed }}",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com/"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Montana Blotter", "item": "https://montanablotter.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Know Your Rights", "item": "https://montanablotter.com/learn"},
+    {"@type": "ListItem", "position": 3, "name": "{{ chapter.title }}", "item": "https://montanablotter.com/learn/{{ chapter.slug }}"}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block body_class %}learn-chapter-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/learn">Know Your Rights</a>
+<span class="mx-2">/</span>
+<span>Chapter {{ chapter.number }}</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow" style="color: var(--public-steel);">
+                    <i class="fas fa-graduation-cap mr-2"></i>Chapter {{ chapter.number }} of {{ chapters|length }}
+                </p>
+                <h1 class="public-title public-title--medium">{{ chapter.title }}</h1>
+                <p class="public-copy">{{ chapter.summary }}</p>
+                <div class="flex flex-wrap gap-3 mt-5 text-xs">
+                    <span class="public-pill">{{ chapter.word_count }} words</span>
+                    <span class="public-pill">~{{ chapter.read_minutes }} min read</span>
+                    <span class="public-pill public-pill--accent">Free</span>
+                    {% if prev_chapter %}<a href="/learn/{{ prev_chapter.slug }}" class="public-pill">← Ch. {{ prev_chapter.number }}</a>{% endif %}
+                    {% if next_chapter %}<a href="/learn/{{ next_chapter.slug }}" class="public-pill">Ch. {{ next_chapter.number }} →</a>{% endif %}
+                </div>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Last reviewed</p>
+                    <h2 class="public-card__title">{{ last_reviewed }}</h2>
+                    <p class="public-card__text">
+                        Verified against the current Montana Code Annotated at
+                        <a class="public-policy-inline-link" href="https://leg.mt.gov/bills/mca/" target="_blank">leg.mt.gov</a>.
+                        Statutes change — if a citation has drifted,
+                        <a class="public-policy-inline-link" href="mailto:records@montanablotter.com?subject=Course%20Citation%20Update%20-%20Ch.{{ chapter.number }}">tell us</a>.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout max-w-7xl mx-auto px-4 sm:px-6 py-10">
+
+    <main class="public-main-stack">
+
+        {# Disclaimer + standards callouts at the top — matches the editorial scaffold #}
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Not legal advice</span>
+                    <span class="public-pill">Editorial standards</span>
+                </div>
+                <p class="public-detail-subtitle">
+                    This chapter summarizes published Montana law. Statutes change.
+                    Verify every citation against the current text at
+                    <a class="public-policy-inline-link" href="https://leg.mt.gov/bills/mca/" target="_blank">leg.mt.gov/bills/mca</a>
+                    and consult a licensed Montana attorney for your specific situation.
+                </p>
+                <p class="public-detail-subtitle" style="margin-top: 10px;">
+                    Every claim links to a primary Montana Code section. We do not
+                    invent scenarios or case dispositions. Where this chapter overlaps
+                    with the Montana Blotter editorial mission, the site's
+                    <a class="public-policy-inline-link" href="/standards">Sourcing Standards</a>
+                    and
+                    <a class="public-policy-inline-link" href="/corrections">Corrections Policy</a>
+                    control.
+                </p>
+            </div>
+
+            {# The chapter body, rendered from markdown through the site sanitizer #}
+            <div class="public-detail-frame__body">
+                <div class="public-prose public-policy-stack">
+                    {{ chapter.body_html | safe }}
+                </div>
+
+                {# Per-piece review-date footer — required by editorial scaffold #}
+                <div class="mt-10 pt-5 border-t border-slate-200 text-xs text-slate-500">
+                    <p>
+                        Chapter last reviewed: <strong>{{ last_reviewed }}</strong>
+                        · Montana Blotter · Know Your Rights course
+                    </p>
+                    <p class="mt-1">
+                        Found a citation drift?
+                        <a class="public-policy-inline-link" href="mailto:records@montanablotter.com?subject=Course%20Citation%20Update%20-%20Ch.{{ chapter.number }}">records@montanablotter.com</a>
+                        with subject line <strong>Course Citation Update - Ch.{{ chapter.number }}</strong>.
+                    </p>
+                </div>
+            </div>
+        </article>
+
+        {# Prev/next chapter navigation at the bottom #}
+        <div class="public-card overflow-hidden mt-6">
+            <div class="grid grid-cols-2 divide-x divide-slate-200">
+                <div class="px-5 py-4">
+                    {% if prev_chapter %}
+                    <a href="/learn/{{ prev_chapter.slug }}" class="block group">
+                        <p class="text-xs text-slate-500 uppercase tracking-wider">← Previous</p>
+                        <p class="font-black text-slate-900 group-hover:text-red-700 transition mt-1">
+                            Ch. {{ prev_chapter.number }} · {{ prev_chapter.title }}
+                        </p>
+                    </a>
+                    {% else %}
+                    <p class="text-xs text-slate-400 uppercase tracking-wider">← Previous</p>
+                    <p class="text-slate-400 mt-1">You are at chapter 1.</p>
+                    {% endif %}
+                </div>
+                <div class="px-5 py-4 text-right">
+                    {% if next_chapter %}
+                    <a href="/learn/{{ next_chapter.slug }}" class="block group">
+                        <p class="text-xs text-slate-500 uppercase tracking-wider">Next →</p>
+                        <p class="font-black text-slate-900 group-hover:text-red-700 transition mt-1">
+                            Ch. {{ next_chapter.number }} · {{ next_chapter.title }}
+                        </p>
+                    </a>
+                    {% else %}
+                    <p class="text-xs text-slate-400 uppercase tracking-wider">End of course</p>
+                    <p class="text-slate-400 mt-1">
+                        <a href="/learn" class="public-policy-inline-link">Back to all chapters</a>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    {# Sidebar with chapter nav, jump links, and contact #}
+    <aside class="public-side-stack">
+
+        <div class="public-card">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h3 class="font-black text-slate-900" style="font-family: 'Playfair Display', Georgia, serif;">All chapters</h3>
+            </div>
+            <div class="px-5 py-3 text-sm">
+                <ul class="divide-y divide-slate-100">
+                    {% for ch in chapters %}
+                    <li class="py-2">
+                        <a href="/learn/{{ ch.slug }}"
+                           class="flex items-start gap-2 {% if ch.slug == chapter.slug %}text-red-700 font-bold{% else %}text-slate-700 hover:text-red-700{% endif %} transition">
+                            <span class="text-xs font-bold text-slate-400 mt-0.5 w-5">{{ ch.number }}.</span>
+                            <span>{{ ch.title }}</span>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="public-card">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h3 class="font-black text-slate-900" style="font-family: 'Playfair Display', Georgia, serif;">Authoritative references</h3>
+            </div>
+            <div class="px-5 py-3 text-sm">
+                <ul class="divide-y divide-slate-100">
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://leg.mt.gov/bills/mca/" target="_blank">Montana Code Annotated</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://courts.mt.gov/" target="_blank">Montana Judicial Branch</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://publicdefender.mt.gov/" target="_blank">State Public Defender</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://dojmt.gov/" target="_blank">Department of Justice</a></li>
+                    <li class="py-2"><a class="public-policy-inline-link" href="https://montanabar.org/" target="_blank">Montana State Bar (referral)</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="public-card">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h3 class="font-black text-slate-900" style="font-family: 'Playfair Display', Georgia, serif;">Report a problem</h3>
+            </div>
+            <div class="px-5 py-3 text-sm text-slate-600 space-y-2">
+                <p>Broken MCA link? Statute amended? Case overruled? Tell us — we review course corrections against the live MCA.</p>
+                <p>
+                    <a class="public-policy-inline-link font-bold"
+                       href="mailto:records@montanablotter.com?subject=Course%20Citation%20Update%20-%20Ch.{{ chapter.number }}">
+                        records@montanablotter.com
+                    </a>
+                </p>
+                <p class="text-xs text-slate-500 pt-2 border-t border-slate-100">
+                    Subject line: <strong>Course Citation Update - Ch.{{ chapter.number }}</strong>
+                </p>
+            </div>
+        </div>
+
+    </aside>
+
+</div>
+{% endblock %}
