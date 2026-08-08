@@ -7030,7 +7030,6 @@ def inject_public_nav():
             'title': 'News & help',
             'items': [
                 {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
-                {'id': 'learn', 'href': '/learn', 'label': 'Know Your Rights'},
                 {'id': 'support', 'href': '/support', 'label': 'Help & Support'},
             ],
         },
@@ -7082,7 +7081,6 @@ def inject_public_nav():
         {'href': '/bail-bonds', 'label': 'Bail Bonds'},
         {'href': '/jail-bookings', 'label': 'New Bookings'},
         {'href': '/bondsman/command-center', 'label': 'Bondsman Portal'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
-        {'href': '/learn', 'label': 'Know Your Rights'},
         {'href': '/support', 'label': 'Support'},
         {'href': '/advertise/bail-bonds', 'label': 'Advertise'},
         {'href': '/sponsored-digest', 'label': 'Sponsor a Digest'},
@@ -15288,150 +15286,17 @@ def about_page():
     )
 
 
-# ---------------------------------------------------------------------------
-# /learn — Know Your Rights course (7 chapters, ~13.5k words, free, public)
-# /learn/<slug> — single-chapter reader; markdown rendered via the site-wide
-#                 markdown filter + sanitizer.
-# /how-to-use — the previous /learn page (product-help guide for using
-#               Montana Blotter itself) is preserved here so existing
-#               links from emails, social, and bookmarks still resolve.
-# ---------------------------------------------------------------------------
-import os as _os_learn
-import re as _re_learn
-from pathlib import Path as _Path_learn
-
-_LEARN_CONTENT_DIR = _Path_learn(_os_learn.path.dirname(_os_learn.path.abspath(__file__))) / 'app_content' / 'learn'
-
-_LEARN_CHAPTER_META = [
-    {'number': 1, 'slug': '01-encounters',          'title': 'When a police officer walks up to you',
-     'summary': 'Stopped on the street, in your car, at your door. What you must do, what you may refuse, and what the MCA actually says.'},
-    {'number': 2, 'slug': '02-traffic',             'title': 'Traffic stops and DUI',
-     'summary': 'Why you were pulled over, implied consent, field sobriety, the 10-minute rule, what happens to your license.'},
-    {'number': 3, 'slug': '03-home-and-property',   'title': 'Your home and your stuff',
-     'summary': 'Warrants, consent searches, landlord entry, eviction notice, property on open range.'},
-    {'number': 4, 'slug': '04-outdoors',            'title': 'Outside: hunting, fishing, public land',
-     'summary': 'Art. II §12 (constitutional carry), FWP stops, hunter orange, trespass to hunt, recording in the field.'},
-    {'number': 5, 'slug': '05-arrest-and-court',    'title': 'If you are arrested or summoned',
-     'summary': 'Miranda in Montana, the 48-hour rule, bonds, public defenders, how to read your charging document.'},
-    {'number': 6, 'slug': '06-family-and-schools',  'title': 'Kids, schools, and family',
-     'summary': 'Search of a minor, school resource officers, CPS contact, juvenile court, parental rights.'},
-    {'number': 7, 'slug': '07-records-and-meetings','title': 'Public records and open meetings',
-     'summary': 'The Montana Public Records Act, how to file a request, exceptions, the Open Meeting Law, court records.'},
-]
-
-
-def _learn_chapter_word_count(text):
-    if not text:
-        return 0
-    return len(_re_learn.findall(r'\b\w+\b', text))
-
-
-def _learn_load_chapter(slug):
-    md_path = _LEARN_CONTENT_DIR / f'{slug}.md'
-    if not md_path.is_file():
-        return None
-    raw = md_path.read_text(encoding='utf-8')
-    h1 = _re_learn.match(r'^\s*#\s+(.+?)\s*\n', raw)
-    body = raw[h1.end():].lstrip('\n') if h1 else raw
-    wc = _learn_chapter_word_count(body)
-    return {
-        'slug': slug,
-        'body': body,
-        'body_html': render_markdown(body),
-        'word_count': wc,
-        'read_minutes': max(1, round(wc / 220)),
-    }
-
-
-def _learn_load_all_chapters():
-    out = []
-    for meta in _LEARN_CHAPTER_META:
-        ch = _learn_load_chapter(meta['slug'])
-        if ch is None:
-            continue
-        ch.update({'number': meta['number'], 'title': meta['title'], 'summary': meta['summary']})
-        out.append(ch)
-    return out
-
-
-def _learn_last_reviewed(chapters):
-    if not chapters:
-        return datetime.now().strftime('%Y-%m-%d')
-    latest = max(
-        (_LEARN_CONTENT_DIR / f"{c['slug']}.md").stat().st_mtime
-        for c in chapters
-        if (_LEARN_CONTENT_DIR / f"{c['slug']}.md").exists()
-    )
-    return datetime.fromtimestamp(latest).strftime('%Y-%m-%d')
-
-
-@app.route('/how-to-use')
-def how_to_use():
-    """The previous /learn content (product-help guide) preserved at its new URL."""
+@app.route('/learn')
+def learn_page():
     return render_template(
-        'how_to_use.html',
+        'learn.html',
         active_nav='learn',
         page_title='How to Use Montana Blotter',
         meta_description='Learn how to search, filter, and monitor Montana public records on Montana Blotter. Get daily alerts, track cases, and choose the plan that fits your needs.',
-        canonical_url=f'{BASE_URL}/how-to-use',
+        canonical_url=f'{BASE_URL}/learn',
         og_title='How to Use Montana Blotter',
         og_description='A step-by-step guide to searching police blotters, jail bookings, court records, and warrants — plus subscription tiers, alerts, and tips for getting the most out of the platform.',
         current_year=datetime.now().year,
-    )
-
-
-@app.route('/learn')
-def learn_index():
-    chapters = _learn_load_all_chapters()
-    last_reviewed = _learn_last_reviewed(chapters)
-    total_words = sum(c['word_count'] for c in chapters)
-    return render_template(
-        'learn.html',
-        current_year=datetime.now().year,
-        chapters=chapters,
-        total_words=f'{total_words:,}',
-        last_reviewed=last_reviewed,
-        active_nav='learn',
-        page_title='Know Your Rights in Montana',
-        meta_description='A free, plain-English course from Montana Blotter on Montana law — written for residents, drivers, renters, outdoorspeople, and parents. Every claim links to the Montana Code Annotated.',
-        canonical_url=f'{BASE_URL}/learn',
-        og_title='Know Your Rights in Montana | Montana Blotter',
-        og_description='A free, plain-English course on Montana law. Every claim links to the Montana Code Annotated.',
-    )
-
-
-@app.route('/learn/<slug>')
-def learn_chapter(slug):
-    meta_by_slug = {m['slug']: m for m in _LEARN_CHAPTER_META}
-    if slug not in meta_by_slug:
-        abort(404)
-    chapter = _learn_load_chapter(slug)
-    if chapter is None:
-        abort(404)
-    chapter.update({
-        'number': meta_by_slug[slug]['number'],
-        'title': meta_by_slug[slug]['title'],
-        'summary': meta_by_slug[slug]['summary'],
-    })
-    chapters = _learn_load_all_chapters()
-    last_reviewed = _learn_last_reviewed(chapters)
-    n = chapter['number']
-    prev_chapter = next((c for c in chapters if c['number'] == n - 1), None)
-    next_chapter = next((c for c in chapters if c['number'] == n + 1), None)
-    return render_template(
-        'learn_chapter.html',
-        current_year=datetime.now().year,
-        chapter=chapter,
-        chapters=chapters,
-        prev_chapter=prev_chapter,
-        next_chapter=next_chapter,
-        last_reviewed=last_reviewed,
-        active_nav='learn',
-        page_title=chapter['title'],
-        meta_description=chapter['summary'],
-        canonical_url=f'{BASE_URL}/learn/{slug}',
-        og_title=f"{chapter['title']} | Know Your Rights in Montana",
-        og_description=chapter['summary'],
     )
 
 

@@ -1,0 +1,424 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "How to Use Montana Blotter" %}
+{% set meta_description = "Learn how to search, filter, and monitor Montana public records on Montana Blotter. Get daily alerts, track cases, and choose the plan that fits your needs." %}
+{% set canonical_url = "https://montanablotter.com/learn" %}
+{% set og_title = "How to Use Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}learn-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to Use Montana Blotter",
+  "description": "A guide to searching public records, setting up alerts, and choosing the right plan on Montana Blotter.",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com/"
+  }
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Learn</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Getting Started</p>
+                <h1 class="public-title public-title--medium">Find, follow, and understand Montana's public records.</h1>
+                <p class="public-copy">
+                    Whether you're a journalist tracking a story, an attorney docketing a case, a bail bondsman checking intake, or just someone who wants to know what's happening in your county — here's how to get the most out of Montana Blotter.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Quick Links</p>
+                    <div class="public-rail-list" style="margin-top:1rem;">
+                        <a href="#learn-search" class="public-rail-link">
+                            <div class="public-rail-link__title">🔍 Searching records</div>
+                        </a>
+                        <a href="#learn-alerts" class="public-rail-link">
+                            <div class="public-rail-link__title">📬 Alerts &amp; notifications</div>
+                        </a>
+                        <a href="#learn-plans" class="public-rail-link">
+                            <div class="public-rail-link__title">⭐ Free vs Plus vs Pro</div>
+                        </a>
+                        <a href="#learn-faq" class="public-rail-link">
+                            <div class="public-rail-link__title">❓ Frequently asked questions</div>
+                        </a>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__body">
+                <div class="public-policy-stack">
+
+                    <!-- ─── WHAT'S ON THE SITE ─── -->
+                    <section class="public-policy-section" id="learn-whats-here">
+                        <h2 class="public-policy-heading">What's on Montana Blotter</h2>
+                        <p class="public-policy-copy">
+                            The platform aggregates seven categories of public record from all 56 Montana counties. Each record links back to the original government source so you can verify it.
+                        </p>
+                        <div class="grid md:grid-cols-2 gap-4 mt-5" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="font-bold text-sm text-slate-900 mb-1">🚔 Police Blotters</p>
+                                <p class="text-xs text-slate-600">Daily incident reports, calls for service, and dispatch logs from city police and sheriff's offices.</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="font-bold text-sm text-slate-900 mb-1">🔒 Jail Rosters</p>
+                                <p class="text-xs text-slate-600">Current inmate lists and new bookings from participating county detention centers.</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="font-bold text-sm text-slate-900 mb-1">⚖️ Court Activity</p>
+                                <p class="text-xs text-slate-600">Case filings, hearing schedules, and dispositions from Montana district courts.</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="font-bold text-sm text-slate-900 mb-1">📋 Warrants &amp; Wanted</p>
+                                <p class="text-xs text-slate-600">Active warrant lists from sheriff's offices, sorted by county, with subscribe-by-county notifications.</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="font-bold text-sm text-slate-900 mb-1">👤 Missing Persons</p>
+                                <p class="text-xs text-slate-600">Public alerts and law-enforcement missing-person bulletins from across the state.</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="font-bold text-sm text-slate-900 mb-1">🏛️ Public Meetings</p>
+                                <p class="text-xs text-slate-600">City council, county commission, and school board agendas posted at <a href="https://agendas.montanablotter.com" class="underline text-red-600">agendas.montanablotter.com</a>.</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="font-bold text-sm text-slate-900 mb-1">📄 Other Records</p>
+                                <p class="text-xs text-slate-600">Code violations, license sanctions, sex-offender registry updates, government spending, and public salaries.</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <p class="font-bold text-sm text-slate-900 mb-1">✏️ Editorial Blog</p>
+                                <p class="text-xs text-slate-600">Daily summaries, explainers, and analysis that translate complex filings into plain English.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ─── SEARCHING ─── -->
+                    <section class="public-policy-section" id="learn-search">
+                        <h2 class="public-policy-heading">Searching records</h2>
+                        <p class="public-policy-copy">
+                            The quickest way to find something is the search bar at the top of every page. You can search by name, case number, charge, agency, or location — it covers blotters, bookings, court cases, and warrants simultaneously.
+                        </p>
+                        <p class="public-policy-copy">
+                            <strong>Free tier</strong> includes basic search and filters for the last 7 days of records. <strong>Blotter Plus</strong> unlocks 12 months of searchable history, advanced filters (date range, incident type, charge category), and up to 10 saved searches. <strong>Blotter Pro</strong> adds the full archive and unlimited saved searches.
+                        </p>
+                        <p class="public-policy-copy">
+                            Browse records by county on the <a href="/counties" class="public-policy-inline-link">counties directory</a> or drill into a specific day's blotter via the <a href="/county/cascade" class="public-policy-inline-link">county-day view</a>.
+                        </p>
+                    </section>
+
+                    <!-- ─── ALERTS & MONITORING ─── -->
+                    <section class="public-policy-section" id="learn-alerts">
+                        <h2 class="public-policy-heading">Alerts &amp; monitoring</h2>
+                        <p class="public-policy-copy">
+                            Montana Blotter can push new records to you as they're published — by email, push notification, or SMS.
+                        </p>
+
+                        <h3 class="public-policy-subheading">County alerts</h3>
+                        <p class="public-policy-copy">
+                            Get notified whenever a new daily blotter or booking roster is published for a specific county. Free users get <strong>1 county</strong>, Plus users get <strong>up to 5 counties</strong>, and Pro users get <strong>statewide</strong> alerts.
+                        </p>
+
+                        <h3 class="public-policy-subheading">Name &amp; keyword watchlists</h3>
+                        <p class="public-policy-copy">
+                            Set up watchlists for names, case numbers, charges, or keywords. When a matching record lands on the site, you're notified. Free tier: not available. Plus: <strong>5 watchlists</strong>. Pro: <strong>unlimited</strong>.
+                        </p>
+
+                        <h3 class="public-policy-subheading">Warrant notifications</h3>
+                        <p class="public-policy-copy">
+                            Subscribe to individual warrant lists by county at <a href="/wanted" class="public-policy-inline-link">/wanted</a>. Paying subscribers get same-day alerts when new warrants are posted. Warrants are behind a separate add-on access gate for <a class="public-policy-inline-link" href="/pricing">Blotter Plus+</a> subscribers.
+                        </p>
+
+                        <h3 class="public-policy-subheading">Case tracking</h3>
+                        <p class="public-policy-copy">
+                            Follow a court case and receive status-change notifications when a hearing is scheduled, a disposition is filed, or a docket entry appears. Preview: up to 5 cases (Plus). Unlimited case tracking (Pro).
+                        </p>
+
+                        {% if current_user and current_user.is_authenticated %}
+                        <div class="mt-6">
+                            <a href="/alerts" class="inline-block rounded-xl bg-red-600 text-white px-6 py-3 text-sm font-bold hover:bg-red-700">Manage your alerts</a>
+                        </div>
+                        {% endif %}
+                    </section>
+
+                    <!-- ─── DAILY DIGEST ─── -->
+                    <section class="public-policy-section" id="learn-digest">
+                        <h2 class="public-policy-heading">The daily digest</h2>
+                        <p class="public-policy-copy">
+                            Each morning, Montana Blotter sends a curated email digest with the previous day's new records, notable incidents, and editorial highlights. Free users get a basic digest for one county. Plus and Pro users get the full digest customized to their selected counties, with optional daily, weekly, or weekend-only delivery.
+                        </p>
+                        <p class="public-policy-copy">
+                            Sign up at <a href="/subscribe" class="public-policy-inline-link">/subscribe</a> — no account required for the free digest.
+                        </p>
+                    </section>
+
+                    <!-- ─── EXPORTS & DATA ─── -->
+                    <section class="public-policy-section" id="learn-exports">
+                        <h2 class="public-policy-heading">Exports &amp; data downloads</h2>
+                        <p class="public-policy-copy">
+                            Need records offline or in a spreadsheet?
+                        </p>
+                        <ul class="public-policy-list">
+                            <li><strong>Plus</strong> — limited PDF exports of search results and case summaries.</li>
+                            <li><strong>Pro</strong> — full CSV and PDF exports, historical trend data, and county/agency/category visualizations.</li>
+                            <li><strong>API access</strong> — Pro users can request an API key for programmatic access to structured record data. Contact <a href="mailto:records@montanablotter.com" class="public-policy-inline-link">records@montanablotter.com</a>.</li>
+                        </ul>
+                    </section>
+
+                    <!-- ─── TIER COMPARISON ─── -->
+                    <section class="public-policy-section" id="learn-plans">
+                        <h2 class="public-policy-heading">Free vs Plus vs Pro</h2>
+                        <p class="public-policy-copy">
+                            Every plan includes current records at no cost. Paid plans unlock deeper history, more alerts, and professional tools. No long-term contracts — cancel anytime.
+                        </p>
+
+                        <div class="overflow-x-auto mt-5">
+                            <table class="w-full text-sm border-collapse" style="border-collapse:collapse;">
+                                <thead>
+                                    <tr class="border-b-2 border-slate-200">
+                                        <th class="text-left py-3 pr-4 font-bold text-slate-900">Feature</th>
+                                        <th class="text-center py-3 px-3 font-bold text-slate-500">Free</th>
+                                        <th class="text-center py-3 px-3 font-bold text-red-600 bg-red-50 rounded-t-xl">Plus</th>
+                                        <th class="text-center py-3 px-3 font-bold text-slate-900 bg-slate-50 rounded-t-xl">Pro</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">Current records</td>
+                                        <td class="text-center py-2.5 px-3 text-green-600">✓</td>
+                                        <td class="text-center py-2.5 px-3 text-green-600 bg-red-50">✓</td>
+                                        <td class="text-center py-2.5 px-3 text-green-600 bg-slate-50">✓</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">Historical search</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-400">7 days</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-red-50">12 months</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">Full archive</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">County alerts</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-400">1 county</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-red-50">5 counties</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">Statewide</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">Name / keyword watchlists</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300">—</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-red-50">5 lists</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">Unlimited</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">Saved searches</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300">—</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-red-50">10</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">Unlimited</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">Case tracking</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300">Preview</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-red-50">5 cases</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">Unlimited</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">Daily digest</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300">—</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-red-50">✓</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">Custom</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">Ad-free browsing</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300">—</td>
+                                        <td class="text-center py-2.5 px-3 text-green-600 bg-red-50">✓</td>
+                                        <td class="text-center py-2.5 px-3 text-green-600 bg-slate-50">✓</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">CSV / PDF exports</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300">—</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-500 bg-red-50">PDF only</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">CSV + PDF</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">Trends &amp; visualizations</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300">—</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-500 bg-red-50">County</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">Statewide</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 pr-4 text-slate-700">API / webhook access</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300">—</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-300 bg-red-50">—</td>
+                                        <td class="text-center py-2.5 px-3 text-slate-700 bg-slate-50">Optional</td>
+                                    </tr>
+                                    <tr class="border-t-2 border-slate-200">
+                                        <td class="py-3 pr-4 font-bold text-slate-900">Price</td>
+                                        <td class="text-center py-3 px-3 font-bold text-slate-500">$0</td>
+                                        <td class="text-center py-3 px-3 bg-red-50">
+                                            <span class="font-bold text-red-600">$5.99</span>
+                                            <span class="text-xs text-slate-500">/mo</span>
+                                            <br>
+                                            <span class="text-xs text-slate-500">or</span>
+                                            <span class="font-bold text-slate-700">$59</span>
+                                            <span class="text-xs text-slate-500">/yr</span>
+                                        </td>
+                                        <td class="text-center py-3 px-3 bg-slate-50">
+                                            <span class="font-bold text-slate-900">$19.99</span>
+                                            <span class="text-xs text-slate-500">/mo</span>
+                                            <br>
+                                            <span class="text-xs text-slate-500">or</span>
+                                            <span class="font-bold text-slate-700">$199</span>
+                                            <span class="text-xs text-slate-500">/yr</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-6 flex flex-wrap gap-3">
+                            <a href="/pricing" class="inline-block rounded-xl bg-red-600 text-white px-6 py-3 text-sm font-bold hover:bg-red-700">See full pricing</a>
+                            <a href="/subscribe" class="inline-block rounded-xl border-2 border-slate-200 bg-white text-slate-700 px-6 py-3 text-sm font-bold hover:border-slate-300">Subscribe for free</a>
+                        </div>
+                    </section>
+
+                    <!-- ─── FAQ ─── -->
+                    <section class="public-policy-section" id="learn-faq">
+                        <h2 class="public-policy-heading">Frequently asked questions</h2>
+
+                        <div class="space-y-5 mt-4">
+                            <div>
+                                <p class="font-bold text-slate-900 mb-1">Do I need an account to browse?</p>
+                                <p class="text-sm text-slate-600">No. The public site is free to read without an account. You only need an account to set up alerts, save searches, or subscribe to a paid plan.</p>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-900 mb-1">How fresh is the data?</p>
+                                <p class="text-sm text-slate-600">It depends on the source county. Some publish daily PDFs that hit our ingest pipeline within minutes. Others publish weekly or sporadically. Each record shows when it was uploaded and links to the original source. The <a href="/sources" class="underline text-red-600">coverage page</a> shows last-refresh time per county.</p>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-900 mb-1">Can I download records for offline use?</p>
+                                <p class="text-sm text-slate-600">Blotter Plus includes PDF exports of search results. Blotter Pro adds full CSV exports suitable for spreadsheets and analysis tools.</p>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-900 mb-1">Is the source code available?</p>
+                                <p class="text-sm text-slate-600">Yes — the project is open source. The repository includes the full Flask application, scrapers, parsers, and deployment configuration. See the <a href="https://github.com/nousresearch/montanablotter" class="underline text-red-600">GitHub repository</a>.</p>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-900 mb-1">Can I request a county be added?</p>
+                                <p class="text-sm text-slate-600">Absolutely. Email <a href="mailto:records@montanablotter.com" class="underline text-red-600">records@montanablotter.com</a> with the county name and any source URLs you know about. We prioritize counties with available online blotters.</p>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-900 mb-1">Does the mobile app do the same thing?</p>
+                                <p class="text-sm text-slate-600">Yes — the React Native mobile app mirrors the full public site experience, including search, browse, alerts, and account management. Available for iOS and Android via the app stores.</p>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-900 mb-1">What about privacy?</p>
+                                <p class="text-sm text-slate-600">We automatically redact victim names in domestic violence and sexual assault cases. All records are public record already — we gather them from official government sources rather than creating new data. See the <a href="/privacy" class="underline text-red-600">Privacy Policy</a> for details.</p>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-900 mb-1">How can I support the project?</p>
+                                <p class="text-sm text-slate-600">Subscribe to a paid plan, donate via the supporter page, or spread the word. Sponsorship inquiries go to <a href="mailto:records@montanablotter.com" class="underline text-red-600">records@montanablotter.com</a>.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ─── NEXT STEPS ─── -->
+                    <section class="public-policy-section" id="learn-next">
+                        <h2 class="public-policy-heading">Ready to get started?</h2>
+                        <div class="flex flex-wrap gap-3 mt-4">
+                            <a href="/counties" class="inline-block rounded-xl bg-slate-900 text-white px-6 py-3 text-sm font-bold hover:bg-slate-800">Browse counties</a>
+                            <a href="/pricing" class="inline-block rounded-xl bg-red-600 text-white px-6 py-3 text-sm font-bold hover:bg-red-700">Compare plans</a>
+                            <a href="/register" class="inline-block rounded-xl border-2 border-slate-200 bg-white text-slate-700 px-6 py-3 text-sm font-bold hover:border-slate-300">Create free account</a>
+                            <a href="/guides" class="inline-block rounded-xl border-2 border-slate-200 bg-white text-slate-700 px-6 py-3 text-sm font-bold hover:border-slate-300">Read guides</a>
+                        </div>
+                    </section>
+
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">On This Page</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="#learn-whats-here" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">01</div>
+                        <div class="public-rail-link__title">What's on the site</div>
+                    </a>
+                    <a href="#learn-search" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">02</div>
+                        <div class="public-rail-link__title">Searching records</div>
+                    </a>
+                    <a href="#learn-alerts" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">03</div>
+                        <div class="public-rail-link__title">Alerts &amp; monitoring</div>
+                    </a>
+                    <a href="#learn-digest" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">04</div>
+                        <div class="public-rail-link__title">Daily digest</div>
+                    </a>
+                    <a href="#learn-exports" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">05</div>
+                        <div class="public-rail-link__title">Exports &amp; data</div>
+                    </a>
+                    <a href="#learn-plans" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">06</div>
+                        <div class="public-rail-link__title">Free vs Plus vs Pro</div>
+                    </a>
+                    <a href="#learn-faq" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">07</div>
+                        <div class="public-rail-link__title">FAQ</div>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Related Pages</p>
+                <div class="public-rail-list" style="margin-top:1rem;">
+                    <a href="/about" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">About</div>
+                        <div class="public-rail-link__title">About Montana Blotter</div>
+                        <div class="public-rail-link__copy">Mission, team, and tech.</div>
+                    </a>
+                    <a href="/pricing" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Plans</div>
+                        <div class="public-rail-link__title">Pricing &amp; Plans</div>
+                        <div class="public-rail-link__copy">Compare features and subscribe.</div>
+                    </a>
+                    <a href="/guides" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Guides</div>
+                        <div class="public-rail-link__title">Resource Guides</div>
+                        <div class="public-rail-link__copy">In-depth how-tos by topic.</div>
+                    </a>
+                    <a href="/sources" class="public-rail-link">
+                        <div class="public-rail-link__eyebrow">Coverage</div>
+                        <div class="public-rail-link__title">Source Coverage</div>
+                        <div class="public-rail-link__copy">Which counties we read from.</div>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}
