@@ -55,6 +55,7 @@ from blueprints.lea_portal import register_lea_portal
 from blueprints.lea_connect import register_lea_connect
 from blueprints.recovery_ads import recovery_ads_bp
 from blueprints.attorney_ads import attorney_ads_bp
+from blueprints.attorney_checkout import attorney_checkout_bp
 from blueprints.lawyer_ads import lawyer_ads_bp
 from blueprints.threedhub import threedhub_bp
 from blueprints.chat_agent import chat_agent_bp
@@ -15843,6 +15844,7 @@ register_lea_portal(app)
 register_lea_connect(app)
 app.register_blueprint(recovery_ads_bp)
 app.register_blueprint(attorney_ads_bp)
+app.register_blueprint(attorney_checkout_bp)
 app.register_blueprint(lawyer_ads_bp)
 from blueprints.sponsored_listings import sponsored_bp
 app.register_blueprint(sponsored_bp)

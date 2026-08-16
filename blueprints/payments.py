@@ -436,6 +436,8 @@ def stripe_webhook():
         apply_stripe_recovery_ad_event(conn, event)
         from blueprints.lawyer_ads import apply_stripe_lawyer_ad_event
         apply_stripe_lawyer_ad_event(conn, event)
+        from blueprints.attorney_checkout import apply_stripe_attorney_event
+        apply_stripe_attorney_event(conn, event)
         m._apply_stripe_event(
             conn,
             event,
