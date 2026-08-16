@@ -2,3 +2,21 @@ title = "Montana Blotter gitleaks config"
 
 [extend]
 useDefault = true
+
+[[allowlists]]
+description = "Scraped raw HTML research files (third-party keys from government websites)"
+paths = ['''docs/research/.*\.html$''']
+
+[[allowlists]]
+description = "Documentation files with placeholder and redacted example values"
+paths = ['''docs/.*\.md$''']
+regexes = [
+    '''"access_token":\s*"\*+?"''',
+    '''"refresh_token":\s*"\*+?"''',
+    '''discord:\d{17,19}''',
+]
+
+[[allowlists]]
+description = "Template descriptive text referencing tokens (not a real credential)"
+paths = ['''templates/data_api\.html$''']
+regexes = ['''curl \+ a token''']
