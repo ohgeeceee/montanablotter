@@ -1322,6 +1322,7 @@ def migrate():
     ensure_recovery_ad_schema(conn)
     ensure_lawyer_ad_schema(conn)
     ensure_attorney_ad_schema(conn)
+    ensure_attorney_checkout_schema(conn)
     ensure_treatment_center_schema(conn)
     ensure_outreach_drafts_schema(conn)
     ensure_lawyer_outreach_schema(conn)
