@@ -1,0 +1,143 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = order.firm_name ~ " — Attorney Sponsorship Control Panel" %}
+
+{% block content %}
+<div class="container" style="max-width:860px;margin:0 auto;padding:2rem 1rem;">
+
+  {% if welcome == '1' %}
+  <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:1.25rem;margin-bottom:1.5rem;">
+    <h2 style="margin:0 0 .5rem;color:#166534;">Welcome to your control panel</h2>
+    <p style="margin:0;color:#15803d;">
+      Your <strong>{{ order.firm_name }}</strong> {{ package.name }} sponsorship is active.
+      Use this panel to update your logo, photo, blurb, and tagline.
+      Your listing will appear above free listings in the counties you selected.
+    </p>
+  </div>
+  {% endif %}
+
+  {% if cancel_error %}
+  <div style="background:#fff0f0;border:1px solid #f00;border-radius:4px;padding:1rem;margin-bottom:1.5rem;">
+    <p style="color:#c00;margin:0;">{{ cancel_error }}</p>
+  </div>
+  {% endif %}
+
+  {% if cancellation == '1' %}
+  <div style="background:#fef9c3;border:1px solid #facc15;border-radius:8px;padding:1.25rem;margin-bottom:1.5rem;">
+    <h2 style="margin:0 0 .5rem;color:#854d0e;">Cancellation requested</h2>
+    <p style="margin:0;color:#a16207;">
+      Your <strong>{{ order.firm_name }}</strong> sponsorship cancellation has been requested.
+      If you have a Stripe subscription, it is being cancelled at the source.
+      Your listing will remain visible until the end of your current billing period.
+    </p>
+  </div>
+  {% endif %}
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;">
+    <div>
+      <h1 style="margin:0;">{{ order.firm_name }}</h1>
+      <p style="margin:.25rem 0 0;color:#555;">{{ package.name }} · {% if order.billing_cycle == 'annual' %}Annual{% else %}Monthly{% endif %}</p>
+    </div>
+    <div style="text-align:right;color:#555;font-size:.9rem;">
+      Status: <strong style="color:{'#16a34a' if order.status == 'active' else '#dc2626' if order.status in ('cancelled','expired','payment_failed') else '#d97706' if order.status == 'cancellation_requested' else '#64748b'};">
+        {{ order.status }}
+      </strong>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+    <!-- Branding card -->
+    <div style="border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;background:#fff;">
+      <h2 style="margin:0 0 1rem;font-size:1.1rem;">Branding</h2>
+      <form method="POST" enctype="multipart/form-data">
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;font-weight:600;margin-bottom:.25rem;">Logo</label>
+          {% if order.logo_path %}
+          <img src="{{ order.logo_path }}" alt="Current logo" style="max-height:80px;border-radius:4px;margin-bottom:.5rem;">
+          {% else %}
+          <div style="height:80px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:.85rem;">
+            No logo uploaded
+          </div>
+          {% endif %}
+          <input type="file" name="logo" accept="image/*" style="margin-top:.5rem;">
+        </div>
+
+        {% if package.photo %}
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;font-weight:600;margin-bottom:.25rem;">Photo</label>
+          {% if order.photo_path %}
+          <img src="{{ order.photo_path }}" alt="Current photo" style="max-height:80px;border-radius:4px;margin-bottom:.5rem;">
+          {% else %}
+          <div style="height:80px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:.85rem;">
+            No photo uploaded
+          </div>
+          {% endif %}
+          <input type="file" name="photo" accept="image/*" style="margin-top:.5rem;">
+        </div>
+        {% endif %}
+
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;font-weight:600;margin-bottom:.25rem;">Blurb (up to 500 characters)</label>
+          <textarea name="blurb" rows="4" maxlength="500"
+                    style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;resize:vertical;">{{ order.blurb or '' }}</textarea>
+        </div>
+
+        <div style="margin-bottom:1.5rem;">
+          <label style="display:block;font-weight:600;margin-bottom:.25rem;">Tagline (1-line callout, shown above name on Gold)</label>
+          <input type="text" name="tagline" value="{{ order.tagline or '' }}" maxlength="120"
+                 style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+        </div>
+
+        <button type="submit" style="width:100%;padding:.75rem;background:#1a6b3c;color:#fff;border:none;border-radius:4px;font-size:1rem;font-weight:600;cursor:pointer;">
+          Save Changes
+        </button>
+      </form>
+    </div>
+
+    <!-- Details + metrics card -->
+    <div style="border:1px solid #e2e8f0;border-radius:12px;padding:1.5rem;background:#fff;">
+      <h2 style="margin:0 0 1rem;font-size:1.1rem;">Listing Details</h2>
+      <dl style="display:grid;grid-template-columns:auto 1fr;gap:.4rem 1rem;font-size:.9rem;margin-bottom:1.5rem;">
+        <dt style="color:#64748b;">Email</dt><dd style="margin:0;">{{ order.email }}</dd>
+        <dt style="color:#64748b;">Phone</dt><dd style="margin:0;">{{ order.phone or '—' }}</dd>
+        <dt style="color:#64748b;">Website</dt><dd style="margin:0;">{{ order.website or '—' }}</dd>
+        <dt style="color:#64748b;">Counties</dt><dd style="margin:0;">{{ order.counties_served or '—' }}</dd>
+        <dt style="color:#64748b;">Practice Areas</dt><dd style="margin:0;">{{ order.practice_areas or '—' }}</dd>
+        <dt style="color:#64748b;">Bar Number</dt><dd style="margin:0;">{{ order.mt_bar_number or '—' }}</dd>
+        <dt style="color:#64748b;">Package</dt><dd style="margin:0;">{{ package.name }}</dd>
+        <dt style="color:#64748b;">Billing</dt><dd style="margin:0;">{% if order.billing_cycle == 'annual' %}Annual{% else %}Monthly{% endif %}</dd>
+      </dl>
+
+      {% if order.status == 'active' %}
+      <h2 style="margin:0 0 1rem;font-size:1.1rem;">Performance</h2>
+      <dl style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1rem;font-size:.9rem;">
+        <dt style="color:#64748b;">Impressions</dt>
+        <dd style="margin:0;font-weight:600;">{{ order.impressions }}</dd>
+        <dt style="color:#64748b;">Clicks</dt>
+        <dd style="margin:0;font-weight:600;">{{ order.clicks }}</dd>
+      </dl>
+      {% endif %}
+
+      <h2 style="margin:0 0 1rem;font-size:1.1rem;">Account</h2>
+      <p style="font-size:.85rem;color:#64748b;margin:0 0 1rem;">
+        Your account token: <code>{{ token }}</code>
+      </p>
+      <p style="font-size:.85rem;color:#64748b;margin:0 0 .75rem;">
+        Keep this token private — anyone with it can access this panel.
+      </p>
+
+      {% if order.status == 'active' %}
+      <form method="POST" action="{{ url_for('attorney_checkout.attorney_control_panel_cancel', token=token) }}">
+        <button type="submit" style="width:100%;padding:.75rem;background:#dc2626;color:#fff;border:none;border-radius:4px;font-size:1rem;font-weight:600;cursor:pointer;">
+          Cancel Sponsorship
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <p style="text-align:center;margin-top:2rem;color:#666;font-size:.9rem;">
+    <a href="{{ url_for('attorney_ads.advertise_attorney_sponsorship') }}" style="color:#1a6b3c;">← Back to packages</a>
+  </p>
+</div>
+{% endblock %}
