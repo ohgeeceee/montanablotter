@@ -1,0 +1,111 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Complete Your Attorney Sponsorship" %}
+{% set meta_description = "Complete your Montana Blotter attorney sponsorship — Silver Featured ($99/mo) or Gold Priority ($199/mo)." %}
+
+{% block content %}
+<div class="container" style="max-width:640px;margin:0 auto;padding:2rem 1rem;">
+  <h1 style="margin-bottom:1.5rem;">Complete Your Attorney Sponsorship</h1>
+
+  {% if form_errors %}
+  <div style="background:#fff0f0;border:1px solid #f00;border-radius:4px;padding:1rem;margin-bottom:1.5rem;">
+    {% for e in form_errors %}<p style="margin:.25rem 0;color:#c00;">{{ e }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="POST">
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Firm Name *</label>
+      <input type="text" name="firm_name" value="{{ form_data.firm_name }}" required maxlength="120"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Contact Name *</label>
+      <input type="text" name="contact_name" value="{{ form_data.contact_name }}" required maxlength="120"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Email *</label>
+      <input type="email" name="email" value="{{ form_data.email }}" required maxlength="160"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Phone</label>
+      <input type="tel" name="phone" value="{{ form_data.phone }}" maxlength="40"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Website</label>
+      <input type="url" name="website" value="{{ form_data.website }}" maxlength="300" placeholder="https://"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Counties Served *</label>
+      <input type="text" name="counties_served" value="{{ form_data.counties_served }}" required maxlength="400"
+             placeholder="e.g. Yellowstone, Big Horn, Stillwater"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+      <p style="font-size:.8rem;color:#666;margin-top:.25rem;">Comma-separated. The firm will be listed in each county you specify.</p>
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Practice Areas</label>
+      <input type="text" name="practice_areas" value="{{ form_data.practice_areas }}" maxlength="400"
+             placeholder="e.g. Criminal defense, DUI, family law"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Blurb</label>
+      <textarea name="blurb" rows="3" maxlength="1000"
+                style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;resize:vertical;">{{ form_data.blurb }}</textarea>
+      <p style="font-size:.8rem;color:#666;margin-top:.25rem;">Up to 500 characters show on the listing.</p>
+    </div>
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.25rem;">Montana Bar Number (optional)</label>
+      <input type="text" name="mt_bar_number" value="{{ form_data.mt_bar_number }}" maxlength="40"
+             style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.5rem;">Package *</label>
+      {% for pkg in packages %}
+      <label style="display:flex;align-items:flex-start;gap:.75rem;padding:.75rem;border:1px solid #ddd;border-radius:4px;margin-bottom:.5rem;cursor:pointer;">
+        <input type="radio" name="package_id" value="{{ pkg.id }}" {% if form_data.package_id == pkg.id %}checked{% endif %} required>
+        <span>
+          <strong>{{ pkg.name }}</strong> — {{ pkg.price_label }}
+          <span style="color:#666;">or {{ pkg.price_label_annual }} billed annually</span>
+          <ul style="margin:.3rem 0 0;padding:.3rem 1.2rem;font-size:.85rem;color:#444;">
+            {% for f in pkg.features %}
+            <li>✓ {{ f }}</li>
+            {% endfor %}
+          </ul>
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block;font-weight:600;margin-bottom:.5rem;">Billing Cycle</label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="radio" name="billing_cycle" value="monthly" {% if form_data.billing_cycle != 'annual' %}checked{% endif %}> Monthly
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+        <input type="radio" name="billing_cycle" value="annual"> Annual (save ~15%)
+      </label>
+    </div>
+
+    <div style="margin-bottom:1.5rem;padding:1rem;background:#f8f8f8;border-radius:4px;">
+      <label style="display:flex;align-items:flex-start;gap:.5rem;cursor:pointer;">
+        <input type="checkbox" name="terms_ack" value="yes" style="margin-top:.2rem;" required>
+        <span style="font-size:.9rem;">I accept the Montana Blotter advertising terms and authorize recurring billing for the selected package.</span>
+      </label>
+    </div>
+
+    <button type="submit" style="width:100%;padding:.875rem;background:#1a6b3c;color:#fff;border:none;border-radius:4px;font-size:1rem;font-weight:600;cursor:pointer;">
+      Continue to Secure Payment →
+    </button>
+  </form>
+
+  <p style="text-align:center;margin-top:1.5rem;">
+    <a href="{{ url_for('attorney_ads.advertise_attorney_sponsorship') }}" style="color:#1a6b3c;">← Back to packages</a>
+  </p>
+</div>
+{% endblock %}
