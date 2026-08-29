@@ -334,23 +334,6 @@ def admin_agents():
     return redirect(url_for('admin.admin_command_center'))
 
 
-@admin_bp.route('/office')
-@admin_bp.route('/operations/office')
-@login_required
-def admin_office():
-    # The clustered VPS canvas office view was removed from the admin panel.
-    # Redirect to the dashboard instead of serving the 3D console.
-    return redirect(url_for('admin.admin_dashboard'))
-
-
-@admin_bp.route('/office/')
-@admin_bp.route('/operations/office/')
-@login_required
-def admin_office_view():
-    # The clustered VPS canvas office view was removed from the admin panel.
-    # Redirect to the dashboard instead of serving the 3D console.
-    return redirect(url_for('admin.admin_dashboard'))
-
 
 @admin_bp.route('/system/agents/client-snapshot')
 @login_required

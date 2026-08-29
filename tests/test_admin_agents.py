@@ -137,39 +137,27 @@ class AdminAgentsTests(unittest.TestCase):
         response = client.get('/admin/agents')
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/command-center', response.headers['Location'])
+        self.assertIn('/admin/operations/live', response.headers['Location'])
 
-    def test_admin_office_serves_static_vps_office_html(self) -> None:
+    def test_admin_office_routes_removed(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        # VPS canvas office served at /admin/operations/office/
-        response = client.get('/admin/operations/office/', follow_redirects=False)
-
-        body = response.get_data(as_text=True)
-        self.assertEqual(response.status_code, 200)
-        # Canvas office — verify the static file is served, not the iframe template.
-        self.assertIn('VPS Office', body)
-        self.assertIn('Montana Blotter', body)
-        self.assertIn('Blotter Host', body)
-        self.assertIn('OpenClaw Gateway', body)
-        # If the iframe template leaks back in, this catches it.
-        self.assertNotIn('<iframe', body)
-
-    def test_admin_office_redirects_to_trailing_slash(self) -> None:
-        client = app_module.app.test_client()
-        self._login_admin_session(client)
-
-        response = client.get('/admin/office', follow_redirects=False)
-
-        self.assertEqual(response.status_code, 301)
-        self.assertEqual(response.headers['Location'], '/admin/operations/office/')
+        # The clustered VPS canvas office view was removed from the admin panel.
+        # These legacy routes must no longer resolve.
+        for path in ('/admin/office', '/admin/operations/office',
+                     '/admin/operations/office/'):
+            response = client.get(path, follow_redirects=False)
+            self.assertEqual(
+                response.status_code, 404,
+                f'{path} should be removed, got {response.status_code}',
+            )
 
     def test_admin_agents_stream_returns_error_event_when_openclaw_missing(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        response = client.get('/admin/agents/stream')
+        response = client.get('/admin/system/agents/stream')
 
         body = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)

@@ -1122,14 +1122,4 @@ def admin_settings():
     )
 
 
-@admin_bp.route('/emails', methods=['GET', 'POST'])
-@login_required
-def admin_emails():
-    """Legacy route redirected to the current digest email ops console."""
-    return redirect(url_for('admin.admin_email_ops'), code=301)
 
-
-@admin_bp.route('/emails/template/<template_type>')
-@login_required
-def get_email_template(template_type):
-    return redirect(url_for('admin.admin_email_ops'), code=301)
