@@ -91,9 +91,9 @@ pywebpush>=2.0
 # Security: aiohttp kept loose to allow transitive needs of anthropic/google SDKs
 # but pinned away from the vulnerable 3.13.x line.
 aiohttp>=3.14.1
-# Security: starlette bumps require FastAPI compatibility; pinned to the
-# range Dependabot accepts without breaking FastAPI 0.115.x's Starlette need.
-starlette>=0.49.1
+# Security: starlette bumps require FastAPI compatibility; fastapi 0.115.x
+# needs starlette<0.46.0 (>=0.40.0), so pin to that window.
+starlette>=0.40.0,<0.46.0
 # Dev/build tool pins — kept here so pip-audit sees the floor.
 pip>=26.1.2
 setuptools>=83.0.0
