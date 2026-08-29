@@ -51,6 +51,7 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 # Routes
 # ---------------------------------------------------------------------------
 
+@admin_bp.route('/', strict_slashes=False)
 @admin_bp.route('/operations', strict_slashes=False)
 @login_required
 def admin_root():

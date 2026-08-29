@@ -1,0 +1,76 @@
+{% extends "public_page_base.html" %}
+
+{% set active_nav = "remove-name" %}
+
+{% block title %}Remove My Name — Montana Blotter{% endblock %}
+
+{% block content %}
+<section class="max-w-2xl mx-auto px-4 py-14">
+  <div class="text-center mb-8">
+    <div class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-600 mb-4">
+      Privacy Request
+    </div>
+    <h1 class="text-4xl font-black tracking-tight text-slate-900">Name Removal &amp; Privacy Suppression</h1>
+    <p class="mx-auto mt-3 max-w-xl text-base text-slate-500 leading-7">
+      A one-time <strong>$999</strong> payment covers a verified privacy review of your public records
+      on Montana Blotter. On approval, your name is <strong>redacted</strong> (masked) across jail
+      bookings, warrants, and related posts. We do not delete government source records — we suppress
+      your name from public presentation after human review.
+    </p>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="space-y-2 mb-4">
+        {% for category, message in messages %}
+          <div class="rounded-xl px-4 py-3 text-sm border {% if category == 'error' %}bg-rose-50 border-rose-200 text-rose-700{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if errors %}
+    <div class="rounded-xl bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 text-sm mb-4">
+      <ul class="list-disc pl-5 space-y-1">
+        {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="post" class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+    <div>
+      <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Full name to suppress</label>
+      <input type="text" name="person_name" required
+             class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800"
+             placeholder="e.g. John A Doe">
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Date of birth (optional)</label>
+        <input type="text" name="dob"
+               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800"
+               placeholder="MM/DD/YYYY">
+      </div>
+      <div>
+        <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">County (optional)</label>
+        <input type="text" name="county"
+               class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800"
+               placeholder="e.g. Cascade">
+      </div>
+    </div>
+    <div>
+      <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Contact email</label>
+      <input type="email" name="email" required
+             class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800"
+             placeholder="you@example.com">
+    </div>
+    <button type="submit"
+            class="w-full rounded-xl bg-slate-900 py-4 text-base font-black text-white hover:bg-slate-800 transition-colors">
+      Continue to Secure Payment — $999
+    </button>
+    <p class="text-xs text-slate-400 text-center">
+      You will be redirected to Stripe. Suppression is applied only after our review of your request.
+    </p>
+  </form>
+</section>
+{% endblock %}
