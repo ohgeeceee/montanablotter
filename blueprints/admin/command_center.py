@@ -252,14 +252,6 @@ def _build_feed() -> dict:
 @admin_bp.route('/operations/live')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
-def admin_hub():
-    """Backwards-compat redirect — /admin/hub was merged into /admin/dashboard."""
-    return redirect(url_for('admin.admin_dashboard'), code=301)
-
-
-@admin_bp.route('/operations/live')
-@login_required
-@require_role(*ADMIN_ACCESS_ROLES)
 def admin_command_center():
     return render_template('admin_command_center.html')
 
