@@ -4,6 +4,8 @@ venv/
 *.db-shm
 *.db-journal
 *.db.backup.*
+*.bak
+backups/*.bak
 *.db.pre_reset_*
 blotter_replica.db.*
 __pycache__/
@@ -46,3 +48,7 @@ static/charts/*.png
 
 # Isolated development worktrees.
 .worktrees/
+
+# Runtime lock files
+*.lock
+.blotter_db_writer.lock

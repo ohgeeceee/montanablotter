@@ -9,7 +9,7 @@
                 <h1 class="text-3xl font-black text-slate-900 mt-2">Bail Agency CMS</h1>
                 <p class="text-sm text-slate-600 mt-2">Track outreach by agency and manage pre-formatted templates/scripts in one place.</p>
             </div>
-            <a href="/admin/bail-ads"
+            <a href="/admin/revenue/bail-ads"
                class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
                 Back to Bail Ads
             </a>
@@ -51,7 +51,7 @@
 
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
         <h2 class="text-lg font-black text-slate-900">Add Agency</h2>
-        <form method="post" action="/admin/bail-ads/agencies/create" class="mt-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+        <form method="post" action="/admin/revenue/bail-ads/agencies/create" class="mt-4 grid grid-cols-1 md:grid-cols-6 gap-3">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="agency_name" required placeholder="Agency name *" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             <input type="text" name="contact_name" placeholder="Contact name" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
@@ -64,7 +64,7 @@
 
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm p-5">
         <h2 class="text-lg font-black text-slate-900">Search</h2>
-        <form method="get" action="/admin/bail-ads/agencies" class="mt-3 grid grid-cols-1 md:grid-cols-5 gap-3">
+        <form method="get" action="/admin/revenue/bail-ads/agencies" class="mt-3 grid grid-cols-1 md:grid-cols-5 gap-3">
             <input type="text" name="q" value="{{ q or '' }}" placeholder="Search agency, contact, email, phone, counties, notes" class="md:col-span-3 rounded-lg border border-slate-300 px-3 py-2 text-sm">
             <select name="status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
                 <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All statuses</option>
@@ -94,7 +94,7 @@
                 </div>
             </summary>
             <div class="border-t border-slate-200 px-5 py-4 space-y-4">
-                <form method="post" action="/admin/bail-ads/agencies/{{ agency.id }}/update" class="space-y-4">
+                <form method="post" action="/admin/revenue/bail-ads/agencies/{{ agency.id }}/update" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">

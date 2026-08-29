@@ -115,7 +115,12 @@ def apply_stripe_attorney_event(conn: sqlite3.Connection, event: dict) -> None:
     data_object = (event.get('data') or {}).get('object') or {}
     metadata = data_object.get('metadata') or {}
 
-    if (metadata.get('flow') or '').strip() != 'attorney_sponsorship':
+    # Allow subscription-deleted through the flow gate — Stripe doesn't
+    # attach checkout metadata to subscription-deletion events, and the
+    # handler matches on stripe_subscription_id instead.
+    if event_type != 'customer.subscription.deleted' and (
+        (metadata.get('flow') or '').strip() != 'attorney_sponsorship'
+    ):
         return
 
     handled = {
@@ -218,7 +223,7 @@ def apply_stripe_attorney_event(conn: sqlite3.Connection, event: dict) -> None:
 # Public routes
 # ---------------------------------------------------------------------------
 
-@attorney_checkout_bp.route('/advertise/attorney-sponsorship/checkout')
+@attorney_checkout_bp.route('/advertise/attorney-sponsorship/checkout', methods=['GET', 'POST'])
 def advertise_attorney_checkout():
     """Checkout form for attorney sponsorship tiers."""
     package_lookup = _attorney_package_lookup()

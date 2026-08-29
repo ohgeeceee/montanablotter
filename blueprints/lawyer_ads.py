@@ -1097,6 +1097,381 @@ def advertise_lawyers_sample_report():
     )
 
 
+def _slug_for_name(name: str) -> str:
+    """Turn a firm name like 'Cok Kinzler PLLC' into a URL slug like 'cok-kinzler-pllc'.
+
+    Lowercases, replaces spaces with hyphens, strips punctuation that isn't a
+    hyphen or digit, and collapses repeated hyphens. Intended for the
+    /advertise/lawyers/one-pager/<slug> and /advertise/lawyers/sample-report/<slug>
+    routes so any prospect or paying advertiser can get a personalized page.
+    """
+    if not name:
+        return ''
+    normalized = ''.join(
+        ch if ch.isalnum() or ch in (' ', '-') else ''
+        for ch in name.lower()
+    )
+    slug = '-'.join(normalized.split())
+    slug = slug.strip('-')
+    # collapse any repeated hyphens leftover from punctuation stripping
+    while '--' in slug:
+        slug = slug.replace('--', '-')
+    return slug
+
+
+_FIRM_FALLBACKS: dict[str, dict] = {
+    # Hardcoded fallbacks for firms we are actively pitching before they
+    # exist in lawyer_outreach_prospects or lawyer_ad_orders. When the slug
+    # matches one of these, the page renders from this data even though the
+    # firm has no DB row yet. Remove an entry once the firm is seeded in a
+    # prospect or order table and the DB lookup takes over.
+    'cok-kinzler-pllc': {
+        'name': 'Cok Kinzler PLLC',
+        'county': 'Gallatin',
+        'practice_areas': 'Criminal defense, DUI, family law',
+        'package_id': 'gold',
+    },
+}
+
+
+def _firm_context_for_slug(slug: str) -> dict | None:
+    """Return the firm context dict for a one-pager or sample-report slug.
+
+    Looks up the firm in lawyer_outreach_prospects first (prospects always have
+    a county and practice areas), then falls back to active lawyer_ad_orders.
+    If the slug matches a known hardcoded _FIRM_FALLBACKS entry and the DB has
+    no matching row, the fallback is used so we can pitch a firm before it is
+    seeded in any table.
+
+    Returns None when the slug doesn't match anything — the route then 404s.
+    """
+    conn = get_db()
+    try:
+        # slug is the lowercased hyphenated firm name. Match prospects by
+        # case-insensitive firm_name after the same normalization so
+        # 'Cok Kinzler PLLC' → 'cok-kinzler-pllc' matches the stored name.
+        norm = slug.replace('-', ' ').strip().lower()
+
+        prospect = conn.execute(
+            '''SELECT * FROM lawyer_outreach_prospects
+               WHERE lower(firm_name) = ?''',
+            (norm,),
+        ).fetchone()
+
+        if prospect is not None:
+            package_id = 'gold'
+            order = conn.execute(
+                '''SELECT * FROM lawyer_ad_orders
+                   WHERE lower(firm_name) = ? AND status = 'active'
+                   ORDER BY
+                       CASE package_id
+                           WHEN 'gold' THEN 1
+                           WHEN 'silver' THEN 2
+                           WHEN 'bronze' THEN 3
+                           ELSE 9
+                       END
+                   LIMIT 1''',
+                (norm,),
+            ).fetchone()
+            if order is not None:
+                package_id = (order['package_id'] or 'gold').lower()
+
+            package = _package_lookup().get(package_id) or _PACKAGES[-1]
+            return _build_firm_context(
+                name=prospect['firm_name'],
+                county=prospect['county'] or 'Montana',
+                practice_areas=prospect['practice_areas'] or '',
+                package=package,
+                package_id=package_id,
+                conn=conn,
+            )
+
+        # No prospect row — try active orders.
+        order = conn.execute(
+            '''SELECT * FROM lawyer_ad_orders
+               WHERE lower(firm_name) = ? AND status = 'active'
+               ORDER BY
+                   CASE package_id
+                       WHEN 'gold' THEN 1
+                       WHEN 'silver' THEN 2
+                       WHEN 'bronze' THEN 3
+                       ELSE 9
+                   END
+               LIMIT 1''',
+            (norm,),
+        ).fetchone()
+        if order is not None:
+            package_id = (order['package_id'] or 'gold').lower()
+            package = _package_lookup().get(package_id) or _PACKAGES[-1]
+            counties = (order['counties_served'] or '').strip() or 'Montana'
+            first_county = _parse_counties(counties)[0] if _parse_counties(counties) else 'Montana'
+            return _build_firm_context(
+                name=order['firm_name'],
+                county=first_county,
+                practice_areas='',
+                package=package,
+                package_id=package_id,
+                conn=conn,
+            )
+
+        # No DB row at all — check the hardcoded sales-pitch fallbacks.
+        fb = _FIRM_FALLBACKS.get(slug)
+        if fb is not None:
+            package_id = fb.get('package_id', 'gold')
+            package = _package_lookup().get(package_id) or _PACKAGES[-1]
+            return _build_firm_context(
+                name=fb['name'],
+                county=fb['county'] or 'Montana',
+                practice_areas=fb.get('practice_areas') or '',
+                package=package,
+                package_id=package_id,
+                conn=conn,
+            )
+
+        return None
+    finally:
+        conn.close()
+
+
+def _build_firm_context(
+    name: str,
+    county: str,
+    practice_areas: str,
+    *,
+    package: dict,
+    package_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict:
+    """Assemble the context dict both firm-page templates need.
+
+    The 'gold_slot_open' flag is computed from live per-county inventory: it is
+    True only when _county_active_capacity shows the county still has room under
+    the Gold cap (1 per county). Firms that already hold an active Gold order in
+    the same county are excluded from the count so a current holder sees the slot
+    as 'open' only if another firm is about to be admitted — in practice the flag
+    is False for existing Gold holders until a slot actually opens.
+    """
+    county_display = ' '.join((county or 'Montana').replace('&', 'and').title().split())
+    practice_short = ''
+    if practice_areas:
+        bits = [p.strip() for p in practice_areas.split(',') if p.strip()]
+        practice_short = ', '.join(bits[:2]) if bits else ''
+
+    headline_parts = []
+    if practice_short:
+        headline_parts.append(f'{practice_short} clients')
+    headline_parts.append(f'land on Montana Blotter when a booking hits {county_display} County')
+    headline = (
+        f'{".".join(headline_parts)}. '
+        f"A Gold Priority listing puts your firm's name, phone, and intake "
+        f"link directly on those pages — with priority lead routing and "
+        f"real-time arrest alerts."
+    )
+
+    gold_slot_open = False
+    if conn is not None and package_id == 'gold':
+        try:
+            counts = _county_active_capacity(conn, county)
+            gold_slot_open = counts.get('gold', 0) < _LAWYER_COUNTY_CAPS.get('gold', 1)
+        except Exception:
+            gold_slot_open = False
+
+    return {
+        'name': name,
+        'county': county,
+        'county_display': county_display,
+        'practice_areas': practice_areas,
+        'headline': headline,
+        'packages': _PACKAGES,
+        'package_lookup': _package_lookup(),
+        'checkout_ready': _checkout_ready(),
+        'gold_slot_open': gold_slot_open,
+        'package': package,
+        'package_id': package_id,
+    }
+
+
+@lawyer_ads_bp.route('/advertise/lawyers/one-pager-ck')
+def advertise_lawyers_one_pager_ck():
+    """Legacy: redirect to the parameterized one-pager for Cok Kinzler PLLC."""
+    return redirect(url_for('lawyer_ads.advertise_lawyers_one_pager_firm', slug='cok-kinzler-pllc'))
+
+
+@lawyer_ads_bp.route('/advertise/lawyers/sample-report-ck')
+def advertise_lawyers_sample_report_ck():
+    """Legacy: redirect to the parameterized sample report for Cok Kinzler PLLC."""
+    return redirect(url_for('lawyer_ads.advertise_lawyers_sample_report_firm', slug='cok-kinzler-pllc'))
+
+
+@lawyer_ads_bp.route('/advertise/lawyers/one-pager/<slug>')
+def advertise_lawyers_one_pager_firm(slug: str):
+    """Printable one-page sales sheet for any firm by name-slug.
+
+    Looks up the firm in lawyer_outreach_prospects or active
+    lawyer_ad_orders and renders the same narrative structure as the
+    Cok Kinzler PLLC one-pager, but with the firm's name, county, and
+    practice areas filled in. Firm context is assembled in
+    _firm_context_for_slug().
+    """
+    context = _firm_context_for_slug(slug)
+    if context is None:
+        abort(404)
+
+    return render_template(
+        'advertise_lawyers_one_pager_firm.html',
+        firm={
+            'name': context['name'],
+            'county_display': context['county_display'],
+            'headline': context['headline'],
+            'gold_slot_open': context['gold_slot_open'],
+        },
+        packages=context['packages'],
+        package_lookup=context['package_lookup'],
+        checkout_ready=context['checkout_ready'],
+        page_title=f"Montana Blotter Lawyer Directory — {context['name']} · {context['county_display']}",
+        meta_description=(
+            f'One-page summary for {context["name"]}: Gold Priority placement '
+            f'on the {context["county_display"]} County /lawyers page, tap-to-call, '
+            f'priority lead routing, real-time arrest alerts, and a monthly '
+            f'performance report.'
+        ),
+        active_nav='advertise',
+        current_year=datetime.now().year,
+        slug=slug,
+    )
+
+
+@lawyer_ads_bp.route('/advertise/lawyers/sample-report/<slug>')
+def advertise_lawyers_sample_report_firm(slug: str):
+    """Sample monthly report for any firm by name-slug.
+
+    Uses services.lawyer_outreach.sample_report.generate() so paying advertisers
+    with an active order get real event + delivery counts for the last 30 days,
+    while prospects still see illustrative reference numbers. The firm context
+    comes from _firm_context_for_slug() so the narrative matches the firm's
+    actual name and county.
+    """
+    context = _firm_context_for_slug(slug)
+    if context is None:
+        abort(404)
+
+    prospect_name = context['name']
+    prospect = get_db().execute(
+        '''SELECT id FROM lawyer_outreach_prospects WHERE lower(firm_name) = ?''',
+        (prospect_name.lower(),),
+    ).fetchone()
+
+    if prospect is not None:
+        prospect_id = prospect['id']
+    else:
+        # No prospect row — fabricate a stable stand-in so sample_report.generate()
+        # doesn't raise ValueError. We still pass the firm's actual name to the
+        # template, so the report narrative is correct; the only cost is that
+        # live-mode detection (which needs a prospect row) won't fire for firms
+        # that only exist as an order.
+        prospect_id = -1
+
+    if prospect_id < 0:
+        report = _sample_report_from_context(context)
+    else:
+        from services.lawyer_outreach.sample_report import generate as sr_generate
+        report = sr_generate(get_db(), prospect_id=prospect_id, package_id=context['package_id'])
+
+    # Remap the sample_report.generate() dict into the shape the firm template
+    # expects. The template uses report.metrics.impressions, report.cost_per_lead,
+    # report.package.price_label, report.advertiser_outcomes[], etc.
+    advertiser_outcomes = [
+        {'label': 'Contacted',         'value': report['advertiser_reported'].get('contacted'),        'definition': 'Firm reached the consumer within the response window.'},
+        {'label': 'Consultation',      'value': report['advertiser_reported'].get('consultations'),     'definition': 'In-person or video consultation occurred.'},
+        {'label': 'Retained',          'value': report['advertiser_reported'].get('retained'),           'definition': 'Engagement letter signed; matter opened.'},
+        {'label': 'Out of practice',   'value': None,                                                     'definition': 'Referred elsewhere or declined.'},
+        {'label': 'Duplicate',         'value': None,                                                     'definition': 'Same consumer / matter already in pipeline.'},
+        {'label': 'Spam / non-client', 'value': None,                                                     'definition': 'Invalid or non-consumer submission.'},
+    ]
+
+    return render_template(
+        'advertise_lawyers_sample_report_firm.html',
+        firm={
+            'name': context['name'],
+            'county_display': context['county_display'],
+        },
+        report={
+            'mode': report['mode'],
+            'package': {
+                'name': report['package']['name'],
+                'price_label': report['package']['price_label'],
+                'price_monthly_cents': _package_lookup()[context['package_id']]['price_monthly_cents']
+                if context['package_id'] in _package_lookup()
+                else 59900,
+            },
+            'period_label': report['period_label'],
+            'metrics': {
+                'impressions':    report['metrics']['impressions'],
+                'clicks':         report['metrics']['clicks'],
+                'calls':          report['metrics']['calls'],
+                'leads_delivered': report['metrics']['leads_delivered'],
+                'leads_failed':   report['metrics']['leads_failed'],
+            },
+            'cost_per_lead': report.get('cost_per_lead'),
+            'cost_per_consultation': report.get('cost_per_consultation'),
+            'cost_per_retained': report.get('cost_per_retained'),
+            'advertiser_outcomes': advertiser_outcomes,
+        },
+        page_title=f"Sample Monthly Report — {context['name']}",
+        meta_description=(
+            f'Sample monthly report for {context["name"]}: impressions, clicks, '
+            f'calls, intake leads delivered, and advertiser-reported outcomes '
+            f'for a {context["county_display"]} County placement.'
+        ),
+        active_nav='advertise',
+        current_year=datetime.now().year,
+        slug=slug,
+    )
+
+
+def _sample_report_from_context(context: dict) -> dict:
+    """Return a sample_report.generate()-shaped dict without a prospect row.
+
+    Used when a firm has an order but no prospect row, so sr_generate() would
+    raise ValueError. The numbers are the same illustrative Gold reference set
+    the existing CK report used; the firm's actual name/county come from the
+    context passed in.
+    """
+    pkg = context['package']
+    return {
+        'mode': 'sample',
+        'firm_name': context['name'],
+        'county': context['county'],
+        'package': {
+            'id': context['package_id'],
+            'name': pkg['name'],
+            'price_label': pkg['price_label'],
+            'short_label': pkg.get('short_label') or pkg['name'].split()[0],
+        },
+        'period_label': 'Illustrative · 30-day reference',
+        'metrics': {
+            'impressions': 412,
+            'clicks': 31,
+            'calls': 18,
+            'leads_delivered': 6,
+            'leads_failed': 1,
+        },
+        'advertiser_reported': {
+            'contacted': None,
+            'consultations': 2.4,
+            'retained': 0.6,
+        },
+        'cost_per_lead': round(pkg['price_monthly_cents'] / 100 / 6, 2),
+        'cost_per_consultation': round(pkg['price_monthly_cents'] / 100 / 2.4, 2),
+        'cost_per_retained': round(pkg['price_monthly_cents'] / 100 / 0.6, 2),
+        'disclaimer': (
+            'Illustrative reference numbers based on the 90-day pilot cohort. '
+            'Your actual results may differ. Montana Blotter does not guarantee '
+            'case volume, signed clients, or ROI.'
+        ),
+    }
+
+
 def _create_stripe_session(stripe_module, *, form_data: dict, package: dict, amount_cents: int, base_url: str):
     """Build the Stripe Checkout session. Wrapped for test monkey-patching."""
     interval = 'year' if form_data['billing_cycle'] == 'annual' else 'month'

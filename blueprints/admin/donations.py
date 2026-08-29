@@ -20,7 +20,7 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 # ---------------------------------------------------------------------------
 
 
-@admin_bp.route('/donations')
+@admin_bp.route('/revenue/donations')
 @login_required
 def admin_donations():
     import app as _app_module
@@ -213,7 +213,7 @@ def admin_donations():
     )
 
 
-@admin_bp.route('/donations/preflight')
+@admin_bp.route('/revenue/donations/preflight')
 @login_required
 def admin_donations_preflight():
     import app as _app_module
@@ -221,7 +221,7 @@ def admin_donations_preflight():
     return jsonify(_app_module._donation_launch_snapshot())
 
 
-@admin_bp.route('/donations/reconcile', methods=['POST'])
+@admin_bp.route('/revenue/donations/reconcile', methods=['POST'])
 @login_required
 def admin_donations_reconcile():
     import app as _app_module
@@ -258,7 +258,7 @@ def admin_donations_reconcile():
                 _app_module._apply_stripe_event(
                     conn,
                     event,
-                    event_source='/admin/donations/reconcile',
+                    event_source='/admin/revenue/donations/reconcile',
                     event_ip_hash='',
                     event_referrer='',
                 )
@@ -294,7 +294,7 @@ def admin_donations_reconcile():
     return redirect(url_for('admin.admin_donations'))
 
 
-@admin_bp.route('/donations/export.csv')
+@admin_bp.route('/revenue/donations/export.csv')
 @login_required
 def admin_donations_export():
     conn = get_db()

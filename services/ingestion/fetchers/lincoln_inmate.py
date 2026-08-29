@@ -132,7 +132,21 @@ def _parse_name(raw: str) -> str:
 
 
 def _parse_roster_text(pdf_text: str, source_url: str) -> list[JailBookingRecord]:
-    """Parse plain text from the Lincoln County inmate offense list PDF."""
+    """Parse plain text from the Lincoln County inmate offense list PDF.
+
+    The Lincoln PDF (gerenered ~2026-06) interleaves full charge lines with
+    continuation lines that lack an explicit statute token, e.g.::
+
+        20-13-301    Resisting/Obstructing an Officer of the Law      CFJA    Misd   M
+        Providing False Information                              CFJA    Misd   F
+        45-6-204     Providing False Information                      CFJA    Misd   F
+        Doing Business Without License                           CFJA    Misd   M
+
+    The original ``charge_re`` required every line to start with a statute
+    token, so the continuation lines were silently dropped and the total
+    record count came back as zero.  This version handles bare description
+    lines as continuations of the most recent charge in the current block.
+    """
     records: list[JailBookingRecord] = []
     seen_ids: set[str] = set()
 
@@ -142,9 +156,13 @@ def _parse_roster_text(pdf_text: str, source_url: str) -> list[JailBookingRecord
     header_re = re.compile(
         r"Booking#:\s*(\S+)\s+Name:\s*([A-Z,]+)\s+NameNumber:\s*(\S+)"
     )
-    # Charge lines have statute + offense + court + class + optional M/F
+    # Statute + offense + court + class + optional M/F  (full charge line)
     charge_re = re.compile(
         r"^(\S+)\s+(.+?)\s+([A-Z]{2,4})\s+(\S+)(?:\s+(M|F))?$"
+    )
+    # Continuation: a bare offense description line (no leading statute).
+    continuation_re = re.compile(
+        r"^(.+?)\s+([A-Z]{2,4})\s+(\S+)(?:\s+(M|F))?$"
     )
 
     current: dict | None = None
@@ -202,6 +220,17 @@ def _parse_roster_text(pdf_text: str, source_url: str) -> list[JailBookingRecord
             offense = cm.group(2).strip()
             if statute and offense:
                 current["charges"].append(f"{statute} - {offense}")
+            continue
+
+        # Continuation line without explicit statute
+        cm2 = continuation_re.match(line)
+        if cm2:
+            offense = cm2.group(1).strip()
+            court = cm2.group(2).strip()
+            classification = cm2.group(3).strip()
+            if offense and court and classification:
+                current["charges"].append(f"{offense} ({court}, {classification})")
+            continue
 
     flush_current()
     logger.info("Parsed %d Lincoln records", len(records))

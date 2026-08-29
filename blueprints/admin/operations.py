@@ -51,7 +51,7 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 # Routes
 # ---------------------------------------------------------------------------
 
-@admin_bp.route('/', strict_slashes=False)
+@admin_bp.route('/operations', strict_slashes=False)
 @login_required
 def admin_root():
     """Role-aware landing.
@@ -65,11 +65,13 @@ def admin_root():
     return redirect(url_for('admin.admin_dashboard'))
 
 
+@admin_bp.route('/operations/dashboard')
 @admin_bp.route('/dashboard')
 @login_required
 def admin_dashboard():
-    """Legacy dashboard — kept for direct links."""
+    """Merged operations dashboard — intake stats, alerts, source coverage, shortcuts."""
     import app as _app_module
+    from flask import current_app
 
     conn = get_db()
 
@@ -95,7 +97,27 @@ def admin_dashboard():
         GROUP BY county
         ORDER BY count DESC
     ''').fetchall()
+
     source_coverage = _app_module._build_source_coverage_dashboard(conn)
+
+    # County inventory refresh + summary
+    try:
+        from services.ops.county_inventory_persistence import refresh_county_inventory
+        refresh_county_inventory(conn)
+        ci_rows = conn.execute(
+            "SELECT * FROM county_inventory ORDER BY population_rank, county"
+        ).fetchall()
+        ci_rows = [dict(r) for r in ci_rows]
+        ci_summary = {}
+        for s in ["active", "partial", "configured", "not_covered"]:
+            ci_summary[s] = [r for r in ci_rows if r["status"] == s]
+        ci_counts = {s: len(v) for s, v in ci_summary.items()}
+        ci_rows_sorted = sorted(ci_rows, key=lambda r: (r["population_rank"], r["county"]))
+    except Exception as _e:
+        current_app.logger.exception("county inventory refresh failed")
+        ci_rows_sorted = []
+        ci_counts = {}
+
     active_admin_users = conn.execute(
         "SELECT COUNT(*) FROM users WHERE role IN (?, ?, ?, ?, ?) AND COALESCE(is_active, 1) = 1",
         ADMIN_ACCESS_ROLES,
@@ -132,7 +154,9 @@ def admin_dashboard():
                          alert_rollup=alert_rollup,
                          source_coverage=source_coverage,
                          recent_blotters=recent_blotters,
-                         county_stats=county_stats)
+                         county_stats=county_stats,
+                         county_inventory_rows=ci_rows_sorted,
+                         county_inventory_counts=ci_counts)
 
 
 @admin_bp.route('/operations/sources')
@@ -781,7 +805,7 @@ def admin_warrant_photo_clear(warrant_id: int):
     return redirect(url_for('admin.admin_warrants', edit=warrant_id))
 
 
-@admin_bp.route('/facebook', methods=['GET', 'POST'])
+@admin_bp.route('/content/social', methods=['GET', 'POST'])
 @login_required
 def admin_facebook():
     if request.method == 'POST':
@@ -988,7 +1012,7 @@ def admin_facebook():
     )
 
 
-@admin_bp.route('/settings', methods=['GET', 'POST'])
+@admin_bp.route('/system/settings', methods=['GET', 'POST'])
 @login_required
 @require_role(*ADMIN_MANAGEMENT_ROLES)
 def admin_settings():
@@ -1101,10 +1125,10 @@ def admin_settings():
 @login_required
 def admin_emails():
     """Legacy route redirected to the current digest email ops console."""
-    return redirect(url_for('admin.admin_email_ops'))
+    return redirect(url_for('admin.admin_email_ops'), code=301)
 
 
 @admin_bp.route('/emails/template/<template_type>')
 @login_required
 def get_email_template(template_type):
-    return jsonify({'error': 'Email sheriff admin has been removed.'}), 404
+    return redirect(url_for('admin.admin_email_ops'), code=301)

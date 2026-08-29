@@ -20,9 +20,9 @@
         <div class="flex flex-wrap items-center gap-3">
             <span id="refresh-countdown" class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold tabular-nums">Refresh in 60s</span>
             <a href="/admin" class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-bold">Dashboard</a>
-            <a href="/admin/ingestion?status=failed" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'failed' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Failed {{ failed_count }}</a>
-            <a href="/admin/ingestion?status=published" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'published' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Published {{ published_count }}</a>
-            <a href="/admin/ingestion?status=all" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'all' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">All {{ total_count }}</a>
+            <a href="/admin/operations/ingestion?status=failed" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'failed' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Failed {{ failed_count }}</a>
+            <a href="/admin/operations/ingestion?status=published" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'published' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">Published {{ published_count }}</a>
+            <a href="/admin/operations/ingestion?status=all" class="px-4 py-2 rounded-xl text-sm font-bold {% if status_filter == 'all' %}bg-slate-900 text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %}">All {{ total_count }}</a>
         </div>
     </div>
 
@@ -296,14 +296,14 @@
                     </div>
 
                     <div class="flex lg:flex-col gap-3 lg:items-stretch">
-                        <form action="/admin/ingestion/{{ job.id }}/retry" method="POST">
+                        <form action="/admin/operations/ingestion/{{ job.id }}/retry" method="POST">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition">
                                 Retry Job
                             </button>
                         </form>
                         {% if job.blotter_id %}
-                        <a href="/admin/blotters" class="w-full text-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold transition">
+                        <a href="/admin/operations/blotters" class="w-full text-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold transition">
                             View Blotter List
                         </a>
                         {% endif %}

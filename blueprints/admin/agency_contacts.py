@@ -9,7 +9,7 @@ from blueprints.admin import admin_bp, _log_admin_action
 from db import get_db
 
 
-@admin_bp.route('/agency-contacts')
+@admin_bp.route('/audience/contacts')
 @login_required
 def admin_agency_contacts():
     conn = get_db()
@@ -24,7 +24,7 @@ def admin_agency_contacts():
                            contacts=contacts, counties=counties)
 
 
-@admin_bp.route('/agency-contacts/add', methods=['POST'])
+@admin_bp.route('/audience/contacts/add', methods=['POST'])
 @login_required
 def admin_agency_contacts_add():
     county = (request.form.get('county') or '').strip()[:80]
@@ -51,7 +51,7 @@ def admin_agency_contacts_add():
     return redirect(url_for('admin.admin_agency_contacts'))
 
 
-@admin_bp.route('/agency-contacts/<int:contact_id>/toggle', methods=['POST'])
+@admin_bp.route('/audience/contacts/<int:contact_id>/toggle', methods=['POST'])
 @login_required
 def admin_agency_contacts_toggle(contact_id: int):
     field = request.form.get('field', 'is_active')
@@ -67,7 +67,7 @@ def admin_agency_contacts_toggle(contact_id: int):
     return jsonify({'ok': True})
 
 
-@admin_bp.route('/agency-contacts/<int:contact_id>/delete', methods=['POST'])
+@admin_bp.route('/audience/contacts/<int:contact_id>/delete', methods=['POST'])
 @login_required
 def admin_agency_contacts_delete(contact_id: int):
     conn = get_db()
@@ -78,7 +78,7 @@ def admin_agency_contacts_delete(contact_id: int):
     return redirect(url_for('admin.admin_agency_contacts'))
 
 
-@admin_bp.route('/agency-contacts/send-test', methods=['POST'])
+@admin_bp.route('/audience/contacts/send-test', methods=['POST'])
 @login_required
 def admin_agency_contacts_send_test():
     county = (request.form.get('county') or '').strip()[:80]
@@ -112,7 +112,7 @@ def admin_agency_contacts_send_test():
         return jsonify({'error': str(e)}), 500
 
 
-@admin_bp.route('/agency-contacts/send-all', methods=['POST'])
+@admin_bp.route('/audience/contacts/send-all', methods=['POST'])
 @login_required
 def admin_agency_contacts_send_all():
     from services.email.agency_brief import send_weekly_briefs

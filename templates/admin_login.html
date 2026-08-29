@@ -8,9 +8,12 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    {% if request.args.get('admin_newspaper') != '0' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='mb-newspaper.css') }}">
+    {% endif %}
     <title>Admin Login | Montana Blotter</title>
 </head>
-<body style="background:#0D0C0B; color:#F0E8D8; font-family:'IBM Plex Mono',monospace; min-height:100vh; display:flex; align-items:center; justify-content:center;">
+<body{% if request.args.get('admin_newspaper') != '0' %} class="mb-newspaper-body"{% endif %} style="background:#0D0C0B; color:#F0E8D8; font-family:'IBM Plex Mono',monospace; min-height:100vh; display:flex; align-items:center; justify-content:center;">
 
     <div style="width:100%; max-width:400px; padding:24px;">
         <div style="text-align:center; margin-bottom:32px;">

@@ -1,0 +1,184 @@
+{% extends "admin.html" %}
+
+{% block title %}Compose Email Campaign | Montana Blotter Admin{% endblock %}
+
+{% block admin_page_title %}
+  <div class="flex items-center gap-3 mb-6">
+    <div class="p-3 bg-slate-800 rounded-full">
+      <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M12 4v16m8-8H4"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-lg font-bold text-white">Compose Campaign</h1>
+      <p class="text-xs text-slate-400 mt-0.5">Draft and send an email to {{ audience|replace('_', ' ')|title }} recipients.</p>
+    </div>
+  </div>
+{% endblock %}
+
+{% block admin_content %}
+
+  {# ── Audience selector ── #}
+  <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 mb-6">
+    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Audience</label>
+    <select id="audience-select" onchange="switchAudience(this.value)"
+            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none">
+      <option value="lawyers"        {% if audience == 'lawyers' %}selected{% endif %}>Attorneys & Law Firms ({{ audience_counts.get('lawyers', 0) }})</option>
+      <option value="bail_bondsmen"  {% if audience == 'bail_bondsmen' %}selected{% endif %}>Bail Bondsmen ({{ audience_counts.get('bail_bondsmen', 0) }})</option>
+      <option value="clients"        {% if audience == 'clients' %}selected{% endif %}>Subscribers & Users ({{ audience_counts.get('clients', 0) }})</option>
+      <option value="courts"         {% if audience == 'courts' %}selected{% endif %}>Courts & Judiciary ({{ audience_counts.get('courts', 0) }})</option>
+      <option value="police"         {% if audience == 'police' %}selected{% endif %}>Police & Sheriff ({{ audience_counts.get('police', 0) }})</option>
+    </select>
+    <p class="text-[10px] text-slate-500 mt-2">
+      {{ audience_counts.get(audience, 0) }} recipients will receive this email.
+      Use the template dropdown to start from a pre-written template, or compose from scratch.
+    </p>
+  </div>
+
+  {# ── Template picker ── #}
+  <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 mb-6">
+    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Start from template (optional)</label>
+    <select id="template-select" onchange="loadTemplate(this.value)"
+            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none">
+      <option value="">— Custom / blank —</option>
+      {% for t in templates %}
+      <option value="{{ t.id }}">{{ t.name }} ({{ t.audience }})</option>
+      {% endfor %}
+    </select>
+    {% if selected_template %}
+    <div class="mt-3 p-3 bg-blue-900/20 border border-blue-700/40 rounded-lg">
+      <p class="text-xs font-bold text-blue-300 mb-1">Loaded: {{ selected_template.name }}</p>
+      <p class="text-[10px] text-slate-400">Edit the fields below to customize.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Campaign fields ── #}
+  <form id="campaign-form" method="POST" action="{{ url_for('admin.admin_email_compose') }}" class="space-y-5">
+    <input type="hidden" name="audience" id="form-audience" value="{{ audience }}">
+
+    {# Campaign name #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="campaign_name" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+        Campaign Name <span class="text-slate-500 font-normal">(internal label)</span>
+      </label>
+      <input type="text" name="campaign_name" id="campaign_name"
+             value="{{ selected_template.name if selected_template else '' }}"
+             class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
+             placeholder="e.g. July 2026 attorney re-engagement">
+    </div>
+
+    {# Subject #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="subject" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+        Subject line
+      </label>
+      <input type="text" name="subject" id="subject" maxlength="250"
+             value="{{ selected_template.subject if selected_template else '' }}"
+             class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
+             placeholder="e.g. Montana court records — direct access for your firm">
+      <p class="text-[10px] text-slate-500 mt-1">Max 250 characters. This is what recipients see in their inbox.</p>
+    </div>
+
+    {# Body #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="body" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+        Email body
+      </label>
+      <textarea name="body" id="body" rows="18" required
+                class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                placeholder="Dear [Name],&#10;&#10;Your message here...&#10;&#10;Best,[Your Name]">{{ selected_template.body if selected_template else '' }}</textarea>
+      <div class="flex flex-wrap gap-2 mt-2">
+        <span class="px-2 py-1 bg-slate-700 text-slate-300 rounded text-[10px]">Use <strong class="text-blue-300">[Name]</strong> for recipient name</span>
+        <span class="px-2 py-1 bg-slate-700 text-slate-300 rounded text-[10px]">Use <strong class="text-blue-300">[County]</strong> for county</span>
+        <span class="px-2 py-1 bg-slate-700 text-slate-300 rounded text-[10px]">Use <strong class="text-blue-300">[Plan]</strong> for subscription tier</span>
+      </div>
+    </div>
+
+    {# HTML body (optional) #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="html_body" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+        HTML body <span class="text-slate-500 font-normal">(optional — overrides plain text)</span>
+      </label>
+      <textarea name="html_body" id="html_body" rows="12"
+                class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                placeholder="<html><body><p>HTML version of your email...</p></body></html>">{{ selected_template.html_body if selected_template else '' }}</textarea>
+      <p class="text-[10px] text-slate-500 mt-1">If left blank, the plain-text body above is sent. HTML lets you add links, formatting, and branding.</p>
+    </div>
+
+    {# Extra emails #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="extra_emails" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+        Extra recipients <span class="text-slate-500 font-normal">(optional)</span>
+      </label>
+      <input type="text" name="extra_emails" id="extra_emails"
+             class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
+             placeholder="additional@email.com, another@example.com">
+      <p class="text-[10px] text-slate-500 mt-1">Comma-separated. These are added on top of the audience recipients.</p>
+    </div>
+
+    {# Recipient preview #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
+        Sample recipients (first 5)
+      </label>
+      <div class="max-h-32 overflow-y-auto bg-slate-900 rounded-lg divide-y divide-slate-700">
+        {% for r in samplerecipients %}
+        <div class="px-3 py-2 text-xs">
+          <span class="text-slate-300 font-medium">{{ r.name or '—' }}</span>
+          <span class="text-slate-500"> — </span>
+          <span class="text-blue-300">{{ r.email }}</span>
+        </div>
+        {% else %}
+        <div class="px-3 py-4 text-center text-slate-500">No recipients found for this audience.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# Actions #}
+    <div class="flex flex-wrap gap-3 items-center pt-2">
+      <button type="submit" name="action" value="save_draft"
+              class="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-xl transition shadow">
+        Save Draft
+      </button>
+      <button type="submit" name="action" value="send"
+              class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-blue-600/20">
+        Send Now
+      </button>
+      <button type="submit" name="action" value="send_test"
+              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-emerald-600/20">
+        Send Test
+      </button>
+      <a href="{{ url_for('admin.admin_email_dashboard') }}"
+         class="px-4 py-2.5 text-slate-400 hover:text-white text-sm font-medium transition">
+        Cancel
+      </a>
+    </div>
+  </form>
+
+{% endblock %}
+
+{% block admin_footer_scripts %}
+<script>
+  function switchAudience(audience) {
+    window.location.href = '{{ url_for("admin.admin_email_compose") }}?audience=' + audience;
+  }
+
+  function loadTemplate(templateId) {
+    if (!templateId) return;
+    fetch('/admin/email/templates/' + templateId + '/json')
+      .then(function(r) { return r.json(); })
+      .then(function(t) {
+        document.getElementById('campaign_name').value = t.name || '';
+        document.getElementById('subject').value = t.subject || '';
+        document.getElementById('body').value = t.body || '';
+        document.getElementById('html_body').value = t.html_body || '';
+      })
+      .catch(function() {
+        alert('Could not load template. It may have been deleted.');
+        document.getElementById('template-select').value = '';
+      });
+  }
+</script>
+{% endblock %}

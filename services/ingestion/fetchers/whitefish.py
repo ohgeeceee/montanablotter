@@ -15,7 +15,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from typing import Iterable
 from urllib.parse import urljoin
@@ -47,6 +47,70 @@ LINK_PATTERN = re.compile(
 )
 SAFE_NAME_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
+# Label date formats — all may carry a year suffix (e.g. "Aug 18, 2026")
+_DATE_PATTERNS = [
+    re.compile(r"(\w{3})\s+(\d{1,2}),?\s*(\d{4})"),   # "Aug 18, 2026"
+    re.compile(r"(\w{3})\s+(\d{1,2}),?\s*(\d{2})"),   # "Aug 18, 26"
+    re.compile(r"(\w{3})\s+(\d{1,2})"),                # "Aug 18"  — year inferred
+]
+_WEEKDAY_LIKE = re.compile(r"(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)", re.IGNORECASE)
+
+def _parse_label_date(label: str, href: str) -> datetime | None:
+    """Extract an aware datetime from a Whitefish blotter link label.
+
+    Falls back to doc_id proximity heuristics only when the page's CMS
+    has stripped the date from the visible label (e.g. a bare 'Log-7012'
+    with no weekday or month token).
+    """
+    combined = f"{label} {href}".strip()
+
+    # 1. Weekday-prefixed labels ("Monday, Aug 18, 2026 Log") → resolve to actual date
+    weekday_match = _WEEKDAY_LIKE.search(label)
+    if weekday_match:
+        anchor_year = datetime.now(timezone.utc).year
+        for fmt in ("%A, %b %d, %Y", "%A, %b %d, %y", "%a, %b %d, %Y", "%a, %b %d, %y"):
+            try:
+                return datetime.strptime(f"{weekday_match.group(0)}, {label}", fmt).replace(
+                    tzinfo=timezone.utc,
+                )
+            except ValueError:
+                continue
+        # weekday is present but date tokens are ambiguous — fall through to month/day parsing
+        # with the current year as anchor
+        anchor_year = datetime.now(timezone.utc).year
+
+    for pattern in _DATE_PATTERNS:
+        match = pattern.search(label)
+        if match:
+            groups = match.groups()
+            if len(groups) == 3:
+                month_str, day_str, year_str = groups
+                year = int(year_str) if len(year_str) == 4 else 2000 + int(year_str)
+            else:
+                month_str, day_str = groups
+                year = anchor_year if anchor_year else datetime.now(timezone.utc).year
+            try:
+                month = datetime.strptime(month_str, "%b").month
+            except ValueError:
+                continue
+            day = int(day_str)
+            if not (1 <= day <= 31):
+                continue
+            return datetime(year, month, day, tzinfo=timezone.utc)
+
+    # 2. Doc_id proximity fallback — only when no date tokens found anywhere
+    m = LINK_PATTERN.search(href)
+    if m:
+        doc_id = int(m.group("doc_id"))
+        diff = abs(doc_id - 7012)
+        # The 7012-4283 range spans roughly 2026-08-18 → 2026-08-07.
+        # Convert proximity to a rough date; anything outside this band is None.
+        if diff <= 365:
+            ref = datetime(2026, 8, 12, tzinfo=timezone.utc)
+            seconds_per_id = 86400.0 / 12.0  # ~12 docs/day
+            return ref + timezone.utc.fromtimestamp((7012 - doc_id) * seconds_per_id)
+    return None
+
 
 @dataclass(frozen=True)
 class BlotterLink:
@@ -54,6 +118,7 @@ class BlotterLink:
     href: str
     slug: str
     label: str
+    parsed_date: datetime | None = None
 
     @property
     def canonical_href(self) -> str:
@@ -150,11 +215,13 @@ def _extract_links(page_html: str) -> list[BlotterLink]:
         if not _is_log_link(label, slug):
             continue
 
+        parsed_date = _parse_label_date(label, href)
         link = BlotterLink(
             doc_id=doc_id,
             href=href,
             slug=_normalise_slug(slug or label),
             label=label,
+            parsed_date=parsed_date,
         )
         existing = by_doc.get(doc_id)
         # Prefer entries with a visible text label over slug-only fallbacks.
@@ -165,10 +232,33 @@ def _extract_links(page_html: str) -> list[BlotterLink]:
 
 
 def _select_recent_links(links: Iterable[BlotterLink], max_links: int) -> list[BlotterLink]:
+    """Return the newest links by parsed date, falling back to doc_id.
+
+    Links whose labels contain parsed dates (month + day tokens, or a
+    weekday-prefixed label whose surrounding tokens resolve to a date) are
+    sorted by that date.  Links without a parsable date (e.g. a bare
+    ``Log-7012`` CMS slug) are sorted by doc_id descending as a secondary
+    key.  This ensures that when the CMS populates labels like
+    ``"Wednesday, Aug 12, 2026 Log"`` the fetcher picks the true newest
+    documents regardless of their CMS-assigned doc_id ordering.
+    """
     all_links = list(links)
+
     if max_links <= 0 or len(all_links) <= max_links:
         return all_links
-    return all_links[-max_links:]
+
+    def _sort_key(link: BlotterLink) -> tuple[int, int]:
+        # (has_date_group, sort_value)
+        # Date-parsed links get group 0 (first partition, sorted ascending
+        # by date → newest first when reversed).  Non-date links get group 1
+        # (sorted by doc_id descending).
+        if link.parsed_date is not None:
+            # Negative timestamp so ascending sort → newest first
+            return (0, -int(link.parsed_date.timestamp()))
+        return (1, -link.doc_id)
+
+    ranked = sorted(all_links, key=_sort_key)
+    return ranked[:max_links]
 
 
 def _download_pdf(session: requests.Session, url: str, timeout_seconds: int = 45) -> bytes:

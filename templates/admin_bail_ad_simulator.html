@@ -9,7 +9,7 @@
                 <h1 class="text-3xl font-black text-slate-900 mt-2">Ad Simulator Workspace</h1>
                 <p class="text-sm text-slate-600 mt-2">Launch prefilled previews from agency CRM and recent advertiser creative without typing query params by hand.</p>
             </div>
-            <a href="/admin/bail-ads"
+            <a href="/admin/revenue/bail-ads"
                class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
                 Back to Bail Ads
             </a>
@@ -61,7 +61,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for agency in sales_agencies %}
-                    {% set preview_url = '/admin/bail-ads/simulator?agency_name=' ~ (agency.agency_name | urlencode) ~ ('&logo_url=' ~ (agency.logo_path | urlencode) if agency.logo_path else '') ~ ('&target_url=' ~ (agency.target_url | urlencode) if agency.target_url else '') %}
+                    {% set preview_url = '/admin/revenue/bail-ads/simulator?agency_name=' ~ (agency.agency_name | urlencode) ~ ('&logo_url=' ~ (agency.logo_path | urlencode) if agency.logo_path else '') ~ ('&target_url=' ~ (agency.target_url | urlencode) if agency.target_url else '') %}
                     {% set public_url = '/advertise/bail-bonds?agency_name=' ~ (agency.agency_name | urlencode) ~ ('&logo_url=' ~ (agency.logo_path | urlencode) if agency.logo_path else '') ~ ('&target_url=' ~ (agency.target_url | urlencode) if agency.target_url else '') %}
                     <tr>
                         <td class="px-4 py-3 text-slate-700 align-top">
@@ -116,7 +116,7 @@
                 <tbody class="divide-y divide-slate-100">
                     {% for item in recent_creatives %}
                     {% set sim_view = 'sidebar' if item.package_id == 'emergency_call_sidebar' else 'banner' %}
-                    {% set preview_url = '/admin/bail-ads/simulator?agency_name=' ~ (item.agency_name | urlencode) ~ '&sim_view=' ~ sim_view ~ ('&logo_url=' ~ (item.logo_path | urlencode) if item.logo_path else '') ~ ('&target_url=' ~ (item.target_url | urlencode) if item.target_url else '') %}
+                    {% set preview_url = '/admin/revenue/bail-ads/simulator?agency_name=' ~ (item.agency_name | urlencode) ~ '&sim_view=' ~ sim_view ~ ('&logo_url=' ~ (item.logo_path | urlencode) if item.logo_path else '') ~ ('&target_url=' ~ (item.target_url | urlencode) if item.target_url else '') %}
                     <tr>
                         <td class="px-4 py-3 text-slate-700 align-top">
                             <p class="font-semibold text-slate-900">{{ item.agency_name }}</p>

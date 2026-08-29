@@ -67,7 +67,7 @@
             </div>
             <div class="flex items-end gap-3">
                 <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">Apply</button>
-                <a href="/admin/operations/redaction" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Reset</a>
+                <a href="/admin/operations/review" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Reset</a>
             </div>
         </div>
     </form>
@@ -111,11 +111,11 @@
                         </td>
                         <td class="px-5 py-4">
                             <div class="flex flex-col items-end gap-2">
-                                <a href="/admin/post/{{ row.id }}/redact" class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Open Editor</a>
-                                <form method="post" action="/admin/operations/redaction/{{ row.id }}/approve">
+                                <a href="/admin/operations/review/{{ row.id }}/redact" class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Open Editor</a>
+                                <form method="post" action="/admin/operations/review/{{ row.id }}/approve">
                                     <button type="submit" class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-white hover:bg-emerald-700 transition">Mark Clean</button>
                                 </form>
-                                <form method="post" action="/admin/operations/redaction/{{ row.id }}/reset">
+                                <form method="post" action="/admin/operations/review/{{ row.id }}/reset">
                                     <button type="submit" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Reset</button>
                                 </form>
                             </div>

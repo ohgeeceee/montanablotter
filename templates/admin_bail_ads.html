@@ -10,7 +10,7 @@
                 <p class="text-sm text-slate-600 mt-2">Inquiries, paid placements, creative review, consumer leads, and agency outreach now live in one admin surface.</p>
             </div>
             <div class="flex gap-2 flex-wrap">
-                <a href="/admin/bail-ads/simulator"
+                <a href="/admin/revenue/bail-ads/simulator"
                    class="inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
                     Open Sales Simulator
                 </a>
@@ -131,7 +131,7 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 align-top min-w-[260px]">
-                            <form method="post" action="/admin/bail-ads/{{ item.id }}/status" class="space-y-2">
+                            <form method="post" action="/admin/revenue/bail-ads/{{ item.id }}/status" class="space-y-2">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <select name="status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
                                     {% for state in ['pending', 'in_review', 'approved', 'declined', 'archived'] %}
@@ -259,7 +259,7 @@
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-4 flex-wrap">
             <h2 class="text-lg font-black text-slate-900">Advertiser Attribution (30d)</h2>
-            <a href="/admin/bail-ads/attribution/export.csv"
+            <a href="/admin/revenue/bail-ads/attribution/export.csv"
                class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">
                 Export CSV
             </a>
@@ -336,7 +336,7 @@
         <div class="grid grid-cols-1 xl:grid-cols-5 gap-6">
             <section class="xl:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm p-5">
                 <h3 class="text-lg font-black text-slate-900">Add Agency</h3>
-                <form method="post" action="/admin/bail-ads/agencies/create" class="mt-4 grid grid-cols-1 gap-3">
+                <form method="post" action="/admin/revenue/bail-ads/agencies/create" class="mt-4 grid grid-cols-1 gap-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="text" name="agency_name" required placeholder="Agency name *" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
                     <input type="text" name="contact_name" placeholder="Contact name" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
@@ -349,7 +349,7 @@
 
             <section class="xl:col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm p-5">
                 <h3 class="text-lg font-black text-slate-900">Search Agencies</h3>
-                <form method="get" action="/admin/bail-ads" class="mt-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+                <form method="get" action="/admin/revenue/bail-ads" class="mt-4 grid grid-cols-1 md:grid-cols-5 gap-3">
                     <input type="text" name="q" value="{{ q or '' }}" placeholder="Search agency, contact, email, phone, counties, notes" class="md:col-span-3 rounded-lg border border-slate-300 px-3 py-2 text-sm">
                     <select name="status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
                         <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All statuses</option>
@@ -380,7 +380,7 @@
                     </div>
                 </summary>
                 <div class="border-t border-slate-200 px-5 py-4 space-y-4">
-                    <form method="post" action="/admin/bail-ads/agencies/{{ agency.id }}/update" class="space-y-4">
+                    <form method="post" action="/admin/revenue/bail-ads/agencies/{{ agency.id }}/update" class="space-y-4">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <label class="text-xs font-black uppercase tracking-[0.12em] text-slate-600">
@@ -497,7 +497,7 @@
                                 Send Test Email
                             </button>
                             <button type="submit"
-                                    formaction="/admin/bail-ads/agencies/{{ agency.id }}/delete"
+                                    formaction="/admin/revenue/bail-ads/agencies/{{ agency.id }}/delete"
                                     formmethod="post"
                                     onclick="return confirm('Delete this agency from the CRM?');"
                                     class="inline-flex items-center justify-center rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 px-4 py-2 text-xs font-black uppercase tracking-[0.12em]">
@@ -569,7 +569,7 @@
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b border-slate-200 space-y-4">
             <h2 class="text-lg font-black text-slate-900">Paid Orders</h2>
-            <form id="bulk-order-form" method="post" action="/admin/bail-ads/orders/bulk-status" class="flex flex-col lg:flex-row lg:items-end gap-3">
+            <form id="bulk-order-form" method="post" action="/admin/revenue/bail-ads/orders/bulk-status" class="flex flex-col lg:flex-row lg:items-end gap-3">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label class="block text-xs font-black uppercase tracking-[0.12em] text-slate-600">
                     Bulk Status
@@ -651,7 +651,7 @@
                             <p class="text-xs text-slate-500 mt-1">Paid: {{ order.paid_at or '-' }}</p>
                         </td>
                         <td class="px-4 py-3 align-top min-w-[260px]">
-                            <form method="post" action="/admin/bail-ads/orders/{{ order.id }}/status" class="space-y-2">
+                            <form method="post" action="/admin/revenue/bail-ads/orders/{{ order.id }}/status" class="space-y-2">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="text" name="business_name" value="{{ order.business_name or '' }}" placeholder="Business name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
                                 <input type="text" name="contact_name" value="{{ order.contact_name or '' }}" placeholder="Contact name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
@@ -667,7 +667,7 @@
                                 <textarea name="notes" rows="2" placeholder="Order notes" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">{{ order.notes or '' }}</textarea>
                                 <button type="submit" class="w-full inline-flex items-center justify-center rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">Save Advertiser</button>
                                 <button type="submit"
-                                        formaction="/admin/bail-ads/orders/{{ order.id }}/delete"
+                                        formaction="/admin/revenue/bail-ads/orders/{{ order.id }}/delete"
                                         formmethod="post"
                                         onclick="return confirm('Delete this paid advertiser? This removes the advertiser record, creatives, and live placements.');"
                                         class="w-full inline-flex items-center justify-center rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-2 text-xs font-black uppercase tracking-[0.12em]">
@@ -774,7 +774,7 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 align-top min-w-[260px]">
-                            <form method="post" action="/admin/bail-ads/leads/{{ lead.id }}/status" class="space-y-2">
+                            <form method="post" action="/admin/revenue/bail-ads/leads/{{ lead.id }}/status" class="space-y-2">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <select name="status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
                                     {% for state in ['new', 'contacted', 'qualified', 'booked', 'unqualified', 'archived'] %}
@@ -835,7 +835,7 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 align-top min-w-[260px]">
-                            <form method="post" action="/admin/bail-ads/creatives/{{ item.id }}/status" class="space-y-2">
+                            <form method="post" action="/admin/revenue/bail-ads/creatives/{{ item.id }}/status" class="space-y-2">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <select name="status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
                                     {% for state in ['pending', 'approved', 'rejected'] %}

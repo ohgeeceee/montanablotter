@@ -66,7 +66,7 @@ def _fetch_order(conn, order_id: int):
     return dict(row) if row else None
 
 
-@admin_bp.route('/lawyer-ads')
+@admin_bp.route('/revenue/lawyer-ads')
 @login_required
 def admin_lawyer_ads():
     conn = get_db()
@@ -144,7 +144,7 @@ def admin_lawyer_ads():
     )
 
 
-@admin_bp.route('/lawyer-ads/<int:order_id>/cancel', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-ads/<int:order_id>/cancel', methods=['POST'])
 @login_required
 def admin_lawyer_ads_cancel(order_id):
     conn = get_db()
@@ -175,10 +175,10 @@ def admin_lawyer_ads_cancel(order_id):
     conn.commit()
     conn.close()
     flash('Order cancelled.', 'success')
-    return redirect('/admin/lawyer-ads')
+    return redirect(url_for('admin.admin_lawyer_ads'))
 
 
-@admin_bp.route('/lawyer-ads/new', methods=['GET', 'POST'])
+@admin_bp.route('/revenue/lawyer-ads/new', methods=['GET', 'POST'])
 @login_required
 def admin_lawyer_ads_new():
     if request.method == 'POST':
@@ -197,7 +197,7 @@ def admin_lawyer_ads_new():
 
         if not form['firm_name'] or not form['email'] or not form['counties_served']:
             flash('Firm name, email, and counties served are required.', 'error')
-            return redirect('/admin/lawyer-ads/new')
+            return redirect(url_for('admin.admin_lawyer_ads_new'))
 
         if form['package_id'] not in ('gold', 'silver', 'bronze'):
             form['package_id'] = 'bronze'
@@ -223,7 +223,7 @@ def admin_lawyer_ads_new():
                 'error',
             )
             conn.close()
-            return redirect('/admin/lawyer-ads/new')
+            return redirect(url_for('admin.admin_lawyer_ads_new'))
         cur = conn.execute(
             '''
             INSERT INTO lawyer_ad_orders (
@@ -260,12 +260,12 @@ def admin_lawyer_ads_new():
         conn.commit()
         conn.close()
         flash(f'Created lawyer ad order #{new_id} as active.', 'success')
-        return redirect(f'/admin/lawyer-ads/{new_id}/edit')
+        return redirect(url_for('admin.admin_lawyer_ads_edit', order_id=new_id))
 
     return render_template('admin_lawyer_ads_edit.html', order=None, listing=None, saved=False)
 
 
-@admin_bp.route('/lawyer-ads/<int:order_id>/edit', methods=['GET', 'POST'])
+@admin_bp.route('/revenue/lawyer-ads/<int:order_id>/edit', methods=['GET', 'POST'])
 @login_required
 def admin_lawyer_ads_edit(order_id):
     from blueprints.lawyer_ads import (
@@ -374,13 +374,13 @@ def admin_lawyer_ads_edit(order_id):
         )
         conn.commit()
         conn.close()
-        return redirect(f'/admin/lawyer-ads/{order_id}/edit?saved=1')
+        return redirect(url_for('admin.admin_lawyer_ads_edit', order_id=order_id, _anchor='saved'))
 
     order = _fetch_order(conn, order_id)
     conn.close()
     if not order:
         flash('Order not found.', 'error')
-        return redirect('/admin/lawyer-ads')
+        return redirect(url_for('admin.admin_lawyer_ads'))
 
     return render_template(
         'admin_lawyer_ads_edit.html',

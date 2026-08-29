@@ -142,8 +142,20 @@ def _load_existing_incident_keys(
 
 def _window_bounds(days_back: int) -> tuple[datetime, datetime]:
     end = datetime.now(timezone.utc)
+    # The ArcGIS FeatureService only keeps ~30 days of data and batches
+    # records at 07:00 UTC daily.  When the fetcher runs later in the day
+    # the natural "now - N days" window can miss the most recent batch
+    # because its timestamp is already older than the start boundary.
+    # Widen the start by an extra day so the latest batch is always included.
     start = end - timedelta(days=max(days_back, 1))
-    return start.replace(minute=0, second=0, microsecond=0), end
+    start = start - timedelta(days=2)  # extra buffer for daily-batch delay
+    # Extend the window backward by 2 additional days so records
+    # timestamped slightly before "now" (e.g. daily batches at 07:00 UTC)
+    # are captured even when the fetcher runs later in the day.
+    start = start - timedelta(days=2)
+    start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return start, end
 
 
 def _where_clause(dataset: DatasetConfig, start: datetime, end: datetime) -> str:

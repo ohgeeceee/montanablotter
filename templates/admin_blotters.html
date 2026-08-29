@@ -17,7 +17,7 @@
 
         <div class="flex justify-between items-center mb-8">
             <h1 class="text-3xl font-black text-slate-900">Manage Blotters</h1>
-            <a href="/admin/upload" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition">
+            <a href="/admin/operations/upload" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition">
                 <i class="fas fa-upload mr-2"></i>Upload New PDF
             </a>
         </div>
@@ -97,24 +97,24 @@
                                     <i class="fab fa-facebook-f text-[10px]"></i> Queued
                                 </span>
                                 {% else %}
-                                <form action="/admin/facebook" method="POST" class="inline">
+                                <form action="/admin/content/social" method="POST" class="inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="queue_post">
                                     <input type="hidden" name="post_id" value="{{ post_info.id }}">
-                                    <input type="hidden" name="next" value="/admin/blotters">
+                                    <input type="hidden" name="next" value="/admin/operations/blotters">
                                     <button type="submit"
                                             class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-bold transition">
                                         <i class="fab fa-facebook-f text-[10px]"></i> Queue FB
                                     </button>
                                 </form>
                                 {% endif %}
-                                <a href="/admin/post/{{ post_info.id }}/redact"
+                                <a href="/admin/operations/review/{{ post_info.id }}/redact"
                                    title="PII Redaction Editor"
                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition">
                                     <i class="fas fa-eraser text-[10px]"></i> Redact
                                 </a>
                                 {% endif %}
-                                <form action="/admin/blotter/{{ blotter.id }}/delete" method="POST"
+                                <form action="/admin/operations/blotters/{{ blotter.id }}/delete" method="POST"
                                       onsubmit="return confirm('Delete this blotter and all its records?');">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit"
@@ -175,7 +175,7 @@ document.querySelectorAll('.status-cycle-btn').forEach(function (btn) {
         var next    = STATUS_CYCLE[current] || 'pending';
         var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-        fetch('/admin/post/' + postId + '/status', {
+        fetch('/admin/operations/review/' + postId + '/status', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

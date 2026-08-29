@@ -70,7 +70,7 @@ def _ago(ts_str: str | None) -> str:
 # ── dashboard ──────────────────────────────────────────────────────────────
 
 
-@admin_bp.route("/lea-management")
+@admin_bp.route("/system/lea")
 @require_role(*ADMIN_ACCESS_ROLES)
 def lea_dashboard():
     """Overview with stats cards for LEA operations."""
@@ -131,7 +131,7 @@ def lea_dashboard():
 # ── agency directory ───────────────────────────────────────────────────────
 
 
-@admin_bp.route("/lea-management/directory")
+@admin_bp.route("/system/lea/directory")
 @require_role(*ADMIN_ACCESS_ROLES)
 def lea_agency_directory():
     """Searchable table of all LEA agencies."""
@@ -195,7 +195,7 @@ def lea_agency_directory():
 # ── agency detail ──────────────────────────────────────────────────────────
 
 
-@admin_bp.route("/lea-management/agency/<int:agency_id>")
+@admin_bp.route("/system/lea/agency/<int:agency_id>")
 @require_role(*ADMIN_ACCESS_ROLES)
 def lea_agency_detail(agency_id):
     """Full agency profile with tabs."""
@@ -289,7 +289,7 @@ def lea_agency_detail(agency_id):
 # ── verify / reject ────────────────────────────────────────────────────────
 
 
-@admin_bp.route("/lea-management/agency/<int:agency_id>/verify", methods=["POST"])
+@admin_bp.route("/system/lea/agency/<int:agency_id>/verify", methods=["POST"])
 @require_role(*ADMIN_MANAGEMENT_ROLES)
 def lea_verify_agency(agency_id):
     """Set verification_status='verified', record who and when."""
@@ -328,7 +328,7 @@ def lea_verify_agency(agency_id):
     return redirect(url_for(".lea_agency_detail", agency_id=agency_id))
 
 
-@admin_bp.route("/lea-management/agency/<int:agency_id>/reject", methods=["POST"])
+@admin_bp.route("/system/lea/agency/<int:agency_id>/reject", methods=["POST"])
 @require_role(*ADMIN_MANAGEMENT_ROLES)
 def lea_reject_agency(agency_id):
     """Reject an agency with a reason stored in notes."""
@@ -378,7 +378,7 @@ def lea_reject_agency(agency_id):
 # ── bulk email ─────────────────────────────────────────────────────────────
 
 
-@admin_bp.route("/lea-management/bulk-email", methods=["GET", "POST"])
+@admin_bp.route("/system/lea/bulk-email", methods=["GET", "POST"])
 @require_role(*ADMIN_MANAGEMENT_ROLES)
 def lea_bulk_email():
     """Send email to selected agencies."""
@@ -453,7 +453,7 @@ def lea_bulk_email():
 # ── audit log viewer ───────────────────────────────────────────────────────
 
 
-@admin_bp.route("/lea-management/audit-log")
+@admin_bp.route("/system/lea/audit-log")
 @require_role(*ADMIN_ACCESS_ROLES)
 def lea_audit_log_viewer():
     """Searchable audit log table with filters."""
@@ -518,7 +518,7 @@ def lea_audit_log_viewer():
 # ── JSON endpoints ─────────────────────────────────────────────────────────
 
 
-@admin_bp.route("/lea-management/api/stats")
+@admin_bp.route("/system/lea/api/stats")
 @require_role(*ADMIN_ACCESS_ROLES)
 def lea_api_stats():
     """JSON stats endpoint for dashboard widgets."""
