@@ -143,7 +143,8 @@ class AdminAgentsTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        response = client.get('/admin/office/', follow_redirects=True)
+        # VPS canvas office served at /admin/operations/office/
+        response = client.get('/admin/operations/office/', follow_redirects=False)
 
         body = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
@@ -155,17 +156,6 @@ class AdminAgentsTests(unittest.TestCase):
         # If the iframe template leaks back in, this catches it.
         self.assertNotIn('<iframe', body)
 
-    def test_admin_office_3d_serves_iframe_template(self) -> None:
-        client = app_module.app.test_client()
-        self._login_admin_session(client)
-
-        response = client.get('/admin/office/3d', follow_redirects=False)
-
-        self.assertEqual(response.status_code, 200)
-        body = response.get_data(as_text=True)
-        self.assertIn('<iframe', body)
-        self.assertIn(config.CLAW3D_OFFICE_URL, body)
-
     def test_admin_office_redirects_to_trailing_slash(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
@@ -173,7 +163,7 @@ class AdminAgentsTests(unittest.TestCase):
         response = client.get('/admin/office', follow_redirects=False)
 
         self.assertEqual(response.status_code, 301)
-        self.assertEqual(response.headers['Location'], '/admin/office/')
+        self.assertEqual(response.headers['Location'], '/admin/operations/office/')
 
     def test_admin_agents_stream_returns_error_event_when_openclaw_missing(self) -> None:
         client = app_module.app.test_client()

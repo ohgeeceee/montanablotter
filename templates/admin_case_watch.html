@@ -41,15 +41,15 @@
 </div>
 
 <div class="flex flex-wrap items-center gap-2 mb-4">
-    <a href="/admin/case-watch"
+    <a href="/admin/content/case-watch"
        class="rounded px-3 py-2 text-sm font-bold border {% if not only_pending %}bg-slate-900 text-white border-slate-900{% else %}bg-white text-slate-700 border-slate-300 hover:bg-slate-50{% endif %}">
         All
     </a>
-    <a href="/admin/case-watch?pending=1"
+    <a href="/admin/content/case-watch?pending=1"
        class="rounded px-3 py-2 text-sm font-bold border {% if only_pending %}bg-slate-900 text-white border-slate-900{% else %}bg-white text-slate-700 border-slate-300 hover:bg-slate-50{% endif %}">
         Pending only
     </a>
-    <form method="post" action="/admin/case-watch/refresh" class="inline">
+    <form method="post" action="/admin/content/case-watch/refresh" class="inline">
         <button type="submit"
                 class="rounded bg-amber-500 px-4 py-2 text-sm font-bold text-white hover:bg-amber-600"
                 onclick="return confirm('Run refresh_outcome_data now? This will hit the court scraper for every link.')">
@@ -64,7 +64,7 @@
         Pending Outcome Notifications
         <span class="text-sm font-normal text-slate-500">({{ pending_rows|length }})</span>
     </h2>
-    <form method="post" action="/admin/case-watch/mark-notified">
+    <form method="post" action="/admin/content/case-watch/mark-notified">
         <div class="rounded-2xl border border-amber-300 bg-amber-50 overflow-hidden">
             <table class="w-full text-sm">
                 <thead>

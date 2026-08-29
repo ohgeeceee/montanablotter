@@ -17,6 +17,7 @@ from services.alerts.incidents import ensure_incident_notification_schema
 from services.persons.missing import ensure_missing_person_schema
 from services.meetings.public import ensure_public_meeting_schema
 from services.ingestion.warrants.models import ensure_warrant_schema
+from services.ops.county_inventory_persistence import ensure_county_inventory_schema
 
 def _safe_add_column(cursor: 'sqlite3.Cursor', table: str, col: str, definition: str) -> bool:
     """ALTER TABLE … ADD COLUMN, silencing only 'duplicate column' errors.
@@ -969,6 +970,87 @@ def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def ensure_attorney_checkout_schema(conn):
+    """Self-serve Stripe checkout for attorney sponsorship — orders + listings.
+
+    attorney_checkout_orders tracks each Stripe checkout session / subscription.
+    attorney_checkout_listings holds the surfaced listing rows derived from
+    completed orders (one per active order, created in the webhook handler).
+    Both tables are created here so the app and tests get them from the same
+    source of truth rather than re-creating them in setUp.
+    """
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS attorney_checkout_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            stripe_customer_id TEXT,
+            stripe_subscription_id TEXT,
+            stripe_session_id TEXT UNIQUE,
+            firm_name TEXT NOT NULL,
+            contact_name TEXT,
+            email TEXT NOT NULL,
+            phone TEXT,
+            website TEXT,
+            counties_served TEXT,
+            practice_areas TEXT,
+            blurb TEXT,
+            mt_bar_number TEXT,
+            package_id TEXT NOT NULL,
+            billing_cycle TEXT NOT NULL DEFAULT 'monthly',
+            status TEXT NOT NULL DEFAULT 'pending',
+            token TEXT NOT NULL,
+            activated_at TEXT,
+            amount_cents INTEGER NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_aco_session ON attorney_checkout_orders(stripe_session_id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_aco_status ON attorney_checkout_orders(status, created_at DESC)'
+    )
+
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS attorney_checkout_listings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            token TEXT NOT NULL,
+            firm_name TEXT NOT NULL,
+            contact_name TEXT,
+            email TEXT NOT NULL,
+            phone TEXT,
+            website TEXT,
+            logo_path TEXT,
+            photo_path TEXT,
+            blurb TEXT,
+            tagline TEXT,
+            is_featured INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'pending',
+            montana_bar_verified INTEGER NOT NULL DEFAULT 0,
+            montana_bar_member_at TEXT,
+            is_disqualified INTEGER NOT NULL DEFAULT 0,
+            disqualify_reason TEXT,
+            placement_county TEXT,
+            placement_tier TEXT,
+            listing_position INTEGER,
+            ttl_at TEXT,
+            impressions INTEGER NOT NULL DEFAULT 0,
+            clicks INTEGER NOT NULL DEFAULT 0,
+            stripe_session_id TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_acl_order ON attorney_checkout_listings(order_id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_acl_status ON attorney_checkout_listings(status, is_featured DESC, listing_position)'
+    )
+    conn.commit()
+
+
 def ensure_treatment_center_schema(conn: sqlite3.Connection) -> None:
     """Free public treatment-center directory — mirrors attorney_referrals shape.
 
@@ -1322,6 +1404,7 @@ def migrate():
     ensure_recovery_ad_schema(conn)
     ensure_lawyer_ad_schema(conn)
     ensure_attorney_ad_schema(conn)
+    ensure_attorney_checkout_schema(conn)
     ensure_treatment_center_schema(conn)
     ensure_outreach_drafts_schema(conn)
     ensure_lawyer_outreach_schema(conn)
@@ -1336,6 +1419,9 @@ def migrate():
     ensure_civic_records_requests_schema(conn)
 
     ensure_sponsored_listing_schema(conn)
+
+    # County inventory denormalized table
+    ensure_county_inventory_schema(conn)
 
     # LEA Panel: multi-tenant agency self-service tables
     ensure_lea_schema(conn)
@@ -2641,6 +2727,54 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_wcr_status ON warrant_clear_requests(status)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_wcr_warrant ON warrant_clear_requests(warrant_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_wcr_person ON warrant_clear_requests(person_name, dob)')
+
+    # 2026-08-29: Paid name-removal / privacy-suppression requests.
+    # One-time $999 payment covers a verified privacy review. On approval, the
+    # person's name is REDACTED (not deleted) across public records. Requires
+    # human review before suppression is applied (see /admin/name-removals).
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS name_suppression_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            public_user_id INTEGER,
+            email TEXT NOT NULL,
+            person_name TEXT NOT NULL,
+            dob TEXT,
+            county TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            stripe_session_id TEXT,
+            stripe_payment_id TEXT,
+            reviewed_by INTEGER,
+            reviewed_at TEXT,
+            applied_at TEXT,
+            rejection_reason TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            ip_address TEXT,
+            notes TEXT
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_nsr_status ON name_suppression_requests(status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_nsr_email ON name_suppression_requests(email)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_nsr_session ON name_suppression_requests(stripe_session_id)')
+
+    # Resolved suppressions applied to public records. Render-time redaction
+    # checks this table so suppressed names display as "Name withheld".
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS suppressed_names (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            person_name_normalized TEXT NOT NULL,
+            county TEXT,
+            request_id INTEGER,
+            applied_by INTEGER,
+            applied_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (request_id) REFERENCES name_suppression_requests(id) ON DELETE SET NULL
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_suppressed_name ON suppressed_names(person_name_normalized, county)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_suppressed_request ON suppressed_names(request_id)')
 
     # 2026-06-02: B2B data API tokens. Each token grants access to the
     # /api/v1/data/* endpoints at a given tier with a per-minute rate cap.

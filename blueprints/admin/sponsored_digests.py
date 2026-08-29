@@ -13,7 +13,7 @@ from blueprints.admin import admin_bp, _log_admin_action
 from db import get_db
 
 
-@admin_bp.route('/sponsored-digests')
+@admin_bp.route('/content/sponsored-digests')
 @login_required
 def admin_sponsored_digests():
     conn = get_db()
@@ -36,7 +36,7 @@ def admin_sponsored_digests():
     )
 
 
-@admin_bp.route('/sponsored-digests/add', methods=['POST'])
+@admin_bp.route('/content/sponsored-digests/add', methods=['POST'])
 @login_required
 def admin_sponsored_digests_add():
     county = (request.form.get('county') or '').strip()[:80]
@@ -92,7 +92,7 @@ def admin_sponsored_digests_add():
     return redirect(url_for('admin.admin_sponsored_digests'))
 
 
-@admin_bp.route('/sponsored-digests/<int:sponsor_id>/toggle', methods=['POST'])
+@admin_bp.route('/content/sponsored-digests/<int:sponsor_id>/toggle', methods=['POST'])
 @login_required
 def admin_sponsored_digests_toggle(sponsor_id: int):
     conn = get_db()

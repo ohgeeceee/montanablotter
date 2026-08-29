@@ -14,7 +14,7 @@ from blueprints.admin import admin_bp, _log_admin_action
 from blueprints.recovery_ads import _recovery_ad_package_lookup
 
 
-@admin_bp.route('/recovery-ads')
+@admin_bp.route('/revenue/recovery-ads')
 @login_required
 def admin_recovery_ads():
     from init_db import ensure_recovery_ad_schema
@@ -80,7 +80,7 @@ def admin_recovery_ads():
     )
 
 
-@admin_bp.route('/recovery-ads/order/<int:order_id>/status', methods=['POST'])
+@admin_bp.route('/revenue/recovery-ads/order/<int:order_id>/status', methods=['POST'])
 @login_required
 def admin_recovery_ads_order_status(order_id):
     new_status = (request.form.get('status') or '').strip().lower()
@@ -101,7 +101,7 @@ def admin_recovery_ads_order_status(order_id):
     return redirect(url_for('.admin_recovery_ads'))
 
 
-@admin_bp.route('/recovery-ads/cms/<int:order_id>', methods=['GET', 'POST'])
+@admin_bp.route('/revenue/recovery-ads/cms/<int:order_id>', methods=['GET', 'POST'])
 @login_required
 def admin_recovery_ads_cms(order_id):
     from init_db import ensure_recovery_ad_schema

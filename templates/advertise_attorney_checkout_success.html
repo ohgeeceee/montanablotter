@@ -1,0 +1,24 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Attorney Sponsorship Confirmed" %}
+
+{% block content %}
+<div class="container" style="max-width:600px;margin:0 auto;padding:3rem 1rem;text-align:center;">
+  <div style="font-size:3rem;margin-bottom:1rem;">✓</div>
+  <h1 style="color:#1a6b3c;">Thank you!</h1>
+  {% if order %}
+    <p style="color:#555;margin-bottom:1.5rem;">
+      Your <strong>{{ order.firm_name }}</strong> sponsorship is being set up.
+      You'll be redirected to your control panel shortly.
+    </p>
+  {% else %}
+    <p style="color:#555;margin-bottom:1.5rem;">
+      Your sponsorship is being set up. Check your email for access to your control panel.
+    </p>
+  {% endif %}
+  <a href="{{ url_for('attorney_checkout.attorney_control_panel', token=order.token if order else '') }}"
+     style="color:#1a6b3c;display:inline-block;margin-top:.5rem;">
+    Go to your control panel →
+  </a>
+</div>
+{% endblock %}

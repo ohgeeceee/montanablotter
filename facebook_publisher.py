@@ -77,9 +77,9 @@ def _unsplash_image_for_location(conn: sqlite3.Connection, city: str, county: st
 
 DEFAULT_FACEBOOK_TEMPLATE = (
     "{title}\n\n"
-    "{summary_snippet}\n\n"
-    "Read full report: {post_url}\n\n"
-    "#Montana #MontanaBlotter #PublicSafety"
+    "{summary_clean}\n\n"
+    "Read the full report: {post_url}\n\n"
+    "{hashtags}"
 )
 
 
@@ -210,6 +210,62 @@ def _post_url(post_id: int, settings: Dict[str, Any]) -> str:
     return f"{base_url}/post/{post_id}"
 
 
+def _county_hashtags(county: str, city: str, agency_name: str) -> str:
+    """Build a short, county-relevant hashtag line. Uses city when available."""
+    tags = ["#MontanaBlotter", "#PublicSafety"]
+    # City hashtag (preferred — most recognizable)
+    if city:
+        slug = re.sub(r"[^a-zA-Z0-9]+", "", city).strip()
+        if slug and slug.upper() not in [t.lstrip("#").upper() for t in tags]:
+            tags.append(f"#{slug}")
+    # County hashtag
+    if county:
+        slug = re.sub(r"[^a-zA-Z0-9]+", "", county).strip()
+        if slug and slug.upper() not in [t.lstrip("#").upper() for t in tags]:
+            tags.append(f"#{slug}")
+    # Agency hashtag: last significant word, skip filler
+    name = (agency_name or "").strip()
+    filler = {"of", "the", "county", "state", "montana", "mt"}
+    significant = {"pd", "sheriff", "police", "department", "office", "bureau", "trooper", "detention", "corrections", "marshals", "hso", "spps", "gcso", "mcso", "fccso", "lcso"}
+    short = ""
+    # Agency hashtag: skip when city already identifies the location
+    if name and not city:
+        words = re.findall(r"[A-Za-z]+", name)
+        for word in reversed(words):
+            lw = word.lower()
+            if lw in significant:
+                short = word[:15]
+                break
+            if lw not in filler and not short:
+                short = word[:15]
+    if not short and county:
+        compound = re.sub(r"[^a-zA-Z0-9]+", "", county).strip()
+        if len(compound) >= 4:
+            short = compound[:15]
+    if short and len(short) <= 15 and short.upper() not in [t.lstrip("#").upper() for t in tags]:
+        tags.append(f"#{short}")
+    return "  ".join(tags)
+
+
+def _strip_historical_blocks(text: str) -> str:
+    """Remove editorial '// Historical Perspective:' blocks — not for social."""
+    return re.sub(r"\s*//\s*Historical\s+Perspective:.*?(?=\n\n|\Z)", "", text or "", flags=re.DOTALL).strip()
+
+
+def _post_snippet(summary: str, max_chars: int = 240) -> str:
+    """Clean, concise snippet for FB — strips historical blocks and trims."""
+    clean = _strip_historical_blocks(summary or "")
+    compact = re.sub(r"\s+", " ", clean).strip()
+    if len(compact) <= max_chars:
+        return compact
+    cut = compact[: max_chars - 3].rstrip()
+    # Try not to cut mid-sentence
+    last_period = cut.rfind(". ")
+    if last_period > max_chars // 2:
+        cut = cut[:last_period + 1]
+    return cut + "..."
+
+
 def _render_message(post: sqlite3.Row, settings: Dict[str, Any], custom_message: Optional[str] = None) -> str:
     if custom_message and custom_message.strip():
         rendered = custom_message.strip()
@@ -217,7 +273,7 @@ def _render_message(post: sqlite3.Row, settings: Dict[str, Any], custom_message:
         mapping = _SafeMap(
             title=(post["title"] or "").strip(),
             summary=(post["summary"] or "").strip(),
-            summary_snippet=_summary_snippet(post["summary"] or ""),
+            summary_clean=_post_snippet(post["summary"] or ""),
             county=(post["county"] or "").strip(),
             city=(post["city"] or "").strip(),
             agency_name=(post["agency_name"] or "").strip(),
@@ -225,6 +281,9 @@ def _render_message(post: sqlite3.Row, settings: Dict[str, Any], custom_message:
             incident_date=(post["incident_date"] or "").strip(),
             post_id=str(post["id"]),
             post_url=_post_url(int(post["id"]), settings),
+            hashtags=_county_hashtags(
+                post["county"] or "", post["city"] or "", post["agency_name"] or ""
+            ),
         )
         template = settings.get("template") or DEFAULT_FACEBOOK_TEMPLATE
         try:
@@ -469,14 +528,20 @@ def publish_queue_item(queue_id: int) -> Dict[str, Any]:
                 "sha256",
             ).hexdigest()
 
-        # Try to fetch a town image from Unsplash for blotter posts
-        image_url: Optional[str] = None
+        # Generate a branded text-card image for blotter posts
+        image_path_for_fb: Optional[str] = None
+        image_url_for_fb: str = ""
         if content_type == "blotter" and post_row:
-            image_url = _unsplash_image_for_location(
-                conn,
-                city=post_row["city"] or "",
+            from services.publishing.image_generator import generate as generate_image
+            today_str = __import__("datetime").date.today().isoformat()
+            image_info = generate_image(
+                title=post_row["title"] or "Montana Blotter Daily",
                 county=post_row["county"] or "",
+                post_date=today_str,
+                excerpt=post_row["summary"] or "",
             )
+            image_path_for_fb = image_info.get("path", "")
+            image_url_for_fb = image_info.get("url", "")
 
         base_payload: Dict[str, Any] = {
             "access_token": access_token,
@@ -485,20 +550,16 @@ def publish_queue_item(queue_id: int) -> Dict[str, Any]:
         if appsecret_proof:
             base_payload["appsecret_proof"] = appsecret_proof
 
-        if image_url:
-            # Photo post — richer visual in the feed
+        if image_url_for_fb:
+            # Photo post — branded image card in the feed
             graph_url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{settings['page_id']}/photos"
-            payload = {**base_payload, "url": image_url}
-            if post_url:
-                # Append the link to the caption so it's still clickable
-                payload["message"] = message + f"\n\n{post_url}"
+            payload = {**base_payload, "url": image_url_for_fb, "caption": message}
         else:
             # Fallback: plain link post
             graph_url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{settings['page_id']}/feed"
             payload = {**base_payload}
             if post_url:
                 payload["link"] = post_url
-
         try:
             response = requests.post(graph_url, data=payload, timeout=35)
             data = response.json() if response.content else {}

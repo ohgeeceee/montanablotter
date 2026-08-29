@@ -81,7 +81,7 @@ FEATURES = {
 }
 
 # Backward compat: plans that unlock warrant pages
-WARRANT_PLANS = {'plus', 'pro'}
+WARRANT_PLANS = {'plus', 'pro', 'warrant_access'}
 
 PREVIEW_LIMITS = {
     'day': 3,
@@ -184,6 +184,12 @@ def get_user_plan() -> str:
         if row:
             plan = (row['subscriber_plan'] or 'free').strip().lower()
             status = (row['subscription_status'] or '').strip().lower()
+            # Warrant access is sold as its own Stripe product but is treated as
+            # the 'plus' tier for feature/access purposes (see app.py webhook
+            # remap warrant_access -> plus). Resolve it so the gate and feature
+            # matrix see a recognized plan.
+            if plan == 'warrant_access' and status in ('active', 'trialing'):
+                return 'plus'
             if plan in PLAN_HIERARCHY and status in ('active', 'trialing'):
                 return plan
     return 'free'

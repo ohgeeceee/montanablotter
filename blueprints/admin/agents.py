@@ -326,6 +326,7 @@ def _agent_snapshot() -> dict:
 
 
 @admin_bp.route('/agents')
+@admin_bp.route('/system/agents')
 @login_required
 def admin_agents():
     from flask import redirect, url_for
@@ -334,12 +335,14 @@ def admin_agents():
 
 
 @admin_bp.route('/office')
+@admin_bp.route('/operations/office')
 @login_required
 def admin_office():
-    return redirect('/admin/office/', code=301)
+    return redirect(url_for('admin.admin_office_view'))
 
 
 @admin_bp.route('/office/')
+@admin_bp.route('/operations/office/')
 @login_required
 def admin_office_view():
     # VPS canvas office — live probes of every service on the box.
@@ -347,20 +350,13 @@ def admin_office_view():
     return send_from_directory(static_root, 'office/vps-office.html')
 
 
-@admin_bp.route('/office/3d')
-@login_required
-def admin_office_3d():
-    # Original iframe view: embeds the Claw3D Next.js 3D scene via nginx.
-    return render_template('admin_office.html', claw3d_office_url=config.CLAW3D_OFFICE_URL)
-
-
-@admin_bp.route('/agents/client-snapshot')
+@admin_bp.route('/system/agents/client-snapshot')
 @login_required
 def admin_agents_client_snapshot():
     return jsonify(_client_snapshot())
 
 
-@admin_bp.route('/agents/snapshot')
+@admin_bp.route('/system/agents/snapshot')
 @login_required
 def admin_agents_snapshot():
     snapshot = _agent_snapshot()
@@ -379,13 +375,13 @@ def admin_agents_snapshot():
     )
 
 
-@admin_bp.route('/agents/system-snapshot')
+@admin_bp.route('/system/agents/system-snapshot')
 @login_required
 def admin_agents_system_snapshot():
     return jsonify(system_snapshot())
 
 
-@admin_bp.route('/agents/stream')
+@admin_bp.route('/system/agents/stream')
 @login_required
 def admin_agents_stream():
     def generate():
@@ -402,7 +398,7 @@ def admin_agents_stream():
     )
 
 
-@admin_bp.route('/agents/client-stream')
+@admin_bp.route('/system/agents/client-stream')
 @login_required
 def admin_agents_client_stream():
     def generate():

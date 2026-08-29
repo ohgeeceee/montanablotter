@@ -22,7 +22,7 @@ ROOT = Path("/root/montanablotter")
 SYSTEMD_SERVICE = "montanablotter.service"
 AGENT_EVENTS_SERVICE = "montanablotter-agent-events.service"
 WEB_SOCKET_PATH = Path("/tmp/montanablotter.sock")
-WEB_REQUEST_PATH = "/"
+WEB_REQUEST_PATH = "/healthz"
 WEB_HOST = "127.0.0.1"
 WEB_PORT = 5000
 
@@ -324,7 +324,7 @@ def _check_agent_events_service() -> dict[str, object]:
 def _check_web_service() -> dict[str, object]:
     started = datetime.now(timezone.utc)
     try:
-        connection = http.client.HTTPConnection(WEB_HOST, WEB_PORT, timeout=5)
+        connection = http.client.HTTPConnection(WEB_HOST, WEB_PORT, timeout=10)
         connection.request("HEAD", WEB_REQUEST_PATH, headers={"Host": "montanablotter.com"})
         response = connection.getresponse()
         status_code = response.status

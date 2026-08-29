@@ -50,7 +50,7 @@ def _friendly_ai_error_message(exc: Exception) -> str:
     return f"AI query failed: {message[:300]}" if message else "AI query failed."
 
 
-@admin_bp.route('/workspace')
+@admin_bp.route('/system/workspace')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_workspace():
@@ -65,7 +65,7 @@ def admin_workspace():
     )
 
 
-@admin_bp.route('/workspace/chat', methods=['POST'])
+@admin_bp.route('/system/workspace/chat', methods=['POST'])
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_workspace_chat():
@@ -103,7 +103,7 @@ def admin_workspace_chat():
     return jsonify(result)
 
 
-@admin_bp.route('/workspace/confirm', methods=['POST'])
+@admin_bp.route('/system/workspace/confirm', methods=['POST'])
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_workspace_confirm():
@@ -130,7 +130,7 @@ def admin_workspace_confirm():
     return jsonify(result)
 
 
-@admin_bp.route('/workspace/cancel', methods=['POST'])
+@admin_bp.route('/system/workspace/cancel', methods=['POST'])
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_workspace_cancel():
@@ -138,7 +138,7 @@ def admin_workspace_cancel():
     return jsonify({'ok': True})
 
 
-@admin_bp.route('/workspace/snapshot')
+@admin_bp.route('/system/workspace/snapshot')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_workspace_snapshot():

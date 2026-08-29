@@ -55,6 +55,7 @@ from blueprints.lea_portal import register_lea_portal
 from blueprints.lea_connect import register_lea_connect
 from blueprints.recovery_ads import recovery_ads_bp
 from blueprints.attorney_ads import attorney_ads_bp
+from blueprints.attorney_checkout import attorney_checkout_bp
 from blueprints.lawyer_ads import lawyer_ads_bp
 from blueprints.threedhub import threedhub_bp
 from blueprints.chat_agent import chat_agent_bp
@@ -4144,7 +4145,7 @@ def _apply_subscription_stripe_event(conn, event):
                     '''
                     UPDATE public_users
                     SET is_subscribed = 0,
-                        subscriber_plan = 'scout',
+                        subscriber_plan = 'free',
                         stripe_subscription_id = '',
                         subscription_status = ?,
                         subscription_canceled_at = datetime('now')
@@ -4340,6 +4341,44 @@ def _apply_supporter_stripe_event(conn, event):
             app.logger.info('supporter webhook: deactivated for email=%s status=%s', email, status)
 
 
+def _apply_name_removal_stripe_event(conn, event):
+    """Handle Stripe webhook events for paid name-removal requests.
+
+    On a completed one-time payment, the linked name_suppression_requests row is
+    marked 'paid' and the Stripe payment id is recorded. SUPPRESSION IS NOT
+    AUTO-APPLIED — a human must review and approve in /admin/name-removals so the
+    redaction matches the verified request (and complies with the removal policy).
+    """
+    event_type = (event.get('type') or '').strip()
+    if event_type not in {'checkout.session.completed', 'checkout.session.async_payment_succeeded'}:
+        return
+    data_object = (event.get('data') or {}).get('object') or {}
+    metadata = data_object.get('metadata') or {}
+    if (metadata.get('flow') or '').strip() != 'name_removal':
+        return
+    request_id = (metadata.get('request_id') or '').strip()
+    session_id = (data_object.get('id') or '').strip()
+    payment_id = (data_object.get('payment_intent') or '').strip()
+    if not request_id or not request_id.isdigit():
+        # Fall back to client_reference_id (numeric request id)
+        crid = (data_object.get('client_reference_id') or '').strip()
+        if crid.isdigit():
+            request_id = crid
+    if not request_id or not request_id.isdigit():
+        app.logger.warning('name_removal webhook: no request_id in event %s', event.get('id'))
+        return
+    conn.execute(
+        '''UPDATE name_suppression_requests
+           SET status = 'paid',
+               stripe_session_id = COALESCE(?, stripe_session_id),
+               stripe_payment_id = COALESCE(?, stripe_payment_id)
+           WHERE id = ? AND status IN ('pending', 'paid')''',
+        (session_id or None, payment_id or None, int(request_id)),
+    )
+    conn.commit()
+    app.logger.info('name_removal webhook: request %s marked paid (review required)', request_id)
+
+
 def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_hash='', event_referrer=''):
     event_type = (event.get('type') or '').strip()
     data_object = (event.get('data') or {}).get('object') or {}
@@ -4357,6 +4396,9 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
         return
     if (metadata.get('flow') or '').strip() == 'warrant_access':
         _apply_subscription_stripe_event(conn, event)
+        return
+    if (metadata.get('flow') or '').strip() == 'name_removal':
+        _apply_name_removal_stripe_event(conn, event)
         return
     if (metadata.get('flow') or '').strip() == 'disposition_api':
         _apply_disposition_api_stripe_event(conn, event)
@@ -6995,6 +7037,7 @@ def inject_public_nav():
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
         {'id': 'data_center', 'href': '/datacenter', 'label': 'Data Center'},
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
+        {'id': 'county-coverage', 'href': '/county-coverage', 'label': 'Coverage'},
         {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
         {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons'},
     ]
@@ -9113,6 +9156,27 @@ def meetings_geojson():
     return app.response_class(
         _json.dumps({'type': 'FeatureCollection', 'features': features}),
         mimetype='application/json',
+    )
+
+
+@app.route('/county-coverage')
+def public_county_coverage():
+    """Public page showing coverage status for all 56 Montana counties."""
+    conn = get_db()
+    from services.ops.county_inventory_persistence import refresh_county_inventory
+    refresh_county_inventory(conn)
+    ci_rows = conn.execute(
+        "SELECT * FROM county_inventory ORDER BY population_rank, county"
+    ).fetchall()
+    conn.close()
+    rows = [dict(r) for r in ci_rows]
+    status_counts = {}
+    for s in ["active", "partial", "configured", "not_covered"]:
+        status_counts[s] = sum(1 for r in rows if r["status"] == s)
+    return render_template(
+        'county_coverage.html',
+        rows=rows,
+        status_counts=status_counts,
     )
 
 
@@ -11417,6 +11481,19 @@ def public_post_detail(post_id):
         conn.close()
         return render_template('404.html'), 404
 
+    # Paid privacy suppression: mask any suppressed person name embedded in the
+    # post title/summary without altering the underlying public record.
+    try:
+        from services.monetization.name_suppression import redact_text
+        post = dict(post)
+        county = post.get('county') or None
+        if post.get('title'):
+            post['title'] = redact_text(post['title'], county)
+        if post.get('summary'):
+            post['summary'] = redact_text(post['summary'], county)
+    except Exception:
+        pass
+
     if post['seo_slug'] and request.endpoint == 'public_post_detail':
         conn.close()
         return redirect(f"{BASE_URL}/post/{post['seo_slug']}", 301)
@@ -11907,6 +11984,19 @@ def _decorate_jail_booking_row(row):
     item = dict(row)
     booking_dt = _coerce_jail_booking_datetime(item.get('booking_at') or item.get('first_seen_at') or item.get('created_at'))
     first_seen_dt = _coerce_jail_booking_datetime(item.get('first_seen_at') or item.get('created_at'))
+    # Paid privacy suppression: redact the person's name (and name within charges)
+    # without deleting the underlying public record.
+    try:
+        from services.monetization.name_suppression import redact_person_name
+        if item.get('person_name'):
+            county = item.get('county_name') or item.get('county_slug')
+            redacted = redact_person_name(item['person_name'], county)
+            if redacted != item['person_name']:
+                item['person_name'] = redacted
+                if item.get('charges_summary'):
+                    item['charges_summary'] = redact_person_name(item['charges_summary'], county)
+    except Exception:
+        pass
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     event_dt = booking_dt or first_seen_dt
     item['booking_status'] = _normalize_jail_booking_status(item.get('booking_status'))
@@ -15843,6 +15933,7 @@ register_lea_portal(app)
 register_lea_connect(app)
 app.register_blueprint(recovery_ads_bp)
 app.register_blueprint(attorney_ads_bp)
+app.register_blueprint(attorney_checkout_bp)
 app.register_blueprint(lawyer_ads_bp)
 from blueprints.sponsored_listings import sponsored_bp
 app.register_blueprint(sponsored_bp)

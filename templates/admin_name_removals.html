@@ -1,0 +1,68 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Name Removal Requests | Montana Blotter Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <p class="text-[11px] uppercase tracking-[0.18em] font-black text-slate-600">Privacy Operations</p>
+      <h1 class="text-3xl font-black text-slate-900 mt-2">Name Removal Requests</h1>
+      <p class="text-sm text-slate-500 mt-2">Paid privacy-suppression requests. Approve to redact (not delete) the name across public records.</p>
+    </div>
+    <div class="flex gap-2">
+      {% for s in ['paid','pending','applied','rejected','all'] %}
+        <a href="?status={{ s }}"
+           class="rounded-lg px-3 py-1.5 text-xs font-black uppercase tracking-wide border {% if status_filter == s %}bg-slate-900 text-white border-slate-900{% else %}bg-white text-slate-600 border-slate-200{% endif %}">
+          {{ s }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
+        <tr>
+          <th class="text-left px-4 py-3">Name</th>
+          <th class="text-left px-4 py-3">County</th>
+          <th class="text-left px-4 py-3">Email</th>
+          <th class="text-left px-4 py-3">Status</th>
+          <th class="text-left px-4 py-3">Created</th>
+          <th class="text-right px-4 py-3">Action</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in rows %}
+        <tr>
+          <td class="px-4 py-3 font-semibold text-slate-800">{{ r.person_name }}{% if r.dob %}<span class="block text-xs text-slate-400">DOB {{ r.dob }}</span>{% endif %}</td>
+          <td class="px-4 py-3 text-slate-600">{{ r.county or '—' }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ r.email }}</td>
+          <td class="px-4 py-3">
+            <span class="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black uppercase text-slate-600">{{ r.status }}</span>
+            {% if r.stripe_payment_id %}<span class="block text-[10px] text-slate-400 mt-1">paid</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 text-slate-500">{{ r.created_at }}</td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            {% if r.status in ('paid','pending') %}
+              <form method="post" action="/admin/name-removals/{{ r.id }}/approve" class="inline">
+                <button class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700">Approve</button>
+              </form>
+              <form method="post" action="/admin/name-removals/{{ r.id }}/reject" class="inline ml-1">
+                <button class="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-black text-white hover:bg-rose-700">Reject</button>
+              </form>
+            {% elif r.status == 'rejected' and r.rejection_reason %}
+              <span class="text-xs text-rose-500">{{ r.rejection_reason }}</span>
+            {% elif r.status == 'applied' %}
+              <span class="text-xs text-emerald-600 font-black">Suppressed</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">No requests in this state.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

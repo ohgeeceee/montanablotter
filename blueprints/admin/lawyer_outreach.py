@@ -95,7 +95,7 @@ def _ensure_schema(conn) -> None:
 
 # --------------------------------------------------------------- list routes
 
-@admin_bp.route('/lawyer-outreach')
+@admin_bp.route('/revenue/lawyer-outreach')
 @login_required
 def admin_lawyer_outreach():
     conn = get_db()
@@ -169,7 +169,7 @@ def admin_lawyer_outreach():
 
 # ---------------------------------------------------------- per-prospect view
 
-@admin_bp.route('/lawyer-outreach/prospect/<int:prospect_id>')
+@admin_bp.route('/revenue/lawyer-outreach/prospect/<int:prospect_id>')
 @login_required
 def admin_lawyer_outreach_prospect(prospect_id):
     conn = get_db()
@@ -201,7 +201,7 @@ def admin_lawyer_outreach_prospect(prospect_id):
 
 # ----------------------------------------------------------- sample report --
 
-@admin_bp.route('/lawyer-outreach/prospect/<int:prospect_id>/sample-report')
+@admin_bp.route('/revenue/lawyer-outreach/prospect/<int:prospect_id>/sample-report')
 @login_required
 def admin_lawyer_outreach_sample_report(prospect_id):
     """One-page sample report (Day 5 outreach deliverable).
@@ -244,7 +244,7 @@ def admin_lawyer_outreach_sample_report(prospect_id):
 
 # -------------------------------------------------------- edit / advance / win
 
-@admin_bp.route('/lawyer-outreach/prospect/<int:prospect_id>/edit', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/prospect/<int:prospect_id>/edit', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_prospect_edit(prospect_id):
     conn = get_db()
@@ -277,7 +277,7 @@ def admin_lawyer_outreach_prospect_edit(prospect_id):
     return redirect(url_for('.admin_lawyer_outreach_prospect', prospect_id=prospect_id))
 
 
-@admin_bp.route('/lawyer-outreach/prospect/<int:prospect_id>/advance', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/prospect/<int:prospect_id>/advance', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_prospect_advance(prospect_id):
     new_stage = (request.form.get('stage') or '').strip()
@@ -303,7 +303,7 @@ def admin_lawyer_outreach_prospect_advance(prospect_id):
     return redirect(url_for('.admin_lawyer_outreach_prospect', prospect_id=prospect_id))
 
 
-@admin_bp.route('/lawyer-outreach/prospect/<int:prospect_id>/won', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/prospect/<int:prospect_id>/won', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_prospect_won(prospect_id):
     conn = get_db()
@@ -323,7 +323,7 @@ def admin_lawyer_outreach_prospect_won(prospect_id):
     return redirect(url_for('.admin_lawyer_outreach_prospect', prospect_id=prospect_id))
 
 
-@admin_bp.route('/lawyer-outreach/prospect/<int:prospect_id>/lost', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/prospect/<int:prospect_id>/lost', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_prospect_lost(prospect_id):
     conn = get_db()
@@ -343,7 +343,7 @@ def admin_lawyer_outreach_prospect_lost(prospect_id):
     return redirect(url_for('.admin_lawyer_outreach_prospect', prospect_id=prospect_id))
 
 
-@admin_bp.route('/lawyer-outreach/prospect/<int:prospect_id>/email', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/prospect/<int:prospect_id>/email', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_prospect_email(prospect_id):
     """Manually re-queue the next stage email for a prospect."""
@@ -369,7 +369,7 @@ def admin_lawyer_outreach_prospect_email(prospect_id):
 
 # -------------------------------------------------------- email send / skip --
 
-@admin_bp.route('/lawyer-outreach/email/<int:email_id>/send', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/email/<int:email_id>/send', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_email_send(email_id):
     conn = get_db()
@@ -414,7 +414,7 @@ def admin_lawyer_outreach_email_send(email_id):
     return redirect(url_for('.admin_lawyer_outreach'))
 
 
-@admin_bp.route('/lawyer-outreach/email/<int:email_id>/skip', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/email/<int:email_id>/skip', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_email_skip(email_id):
     conn = get_db()
@@ -444,7 +444,7 @@ def admin_lawyer_outreach_email_skip(email_id):
 
 # ----------------------------------------------------- worker / import hooks --
 
-@admin_bp.route('/lawyer-outreach/run-worker', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/run-worker', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_run_worker():
     from services.lawyer_outreach.cadence import run_cadence
@@ -461,7 +461,7 @@ def admin_lawyer_outreach_run_worker():
     return redirect(url_for('.admin_lawyer_outreach'))
 
 
-@admin_bp.route('/lawyer-outreach/import-csv', methods=['POST'])
+@admin_bp.route('/revenue/lawyer-outreach/import-csv', methods=['POST'])
 @login_required
 def admin_lawyer_outreach_import_csv():
     from services.lawyer_outreach.importer import (

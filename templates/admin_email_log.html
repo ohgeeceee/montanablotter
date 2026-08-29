@@ -1,0 +1,127 @@
+{% extends "admin.html" %}
+
+{% block title %}Email Log | Montana Blotter Admin{% endblock %}
+
+{% block admin_page_title %}
+  <div class="flex items-center gap-3 mb-6">
+    <div class="p-3 bg-slate-800 rounded-full">
+      <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-lg font-bold text-white">Email Send Log</h1>
+      <p class="text-xs text-slate-400 mt-0.5">Filterable history of all outbound email campaigns.</p>
+    </div>
+  </div>
+{% endblock %}
+
+{% block admin_content %}
+
+  {# ── Filters ── #}
+  <div class="flex flex-wrap gap-3 mb-6 items-center">
+    <form method="GET" action="{{ url_for('admin.admin_email_log') }}" class="flex flex-wrap gap-3 items-center">
+      <input type="text" name="q" value="{{ search }}"
+             class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none w-56"
+             placeholder="Search campaigns...">
+      <select name="status" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+        <option value="sent" {% if status_filter == 'sent' %}selected{% endif %}>Delivered</option>
+        <option value="partial" {% if status_filter == 'partial' %}selected{% endif %}>Partial</option>
+        <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+        <option value="sending" {% if status_filter == 'sending' %}selected{% endif %}>Sending</option>
+      </select>
+      <select name="audience" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <option value="all" {% if audience_filter == 'all' %}selected{% endif %}>All Audiences</option>
+        <option value="lawyers" {% if audience_filter == 'lawyers' %}selected{% endif %}>Lawyers</option>
+        <option value="bail_bondsmen" {% if audience_filter == 'bail_bondsmen' %}selected{% endif %}>Bail Bondsmen</option>
+        <option value="clients" {% if audience_filter == 'clients' %}selected{% endif %}>Clients</option>
+        <option value="courts" {% if audience_filter == 'courts' %}selected{% endif %}>Courts</option>
+        <option value="police" {% if audience_filter == 'police' %}selected{% endif %}>Police</option>
+      </select>
+      <button type="submit" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition">Filter</button>
+    </form>
+  </div>
+
+  {# ── Log table ── #}
+  <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-900 text-slate-400 uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 font-medium">Campaign</th>
+            <th class="px-4 py-3 font-medium">Audience</th>
+            <th class="px-4 py-3 font-medium">Subject</th>
+            <th class="px-4 py-3 font-medium text-center">Status</th>
+            <th class="px-4 py-3 font-medium text-center">Sent</th>
+            <th class="px-4 py-3 font-medium text-right">Total</th>
+            <th class="px-4 py-3 font-medium text-right">✓</th>
+            <th class="px-4 py-3 font-medium text-right">✗</th>
+            <th class="px-4 py-3 font-medium text-right">By</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-700">
+          {% for c in campaigns %}
+          <tr class="hover:bg-slate-700/30 transition">
+            <td class="px-4 py-3">
+              <span class="text-white font-medium block max-w-[160px] truncate" title="{{ c.campaign_name }}">{{ c.campaign_name }}</span>
+              <span class="text-[10px] text-slate-500">ID: {{ c.id }}</span>
+            </td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 bg-slate-700 text-slate-300 rounded text-[10px] font-medium uppercase">
+                {{ c.audience }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-slate-300 truncate max-w-[200px]" title="{{ c.subject }}">{{ c.subject }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if c.status == 'sent' %}
+                <span class="px-2 py-0.5 bg-emerald-900/40 text-emerald-400 rounded text-[10px] font-medium">Delivered</span>
+              {% elif c.status == 'partial' %}
+                <span class="px-2 py-0.5 bg-amber-900/40 text-amber-400 rounded text-[10px] font-medium">Partial</span>
+              {% elif c.status == 'draft' %}
+                <span class="px-2 py-0.5 bg-slate-700 text-slate-400 rounded text-[10px] font-medium">Draft</span>
+              {% elif c.status == 'sending' %}
+                <span class="px-2 py-0.5 bg-blue-900/40 text-blue-400 rounded text-[10px] font-medium">Sending</span>
+              {% else %}
+                <span class="px-2 py-0.5 bg-red-900/40 text-red-400 rounded text-[10px] font-medium">{{ c.status }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-slate-400 text-center">{{ c.sent_at or '—' }}</td>
+            <td class="px-4 py-3 text-slate-400 text-right">{{ c.total_recipients }}</td>
+            <td class="px-4 py-3 text-right">
+              <span class="text-emerald-400 font-bold">{{ c.success_count }}</span>
+            </td>
+            <td class="px-4 py-3 text-right">
+              {% if c.failure_count > 0 %}
+                <span class="text-red-400 font-bold">{{ c.failure_count }}</span>
+              {% else %}
+                <span class="text-slate-500">0</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-slate-500 text-right">{{ c.sent_by or '—' }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="9" class="px-4 py-12 text-center text-slate-500">
+              No email campaigns in the log yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not campaigns %}
+    <div class="p-8 text-center text-slate-500">
+      <svg class="w-10 h-10 mx-auto mb-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+      <p class="text-sm">No email campaigns have been sent yet.</p>
+      <a href="{{ url_for('admin.admin_email_compose', audience='clients') }}"
+         class="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block">Compose your first campaign →</a>
+    </div>
+    {% endif %}
+  </div>
+
+{% endblock %}

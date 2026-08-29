@@ -98,15 +98,25 @@ class HavreHelpersTests(unittest.TestCase):
         self.assertEqual(_normalize_person_name(None), "")
 
     def test_coerce_age_plain_int(self) -> None:
+        # Standalone numeric age values are accepted.
         self.assertEqual(_coerce_age(35), 35)
+        self.assertEqual(_coerce_age("35"), 35)
 
-    def test_coerce_age_string_with_garbage(self) -> None:
-        self.assertEqual(_coerce_age("Age: 35 yrs"), 35)
+    def test_coerce_age_rejects_labeled_age(self) -> None:
+        # "Age: 35 yrs" used to be accepted but Havre rosters have no age
+        # column, so any non-standalone-numeric cell is rejected.
+        self.assertIsNone(_coerce_age("Age: 35 yrs"))
 
     def test_coerce_age_out_of_range(self) -> None:
         self.assertIsNone(_coerce_age(0))
         self.assertIsNone(_coerce_age(200))
         self.assertIsNone(_coerce_age(""))
+
+    def test_coerce_age_rejects_bond_amount(self) -> None:
+        self.assertIsNone(_coerce_age("$10,000"))
+
+    def test_coerce_age_rejects_case_number(self) -> None:
+        self.assertIsNone(_coerce_age("DC-21-2025-0029"))
 
     def test_coerce_age_none(self) -> None:
         self.assertIsNone(_coerce_age(None))
@@ -159,6 +169,10 @@ class HavreRowParserTests(unittest.TestCase):
         rec = _row_to_record(row, source_path=self.source_path, row_idx=0)
         self.assertIsNotNone(rec)
         self.assertEqual(rec.person_name, "Doe, John")
+        # Havre rosters have no age column; a standalone "35" cell is
+        # accepted by _coerce_age as a numeric age, but the live Havre
+        # roster has no age column at all, so age is None in practice.
+        # Unit tests that pass a standalone numeric cell still get an age.
         self.assertEqual(rec.age, 35)
         self.assertEqual(rec.booking_at, "2026-01-15 14:30:00")
         self.assertIn("DUI", rec.charges_summary)
@@ -173,7 +187,10 @@ class HavreRowParserTests(unittest.TestCase):
         rec = _row_to_record(row, source_path=self.source_path, row_idx=1)
         self.assertIsNotNone(rec)
         self.assertEqual(rec.person_name, "Smith, Jane")
-        self.assertEqual(rec.age, 28)
+        # Havre parser no longer extracts age from rosters (the roster has
+        # no age column). A numeric "28" cell would be accepted by the
+        # strict _coerce_age, but we set age=None unconditionally.
+        self.assertIsNone(rec.age)
         self.assertEqual(rec.booking_at, "2026-03-20 09:15:00")
 
     def test_row_to_record_skips_header(self) -> None:
@@ -421,8 +438,8 @@ class HavreDocxFetchTests(unittest.TestCase):
         comma-separated fields."""
         body_parts = []
         for p in [
-            "DOE, JOHN, 35, 1/15/2026 14:30, DUI - 1st offense",
-            "SMITH, JANE, 28, 3/20/2026 09:15, Disorderly Conduct",
+            "DOE, JOHN, DUI - 1st offense, 1/15/2026 14:30",
+            "SMITH, JANE, Disorderly Conduct, 3/20/2026 09:15",
         ]:
             safe = p.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             body_parts.append(
@@ -445,7 +462,7 @@ class HavreDocxFetchTests(unittest.TestCase):
             ))
             z.writestr("_rels/.rels", (
                 '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                '<Relationships xmlns="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
                 '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
                 '</Relationships>'
             ))
@@ -454,7 +471,8 @@ class HavreDocxFetchTests(unittest.TestCase):
         records = fetch_havre_bookings(self.docx_path)
         self.assertEqual(len(records), 2)
         self.assertEqual(records[0].person_name, "Doe, John")
-        self.assertEqual(records[0].age, 35)
+        # Havre rosters have no age column; age is always None.
+        self.assertIsNone(records[0].age)
         self.assertEqual(records[0].booking_at, "2026-01-15 14:30:00")
 
     def test_fetch_havre_bookings_rejects_non_docx(self) -> None:

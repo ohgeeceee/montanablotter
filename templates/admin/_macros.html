@@ -1,10 +1,10 @@
 {# =========================================================================
-   admin/_macros.html — Component primitives for admin templates
-   Import with: {% from 'admin/_macros.html' import stat, card, status_pill, ... %}
+   admin/_macros.html — Component primitives for admin templates (v3)
+   Matches static/admin.css design system.
+   Import: {% from 'admin/_macros.html' import stat, card, status_pill, btn, form_field, form_select, form_textarea, shortcut_card, table_row, empty_state, batch_bar, warn_banner, danger_banner, success_banner %}
    ========================================================================= #}
 
 {# ── stat ──────────────────────────────────────────────────────────────
-   Renders a single stat tile. Use on dashboards.
    Usage: {{ stat('Total Records', total_records, accent='amber') }}
    Accents: default | amber | red | green | blue
 #}
@@ -16,30 +16,39 @@
 {% endmacro %}
 
 {# ── card ──────────────────────────────────────────────────────────────
-   Block-style card with optional title, body, and footer.
    Usage:
      {% call card('Recent Records') %}
        <p>Body content</p>
      {% endcall %}
+   With footer (actions):
+     {% call card('Records', footer=True) %}
+       <p>Body</p>
+     {% endcall %}
 #}
-{% macro card(title, accent='default') %}
-  <section class="adm-card">
+{% macro card(title='', footer=False) %}
+  <section class="adm-card {% if not title %}adm-card--flat{% endif %}">
     {% if title %}
-    <div style="padding:0.9rem 1.2rem; border-bottom:1px solid var(--adm-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
-      <h2 class="adm-section-title">{{ title }}</h2>
+    <div class="adm-card__header">
+      <h2 class="adm-card__title">{{ title }}</h2>
       {% if caller is defined %}{{ caller() }}{% endif %}
     </div>
     {% endif %}
-    <div style="padding:1.1rem 1.2rem;">
+    <div class="adm-card__body">
       {{ caller() }}
     </div>
+    {% if footer %}
+    </div>
+    <div style="padding:0.6rem 1.1rem; border-top:1px solid var(--adm-border); display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap;">
+      {{ caller() }}
+    </div>
+    <div class="adm-card__body" style="display:none;"></div>
+    {% endif %}
   </section>
 {% endmacro %}
 
 {# ── status_pill ───────────────────────────────────────────────────────
-   Tiny status badge. Use in tables and list rows.
    Usage: {{ status_pill('active', 'green') }}
-   Variants: green | red | amber | blue | purple | muted
+   Auto: green|red|amber|blue|purple|muted
 #}
 {% macro status_pill(status, kind='auto') %}
   {% if kind == 'auto' %}
@@ -62,14 +71,18 @@
 {% endmacro %}
 
 {# ── btn ───────────────────────────────────────────────────────────────
-   Button or anchor with consistent variant.
    Usage:
      {{ btn('Save', href=url_for('admin.save'), variant='primary') }}
      {{ btn('Delete', type='submit', variant='danger') }}
-   Variants: primary | ghost | danger | success | purple
+     {{ btn('Cancel') }}
+   Variants: primary | ghost | danger | success | purple | sky
+   Sizes: md | sm | xs | danger-sm
 #}
 {% macro btn(label, href=None, type='button', variant='primary', icon=None, size='md', extra='') %}
-  {% set _cls = 'adm-btn adm-btn--' ~ variant ~ (' adm-btn--sm' if size == 'sm' else '') %}
+  {% set _cls = 'adm-btn adm-btn--' ~ variant %}
+  {% if size == 'sm' %}{% set _cls = _cls ~ ' adm-btn--sm' %}{% endif %}
+  {% if size == 'xs' %}{% set _cls = _cls ~ ' adm-btn--xs' %}{% endif %}
+  {% if size == 'danger-sm' %}{% set _cls = _cls ~ ' adm-btn--danger-sm' %}{% endif %}
   {% if href %}
     <a href="{{ href }}" class="{{ _cls }}" {{ extra|safe }}>{% if icon %}<i class="{{ icon }}"></i>{% endif %}{{ label }}</a>
   {% else %}
@@ -77,31 +90,40 @@
   {% endif %}
 {% endmacro %}
 
+{# ── btn_stack ──────────────────────────────────────────────────────────
+   Row of buttons, wraps cleanly.
+   Usage: {% call btn_stack() %}{{ btn('Save') }}{{ btn('Cancel', variant='ghost', href='/back') }}{% endcall %}
+#}
+{% macro btn_stack() %}
+  <div class="adm-btn-stack">
+    {{ caller() }}
+  </div>
+{% endmacro %}
+
 {# ── form_field ────────────────────────────────────────────────────────
-   Single labeled form input with optional help text.
    Usage: {{ form_field('email', 'Email', type='email', value=user.email, help='Visible on profile') }}
 #}
 {% macro form_field(name, label, type='text', value='', help=None, required=False, placeholder='') %}
-  <div class="adm-form-row">
-    <label class="adm-label-form" for="adm-{{ name }}">{{ label }}{% if required %} <span class="adm-text-amber">*</span>{% endif %}</label>
+  <div class="adm-field">
+    <label class="adm-field__label" for="adm-{{ name }}">{{ label }}{% if required %} <span style="color:var(--adm-amber);">*</span>{% endif %}</label>
     <input
       id="adm-{{ name }}"
       name="{{ name }}"
       type="{{ type }}"
-      class="adm-input"
+      class="adm-field__input"
       value="{{ value }}"
       {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
       {% if required %}required{% endif %}
     >
-    {% if help %}<p class="adm-help">{{ help }}</p>{% endif %}
+    {% if help %}<p class="adm-field__hint">{{ help }}</p>{% endif %}
   </div>
 {% endmacro %}
 
 {# ── form_select ─────────────────────────────────────────────────────── #}
 {% macro form_select(name, label, options, value='', required=False, help=None) %}
-  <div class="adm-form-row">
-    <label class="adm-label-form" for="adm-{{ name }}">{{ label }}{% if required %} <span class="adm-text-amber">*</span>{% endif %}</label>
-    <select id="adm-{{ name }}" name="{{ name }}" class="adm-select" {% if required %}required{% endif %}>
+  <div class="adm-field">
+    <label class="adm-field__label" for="adm-{{ name }}">{{ label }}{% if required %} <span style="color:var(--adm-amber);">*</span>{% endif %}</label>
+    <select id="adm-{{ name }}" name="{{ name }}" class="adm-field__select" {% if required %}required{% endif %}>
       {% for opt in options %}
         {% if opt is mapping %}
           <option value="{{ opt.value }}" {% if opt.value == value %}selected{% endif %}>{{ opt.label }}</option>
@@ -110,34 +132,113 @@
         {% endif %}
       {% endfor %}
     </select>
-    {% if help %}<p class="adm-help">{{ help }}</p>{% endif %}
+    {% if help %}<p class="adm-field__hint">{{ help }}</p>{% endif %}
   </div>
 {% endmacro %}
 
 {# ── form_textarea ───────────────────────────────────────────────────── #}
 {% macro form_textarea(name, label, value='', rows=4, required=False, help=None, placeholder='') %}
-  <div class="adm-form-row">
-    <label class="adm-label-form" for="adm-{{ name }}">{{ label }}{% if required %} <span class="adm-text-amber">*</span>{% endif %}</label>
+  <div class="adm-field">
+    <label class="adm-field__label" for="adm-{{ name }}">{{ label }}{% if required %} <span style="color:var(--adm-amber);">*</span>{% endif %}</label>
     <textarea
       id="adm-{{ name }}"
       name="{{ name }}"
-      class="adm-textarea"
+      class="adm-field__textarea"
       rows="{{ rows }}"
       {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
       {% if required %}required{% endif %}
     >{{ value }}</textarea>
-    {% if help %}<p class="adm-help">{{ help }}</p>{% endif %}
+    {% if help %}<p class="adm-field__hint">{{ help }}</p>{% endif %}
   </div>
 {% endmacro %}
 
 {# ── shortcut_card ─────────────────────────────────────────────────────
-   Big clickable card for nav dashboards. Replaces hand-rolled .adm-cmd links.
-   Usage: {{ shortcut_card('Blotter Ops', 'Ingestion, courts, meetings', href='/admin/dashboard', accent='amber', icon='fa-gauge') }}
+   Usage: {{ shortcut_card('Blotter Ops', 'Ingestion, courts, meetings', href='/admin/dashboard', accent='amber') }}
+   Accents: amber | blue | green | purple | sky | muted
 #}
-{% macro shortcut_card(title, desc, href='#', accent='amber', icon=None) %}
-  <a href="{{ href }}" class="adm-cmd adm-cmd--{{ accent }}">
-    {% if icon %}<p class="adm-cmd__cat"><i class="{{ icon }}"></i></p>{% endif %}
-    <p class="adm-cmd__title">{{ title }}</p>
-    <p class="adm-cmd__desc">{{ desc }}</p>
+{% macro shortcut_card(title, desc, href='#', accent='amber') %}
+  <a href="{{ href }}" class="adm-shortcut adm-shortcut--{{ accent }}">
+    <p class="adm-shortcut__title">{{ title }}</p>
+    <p class="adm-shortcut__desc">{{ desc }}</p>
   </a>
+{% endmacro %}
+
+{# ── table_header ──────────────────────────────────────────────────────
+   Renders a full <thead>. Pass list of (label, sortable) tuples.
+   Usage: {{ table_header([('Filename', true), ('County', false), ('Date', true)]) }}
+#}
+{% macro table_header(columns) %}
+<thead>
+  <tr>
+    {% for col in columns %}
+    <th {% if col[1] %}class="sortable"{% endif %}>{{ col[0] }}</th>
+    {% endfor %}
+  </tr>
+</thead>
+{% endmacro %}
+
+{# ── table_row ─────────────────────────────────────────────────────────
+   Renders a <tr> with cells. Pass list of cell values or HTML.
+   Usage: {{ table_row([blotter.filename, blotter.county or '—', blotter.upload_date]) }}
+   With actions column: {{ table_row([a, b, c], actions_html) }}
+#}
+{% macro table_row(cells, actions=None) %}
+<tr>
+  {% for cell in cells %}
+  <td>{{ cell }}</td>
+  {% endfor %}
+  {% if actions is not none %}
+  <td>{{ actions }}</td>
+  {% endif %}
+</tr>
+{% endmacro %}
+
+{# ── empty_state ───────────────────────────────────────────────────────
+   Usage: {{ empty_state('No records yet', 'Upload a PDF to get started.', 'fa-upload') }}
+#}
+{% macro empty_state(title, desc='', icon='fa-file') %}
+<div class="adm-empty">
+  <p class="adm-empty__icon">{% if icon %}<i class="fas {{ icon }}"></i>{% endif %}</p>
+  <p class="adm-empty__title">{{ title }}</p>
+  {% if desc %}<p class="adm-empty__desc">{{ desc }}</p>{% endif %}
+</div>
+{% endmacro %}
+
+{# ── batch_bar ─────────────────────────────────────────────────────────
+   Usage:
+     {% call batch_bar(count=selected|length) %}
+       {{ btn('Delete', variant='danger', type='submit') }}
+       {{ btn('Export', variant='ghost', href=export_url) }}
+     {% endcall %}
+#}
+{% macro batch_bar(count=None) %}
+<div class="adm-batch-bar">
+  {% if count is not none %}
+  <p class="adm-batch-count"><strong>{{ count }}</strong> selected</p>
+  {% endif %}
+  <div class="adm-batch-actions">
+    {{ caller() }}
+  </div>
+</div>
+{% endmacro %}
+
+{# ── warn_banner ─────────────────────────────────────────────────────── #}
+{% macro warn_banner(text) %}
+<div class="adm-warn-banner">
+  <strong>Note:</strong> {{ text }}
+</div>
+{% endmacro %}
+
+{# ── danger_banner ───────────────────────────────────────────────────── #}
+{% macro danger_banner(text) %}
+<div class="adm-danger-banner">
+  <strong>Warning:</strong> {{ text }}
+</div>
+{% endmacro %}
+
+{# ── success_banner ───────────────────────────────────────────────────── #}
+{% macro success_banner(text) %}
+<div class="adm-success-banner">
+  <strong>Done:</strong> {{ text }}
+</div>
 {% endmacro %}

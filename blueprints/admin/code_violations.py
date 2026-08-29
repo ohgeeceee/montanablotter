@@ -15,7 +15,7 @@ def _allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@admin_bp.route('/code-violations')
+@admin_bp.route('/content/code-violations')
 @login_required
 def admin_code_violations_dashboard():
     conn = get_db()
@@ -33,7 +33,7 @@ def admin_code_violations_dashboard():
         conn.close()
 
 
-@admin_bp.route('/code-violations/upload', methods=['POST'])
+@admin_bp.route('/content/code-violations/upload', methods=['POST'])
 @login_required
 def admin_code_violations_upload():
     if 'file' not in request.files:

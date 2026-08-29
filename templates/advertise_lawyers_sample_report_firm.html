@@ -1,0 +1,333 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Sample Monthly Report — " ~ firm.name %}
+{% set canonical_url = "https://montanablotter.com/advertise/lawyers/sample-report/" ~ slug %}
+{% set noindex = true %}
+
+{% block body_class %}advertise-lawyers-samplereport-page{% endblock %}
+
+{% block extra_head %}
+<style>
+  .mb-report {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: var(--space-8) var(--page-gutter);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+  .mb-report__head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-3);
+    align-items: end;
+    border-bottom: 2px solid #1e1b18;
+    padding-bottom: var(--space-3);
+  }
+  .mb-report__title {
+    font-family: var(--font-serif-display);
+    font-size: var(--text-headline-lg);
+    color: var(--text-headline);
+    margin: 0;
+  }
+  .mb-report__sub {
+    color: var(--text-secondary);
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-body-sm);
+  }
+  .mb-report__chips {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: flex-end;
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    color: var(--text-secondary);
+    text-align: right;
+  }
+  .mb-report__chip {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    background: #b8860b;
+    color: #fff;
+    border-radius: 999px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-kicker);
+  }
+  .mb-report__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .mb-report__section h2 {
+    font-family: var(--font-mono);
+    font-size: var(--text-kicker);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-kicker);
+    color: var(--text-secondary);
+    margin: 0;
+  }
+  .mb-report__metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3);
+  }
+  @media (max-width: 760px) { .mb-report__metrics { grid-template-columns: repeat(2, 1fr); } }
+  .mb-report__metric {
+    border: 1px solid var(--ink-200);
+    border-radius: 6px;
+    padding: var(--space-3);
+    background: var(--surface-card);
+    text-align: left;
+  }
+  .mb-report__metric-num {
+    font-family: var(--font-serif-display);
+    font-size: 2rem;
+    color: var(--text-headline);
+    line-height: 1.1;
+  }
+  .mb-report__metric-label {
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: var(--tracking-kicker);
+  }
+  .mb-report__metric-sub {
+    font-size: var(--text-caption);
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+  }
+  .mb-report__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-body-sm);
+  }
+  .mb-report__table th, .mb-report__table td {
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--ink-200);
+  }
+  .mb-report__table th {
+    background: #f8fafc;
+    color: var(--text-headline);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    font-size: var(--text-caption);
+    letter-spacing: var(--tracking-kicker);
+  }
+  .mb-report__table td.num { text-align: right; font-family: monospace; }
+  .mb-report__note {
+    font-size: var(--text-caption);
+    color: var(--text-secondary);
+    background: var(--surface-page);
+    border-left: 3px solid #b8860b;
+    padding: var(--space-2) var(--space-3);
+  }
+  .mb-report__cta {
+    display: inline-block;
+    padding: var(--space-2) var(--space-4);
+    background: #1e3a8a;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-kicker);
+  }
+  .mb-report__redacted {
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-kicker);
+    border-bottom: 2px solid #b8860b;
+    padding-bottom: 0.25rem;
+    margin-bottom: 1rem;
+  }
+  .mb-report__live {
+    display: none;
+  }
+  .mb-report__sample .mb-report__redacted { display: block; }
+  .mb-report__sample .mb-report__live { display: none; }
+  @media print {
+    .mb-np-masthead, .mb-np-nav, .mb-np-dateline, .mb-np-otbar, footer { display: none !important; }
+    .mb-report { padding: 0; max-width: 100%; }
+    .mb-report__cta { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/lawyers" style="color: var(--text-body);">Advertise</a>
+<span class="mx-2">/</span>
+<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">Sample report — {{ firm.name }}</span>
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div class="mb-report {% if report.mode == 'sample' %}mb-report__sample{% endif %}">
+
+    <header class="mb-report__head">
+      <div>
+        {% if report.mode == 'sample' %}
+        <p class="mb-report__redacted">EXAMPLE DATA · REDACTED · NOT A REAL REPORT</p>
+        {% endif %}
+        <p style="font-family: var(--font-mono); font-size: var(--text-kicker); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0;">
+          Montana Blotter · Lawyer Directory · Monthly Report
+        </p>
+        <h1 class="mb-report__title">{{ firm.name }}</h1>
+        <p class="mb-report__sub">{{ firm.county_display }} · {{ report.package.name }} · {{ report.period_label }}</p>
+      </div>
+      <div class="mb-report__chips">
+        <span class="mb-report__chip">{{ report.package.name }}</span>
+        <span>{{ report.package.price_label }}</span>
+      </div>
+    </header>
+
+    {# ---- Placement performance ---- #}
+    <section class="mb-report__section">
+      <h2>Placement performance — {{ firm.county_display }} County</h2>
+      <div class="mb-report__metrics">
+        <div class="mb-report__metric">
+          <div class="mb-report__metric-num">{{ "{:,}".format(report.metrics.impressions) }}</div>
+          <div class="mb-report__metric-label">Impressions</div>
+          <div class="mb-report__metric-sub">listing card views</div>
+        </div>
+        <div class="mb-report__metric">
+          <div class="mb-report__metric-num">{{ "{:,}".format(report.metrics.clicks) }}</div>
+          <div class="mb-report__metric-label">Website / CTA clicks</div>
+          <div class="mb-report__metric-sub">{{ '%.1f' % (report.metrics.clicks / report.metrics.impressions * 100) if report.metrics.impressions else '—' }}% CTR</div>
+        </div>
+        <div class="mb-report__metric">
+          <div class="mb-report__metric-num">{{ "{:,}".format(report.metrics.calls) }}</div>
+          <div class="mb-report__metric-label">Tap-to-call actions</div>
+          <div class="mb-report__metric-sub">mobile only</div>
+        </div>
+        <div class="mb-report__metric">
+          <div class="mb-report__metric-num">{{ "{:,}".format(report.metrics.leads_delivered) }}</div>
+          <div class="mb-report__metric-label">Intake leads delivered</div>
+          <div class="mb-report__metric-sub">{{ report.metrics.leads_failed }} delivery failure{% if report.metrics.leads_failed != 1 %}s{% endif %}</div>
+        </div>
+      </div>
+    </section>
+
+    {# ---- Cost per delivered lead ---- #}
+    <section class="mb-report__section">
+      <h2>Cost per delivered lead</h2>
+      <table class="mb-report__table">
+        <thead>
+          <tr><th>Metric</th><th class="num">Value</th><th>Note</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Subscription</td>
+            <td class="num">${{ '%.2f' % (report.package.price_monthly_cents / 100) }}</td>
+            <td>{{ report.package.name }} · {{ report.period_label }}</td>
+          </tr>
+          <tr>
+            <td>Cost per delivered lead</td>
+            <td class="num">{{ '$%.2f' % report.cost_per_lead if report.cost_per_lead is not none else '—' }}</td>
+            <td>subscription ÷ leads delivered{% if report.cost_per_lead is none %} — no leads yet{% endif %}</td>
+          </tr>
+          <tr>
+            <td>Cost per consultation</td>
+            <td class="num">{{ '$%.2f' % report.cost_per_consultation if report.cost_per_consultation is not none else '—' }}</td>
+            <td>advertiser-reported{% if report.cost_per_consultation is none %} — firm has not submitted yet{% endif %}</td>
+          </tr>
+          <tr>
+            <td>Cost per retained matter</td>
+            <td class="num">{{ '$%.2f' % report.cost_per_retained if report.cost_per_retained is not none else '—' }}</td>
+            <td>advertiser-reported{% if report.cost_per_retained is none %} — firm has not submitted yet{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="mb-report__note">
+        {% if report.mode == 'sample' %}
+        Cost-per-consultation and cost-per-retained are illustrative reference numbers from the
+        90-day pilot cohort. Your actual results may differ.
+        {% else %}
+        Cost-per-consultation and cost-per-retained are computed from the firm's own monthly
+        outcome counts. Montana Blotter does not estimate or extrapolate these numbers.
+        {% endif %}
+      </p>
+    </section>
+
+    {# ---- Advertiser-reported outcomes ---- #}
+    <section class="mb-report__section">
+      <h2>{% if report.mode == 'sample' %}Illustrative{% else %}Advertiser-reported{% endif %} outcomes — {{ firm.name }}{% if report.mode != 'sample' %}, {{ report.period_label }}{% endif %}</h2>
+      <table class="mb-report__table">
+        <thead>
+          <tr><th>Outcome</th><th class="num">Count</th><th>Definition</th></tr>
+        </thead>
+        <tbody>
+          {% for outcome in report.advertiser_outcomes %}
+          <tr>
+            <td>{{ outcome.label }}</td>
+            <td class="num">{{ outcome.value if outcome.value is not none else '—' }}</td>
+            <td>{{ outcome.definition }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mb-report__note">
+        {% if report.mode == 'sample' %}
+        These counts are illustrative reference estimates from the 90-day pilot cohort. They are
+        not a promise of case volume, signed clients, or ROI.
+        {% else %}
+        These counts are filled in by the firm in the control panel at the end of each month.
+        They are not estimated or assumed by Montana Blotter.
+        {% endif %}
+      </p>
+    </section>
+
+    {# ---- What this report does not claim ---- #}
+    <section class="mb-report__section">
+      <h2>What this report does not claim</h2>
+      <ul style="margin: 0; padding-left: var(--space-5); font-size: var(--text-body-sm); color: var(--text-body); line-height: var(--leading-body);">
+        <li>Calls and clicks are recorded actions, not confirmed conversations or consultations.</li>
+        <li>Impressions are deduped per visitor per day, not deduplicated across days.</li>
+        <li>Cost-per-retained is a function of the firm's own reporting, not a projection.</li>
+        <li>Montana Blotter does not endorse any listed attorney. Listing copy must comply with
+            Montana Rules of Professional Conduct 7.1–7.5.</li>
+      </ul>
+    </section>
+
+    {# ---- How this would look for this firm ---- #}
+    <section class="mb-report__section" style="background: var(--surface-page); border-left: 3px solid #b8860b; padding: var(--space-3) var(--space-4);">
+      <p style="font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-secondary); text-transform: uppercase; letter-spacing: var(--tracking-kicker); margin: 0 0 0.5rem;">
+        What this means for {{ firm.name }}
+      </p>
+      <p style="font-size: var(--text-body-sm); color: var(--text-body); line-height: var(--leading-body); margin: 0;">
+        This is the exact format and metric set every {{ report.package.name }} advertiser receives at the
+        start of each month. For {{ firm.name }} on the {{ firm.county_display }} County page, that means:
+      </p>
+      <ul style="margin: 0.5rem 0 0; padding-left: var(--space-5); font-size: var(--text-body-sm); color: var(--text-body); line-height: var(--leading-body);">
+        <li>Your firm's card appears at the top of the {{ firm.county_display }} County section on /lawyers.</li>
+        <li>Tap-to-call and tap-to-text are enabled on your card — mobile visitors can reach
+            the {{ firm.name }} office with one tap.</li>
+        <li>Consumer intake leads from the {{ firm.county_display }} County page are emailed to you first
+            (priority lead routing); Silver and Bronze firms in the county are notified only if
+            the lead is not claimed within the short window.</li>
+        <li>Every new booking in {{ firm.county_display }} County can trigger a real-time arrest-alert email to
+            your firm within minutes of ingestion (Gold-tier firms are contacted first).</li>
+        <li>At the start of each month you get this report and a control-panel link where you
+            can update your photo, tagline, description, and CTA without a login.</li>
+      </ul>
+    </section>
+
+    <section>
+      <a class="mb-report__cta" href="{{ url_for('lawyer_ads.advertise_lawyers_checkout', package='gold') }}">Buy a Gold placement</a>
+      &nbsp;<a href="{{ url_for('lawyer_ads.advertise_lawyers_one_pager_firm', slug=slug) }}">Back to the one-pager</a>
+      &nbsp;<a href="/advertise/lawyers">Back to the full landing page</a>
+      <p style="font-family: var(--font-mono); font-size: var(--text-caption); color: var(--text-secondary); margin-top: 1rem;">
+        Press ⌘P / Ctrl-P to save as PDF and send to your intake team.
+      </p>
+    </section>
+
+  </div>
+</main>
+{% endblock %}

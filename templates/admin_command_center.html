@@ -31,7 +31,7 @@ body.override-global-padding > * { padding: 0; }
       <span style="color:var(--amber);margin-left:4px;">Command Center</span>
     </div>
     <div class="topbar-sep"></div>
-    <a href="/admin/dashboard" class="topbar-admin-link">All Admin Tools</a>
+    <a href="/admin/operations/" class="topbar-admin-link">All Admin Tools</a>
     <div id="topbar-spinner"></div>
     <div class="topbar-pill"><span class="lbl">Queue</span><span class="val" id="tp-queue">—</span></div>
     <div style="text-align:right;">
@@ -47,23 +47,23 @@ body.override-global-padding > * { padding: 0; }
     <nav class="sidebar" id="sidebar">
       <div class="sidebar-inner">
         <div class="sb-group-label">Live Ops</div>
-        <a class="sb-link active" href="/admin/command-center">
+        <a class="sb-link active" href="/admin/operations/live">
           <i class="fa fa-satellite-dish"></i> Command Center
         </a>
-        <a class="sb-link" href="/admin/dashboard">
+        <a class="sb-link" href="/admin/operations/">
           <i class="fa fa-gauge"></i> Operations Summary
         </a>
-        <a class="sb-link" href="/admin/command-center/runbook">
+        <a class="sb-link" href="/admin/operations/runbook">
           <i class="fa fa-book"></i> Agent Runbook
         </a>
 
         <div class="sb-group-label">Needs Attention</div>
-        <a class="sb-link" href="/admin/ingestion" id="sb-alert-ingestion"><i class="fa fa-inbox"></i> Ingestion <span id="sb-count-ingestion"></span></a>
+        <a class="sb-link" href="/admin/operations/ingestion" id="sb-alert-ingestion"><i class="fa fa-inbox"></i> Ingestion <span id="sb-count-ingestion"></span></a>
         <a class="sb-link" href="/admin/operations/courts" id="sb-alert-courts"><i class="fa fa-scale-balanced"></i> Courts <span id="sb-count-courts"></span></a>
         <a class="sb-link" href="/admin/operations/meetings" id="sb-alert-meetings"><i class="fa fa-calendar-days"></i> Meetings <span id="sb-count-meetings"></span></a>
 
         <div class="sb-footer">
-          <a class="sb-link" href="/admin/dashboard"><i class="fa fa-th-large"></i> Browse All Admin Tools</a>
+          <a class="sb-link" href="/admin/operations/"><i class="fa fa-th-large"></i> Browse All Admin Tools</a>
         </div>
       </div>
     </nav>
@@ -84,7 +84,7 @@ body.override-global-padding > * { padding: 0; }
       </div>
 
       <div class="ops-health-bar" id="ops-health-bar">
-        <a class="ops-tile" href="/admin/ingestion" id="ops-ingestion"><div class="ops-tile-lbl">Ingestion Alerts</div><div class="ops-tile-val" id="ops-val-ingestion">—</div></a>
+        <a class="ops-tile" href="/admin/operations/ingestion" id="ops-ingestion"><div class="ops-tile-lbl">Ingestion Alerts</div><div class="ops-tile-val" id="ops-val-ingestion">—</div></a>
         <a class="ops-tile" href="/admin/operations/courts" id="ops-courts"><div class="ops-tile-lbl">Court Sources</div><div class="ops-tile-val" id="ops-val-courts">—</div></a>
         <a class="ops-tile" href="/admin/operations/meetings" id="ops-meetings"><div class="ops-tile-lbl">Meetings</div><div class="ops-tile-val" id="ops-val-meetings">—</div></a>
         <div class="ops-tile is-ok" id="ops-total"><div class="ops-tile-lbl">Total Open</div><div class="ops-tile-val good" id="ops-val-total">—</div></div>
@@ -94,27 +94,7 @@ body.override-global-padding > * { padding: 0; }
       </div>
       <div class="ops-coverage-list" id="ops-coverage-list"></div>
 
-      <!-- 3-Column Grid -->
-      <div class="cc-grid">
-
-        <!-- 3D Office Hub — full width top row -->
-        <div class="panel house-panel">
-          <div class="panel-head" id="house-panel-head">
-            <div class="panel-title"><i class="fa fa-cube"></i> 3D Office Hub</div>
-            <span class="panel-count" id="pc-agents">Live</span>
-          </div>
-          <div class="cs-scene" id="house-scene" style="padding:0; background:#08101d;">
-            <iframe
-              src="/admin/office/office"
-              title="Claw3D Office Hub"
-              loading="eager"
-              style="width:100%;height:100%;min-height:720px;border:0;display:block;background:#08101d;"
-              allow="fullscreen"
-            ></iframe>
-          </div>
-        </div>
-
-        <!-- Pipeline -->
+      <!-- Pipeline -->
         <div class="panel pipeline-panel">
           <div class="panel-head">
             <div class="panel-title"><i class="fa fa-layer-group"></i> Pipeline</div>
@@ -146,8 +126,7 @@ body.override-global-padding > * { padding: 0; }
           </div>
         </div>
 
-      </div><!-- /cc-grid -->
-    </div><!-- /main -->
+      </div><!-- /main -->
   </div><!-- /body-wrap -->
 </div><!-- /app -->
 

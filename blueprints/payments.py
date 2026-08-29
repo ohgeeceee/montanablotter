@@ -436,6 +436,8 @@ def stripe_webhook():
         apply_stripe_recovery_ad_event(conn, event)
         from blueprints.lawyer_ads import apply_stripe_lawyer_ad_event
         apply_stripe_lawyer_ad_event(conn, event)
+        from blueprints.attorney_checkout import apply_stripe_attorney_event
+        apply_stripe_attorney_event(conn, event)
         m._apply_stripe_event(
             conn,
             event,
@@ -1314,13 +1316,15 @@ def checkout_warrant_access():
                 'metadata': {
                     'flow': 'warrant_access',
                     'public_user_id': str(public_user_id),
-                    'plan': plan,
+                    'plan': 'warrant_access',
+                    'interval': plan,
                 },
             },
             metadata={
                 'flow': 'warrant_access',
                 'public_user_id': str(public_user_id),
-                'plan': plan,
+                'plan': 'warrant_access',
+                'interval': plan,
             },
         )
         checkout_url = _checkout_redirect_url(checkout_session)
@@ -1356,6 +1360,113 @@ def subscribe_success():
         page_title='Subscription Activated',
         current_year=datetime.now().year,
     )
+
+
+# ---------------------------------------------------------------------------
+# Paid name-removal / privacy suppression (one-time $999)
+# ---------------------------------------------------------------------------
+
+@payments_bp.route('/remove-my-name', methods=['GET', 'POST'])
+def remove_my_name():
+    """Public request form for paid name suppression.
+
+    A one-time $999 payment covers a verified privacy review. On approval the
+    person's name is REDACTED (not deleted) across public records. Requires
+    human review before suppression is applied — payment alone does not suppress.
+    """
+    errors = []
+    if request.method == 'POST':
+        person_name = (request.form.get('person_name') or '').strip()
+        dob = (request.form.get('dob') or '').strip()
+        county = (request.form.get('county') or '').strip()
+        email = (request.form.get('email') or '').strip().lower()
+        if len(person_name) < 2:
+            errors.append('Please enter the full name to suppress.')
+        if '@' not in email or '.' not in email:
+            errors.append('Please enter a valid contact email.')
+        if not errors:
+            public_user_id = session.get('public_user_id')
+            conn = get_db()
+            try:
+                cur = conn.execute(
+                    '''INSERT INTO name_suppression_requests
+                       (public_user_id, email, person_name, dob, county,
+                        status, ip_address, created_at)
+                       VALUES (?, ?, ?, ?, ?, 'pending', ?, datetime('now'))''',
+                    (public_user_id, email, person_name, dob or None,
+                     county or None, request.remote_addr),
+                )
+                request_id = cur.lastrowid
+                conn.commit()
+            finally:
+                conn.close()
+            # Stripe checkout for the one-time suppression product.
+            keys = _stripe_keys()
+            if not keys['secret_key'] or not config.NAME_SUPPRESS_PRICE_ID:
+                flash('Name removal checkout is unavailable right now. Please try again later.', 'error')
+                return redirect('/remove-my-name')
+            stripe.api_key = keys['secret_key']
+            try:
+                checkout_session = stripe.checkout.Session.create(
+                    mode='payment',
+                    client_reference_id=str(request_id),
+                    customer_email=email or None,
+                    line_items=[{'price': config.NAME_SUPPRESS_PRICE_ID, 'quantity': 1}],
+                    success_url=f"{_base_url()}/checkout/name-removal/success?session_id={{CHECKOUT_SESSION_ID}}",
+                    cancel_url=f"{_base_url()}/remove-my-name?canceled=1",
+                    metadata={
+                        'flow': 'name_removal',
+                        'request_id': str(request_id),
+                        'person_name': person_name,
+                    },
+                )
+                conn = get_db()
+                try:
+                    conn.execute(
+                        'UPDATE name_suppression_requests SET stripe_session_id = ? WHERE id = ?',
+                        (checkout_session.id, request_id),
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+                checkout_url = _checkout_redirect_url(checkout_session)
+                if checkout_url:
+                    return redirect(checkout_url)
+                raise RuntimeError('Stripe checkout session did not return a URL')
+            except Exception:
+                log.exception('name-removal checkout: Stripe session creation failed for request %s', request_id)
+                flash('Unable to start name-removal checkout. Please try again.', 'error')
+                return redirect('/remove-my-name')
+
+    return render_template(
+        'remove_my_name.html',
+        errors=errors,
+        active_nav='remove-name',
+        page_title='Remove My Name — Montana Blotter',
+        current_year=datetime.now().year,
+    )
+
+
+@payments_bp.route('/checkout/name-removal/success')
+def checkout_name_removal_success():
+    return render_template(
+        'checkout_name_removal_success.html',
+        active_nav='remove-name',
+        page_title='Name Removal Request Received',
+        current_year=datetime.now().year,
+    )
+
+
+def _stripe_keys():
+    """Return dict with secret_key/public_key from config (mirrors app config)."""
+    return {
+        'secret_key': getattr(config, 'STRIPE_SECRET_KEY', '') or '',
+        'public_key': getattr(config, 'STRIPE_PUBLISHABLE_KEY', '') or '',
+    }
+
+
+def _base_url() -> str:
+    return (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
 
 
 @payments_bp.route('/pro')

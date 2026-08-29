@@ -26,7 +26,7 @@ def _allowed_file(filename):
 # Routes
 # ---------------------------------------------------------------------------
 
-@admin_bp.route('/ingestion')
+@admin_bp.route('/operations/ingestion')
 @login_required
 def admin_ingestion():
     """Inspect failed and recent ingestion jobs."""
@@ -133,7 +133,7 @@ def admin_ingestion():
     )
 
 
-@admin_bp.route('/ingestion/<int:job_id>/retry', methods=['POST'])
+@admin_bp.route('/operations/ingestion/<int:job_id>/retry', methods=['POST'])
 @login_required
 def admin_retry_ingestion(job_id):
     """Retry a failed ingestion job from its stored source document."""
@@ -198,7 +198,7 @@ def admin_retry_ingestion(job_id):
     return redirect(url_for('admin.admin_ingestion'))
 
 
-@admin_bp.route('/upload', methods=['GET', 'POST'])
+@admin_bp.route('/operations/upload', methods=['GET', 'POST'])
 @login_required
 def admin_upload():
     """Admin PDF upload"""
@@ -237,7 +237,7 @@ def admin_upload():
     return render_template('admin_upload.html', counties=config.MONTANA_COUNTIES)
 
 
-@admin_bp.route('/blotters')
+@admin_bp.route('/operations/blotters')
 @login_required
 def admin_blotters():
     """View and manage all blotters"""
@@ -277,7 +277,7 @@ def admin_blotters():
     return render_template('admin_blotters.html', blotters=blotters, posts_map=posts_map)
 
 
-@admin_bp.route('/blotter/<int:blotter_id>/delete', methods=['POST'])
+@admin_bp.route('/operations/blotters/<int:blotter_id>/delete', methods=['POST'])
 @login_required
 def admin_delete_blotter(blotter_id):
     """Delete a blotter and its records"""
@@ -296,7 +296,7 @@ def admin_delete_blotter(blotter_id):
     return redirect(url_for('admin.admin_blotters'))
 
 
-@admin_bp.route('/post/<int:post_id>/redact', methods=['GET', 'POST'])
+@admin_bp.route('/operations/review/<int:post_id>/redact', methods=['GET', 'POST'])
 @login_required
 def admin_redact_post(post_id):
     """PII Redaction Editor — highlight, black-bar, and save a sanitised post summary."""
@@ -338,7 +338,7 @@ def admin_redact_post(post_id):
                            pii_spans=pii_spans)
 
 
-@admin_bp.route('/post/<int:post_id>/status', methods=['POST'])
+@admin_bp.route('/operations/review/<int:post_id>/status', methods=['POST'])
 @login_required
 def admin_update_post_status(post_id):
     """AJAX endpoint — cycle case_status for a post (active / pending / resolved)."""
@@ -353,7 +353,7 @@ def admin_update_post_status(post_id):
     return jsonify({'ok': True, 'status': new_status})
 
 
-@admin_bp.route('/operations/redaction')
+@admin_bp.route('/operations/review')
 @login_required
 @require_role(*CONTENT_REVIEW_ROLES)
 def admin_redaction_queue():
@@ -452,7 +452,7 @@ def admin_redaction_queue():
     )
 
 
-@admin_bp.route('/operations/redaction/<int:post_id>/approve', methods=['POST'])
+@admin_bp.route('/operations/review/<int:post_id>/approve', methods=['POST'])
 @login_required
 @require_role(*CONTENT_REVIEW_ROLES)
 def admin_redaction_queue_approve(post_id):
@@ -479,7 +479,7 @@ def admin_redaction_queue_approve(post_id):
     return redirect(url_for('admin.admin_redaction_queue'))
 
 
-@admin_bp.route('/operations/redaction/<int:post_id>/reset', methods=['POST'])
+@admin_bp.route('/operations/review/<int:post_id>/reset', methods=['POST'])
 @login_required
 @require_role(*CONTENT_REVIEW_ROLES)
 def admin_redaction_queue_reset(post_id):

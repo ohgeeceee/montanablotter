@@ -1,0 +1,190 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana Blotter Pro for Attorneys — Public Records, Case Monitoring & Client Intelligence" %}
+{% set meta_description = "Montana Blotter Pro gives Montana defense attorneys statewide access to jail bookings, court records, blotters, and public data — with full archive search, name monitoring, CSV/PDF exports, and the ODC attorney discipline list." %}
+{% set canonical_url = "https://montanablotter.com/pro/attorneys" %}
+{% set og_title = "Montana Blotter Pro for Attorneys" %}
+{% set og_description = meta_description %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+
+        <!-- Hero -->
+        <section class="public-hero">
+            <div class="public-hero__frame">
+                <div class="max-w-3xl">
+                    <p class="public-eyebrow">Montana Blotter Pro — Built for Montana defense attorneys</p>
+                    <h1 class="public-title">
+                        One subscription. Every county.<br>
+                        Every booking, every blotter, every discipline record.
+                    </h1>
+                    <p class="public-copy">
+                        Montana Blotter Pro gives you searchable access to jail bookings, court records,
+                        daily blotters, and the Montana Office of Disciplinary Counsel's public discipline
+                        list — with full archive search, name and keyword monitoring, CSV/PDF exports,
+                        and statewide alerts. $19.99/month or $199/year. Cancel anytime.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Three reasons attorneys subscribe -->
+        <section class="public-detail-frame" style="margin-top:2.5rem;">
+            <div class="public-detail-frame__header">
+                <h2 class="public-detail-title">Three reasons Montana attorneys subscribe.</h2>
+            </div>
+            <div class="public-detail-frame__body">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;">
+
+                    <div>
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Discipline defense</p>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Monitor your name on the ODC discipline list</h3>
+                        <p class="text-sm text-slate-700 leading-relaxed mb-3">
+                            Montana Blotter ingests the Office of Disciplinary Counsel's monthly public discipline
+                            list automatically. Add your name to a Pro watchlist and we'll flag any new entry
+                            that matches — so you see it the moment it publishes, not three months later when a
+                            client's family Googles you.
+                        </p>
+                        <a href="/attorney-discipline" class="public-btn text-sm">
+                            Search the discipline list →
+                        </a>
+                    </div>
+
+                    <div>
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Client-intent traffic</p>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Be the lawyer families find after an arrest</h3>
+                        <p class="text-sm text-slate-700 leading-relaxed mb-3">
+                            When someone in your county gets booked, their family searches for "Yellowstone County
+                            jail roster" or "[County] arrests today" within the hour. Montana Blotter ranks #1 for
+                            those searches across the top Montana counties. Our warrant detail pages and county
+                            arrest pages already surface local defense attorneys — and Pro gives you the raw data
+                            behind those pages to run your own intake targeting.
+                        </p>
+                        <a href="/advertise/attorney-sponsorship" class="public-btn text-sm">
+                            Sponsor your firm in the directory →
+                        </a>
+                    </div>
+
+                    <div>
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Case &amp; intake data</p>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Pull booking history, watch opposing parties, export for filing</h3>
+                        <p class="text-sm text-slate-700 leading-relaxed mb-3">
+                            Pro gives you the full archive with no time limit, unlimited name and keyword watchlists,
+                            statewide alerts across all 56 counties, and CSV/PDF exports. Track a client's case
+                            progression, monitor co-defendants or opposing parties, and pull booking records in a
+                            format you can cite in a motion or file with the court.
+                        </p>
+                        <a href="/subscribe" class="public-btn text-sm">
+                            See the full Pro feature list →
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature grid (short, attorney-focused) -->
+        <section class="public-detail-frame" style="margin-top:2rem;">
+            <div class="public-detail-frame__header">
+                <h2 class="public-detail-title">Everything in Pro, for attorneys.</h2>
+                <p class="public-detail-subtitle">All of this is included in the $19.99/month or $199/year Pro subscription.</p>
+            </div>
+            <div class="public-detail-frame__body">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
+                    <div class="public-sidebar-card p-4">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Archive</p>
+                        <p class="text-sm font-bold text-slate-900">Full archive</p>
+                        <p class="text-xs text-slate-600">No time limit. Search every record across all 56 counties.</p>
+                    </div>
+                    <div class="public-sidebar-card p-4">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Monitoring</p>
+                        <p class="text-sm font-bold text-slate-900">Unlimited watchlists</p>
+                        <p class="text-xs text-slate-600">Name, keyword, charge, and case-number monitoring across all counties.</p>
+                    </div>
+                    <div class="public-sidebar-card p-4">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Alerts</p>
+                        <p class="text-sm font-bold text-slate-900">Statewide alerts</p>
+                        <p class="text-xs text-slate-600">Alerts for every county, not just your home county.</p>
+                    </div>
+                    <div class="public-sidebar-card p-4">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Exports</p>
+                        <p class="text-sm font-bold text-slate-900">CSV + PDF exports</p>
+                        <p class="text-xs text-slate-600">Booking records, charges, and court data for filing or intake.</p>
+                    </div>
+                    <div class="public-sidebar-card p-4">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Discipline</p>
+                        <p class="text-sm font-bold text-slate-900">ODC list access</p>
+                        <p class="text-xs text-slate-600">Searchable, date-stamped public discipline records from montanaodc.org.</p>
+                    </div>
+                    <div class="public-sidebar-card p-4">
+                        <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 mb-1">Support</p>
+                        <p class="text-sm font-bold text-slate-900">Priority support</p>
+                        <p class="text-xs text-slate-600">Faster responses when you need a county added or a data question answered.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section class="public-detail-frame" style="margin-top:2rem;text-align:center;">
+            <div class="public-detail-frame__body" style="padding:2.5rem 2rem;">
+                <h2 class="text-2xl font-bold text-slate-900 mb-3">Start your Pro subscription</h2>
+                <p class="text-slate-600 mb-6 max-w-xl">
+                    Full archive, statewide alerts, unlimited watchlists, CSV/PDF exports, and searchable access
+                    to the ODC discipline list. Secure Stripe checkout. Cancel anytime. No hidden fees.
+                </p>
+                <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:.75rem;">
+                    <a href="/register?next=/checkout/pro?interval=monthly"
+                       class="public-btn public-btn--primary" style="min-width:200px;">
+                        Pro — $19.99/month
+                    </a>
+                    <a href="/register?next=/checkout/pro?interval=annual"
+                       class="public-btn" style="min-width:200px;">
+                        $199/year (save 17%)
+                    </a>
+                </div>
+                <p class="text-xs text-slate-400 mt-4">
+                    Already have an account? <a href="/login?next=/subscribe" class="public-policy-inline-link">Sign in to subscribe.</a>
+                </p>
+            </div>
+        </section>
+
+        <!-- FAQ / fine print -->
+        <section class="public-detail-frame" style="margin-top:2.5rem;">
+            <div class="public-detail-frame__header">
+                <h2 class="public-detail-title">What attorneys ask before subscribing.</h2>
+            </div>
+            <div class="public-detail-frame__body">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;">
+                    <div>
+                        <p class="text-sm font-bold text-slate-900 mb-1">Is the ODC discipline list included?</p>
+                        <p class="text-sm text-slate-700">
+                            Yes — the searchable discipline page at /attorney-discipline is freely accessible to
+                            everyone. Pro adds the underlying full dataset, the ability to export it, and the
+                            option to monitor your own name or opponents through watchlists and alerts.
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-900 mb-1">Can I sponsor my firm and subscribe Pro?</p>
+                        <p class="text-sm text-slate-700">
+                            Yes. The sponsorship tiers (Silver $99/mo, Gold $199/mo) are separate products for
+                            directory placement. Pro ($19.99/mo) is the data subscription. Many firms do both —
+                            sponsor their county listing and subscribe Pro for the records access.
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-900 mb-1">Is this a substitute for a bar-verification check?</p>
+                        <p class="text-sm text-slate-700">
+                            No. Montana Blotter publishes public records. You are responsible for verifying your own
+                            and opposing counsel's bar status directly with the Montana State Bar. The ODC list is
+                            a public resource — use it as one signal among several.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+{% endblock %}

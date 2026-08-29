@@ -12,7 +12,7 @@ from db import get_db
 from . import admin_bp, require_role
 
 
-@admin_bp.route('/social-shares', methods=['GET'])
+@admin_bp.route('/content/social/shares', methods=['GET'])
 @require_role()
 def social_shares_list():
     """Recent share attempts across all platforms."""
@@ -67,7 +67,7 @@ def social_shares_list():
     )
 
 
-@admin_bp.route('/social-shares/post/<int:post_id>', methods=['GET'])
+@admin_bp.route('/content/social/shares/post/<int:post_id>', methods=['GET'])
 @require_role()
 def social_shares_for_post(post_id):
     conn = get_db()

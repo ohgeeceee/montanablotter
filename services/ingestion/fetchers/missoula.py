@@ -365,13 +365,30 @@ def ingest_missoula_public_report(url: str, dry_run: bool = False) -> tuple[int,
             )
         return 0, stats
 
-    source_payload = {
-        "source": "missoula_daily_public_report",
-        "report_date": report_date,
-        "incident_count": len(incidents),
-        "incidents": incidents,
-    }
-    serialised_payload = json.dumps(source_payload, sort_keys=True, ensure_ascii=True)
+    # Parse report date from the page's date selector or the most recent record header.
+    report_date = _parse_report_date(page_html, incidents)
+    if dry_run:
+        logger.info("Dry run: fetched %s incidents for %s", len(incidents), report_date)
+        for row in incidents[:10]:
+            print(
+                f"{row['date']} {row['time']} | {row['incident_type']} | "
+                f"{row['location']} | {row['cfs_number']} | {row['agency_name']}"
+            )
+        return 0, stats
+
+    # Compute the expected content hash for this report so we can detect
+    # fresh reports even when source_subject text repeats across days.
+    serialised_payload = json.dumps(
+        {
+            "source": SOURCE_SENDER,
+            "report_date": report_date,
+            "incident_count": len(incidents),
+            "cfs_numbers": sorted({inc["cfs_number"] for inc in incidents if inc["cfs_number"]}),
+            "dates": sorted({inc["date"] for inc in incidents if inc["date"]}),
+        },
+        sort_keys=True,
+        ensure_ascii=True,
+    )
     content_hash = sha256_text(serialised_payload)
 
     source_document_id = ensure_source_document(
