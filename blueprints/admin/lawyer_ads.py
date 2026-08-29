@@ -14,7 +14,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime
 
-from flask import flash, redirect, render_template, request
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from db import get_db

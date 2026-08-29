@@ -15963,6 +15963,8 @@ from blueprints.admin_geocode import admin_geocode_bp
 app.register_blueprint(admin_geocode_bp)
 app.register_blueprint(threedhub_bp)
 app.register_blueprint(chat_agent_bp)
+from blueprints.admin.sex_offender import admin_sex_offender_bp
+app.register_blueprint(admin_sex_offender_bp, url_prefix='/admin/content')
 app.register_blueprint(sitemap_bp)
 app.after_request(after_api_request)
 
