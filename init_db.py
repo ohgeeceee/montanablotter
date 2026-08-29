@@ -2728,6 +2728,54 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_wcr_warrant ON warrant_clear_requests(warrant_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_wcr_person ON warrant_clear_requests(person_name, dob)')
 
+    # 2026-08-29: Paid name-removal / privacy-suppression requests.
+    # One-time $999 payment covers a verified privacy review. On approval, the
+    # person's name is REDACTED (not deleted) across public records. Requires
+    # human review before suppression is applied (see /admin/name-removals).
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS name_suppression_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            public_user_id INTEGER,
+            email TEXT NOT NULL,
+            person_name TEXT NOT NULL,
+            dob TEXT,
+            county TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            stripe_session_id TEXT,
+            stripe_payment_id TEXT,
+            reviewed_by INTEGER,
+            reviewed_at TEXT,
+            applied_at TEXT,
+            rejection_reason TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            ip_address TEXT,
+            notes TEXT
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_nsr_status ON name_suppression_requests(status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_nsr_email ON name_suppression_requests(email)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_nsr_session ON name_suppression_requests(stripe_session_id)')
+
+    # Resolved suppressions applied to public records. Render-time redaction
+    # checks this table so suppressed names display as "Name withheld".
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS suppressed_names (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            person_name_normalized TEXT NOT NULL,
+            county TEXT,
+            request_id INTEGER,
+            applied_by INTEGER,
+            applied_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (request_id) REFERENCES name_suppression_requests(id) ON DELETE SET NULL
+        )
+        '''
+    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_suppressed_name ON suppressed_names(person_name_normalized, county)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_suppressed_request ON suppressed_names(request_id)')
+
     # 2026-06-02: B2B data API tokens. Each token grants access to the
     # /api/v1/data/* endpoints at a given tier with a per-minute rate cap.
     # Tokens are stored as SHA-256 hashes; the plaintext is only shown once
