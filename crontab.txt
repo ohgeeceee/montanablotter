@@ -54,6 +54,12 @@ BASH_ENV=/root/montanablotter/.env
 # Runs at :30 past hours 0, 6, 12, 18 UTC to stagger from court_refresh (:50).
 30 0,6,12,18 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name warrant_ingest --log /root/montanablotter/logs/warrant_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/warrant_ingest.py --all
 
+# Warrant coverage audit — daily verification on top of the 6-hour ingest.
+# Runs once at 07:00, after the 06:30 ingest pass. Flags dead/empty sources,
+# detects warrants first seen in the last 24h, and emails a digest to
+# MB_ADMIN_ALERT_EMAILS. Requires ADMIN_ALERT_EMAILS + SMTP in .env.
+0 7 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name warrant_audit --log /root/montanablotter/logs/warrant_audit.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/warrant_audit.py
+
 # Daily page_views retention prune — deletes rows older than 90 days from
 # the dedicated page_views.db so it never grows into a multi-GB file
 # again. Runs at 03:45, 15 min after lawyer_outreach_cadence and 45 min
