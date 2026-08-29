@@ -40,6 +40,21 @@ body.admin-shell {
   -webkit-font-smoothing: antialiased;
 }
 
+/* The public newspaper stylesheet (mb-newspaper.css) loads after this file and
+   sets `body.mb-newspaper-body` to near-black text on a near-black background.
+   Because that rule is more specific, it overrides the readable admin theme and
+   makes all admin text invisible. Re-assert the high-contrast admin palette with
+   a higher-specificity selector so the admin console stays legible. */
+body.admin-shell.mb-newspaper-body {
+  background-color: var(--adm-bg) !important;
+  color: var(--adm-text) !important;
+}
+
+body.admin-shell.mb-newspaper-body .admin-main,
+body.admin-shell.mb-newspaper-body .admin-main * {
+  color: var(--adm-text);
+}
+
 /* ── Shell layout ────────────────────────────────────────────────────────── */
 
 .admin-shell {

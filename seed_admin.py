@@ -56,15 +56,17 @@ def seed_admin(username='admin', password=''):
         
         if user:
             # Update existing admin
+            # NOTE: write to password_hash (the column the login route reads in
+            # blueprints/admin/security.py), NOT the legacy 'password' column.
             cursor.execute(
-                "UPDATE users SET password = ?, membership = 'pro', role = 'super_admin', is_active = 1 WHERE username = ?",
+                "UPDATE users SET password_hash = ?, membership = 'pro', role = 'super_admin', is_active = 1 WHERE username = ?",
                 (hashed_pw, username)
             )
             print(f"✅ Admin user '{username}' updated with new password")
         else:
             # Create new admin
             cursor.execute(
-                "INSERT INTO users (username, password, membership, role, is_active) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO users (username, password_hash, membership, role, is_active) VALUES (?, ?, ?, ?, ?)",
                 (username, hashed_pw, 'pro', 'super_admin', 1)
             )
             print(f"✅ Admin user '{username}' created")

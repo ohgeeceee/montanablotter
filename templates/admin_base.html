@@ -9,16 +9,16 @@
 {% block extra_head %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
-  {% if request.args.get('admin_newspaper') != '0' %}
+  {% if request.args.get('admin_newspaper') == '1' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='mb-newspaper.css') }}">
   {% endif %}
 {% endblock %}
 
-{% block body_class %}admin-shell font-sans{% if request.args.get('admin_newspaper') != '0' %} mb-newspaper-body{% endif %}{% endblock %}
+{% block body_class %}admin-shell font-sans{% if request.args.get('admin_newspaper') == '1' %} mb-newspaper-body{% endif %}{% endblock %}
 
 {% block content_wrapper_class %}p-0{% endblock %}
 
-{% block admin_shell_open %}<div class="admin-shell{% if request.args.get('admin_newspaper') != '0' %} admin-newspaper-shell{% endif %}{% endblock %}
+{% block admin_shell_open %}<div class="admin-shell{% if request.args.get('admin_newspaper') == '1' %} admin-newspaper-shell{% endif %}{% endblock %}
 {% set admin_path = request.path or '' %}
 {% block admin_shell_close %}</div>{% endblock %}
 
@@ -102,9 +102,6 @@
       <div class="admin-nav-group-divider"></div>
       <a href="/admin/operations/review" class="admin-nav-link {% if admin_path.startswith('/admin/operations/review') %}active{% endif %}">
         <span class="admin-nav-icon">✎</span> Review Queue
-      </a>
-      <a href="/admin/operations/office" class="admin-nav-link {% if admin_path.startswith('/admin/operations/office') %}active{% endif %}">
-        <span class="admin-nav-icon">■</span> Office
       </a>
     </div>
 
@@ -224,7 +221,7 @@
     </div>
   </div>
 </nav>
-{% if request.args.get('admin_newspaper') != '0' %}
+{% if request.args.get('admin_newspaper') == '1' %}
 <div class="mb-np-dateline admin-dateline-strip" aria-label="Edition statistics">
   <div class="mb-np-dateline__item">
     <span class="mb-np-dateline__label">Edition</span>
