@@ -64,11 +64,11 @@
             <p class="text-xs text-slate-500 mt-1">Accounting export and webhook recovery tooling.</p>
         </div>
         <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <a href="/admin/donations/export.csv"
+            <a href="/admin/revenue/donations/export.csv"
                class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em]">
                 Export Donations CSV
             </a>
-            <form method="post" action="/admin/donations/reconcile" class="flex items-center gap-2">
+            <form method="post" action="/admin/revenue/donations/reconcile" class="flex items-center gap-2">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="number" min="1" max="500" name="limit" value="100"
                        class="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">
@@ -135,7 +135,7 @@
             </div>
         </div>
         <div class="px-5 pb-5 text-xs">
-            <a href="/admin/donations/preflight" class="text-blue-700 hover:text-blue-800 font-semibold">Open JSON preflight snapshot</a>
+            <a href="/admin/revenue/donations/preflight" class="text-blue-700 hover:text-blue-800 font-semibold">Open JSON preflight snapshot</a>
         </div>
     </section>
 

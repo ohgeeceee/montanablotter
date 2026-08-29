@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import bcrypt as _raw_bcrypt
 import hmac
 import json
 import os
@@ -204,7 +205,14 @@ def admin_login():
             'SELECT * FROM users WHERE username = ?',
             (username,),
         ).fetchone()
-        password_valid = bool(user_row and check_password_hash(user_row['password'], password))
+        password_valid = bool(
+            user_row
+            and user_row['password_hash']
+            and _raw_bcrypt.checkpw(
+                password.encode('utf-8'),
+                user_row['password_hash'].encode('utf-8'),
+            )
+        )
         is_active_account = bool(user_row and user_row['is_active'])
         has_admin_role = bool(user_row and (user_row['role'] or '').strip() in ADMIN_ACCESS_ROLES)
         is_valid = bool(password_valid and is_active_account and has_admin_role)
@@ -247,7 +255,7 @@ def admin_login():
 @admin_bp.route('/panel')
 def admin_panel_redirect():
     """Legacy /admin/panel redirect to the 3D operator console."""
-    return redirect('/admin/office/')
+    return redirect(url_for('admin.admin_office_view'))
 
 
 @admin_bp.route('/logout')
@@ -266,7 +274,7 @@ def admin_logout():
     return response
 
 
-@admin_bp.route('/security/users')
+@admin_bp.route('/system/users')
 @login_required
 @require_role(*ADMIN_MANAGEMENT_ROLES)
 def admin_security_users():
@@ -329,7 +337,7 @@ def admin_security_users():
     )
 
 
-@admin_bp.route('/security/users/<int:user_id>/role', methods=['POST'])
+@admin_bp.route('/system/users/<int:user_id>/role', methods=['POST'])
 @login_required
 @require_role(*ADMIN_MANAGEMENT_ROLES)
 def admin_security_user_role(user_id):
@@ -372,7 +380,7 @@ def admin_security_user_role(user_id):
     return redirect(url_for('admin.admin_security_users'))
 
 
-@admin_bp.route('/security/users/<int:user_id>/status', methods=['POST'])
+@admin_bp.route('/system/users/<int:user_id>/status', methods=['POST'])
 @login_required
 @require_role(*ADMIN_MANAGEMENT_ROLES)
 def admin_security_user_status(user_id):
@@ -418,7 +426,7 @@ def admin_security_user_status(user_id):
     return redirect(url_for('admin.admin_security_users'))
 
 
-@admin_bp.route('/security/audit')
+@admin_bp.route('/system/audit')
 @login_required
 @require_role(*ADMIN_MANAGEMENT_ROLES)
 def admin_security_audit():

@@ -1,139 +1,266 @@
 {# =========================================================================
-   admin_base.html — Montana Blotter admin panel layout
-   Extends base.html. Gets the standard HTML head, fonts, CSRF inject, and
-   OGC network script. Adds the admin topnav, breadcrumb, and flash region
-   via the admin_nav/admin_breadcrumb/admin_flash blocks (defined in base.html).
-
-   Children override {% block content %} as before.
+   admin_base.html — Montana Blotter admin panel shell (v2)
+   Five-group sidebar navigation: Operations / Content / Audience / Revenue / System.
+   Extends base.html. Gets standard HTML head, fonts, CSRF inject.
+   Children override {% block content %}.
    ========================================================================= #}
 {% extends "base.html" %}
 
 {% block extra_head %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+  {% if request.args.get('admin_newspaper') != '0' %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='mb-newspaper.css') }}">
+  {% endif %}
 {% endblock %}
 
-{% block body_class %}admin-shell font-sans{% endblock %}
+{% block body_class %}admin-shell font-sans{% if request.args.get('admin_newspaper') != '0' %} mb-newspaper-body{% endif %}{% endblock %}
 
 {% block content_wrapper_class %}p-0{% endblock %}
 
+{% block admin_shell_open %}<div class="admin-shell{% if request.args.get('admin_newspaper') != '0' %} admin-newspaper-shell{% endif %}{% endblock %}
+{% set admin_path = request.path or '' %}
+{% block admin_shell_close %}</div>{% endblock %}
+
+{% block admin_flash %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="adm-flash-stack" style="margin-bottom:1rem;">
+      {% for category, message in messages %}
+      <div class="adm-flash {% if category == 'error' %}adm-flash--error{% elif category == 'warning' %}adm-flash--warning{% else %}adm-flash--success{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+{% endblock %}
+
+{# ── Sidebar nav ──────────────────────────────────────────────────────── #}
 {% block admin_nav %}
 {% set admin_path = request.path or '' %}
-{% set _is_super_admin = current_user.is_authenticated and current_user.role == 'super_admin' %}
-<nav class="anav">
-  <div class="anav-inner">
-    <a href="/admin" class="anav-brand" style="text-decoration:none;">
-      <div class="anav-brand-mark">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<nav class="admin-sidebar">
+  <div class="admin-sidebar-inner">
+
+    {# Brand {#}
+    <a href="/admin" class="admin-brand">
+      <div class="admin-brand-mark">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       </div>
       <div>
-        <div class="anav-brand-title">The Montana Blotter</div>
-        <div class="anav-brand-tag">Statewide Operations Console</div>
+        <div class="admin-brand-title">Montana Blotter</div>
+        <div class="admin-brand-tag">Operations Console</div>
       </div>
     </a>
-    <div class="anav-right">
-      <div class="anav-bar" id="admin-nav-bar">
-        <button type="button" class="anav-toggle" onclick="var b=document.getElementById('admin-nav-bar');b.classList.toggle('nav-expanded');this.textContent=b.classList.contains('nav-expanded')?'Close':'Menu'">Menu</button>
-        <a href="/admin/command-center" class="anav-link is-pinned {% if admin_path.startswith('/admin/command-center') or admin_path.startswith('/admin/mission-control') or admin_path in ('/admin/office', '/admin/agents') %}is-active{% endif %}">⌂ Command Center</a>
-        <div class="anav-group">
-          <span class="anav-group-label">Data</span>
-          <a href="/admin" class="anav-link {% if admin_path == '/admin' %}is-active{% endif %}">Dashboard</a>
-          <a href="/admin/ingestion" class="anav-link {% if admin_path.startswith('/admin/ingestion') or admin_path.startswith('/admin/upload') or admin_path.startswith('/admin/blotters') or admin_path.startswith('/admin/blotter/') %}is-active{% endif %}">Ingestion</a>
-          <a href="/admin/operations/sources" class="anav-link {% if admin_path.startswith('/admin/operations/sources') or admin_path.startswith('/admin/operations/courts') or admin_path.startswith('/admin/operations/jail-bookings') or admin_path.startswith('/admin/operations/meetings') or admin_path.startswith('/admin/operations/missing-persons') or admin_path.startswith('/admin/operations/warrants') %}is-active{% endif %}">Sources</a>
-          <a href="/admin/operations/redaction" class="anav-link {% if admin_path.startswith('/admin/operations/redaction') or admin_path.startswith('/admin/post/') %}is-active{% endif %}">Review</a>
-        </div>
-        <div class="anav-group">
-          <span class="anav-group-label">Content</span>
-          <a href="/admin/blog" class="anav-link {% if admin_path.startswith('/admin/blog') %}is-active{% endif %}">Blog</a>
-          <a href="/admin/content/seo" class="anav-link {% if admin_path.startswith('/admin/content/seo') %}is-active{% endif %}">SEO</a>
-          <a href="/admin/facebook" class="anav-link {% if admin_path.startswith('/admin/facebook') %}is-active{% endif %}">Social</a>
-        </div>
-        <div class="anav-group">
-          <span class="anav-group-label">Audience</span>
-          <a href="/admin/audience/subscribers" class="anav-link {% if admin_path.startswith('/admin/audience/subscribers') %}is-active{% endif %}">Subscribers</a>
-          <a href="/admin/audience/email-ops" class="anav-link {% if admin_path.startswith('/admin/audience/email-ops') or admin_path.startswith('/admin/audience/alerts') %}is-active{% endif %}">Email</a>
-          <a href="/admin/audience/comments" class="anav-link {% if admin_path.startswith('/admin/audience/comments') %}is-active{% endif %}">Comments</a>
-        </div>
-        <div class="anav-group">
-          <span class="anav-group-label">Revenue</span>
-          <a href="/admin/bail-ads" class="anav-link {% if admin_path.startswith('/admin/bail-ads') %}is-active{% endif %}">Bail</a>
-          <a href="/admin/recovery-ads" class="anav-link {% if admin_path.startswith('/admin/recovery-ads') %}is-active{% endif %}">Recovery</a>
-          <a href="/admin/donations" class="anav-link {% if admin_path.startswith('/admin/donations') %}is-active{% endif %}">Donations</a>
-        </div>
-        <div class="anav-group">
-          <span class="anav-group-label">System</span>
-          <a href="/admin/analytics" class="anav-link {% if admin_path.startswith('/admin/analytics') or admin_path.startswith('/admin/visitors') %}is-active{% endif %}">Analytics</a>
-          <a href="/admin/workspace" class="anav-link {% if admin_path.startswith('/admin/workspace') %}is-active{% endif %}">Workspace</a>
-          <a href="/admin/office/" class="anav-link {% if admin_path.startswith('/admin/office') %}is-active{% endif %}">Office</a>
-          <a href="/admin/ai" class="anav-link {% if admin_path.startswith('/admin/ai') %}is-active{% endif %}">AI</a>
-          <a href="/hermes/" target="_blank" class="anav-link">Hermes</a>
-        </div>
-        {% if _is_super_admin %}
-        <div class="anav-group">
-          <span class="anav-group-label">Admin</span>
-          <a href="/admin/security/users" class="anav-link {% if admin_path.startswith('/admin/security/users') %}is-active{% endif %}">Users</a>
-          <a href="/admin/lea-management" class="anav-link {% if admin_path.startswith('/admin/lea-management') %}is-active{% endif %}">LEA</a>
-          <a href="/admin/security/audit" class="anav-link {% if admin_path.startswith('/admin/security/audit') %}is-active{% endif %}">Audit</a>
-          <a href="/admin/settings" class="anav-link {% if admin_path.startswith('/admin/settings') %}is-active{% endif %}">Settings</a>
-        </div>
-        {% endif %}
-      </div>
-      <div class="anav-bar">
-        <a href="/" class="anav-link">↗ Public</a>
-        <a href="/admin/logout" class="anav-link anav-logout">Logout</a>
-      </div>
+
+    <div class="admin-sidebar-divider"></div>
+
+    {# ── Group: Operations ── #}
+    <div class="admin-nav-group">
+      <div class="admin-nav-group-label">Operations</div>
+      <a href="/admin/operations" class="admin-nav-link {% if admin_path == '/admin/operations' %}active{% endif %}">
+        <span class="admin-nav-icon">⌂</span> Dashboard
+      </a>
+      <a href="/admin/operations/live" class="admin-nav-link {% if admin_path.startswith('/admin/operations/live') %}active{% endif %}">
+        <span class="admin-nav-icon">◉</span> Live Ops
+      </a>
+      <a href="/admin/operations/runbook" class="admin-nav-link {% if admin_path.startswith('/admin/operations/runbook') %}active{% endif %}">
+        <span class="admin-nav-icon">☰</span> Runbook
+      </a>
+      <div class="admin-nav-group-divider"></div>
+      <a href="/admin/operations/ingestion" class="admin-nav-link {% if admin_path.startswith('/admin/operations/ingestion') %}active{% endif %}">
+        <span class="admin-nav-icon">↓</span> Ingestion
+      </a>
+      <a href="/admin/operations/upload" class="admin-nav-link {% if admin_path == '/admin/operations/upload' %}active{% endif %}">
+        <span class="admin-nav-icon">↑</span> Upload PDF
+      </a>
+      <a href="/admin/operations/blotters" class="admin-nav-link {% if admin_path.startswith('/admin/operations/blotters') %}active{% endif %}">
+        <span class="admin-nav-icon">≡</span> Blotters
+      </a>
+      <div class="admin-nav-group-divider"></div>
+      <a href="/admin/operations/sources" class="admin-nav-link {% if admin_path.startswith('/admin/operations/sources') %}active{% endif %}">
+        <span class="admin-nav-icon">◻</span> Sources
+      </a>
+      <a href="/admin/operations/courts" class="admin-nav-link {% if admin_path.startswith('/admin/operations/courts') %}active{% endif %}">
+        <span class="admin-nav-icon">⚖</span> Courts
+      </a>
+      <a href="/admin/operations/jail-bookings" class="admin-nav-link {% if admin_path.startswith('/admin/operations/jail-bookings') %}active{% endif %}">
+        <span class="admin-nav-icon">☐</span> Jail Bookings
+      </a>
+      <a href="/admin/operations/meetings" class="admin-nav-link {% if admin_path.startswith('/admin/operations/meetings') %}active{% endif %}">
+        <span class="admin-nav-icon">📅</span> Meetings
+      </a>
+      <a href="/admin/operations/missing-persons" class="admin-nav-link {% if admin_path.startswith('/admin/operations/missing-persons') %}active{% endif %}">
+        <span class="admin-nav-icon">?</span> Missing Persons
+      </a>
+      <a href="/admin/operations/warrants" class="admin-nav-link {% if admin_path.startswith('/admin/operations/warrants') %}active{% endif %}">
+        <span class="admin-nav-icon">★</span> Warrants
+      </a>
+      <a href="/admin/operations/data-center" class="admin-nav-link {% if admin_path.startswith('/admin/operations/data-center') %}active{% endif %}">
+        <span class="admin-nav-icon">⌗</span> Data Center
+      </a>
+      <div class="admin-nav-group-divider"></div>
+      <a href="/admin/operations/review" class="admin-nav-link {% if admin_path.startswith('/admin/operations/review') %}active{% endif %}">
+        <span class="admin-nav-icon">✎</span> Review Queue
+      </a>
+      <a href="/admin/operations/office" class="admin-nav-link {% if admin_path.startswith('/admin/operations/office') %}active{% endif %}">
+        <span class="admin-nav-icon">■</span> Office
+      </a>
+    </div>
+
+    <div class="admin-sidebar-divider"></div>
+
+    {# ── Group: Content ── #}
+    <div class="admin-nav-group">
+      <div class="admin-nav-group-label">Content</div>
+      <a href="/admin/content/blog" class="admin-nav-link {% if admin_path.startswith('/admin/content/blog') %}active{% endif %}">
+        <span class="admin-nav-icon">✎</span> Blog
+      </a>
+      <a href="/admin/content/seo" class="admin-nav-link {% if admin_path.startswith('/admin/content/seo') %}active{% endif %}">
+        <span class="admin-nav-icon">🔍</span> SEO
+      </a>
+      <a href="/admin/content/social" class="admin-nav-link {% if admin_path.startswith('/admin/content/social') %}active{% endif %}">
+        <span class="admin-nav-icon">↗</span> Social
+      </a>
+      <a href="/admin/content/code-violations" class="admin-nav-link {% if admin_path.startswith('/admin/content/code-violations') %}active{% endif %}">
+        <span class="admin-nav-icon">📋</span> Code Violations
+      </a>
+      <a href="/admin/content/license-sanctions" class="admin-nav-link {% if admin_path.startswith('/admin/content/license-sanctions') %}active{% endif %}">
+        <span class="admin-nav-icon">📜</span> License/Sanctions
+      </a>
+      <a href="/admin/content/sex-offender" class="admin-nav-link {% if admin_path.startswith('/admin/content/sex-offender') %}active{% endif %}">
+        <span class="admin-nav-icon">⚠</span> Sex Offender
+      </a>
+      <a href="/admin/content/sponsored-digests" class="admin-nav-link {% if admin_path.startswith('/admin/content/sponsored-digests') %}active{% endif %}">
+        <span class="admin-nav-icon">☘</span> Sponsored Digests
+      </a>
+      <a href="/admin/content/case-watch" class="admin-nav-link {% if admin_path.startswith('/admin/content/case-watch') %}active{% endif %}">
+        <span class="admin-nav-icon">◉</span> Case Watch
+      </a>
+    </div>
+
+    <div class="admin-sidebar-divider"></div>
+
+    {# ── Group: Audience ── #}
+    <div class="admin-nav-group">
+      <div class="admin-nav-group-label">Audience</div>
+      <a href="/admin/audience/subscribers" class="admin-nav-link {% if admin_path.startswith('/admin/audience/subscribers') %}active{% endif %}">
+        <span class="admin-nav-icon">☉</span> Subscribers
+      </a>
+      <a href="/admin/audience/email-ops" class="admin-nav-link {% if admin_path.startswith('/admin/audience/email-ops') %}active{% endif %}">
+        <span class="admin-nav-icon">✉</span> Email Ops
+      </a>
+      <a href="/admin/audience/alerts" class="admin-nav-link {% if admin_path.startswith('/admin/audience/alerts') %}active{% endif %}">
+        <span class="admin-nav-icon">🔔</span> Alerts
+      </a>
+      <a href="/admin/audience/comments" class="admin-nav-link {% if admin_path.startswith('/admin/audience/comments') %}active{% endif %}">
+        <span class="admin-nav-icon">💬</span> Comments
+      </a>
+      <a href="/admin/audience/contacts" class="admin-nav-link {% if admin_path.startswith('/admin/audience/contacts') %}active{% endif %}">
+        <span class="admin-nav-icon">📇</span> Contacts
+      </a>
+    </div>
+
+    <div class="admin-sidebar-divider"></div>
+
+    {# ── Group: Revenue ── #}
+    <div class="admin-nav-group">
+      <div class="admin-nav-group-label">Revenue</div>
+      <a href="/admin/revenue/bail-ads" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/bail-ads') %}active{% endif %}">
+        <span class="admin-nav-icon">⚡</span> Bail Ads
+      </a>
+      <a href="/admin/revenue/recovery-ads" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/recovery-ads') %}active{% endif %}">
+        <span class="admin-nav-icon">☘</span> Recovery Ads
+      </a>
+      <a href="/admin/revenue/donations" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/donations') %}active{% endif %}">
+        <span class="admin-nav-icon">$</span> Donations
+      </a>
+      <a href="/admin/revenue/attorney-ads" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/attorney-ads') %}active{% endif %}">
+        <span class="admin-nav-icon">⚖</span> Attorney Ads
+      </a>
+      <a href="/admin/revenue/lawyer-ads" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/lawyer-ads') %}active{% endif %}">
+        <span class="admin-nav-icon">⚖</span> Lawyer Ads
+      </a>
+      <a href="/admin/revenue/lawyer-outreach" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/lawyer-outreach') %}active{% endif %}">
+        <span class="admin-nav-icon">↗</span> Lawyer Outreach
+      </a>
+    </div>
+
+    <div class="admin-sidebar-divider"></div>
+
+    {# ── Group: System ── #}
+    <div class="admin-nav-group">
+      <div class="admin-nav-group-label">System</div>
+      <a href="/admin/system/users" class="admin-nav-link {% if admin_path.startswith('/admin/system/users') %}active{% endif %}">
+        <span class="admin-nav-icon">👤</span> Users
+      </a>
+      <a href="/admin/system/audit" class="admin-nav-link {% if admin_path.startswith('/admin/system/audit') %}active{% endif %}">
+        <span class="admin-nav-icon">📝</span> Audit
+      </a>
+      <a href="/admin/system/lea" class="admin-nav-link {% if admin_path.startswith('/admin/system/lea') %}active{% endif %}">
+        <span class="admin-nav-icon">🏛</span> LEA
+      </a>
+      <a href="/admin/system/settings" class="admin-nav-link {% if admin_path.startswith('/admin/system/settings') %}active{% endif %}">
+        <span class="admin-nav-icon">⚙</span> Settings
+      </a>
+      <a href="/admin/system/ai" class="admin-nav-link {% if admin_path.startswith('/admin/system/ai') %}active{% endif %}">
+        <span class="admin-nav-icon">◆</span> AI Console
+      </a>
+      <a href="/admin/system/workspace" class="admin-nav-link {% if admin_path.startswith('/admin/system/workspace') %}active{% endif %}">
+        <span class="admin-nav-icon">⌨</span> Workspace
+      </a>
+      {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+      <div class="admin-nav-group-divider"></div>
+      <a href="/admin/system/agents" class="admin-nav-link {% if admin_path.startswith('/admin/system/agents') %}active{% endif %}">
+        <span class="admin-nav-icon">◉</span> Agents
+      </a>
+      {% endif %}
+    </div>
+
+    {# Bottom bar {#}
+    <div class="admin-sidebar-bottom">
+      <a href="/" class="admin-nav-link" style="font-size:.7rem;">↗ Public Site</a>
+      <a href="/admin/logout" class="admin-nav-link admin-nav-logout" style="font-size:.7rem;">Logout</a>
     </div>
   </div>
 </nav>
-{% endblock %}
-
-{% block admin_breadcrumb %}
-{% set admin_path = request.path or '' %}
-{% if admin_path.startswith('/admin') and admin_path != '/admin' %}
-<div class="anav-breadcrumb-wrap">
-  <nav aria-label="Breadcrumb" class="anav-breadcrumb">
-    {% if breadcrumbs is defined and breadcrumbs %}
-      <a href="/admin">Dashboard</a>
-      {% for label, href in breadcrumbs %}
-        <span class="sep">/</span>
-        {% if href and not loop.last %}
-          <a href="{{ href }}">{{ label }}</a>
-        {% else %}
-          <span class="current">{{ label }}</span>
-        {% endif %}
-      {% endfor %}
-    {% else %}
-      <a href="/admin">Dashboard</a>
-      {% set _parts = admin_path.strip('/').split('/') %}
-      {% set _accum = [] %}
-      {% for part in _parts[1:] %}
-        {% set _ = _accum.append(part) %}
-        <span class="sep">/</span>
-        {% if loop.last %}
-          <span class="current">{{ part.replace('-',' ').replace('_',' ').title() }}</span>
-        {% else %}
-          <a href="/admin/{{ '/'.join(_accum) }}">{{ part.replace('-',' ').replace('_',' ').title() }}</a>
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-  </nav>
+{% if request.args.get('admin_newspaper') != '0' %}
+<div class="mb-np-dateline admin-dateline-strip" aria-label="Edition statistics">
+  <div class="mb-np-dateline__item">
+    <span class="mb-np-dateline__label">Edition</span>
+    <span class="mb-np-dateline__value">Admin Console</span>
+  </div>
+  <div class="mb-np-dateline__item">
+    <span class="mb-np-dateline__label">User</span>
+    <span class="mb-np-dateline__value">{{ current_user.username if current_user.is_authenticated else '—' }}</span>
+  </div>
+  <div class="mb-np-dateline__item">
+    <span class="mb-np-dateline__label">Role</span>
+    <span class="mb-np-dateline__value">{{ current_user.role if current_user.is_authenticated else '—' }}</span>
+  </div>
 </div>
 {% endif %}
 {% endblock %}
 
-{% block admin_flash %}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-  <div class="adm-flash-stack" style="margin-bottom:1rem;">
-    {% for category, message in messages %}
-    <div class="adm-flash {% if category == 'error' %}adm-flash--error{% elif category == 'warning' %}adm-flash--warning{% else %}adm-flash--success{% endif %}">
-      {{ message }}
-    </div>
+{# ── Breadcrumb strip ─────────────────────────────────────────────────── #}
+{% block admin_breadcrumb %}
+{% set _admin_path = request.path or '' %}
+{% if _admin_path.startswith('/admin') and _admin_path != '/admin' %}
+<div class="admin-breadcrumb-wrap">
+  <nav aria-label="Breadcrumb" class="admin-breadcrumb">
+    <a href="/admin">Dashboard</a>
+    {% set _parts = _admin_path.strip('/').split('/') %}
+    {% set _accum = [] %}
+    {% for part in _parts[1:] %}
+      {% set _ = _accum.append(part) %}
+      <span class="sep">/</span>
+      {% if loop.last %}
+        <span class="current">{{ part.replace('-',' ').replace('_',' ').title() }}</span>
+      {% else %}
+        <a href="/admin/{{ '/'.join(_accum) }}">{{ part.replace('-',' ').replace('_',' ').title() }}</a>
+      {% endif %}
     {% endfor %}
-  </div>
-  {% endif %}
-{% endwith %}
+  </nav>
+</div>
+{% endif %}
 {% endblock %}
-
-{% block admin_shell_open %}<div class="adm-shell">{% endblock %}
-{% block admin_shell_close %}</div>{% endblock %}

@@ -21,11 +21,11 @@
             <p class="text-sm text-gray-500 mt-1">Turn the current archive window into a roundup draft with cleaner titles, excerpts, and internal links.</p>
         </div>
         <div class="flex items-center gap-3">
-            <a href="/admin/blog" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+            <a href="/admin/content/blog" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
                 <i class="fas fa-arrow-left text-xs"></i> Back to Blog
             </a>
             {% if workflow %}
-            <a href="/admin/blog/new?template=weekly_digest" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700">
+            <a href="/admin/content/blog/new?template=weekly_digest" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700">
                 <i class="fas fa-wand-magic-sparkles text-xs"></i> Open Prefilled Draft
             </a>
             {% endif %}
@@ -233,7 +233,7 @@
                 <a href="/blog/{{ latest_weekly_digest.slug }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800">
                     <i class="fas fa-external-link-alt text-xs"></i> View Live Digest
                 </a>
-                <a href="/admin/blog/{{ latest_weekly_digest.id }}/edit" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                <a href="/admin/content/blog/{{ latest_weekly_digest.id }}/edit" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
                     <i class="fas fa-pen text-xs"></i> Edit
                 </a>
             </div>
@@ -246,7 +246,7 @@
             <p class="text-[11px] font-black uppercase tracking-[0.18em] text-gray-400">Recent Blog Activity</p>
             <div class="mt-3 space-y-2">
                 {% for post in recent_posts %}
-                <a href="/admin/blog/{{ post.id }}/edit" class="block rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 transition hover:bg-gray-100">
+                <a href="/admin/content/blog/{{ post.id }}/edit" class="block rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 transition hover:bg-gray-100">
                     <p class="text-sm font-semibold text-gray-900">{{ post.title }}</p>
                     <p class="mt-1 text-xs text-gray-500">{{ post.created_at[:10] if post.created_at else '—' }} · {% if post.published %}Published{% else %}Draft{% endif %}</p>
                 </a>

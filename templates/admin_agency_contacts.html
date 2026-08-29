@@ -132,7 +132,7 @@
 <script>
 document.querySelectorAll('.toggle-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
-    const res = await fetch(`/admin/agency-contacts/${btn.dataset.id}/toggle`, {
+    const res = await fetch(`/admin/audience/contacts/${btn.dataset.id}/toggle`, {
       method: 'POST',
       headers: {'Content-Type':'application/x-www-form-urlencoded'},
       body: `field=${btn.dataset.field}`,
@@ -147,7 +147,7 @@ document.getElementById('sendTestBtn').addEventListener('click', async () => {
   const result = document.getElementById('sendResult');
   if (!email) { result.textContent = 'Enter an email address first'; result.style.color = '#f97316'; return; }
   result.textContent = 'Sending…'; result.style.color = '#64748b';
-  const res = await fetch('/admin/agency-contacts/send-test', {
+  const res = await fetch('/admin/audience/contacts/send-test', {
     method: 'POST',
     headers: {'Content-Type':'application/x-www-form-urlencoded'},
     body: `county=${encodeURIComponent(county)}&email=${encodeURIComponent(email)}`,
@@ -161,7 +161,7 @@ document.getElementById('sendAllBtn').addEventListener('click', async () => {
   if (!confirm('Send weekly crime briefs to all active contacts now?')) return;
   const result = document.getElementById('sendResult');
   result.textContent = 'Sending to all active contacts…'; result.style.color = '#64748b';
-  const res = await fetch('/admin/agency-contacts/send-all', { method: 'POST' });
+  const res = await fetch('/admin/audience/contacts/send-all', { method: 'POST' });
   const data = await res.json();
   result.textContent = `Done — Sent: ${data.sent} | Failed: ${data.failed} | Skipped: ${data.skipped}`;
   result.style.color = '#94a3b8';

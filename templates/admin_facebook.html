@@ -20,10 +20,10 @@
                 <p class="text-sm text-slate-500 mt-1">Queue blotter posts, publish manually, or let cron auto-publish.</p>
             </div>
             <div class="flex items-center gap-2">
-                <a href="/admin/facebook/connect" class="inline-flex items-center gap-2 bg-[#1877F2] text-white px-4 py-2 rounded-lg hover:bg-[#1464d8] transition text-sm font-bold">
+                <a href="/admin/content/social/connect" class="inline-flex items-center gap-2 bg-[#1877F2] text-white px-4 py-2 rounded-lg hover:bg-[#1464d8] transition text-sm font-bold">
                     <i class="fab fa-facebook"></i> Connect Facebook Page
                 </a>
-                <a href="/admin/blotters" class="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition text-sm font-bold">
+                <a href="/admin/operations/blotters" class="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition text-sm font-bold">
                     <i class="fas fa-arrow-left"></i> Back to Blotters
                 </a>
             </div>
@@ -33,7 +33,7 @@
             <section class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
                 <h2 class="text-lg font-black text-slate-900 mb-1">Facebook Settings</h2>
                 <p class="text-xs text-slate-500 mb-5">Use a Facebook Page access token with permissions to publish to your page.</p>
-                <form method="POST" action="/admin/facebook" class="space-y-4">
+                <form method="POST" action="/admin/content/social" class="space-y-4">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_settings">
                     <div class="grid md:grid-cols-2 gap-4">
@@ -88,7 +88,7 @@
             <section class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
                 <h2 class="text-lg font-black text-slate-900">Queue Actions</h2>
 
-                <form method="POST" action="/admin/facebook" class="space-y-2">
+                <form method="POST" action="/admin/content/social" class="space-y-2">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="queue_post">
                     <label class="text-sm font-semibold text-slate-700">Queue post by ID</label>
@@ -98,7 +98,7 @@
                     </div>
                 </form>
 
-                <form method="POST" action="/admin/facebook" class="space-y-2">
+                <form method="POST" action="/admin/content/social" class="space-y-2">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="queue_recent">
                     <label class="text-sm font-semibold text-slate-700">Queue latest posts</label>
@@ -108,7 +108,7 @@
                     </div>
                 </form>
 
-                <form method="POST" action="/admin/facebook" class="space-y-2">
+                <form method="POST" action="/admin/content/social" class="space-y-2">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="run_publisher">
                     <label class="text-sm font-semibold text-slate-700">Publish now</label>
@@ -158,7 +158,7 @@
                                 {% endif %}
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <form method="POST" action="/admin/facebook" class="inline">
+                                <form method="POST" action="/admin/content/social" class="inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="queue_post">
                                     <input type="hidden" name="post_id" value="{{ post.id }}">
@@ -230,7 +230,7 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 {% if row.status == 'queued' %}
-                                <form method="POST" action="/admin/facebook" class="inline">
+                                <form method="POST" action="/admin/content/social" class="inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="publish_queue_item">
                                     <input type="hidden" name="queue_id" value="{{ row.id }}">
@@ -239,7 +239,7 @@
                                     </button>
                                 </form>
                                 {% elif row.status == 'failed' or row.status == 'skipped' %}
-                                <form method="POST" action="/admin/facebook" class="inline">
+                                <form method="POST" action="/admin/content/social" class="inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="retry_queue_item">
                                     <input type="hidden" name="queue_id" value="{{ row.id }}">

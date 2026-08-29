@@ -58,7 +58,7 @@ def _parse_link_ids(raw: str) -> list[int]:
     return deduped
 
 
-@admin_bp.route('/case-watch', methods=['GET'])
+@admin_bp.route('/content/case-watch', methods=['GET'])
 @require_role()
 def case_watch_list():
     """Overview dashboard for booking → court-case links."""
@@ -142,7 +142,7 @@ def case_watch_list():
     )
 
 
-@admin_bp.route('/case-watch/mark-notified', methods=['POST'])
+@admin_bp.route('/content/case-watch/mark-notified', methods=['POST'])
 @require_role()
 def case_watch_mark_notified():
     """Dismiss pending notifications by stamping notified_admin_at."""
@@ -159,7 +159,7 @@ def case_watch_mark_notified():
     return redirect(url_for('admin.case_watch_list'))
 
 
-@admin_bp.route('/case-watch/refresh', methods=['POST'])
+@admin_bp.route('/content/case-watch/refresh', methods=['POST'])
 @require_role()
 def case_watch_refresh():
     """Trigger refresh_outcome_data inline so admins don't have to wait 15 min."""

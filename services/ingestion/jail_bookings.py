@@ -67,15 +67,15 @@ DB_LOCK_RETRY_ATTEMPTS = int(getattr(config, "DB_LOCK_RETRY_ATTEMPTS", 5))
 DB_LOCK_RETRY_SLEEP_SECONDS = float(getattr(config, "DB_LOCK_RETRY_SLEEP_SECONDS", 3.0))
 PUBLISHER_PAYLOAD_PATH = str(getattr(config, "NEXTJS_JAIL_BOOKING_PAYLOAD_PATH", "") or "").strip()
 
-SUPPORTED_ADAPTERS = {"beaverhead", "big-horn", "broadwater", "cascade", "carbon", "custer", "fallon", "fergus", "flathead", "gallatin", "glacier", "jefferson", "lake", "lewis-and-clark", "lincoln", "madison", "meagher", "missoula", "park", "ravalli", "roosevelt", "rosebud", "sanders", "silver-bow", "stillwater", "valley", "wheatland", "yellowstone"}
+SUPPORTED_ADAPTERS = {"beaverhead", "big-horn", "broadwater", "cascade", "carbon", "custer", "dawson", "fallon", "fergus", "flathead", "gallatin", "glacier", "granite", "jefferson", "lake", "lewis-and-clark", "lincoln", "madison", "meagher", "mineral", "missoula", "park", "phillips", "pondera", "powell", "ravalli", "roosevelt", "rosebud", "sanders", "silver-bow", "stillwater", "valley", "wheatland", "yellowstone"}
 SKIPPED_SOURCES = {
-    "broadwater": "Official roster host is timing out from the ingest machine.",
+    "broadwater": "Site times out from ingest machine (TCP connect to 34.94.199.155:443 fails; both HTTP and HTTPS). Parser ready — re-enable when network path recovers.",
 }
 
 ZUERCHER_COUNTIES = frozenset({
     "jefferson", "ravalli", "madison", "carbon",
     "stillwater", "meagher", "wheatland", "roosevelt",
-    "broadwater", "gallatin",
+    "gallatin",
 })
 TRACKED_SOURCES = {
     "yellowstone": {
@@ -217,8 +217,8 @@ TRACKED_SOURCES = {
     "broadwater": {
         "county_name": "Broadwater",
         "facility_name": "Broadwater County Detention Center",
-        "roster_url": "https://broadwater-so-mt.zuercherportal.com/#/inmates",
-        "phone": None,
+        "roster_url": "https://www.broadwatercountysheriff.org/roster.php",
+        "phone": "406-266-3441",
         "coverage_tier": "standard",
         "is_featured": 0,
     },
@@ -266,6 +266,54 @@ TRACKED_SOURCES = {
         "county_name": "Fallon",
         "facility_name": "Fallon County Detention Center",
         "roster_url": "https://falloncountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "dawson": {
+        "county_name": "Dawson",
+        "facility_name": "Dawson County Detention Center",
+        "roster_url": "https://www.co.dawson.mt.us",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "granite": {
+        "county_name": "Granite",
+        "facility_name": "Granite County Detention Center",
+        "roster_url": "https://www.co.granite.mt.us",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "mineral": {
+        "county_name": "Mineral",
+        "facility_name": "Mineral County Detention Center",
+        "roster_url": "https://www.co.mineral.mt.us",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "phillips": {
+        "county_name": "Phillips",
+        "facility_name": "Phillips County Detention Center",
+        "roster_url": "https://www.phillipscosheriff.com",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "pondera": {
+        "county_name": "Pondera",
+        "facility_name": "Pondera County Detention Center",
+        "roster_url": "https://www.co.pondera.mt.us",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+    },
+    "powell": {
+        "county_name": "Powell",
+        "facility_name": "Powell County Detention Center",
+        "roster_url": "https://www.co.powell.mt.us",
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
@@ -1363,6 +1411,7 @@ def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[Jail
         from services.ingestion.fetchers.valley_inmate import fetch_valley_bookings
         return fetch_valley_bookings(roster_url)
     if county_slug == "broadwater":
+        from services.ingestion.fetchers.broadwater_inmate import fetch_broadwater_bookings
         return fetch_broadwater_bookings(roster_url)
     if county_slug == "flathead":
         return fetch_flathead_bookings(roster_url)
@@ -1390,12 +1439,33 @@ def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[Jail
         return fetch_silver_bow_bookings(roster_url)
     if county_slug == "rosebud":
         return fetch_rosebud_bookings(roster_url)
+    if county_slug == "wheatland":
+        from services.ingestion.fetchers.wheatland_inmate import fetch_wheatland_bookings
+        return fetch_wheatland_bookings(roster_url)
     if county_slug == "park":
         from services.ingestion.roster_generic import fetch_park_bookings
         return fetch_park_bookings(roster_url)
     if county_slug == "beaverhead":
         from services.ingestion.roster_generic import fetch_beaverhead_bookings
         return fetch_beaverhead_bookings(roster_url)
+    if county_slug == "dawson":
+        from services.ingestion.fetchers.dawson_inmate import fetch_dawson_bookings
+        return fetch_dawson_bookings(roster_url)
+    if county_slug == "granite":
+        from services.ingestion.fetchers.granite_inmate import fetch_granite_bookings
+        return fetch_granite_bookings(roster_url)
+    if county_slug == "mineral":
+        from services.ingestion.fetchers.mineral_inmate import fetch_mineral_bookings
+        return fetch_mineral_bookings(roster_url)
+    if county_slug == "phillips":
+        from services.ingestion.fetchers.phillips_inmate import fetch_phillips_bookings
+        return fetch_phillips_bookings(roster_url)
+    if county_slug == "pondera":
+        from services.ingestion.fetchers.pondera_inmate import fetch_pondera_bookings
+        return fetch_pondera_bookings(roster_url)
+    if county_slug == "powell":
+        from services.ingestion.fetchers.powell_inmate import fetch_powell_bookings
+        return fetch_powell_bookings(roster_url)
     raise RuntimeError(f"No adapter for county slug: {county_slug}")
 
 

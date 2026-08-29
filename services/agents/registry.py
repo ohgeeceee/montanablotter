@@ -76,7 +76,7 @@ def _openclaw_agents() -> list[AgentEntry]:
                 source='openclaw',
                 status=status,
                 last_seen=last_seen,
-                url=f'/admin/office/3d?agent={aid}&runtime=openclaw',
+                url=f'/admin/operations/office/?agent={aid}&runtime=openclaw',
                 capabilities=['chat', 'tool-use'],
                 meta={'model': agent.get('model'), 'workspace': agent.get('workspace')},
             )

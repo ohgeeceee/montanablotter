@@ -1,0 +1,90 @@
+{% extends "admin.html" %}
+
+{% block title %}Create Template | Montana Blotter Admin{% endblock %}
+
+{% block admin_page_title %}
+  <div class="flex items-center gap-3 mb-6">
+    <div class="p-3 bg-slate-800 rounded-full">
+      <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 16H9v-2.828l8.586-8.586z"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-lg font-bold text-white">New Template</h1>
+      <p class="text-xs text-slate-400 mt-0.5">Write a reusable email template with placeholders for personalization.</p>
+    </div>
+  </div>
+{% endblock %}
+
+{% block admin_content %}
+
+  <form method="POST" action="{{ url_for('admin.admin_email_templates') }}" class="space-y-5 max-w-3xl">
+
+    {# Name #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="name" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Template Name</label>
+      <input type="text" name="name" id="name" maxlength="120" required
+             class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
+             placeholder="e.g. Lawyer Re-engagement - July 2026">
+      <p class="text-[10px] text-slate-500 mt-1">A descriptive name so you can find this template later.</p>
+    </div>
+
+    {# Audience #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="audience" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Audience</label>
+      <select name="audience" id="audience" required
+              class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <option value="">— Select —</option>
+        <option value="lawyers">Attorneys & Law Firms</option>
+        <option value="bail_bondsmen">Bail Bondsmen & Agencies</option>
+        <option value="clients">Subscribers & Registered Users</option>
+        <option value="courts">Courts & Judicial Offices</option>
+        <option value="police">Police Departments & Sheriff Offices</option>
+      </select>
+      <p class="text-[10px] text-slate-500 mt-1">Which audience is this template designed for? This helps you find it later.</p>
+    </div>
+
+    {# Subject #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="subject" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Subject Line</label>
+      <input type="text" name="subject" id="subject" maxlength="250" required
+             class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
+             placeholder="e.g. Montana court records — direct access for your firm">
+      <p class="text-[10px] text-slate-500 mt-1">Max 250 characters. Use [Name], [County], [Plan] for personalization.</p>
+    </div>
+
+    {# Body #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="body" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Email Body</label>
+      <textarea name="body" id="body" rows="20" required
+                class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                placeholder="Dear [Name],\n\nYour message here...\n\nBest,\n[Your Name]"></textarea>
+      <div class="flex flex-wrap gap-2 mt-2">
+        <span class="px-2 py-1 bg-slate-700 text-slate-300 rounded text-[10px]"><strong class="text-blue-300">[Name]</strong> — recipient's name</span>
+        <span class="px-2 py-1 bg-slate-700 text-slate-300 rounded text-[10px]"><strong class="text-blue-300">[Agency]</strong> — agency name</span>
+        <span class="px-2 py-1 bg-slate-700 text-slate-300 rounded text-[10px]"><strong class="text-blue-300">[County]</strong> — county</span>
+        <span class="px-2 py-1 bg-slate-700 text-slate-300 rounded text-[10px]"><strong class="text-blue-300">[Plan]</strong> — subscription tier</span>
+      </div>
+    </div>
+
+    {# Notes #}
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
+      <label for="notes" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Internal Notes <span class="text-slate-500 font-normal">(optional)</span></label>
+      <textarea name="notes" id="notes" rows="3" maxlength="500"
+                class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                placeholder="When to use this template, what makes it effective, etc."></textarea>
+    </div>
+
+    {# Submit #}
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-blue-600/20">
+        Save Template
+      </button>
+      <a href="{{ url_for('admin.admin_email_templates') }}" class="px-4 py-2.5 text-slate-400 hover:text-white text-sm font-medium transition">
+        Cancel
+      </a>
+    </div>
+  </form>
+
+{% endblock %}

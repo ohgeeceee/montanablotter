@@ -33,7 +33,7 @@
                 <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Role Model</p>
                 <p class="text-sm font-semibold text-slate-900 mt-2">RBAC enabled</p>
             </div>
-            <a href="/admin/security/audit" class="rounded-xl border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 transition">
+            <a href="/admin/system/audit" class="rounded-xl border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 transition">
                 <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Audit</p>
                 <p class="text-sm font-semibold text-slate-900 mt-2">Open log</p>
             </a>
@@ -68,7 +68,7 @@
                 <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition">
                     Apply
                 </button>
-                <a href="/admin/security/users" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                <a href="/admin/system/users" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
                     Reset
                 </a>
             </div>
@@ -101,7 +101,7 @@
                             <p class="text-xs text-slate-400 mt-1">Created {{ user.created_at or '-' }}</p>
                         </td>
                         <td class="px-5 py-4">
-                            <form method="post" action="/admin/security/users/{{ user.id }}/role" class="flex items-center gap-2">
+                            <form method="post" action="/admin/system/users/{{ user.id }}/role" class="flex items-center gap-2">
                                 <select name="role" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">
                                     {% for value, label in role_options.items() %}
                                     <option value="{{ value }}" {% if user.role == value %}selected{% endif %}>{{ label }}</option>
@@ -132,7 +132,7 @@
                             </span>
                         </td>
                         <td class="px-5 py-4">
-                            <form method="post" action="/admin/security/users/{{ user.id }}/status" class="flex justify-end">
+                            <form method="post" action="/admin/system/users/{{ user.id }}/status" class="flex justify-end">
                                 <input type="hidden" name="is_active" value="{{ 0 if user.is_active else 1 }}">
                                 <button type="submit"
                                         class="rounded-lg px-3 py-2 text-xs font-black uppercase tracking-[0.12em] {% if user.is_active %}bg-rose-600 text-white hover:bg-rose-700{% else %}bg-emerald-600 text-white hover:bg-emerald-700{% endif %} transition">

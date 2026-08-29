@@ -1,0 +1,296 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana Blotter Lawyer Directory — Cok Kinzler PLLC · Gallatin County" %}
+{% set canonical_url = "https://montanablotter.com/advertise/lawyers/one-pager-ck" %}
+{% set noindex = true %}
+
+{% block body_class %}advertise-lawyers-onepager-page{% endblock %}
+
+{% block extra_head %}
+<style>
+  .mb-onepager {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: var(--space-8) var(--page-gutter);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+  .mb-onepager__head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-4);
+    align-items: end;
+    border-bottom: 2px solid #1e1b18;
+    padding-bottom: var(--space-3);
+  }
+  .mb-onepager__title {
+    font-family: var(--font-serif-display);
+    font-size: var(--text-headline-lg);
+    margin: 0;
+    color: var(--text-headline);
+  }
+  .mb-onepager__sub {
+    color: var(--text-secondary);
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-body-sm);
+  }
+  .mb-onepager__cta {
+    display: inline-block;
+    padding: var(--space-2) var(--space-4);
+    background: #1e3a8a;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-kicker);
+  }
+  .mb-onepager__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4);
+  }
+  @media (max-width: 760px) {
+    .mb-onepager__grid { grid-template-columns: 1fr; }
+    .mb-onepager__head { grid-template-columns: 1fr; }
+  }
+  .mb-onepager__card {
+    border: 1px solid var(--ink-200);
+    border-radius: 6px;
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    background: var(--surface-card);
+  }
+  .mb-onepager__card--gold {
+    border: 3px solid #b8860b;
+    background: linear-gradient(180deg, #fffdf0 0%, #fff 70%);
+  }
+  .mb-onepager__pkg {
+    font-family: var(--font-mono);
+    font-size: var(--text-kicker);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-kicker);
+    color: var(--text-secondary);
+    margin: 0;
+  }
+  .mb-onepager__price {
+    font-family: var(--font-serif-display);
+    font-size: 1.75rem;
+    font-weight: var(--weight-display);
+    color: var(--text-headline);
+    margin: 0;
+  }
+  .mb-onepager__annual {
+    font-size: var(--text-caption);
+    color: var(--text-secondary);
+    margin: 0;
+  }
+  .mb-onepager__features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: var(--text-body-sm);
+    color: var(--text-body);
+    line-height: var(--leading-body);
+  }
+  .mb-onepager__features li {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--ink-100);
+  }
+  .mb-onepager__features li:last-child { border-bottom: none; }
+  .mb-onepager__features li::before { content: "✓ "; color: #047857; font-weight: bold; }
+  .mb-onepager__bullets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3) var(--space-4);
+    font-size: var(--text-body-sm);
+    color: var(--text-body);
+    line-height: var(--leading-body);
+  }
+  @media (max-width: 760px) { .mb-onepager__bullets { grid-template-columns: 1fr; } }
+  .mb-onepager__bullet strong {
+    display: block;
+    color: var(--text-headline);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-kicker);
+    margin-bottom: 0.15rem;
+  }
+  .mb-onepager__disclosure {
+    background: var(--surface-page);
+    border-left: 3px solid #b8860b;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-caption);
+    color: var(--text-body);
+    line-height: var(--leading-body);
+  }
+  .mb-onepager__row {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .mb-onepager__row a {
+    color: var(--text-link);
+    text-decoration: underline;
+  }
+  .mb-onepager__printnote {
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    color: var(--text-secondary);
+  }
+  @media print {
+    .mb-np-masthead, .mb-np-nav, .mb-np-dateline, .mb-np-otbar, footer { display: none !important; }
+    .mb-onepager { padding: 0; max-width: 100%; }
+    .mb-onepager__cta { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<a href="/advertise/lawyers" style="color: var(--text-body);">Advertise</a>
+<span class="mx-2">/</span>
+<span style="color: var(--text-headline); font-weight: var(--weight-semibold);">Cok Kinzler PLLC · Gallatin County</span>
+{% endblock %}
+
+{% block content %}
+<main class="mb-main">
+  <div class="mb-onepager">
+
+    <header class="mb-onepager__head">
+      <div>
+        <p class="mb-onepager__pkg">Montana Blotter · /lawyers · Paid Directory</p>
+        <h1 class="mb-onepager__title">Put Cok Kinzler PLLC on the Gallatin County pages people are already reading.</h1>
+        <p class="mb-onepager__sub">
+          Bozeman criminal-defense and intake clients land on Montana Blotter when a booking
+          hits Gallatin County. A Gold Priority listing puts your firm's name, phone, and intake
+          link directly on those pages — with priority lead routing and real-time arrest alerts.
+        </p>
+      </div>
+      <a class="mb-onepager__cta" href="/advertise/lawyers/checkout?package=gold">Buy a Gold placement &rarr;</a>
+    </header>
+
+    {# ---- Packages ---- #}
+    {% set packages = [
+      {
+        name: 'Bronze Listing',
+        price_label: '$149/mo',
+        price_label_annual: '$1,520/yr',
+        featured: false,
+        features: [
+          'Profile listing on /lawyers',
+          'Tap-to-call + tap-to-email',
+          'Tap-to-text',
+          'Public intake lead routing',
+          'Counties: Gallatin (or your choice)',
+        ]
+      },
+      {
+        name: 'Silver Featured',
+        price_label: '$299/mo',
+        price_label_annual: '$3,050/yr',
+        featured: true,
+        features: [
+          'Everything in Bronze',
+          'Logo on your profile card',
+          'Firm description — 500 characters',
+          'Pinned above Bronze in your counties',
+          'Monthly performance report',
+        ]
+      },
+      {
+        name: 'Gold Priority',
+        price_label: '$599/mo',
+        price_label_annual: '$6,110/yr',
+        featured: false,
+        features: [
+          'Everything in Silver',
+          'Top of every Gallatin County section',
+          'Photo on your profile card',
+          'Custom callout / tagline',
+          'Priority lead routing (first in Gallatin)',
+          'Immediate email lead alerts',
+          'Full conversion report',
+        ]
+      }
+    ] %}
+
+    <section class="mb-onepager__grid">
+      {% for pkg in packages %}
+      <article class="mb-onepager__card {% if pkg.featured %}mb-onepager__card--gold{% endif %}">
+        <p class="mb-onepager__pkg">{{ pkg.name }}</p>
+        <p class="mb-onepager__price">{{ pkg.price_label }}</p>
+        <p class="mb-onepager__annual">or {{ pkg.price_label_annual }} billed annually</p>
+        <ul class="mb-onepager__features">
+          {% for f in pkg.features %}<li>{{ f }}</li>{% endfor %}
+        </ul>
+      </article>
+      {% endfor %}
+    </section>
+
+    {# ---- What every paid listing includes ---- #}
+    <section>
+      <p class="mb-onepager__pkg">What a Gold listing gives Cok Kinzler PLLC</p>
+      <div class="mb-onepager__bullets">
+        <div class="mb-onepager__bullet">
+          <strong>County targeting</strong>
+          Pick Gallatin and any adjacent counties you actually serve — Park, Madison,
+          Meagher, Jefferson. Out-of-county impressions are not counted against you.
+          Gallatin County currently has the Gold slot open.
+        </div>
+        <div class="mb-onepager__bullet">
+          <strong>Tap-to-call + tap-to-text</strong>
+          Every listing is mobile-first. One tap to call the Cok Kinzler Bozeman office,
+          one tap to text. No friction for a family member searching at 2 a.m.
+        </div>
+        <div class="mb-onepager__bullet">
+          <strong>Priority lead routing</strong>
+          Consumers can submit a free intake form from the Gallatin County page. Gold-tier
+          firms in Gallatin get the lead first — Silver and Bronze are notified only if the
+          lead is not claimed within the short window.
+        </div>
+        <div class="mb-onepager__bullet">
+          <strong>Real-time arrest alerts</strong>
+          Optional add-on: get an email when a new booking hits Gallatin County — within
+          minutes of ingestion. Gold-tier firms are contacted first.
+        </div>
+        <div class="mb-onepager__bullet">
+          <strong>Control panel</strong>
+          Tokenized link for Cok Kinzler PLLC to update tagline, description, CTA, logo,
+          and photo. No login required. Your firm owns the copy.
+        </div>
+        <div class="mb-onepager__bullet">
+          <strong>Monthly report</strong>
+          Real numbers: impressions, clicks, calls, leads delivered, delivery failures, and
+          your firm's own contacted / consultation / retained counts. No estimates.
+        </div>
+      </div>
+    </section>
+
+    {# ---- Disclosure ---- #}
+    <div class="mb-onepager__disclosure">
+      Advertiser disclosure: Montana Blotter receives payment for placements on
+      <a href="/lawyers">/lawyers</a>. Tier ordering determines placement position.
+      Listing copy must comply with Montana Rules of Professional Conduct 7.1–7.5; the
+      Montana State Bar lawyer referral service is linked from
+      <a href="/lawyers">/lawyers</a> as an alternative resource.
+      Montana Blotter does not endorse Cok Kinzler PLLC or any listed attorney.
+    </div>
+
+    {# ---- Next steps ---- #}
+    <section class="mb-onepager__row">
+      <a class="mb-onepager__cta" href="/advertise/lawyers/checkout?package=gold">Start Gold checkout</a>
+      <a href="/advertise/lawyers/sample-report-ck">See a sample report for Cok Kinzler PLLC &rarr;</a>
+      <a href="/advertise/lawyers">Back to full landing page</a>
+      <span class="mb-onepager__printnote">Press ⌘P / Ctrl-P to save as PDF.</span>
+    </section>
+
+  </div>
+</main>
+{% endblock %}

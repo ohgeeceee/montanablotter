@@ -50,6 +50,10 @@ BASH_ENV=/root/montanablotter/.env
 # public datasets at 06:10 daily.
 10 6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name datasets_refresh --log /root/montanablotter/logs/datasets_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/refresh_datasets.py
 
+# Warrant ingestion — fetch and store Montana county warrant lists every 6 hours.
+# Runs at :30 past hours 0, 6, 12, 18 UTC to stagger from court_refresh (:50).
+30 0,6,12,18 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name warrant_ingest --log /root/montanablotter/logs/warrant_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/warrant_ingest.py --all
+
 # Daily page_views retention prune — deletes rows older than 90 days from
 # the dedicated page_views.db so it never grows into a multi-GB file
 # again. Runs at 03:45, 15 min after lawyer_outreach_cadence and 45 min
@@ -99,6 +103,12 @@ BASH_ENV=/root/montanablotter/.env
 
 # DB backup — daily at 03:00. Off-peak.
 0 3 * * * /usr/bin/nice -n 19 /bin/bash /root/montanablotter/scripts/ops/backup_db.sh
+
+# Montana ODC Public Discipline List — monthly PDF drop at montanaodc.org.
+# The PDF is date-stamped (e.g. 2026.07.24) and the ingest script skips if the
+# version is already loaded. Runs the 1st of each month at 04:00, after the
+# 03:00 DB backup so the discipline table is captured in the snapshot.
+0 4 1 * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name odc_discipline_monthly --log /root/montanablotter/logs/odc_discipline.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/odc_discipline.py
 
 # --- Newsroom (re-enabled 2026-06-11, throttled + low-priority) ---
 # news_planner gathers story candidates; news_writer drafts posts;

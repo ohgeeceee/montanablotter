@@ -243,11 +243,13 @@ def _coerce_age(value) -> int | None:
     text = str(value).strip()
     if not text:
         return None
-    digits = re.findall(r"\d+", text)
-    if not digits:
+    # Only accept cells that are purely numeric (standalone age values).
+    # Havre rosters have no age column; bond amounts, case numbers, dates,
+    # and charge text like "PFMA 3rd" all contain digits that are NOT ages.
+    if not re.match(r"^\d+$", text):
         return None
     try:
-        age = int(digits[0])
+        age = int(text)
         return age if 0 < age < 130 else None
     except ValueError:
         return None
@@ -329,12 +331,9 @@ def _row_to_record(
         if booking_at:
             break
 
-    age: int | None = None
-    for cell in cells:
-        candidate = _coerce_age(cell)
-        if candidate and candidate > 5:
-            age = candidate
-            break
+    # Havre rosters have no age column; ages were previously inferred from
+    # case numbers and bond amounts (e.g. DC-21 -> 21, $10,000 -> 10),
+    # which produced incorrect values. Age is now always None for Havre.
 
     charges_value = ""
     bond_value = ""
@@ -359,8 +358,6 @@ def _row_to_record(
             continue
         if booking_at and _normalize_booking_datetime(cell):
             continue
-        if age is not None and str(age) in cell:
-            continue
         if len(cell) > len(charges_value):
             charges_value = cell
     charges = _normalize_charges(charges_value, bond=bond_value)
@@ -380,17 +377,18 @@ def _row_to_record(
             f"havre-docx:{source_path.stem}:r{row_idx}:{_person_slug(name)}"
         )
     # source_url is intentionally None for havre rows: the daily DOCX is a
-    # full unredacted roster (names, ages, charges, bond amounts, warrant
+    # full unredacted roster (names, charges, bond amounts, warrant
     # details) and we don't expose it for anonymous download from /uploads/.
     # The DOCX is still archived in uploads/ for operator reference; the
     # jail-bookings page shows the rendered data (which is the point of the
     # site) but no longer surfaces a "Open Official Source" button. This
     # matches the pattern used for counties that link to their own published
     # roster — we just don't have an external link to point at.
+    # Havre rosters have no age column; age is intentionally None.
     return JailBookingRecord(
         source_record_id=source_record_id,
         person_name=name,
-        age=age,
+        age=None,
         booking_number="",
         booking_at=booking_at,
         charges_summary=charges,

@@ -23,7 +23,7 @@
 </div>
 {% endif %}
 
-<form method="get" action="/admin/social-shares" class="flex flex-wrap gap-2 mb-4">
+<form method="get" action="/admin/content/social/shares" class="flex flex-wrap gap-2 mb-4">
     <select name="platform" class="rounded border border-slate-300 px-3 py-2 text-sm">
         <option value="">All platforms</option>
         <option value="facebook" {% if platform == 'facebook' %}selected{% endif %}>Facebook</option>
@@ -59,7 +59,7 @@
                 <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ r.created_at[:19] }}</td>
                 <td class="px-3 py-2">
                     {% if r.post_title %}
-                    <a href="/admin/social-shares/post/{{ r.post_id }}" class="text-blue-700 hover:underline">{{ r.post_title[:50] }}{% if r.post_title|length > 50 %}…{% endif %}</a>
+                    <a href="/admin/content/social/shares/post/{{ r.post_id }}" class="text-blue-700 hover:underline">{{ r.post_title[:50] }}{% if r.post_title|length > 50 %}…{% endif %}</a>
                     {% else %}<span class="text-slate-400">(post #{{ r.post_id }})</span>{% endif %}
                 </td>
                 <td class="px-3 py-2"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{{ r.platform }}</span></td>

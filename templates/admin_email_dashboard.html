@@ -1,0 +1,190 @@
+{% extends "admin.html" %}
+
+{% block title %}Email Campaigns | Montana Blotter Admin{% endblock %}
+
+{% block admin_page_title %}
+  <div class="flex items-center gap-3 mb-6">
+    <div class="p-3 bg-slate-800 rounded-full">
+      <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-lg font-bold text-white">Email Campaigns</h1>
+      <p class="text-xs text-slate-400 mt-0.5">Draft, send, and track outbound email campaigns to your audiences.</p>
+    </div>
+  </div>
+{% endblock %}
+
+{% block admin_content %}
+
+  {# ── Audience summary cards ── #}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+    {% for key, label in [
+      ('lawyers', 'Attorneys & Law Firms'),
+      ('bail_bondsmen', 'Bail Bondsmen'),
+      ('clients', 'Subscribers & Users'),
+      ('courts', 'Courts & Judiciary'),
+      ('police', 'Police & Sheriff'),
+    ] %}
+      <div class="bg-slate-800 rounded-xl p-4 border border-slate-700">
+        <p class="text-xs text-slate-400 font-medium uppercase tracking-wide">{{ label }}</p>
+        <p class="text-3xl font-bold text-white mt-1">{{ audience_counts.get(key, 0) }}</p>
+        <p class="text-[10px] text-slate-500 mt-1">recipients</p>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# ── Quick action: compose ── #}
+  <div class="flex flex-wrap gap-3 mb-8">
+    <a href="{{ url_for('admin.admin_email_compose', audience='lawyers') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-blue-600/20">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Compose — Lawyers
+    </a>
+    <a href="{{ url_for('admin.admin_email_compose', audience='bail_bondsmen') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-amber-600/20">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Compose — Bail Bondsmen
+    </a>
+    <a href="{{ url_for('admin.admin_email_compose', audience='clients') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-emerald-600/20">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Compose — Clients
+    </a>
+    <a href="{{ url_for('admin.admin_email_compose', audience='courts') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-purple-600/20">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Compose — Courts
+    </a>
+    <a href="{{ url_for('admin.admin_email_compose', audience='police') }}"
+       class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-rose-600/20">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Compose — Police
+    </a>
+  </div>
+
+  {# ── Template library ── #}
+  <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden mb-8">
+    <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+      <h2 class="text-sm font-bold text-white flex items-center gap-2">
+        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14-10V5a2 2 0 00-2-2M5 19l3-3m3 3l3-3"/>
+        </svg>
+        Template Library
+      </h2>
+      <a href="{{ url_for('admin.admin_email_templates') }}"
+         class="text-xs text-blue-400 hover:text-blue-300 font-medium transition">Manage templates →</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-900 text-slate-400 uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 font-medium">Template</th>
+            <th class="px-4 py-3 font-medium">Audience</th>
+            <th class="px-4 py-3 font-medium">Subject</th>
+            <th class="px-4 py-3 font-medium text-right">Updated</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-700">
+          {% for t in templates %}
+          <tr class="hover:bg-slate-700/30 transition">
+            <td class="px-4 py-3 text-white font-medium max-w-[160px] truncate" title="{{ t.name }}">{{ t.name }}</td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 bg-slate-700 text-slate-300 rounded text-[10px] font-medium uppercase">
+                {{ t.audience }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-slate-300 truncate max-w-[240px]" title="{{ t.subject }}">{{ t.subject }}</td>
+            <td class="px-4 py-3 text-slate-500 text-right">{{ t.updated_at }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="px-4 py-8 text-center text-slate-500">
+              No templates yet. <a href="{{ url_for('admin.admin_email_templates') }}" class="text-blue-400 hover:underline">Create one</a>.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Recent campaign sends ── #}
+  <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+      <h2 class="text-sm font-bold text-white flex items-center gap-2">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        Recent Sends
+      </h2>
+      <a href="{{ url_for('admin.admin_email_log') }}"
+         class="text-xs text-blue-400 hover:text-blue-300 font-medium transition">Full log →</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-900 text-slate-400 uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 font-medium">Campaign</th>
+            <th class="px-4 py-3 font-medium">Audience</th>
+            <th class="px-4 py-3 font-medium">Status</th>
+            <th class="px-4 py-3 font-medium text-center">Sent</th>
+            <th class="px-4 py-3 font-medium text-right">Success / Fail</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-700">
+          {% for c in recent %}
+          <tr class="hover:bg-slate-700/30 transition">
+            <td class="px-4 py-3 text-white font-medium max-w-[140px] truncate" title="{{ c.campaign_name }}">{{ c.campaign_name }}</td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 bg-slate-700 text-slate-300 rounded text-[10px] font-medium uppercase">
+                {{ c.audience }}
+              </span>
+            </td>
+            <td class="px-4 py-3">
+              {% if c.status == 'sent' %}
+                <span class="px-2 py-0.5 bg-emerald-900/40 text-emerald-400 rounded text-[10px] font-medium">Delivered</span>
+              {% elif c.status == 'partial' %}
+                <span class="px-2 py-0.5 bg-amber-900/40 text-amber-400 rounded text-[10px] font-medium">Partial</span>
+              {% elif c.status == 'draft' %}
+                <span class="px-2 py-0.5 bg-slate-700 text-slate-400 rounded text-[10px] font-medium">Draft</span>
+              {% elif c.status == 'sending' %}
+                <span class="px-2 py-0.5 bg-blue-900/40 text-blue-400 rounded text-[10px] font-medium">Sending</span>
+              {% else %}
+                <span class="px-2 py-0.5 bg-red-900/40 text-red-400 rounded text-[10px] font-medium">{{ c.status }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-slate-400 text-center">{{ c.sent_at or '—' }}</td>
+            <td class="px-4 py-3 text-right">
+              <span class="text-emerald-400 font-bold">{{ c.success_count }}</span>
+              <span class="text-slate-500 mx-1">/</span>
+              {% if c.failure_count > 0 %}
+                <span class="text-red-400 font-bold">{{ c.failure_count }}</span>
+              {% else %}
+                <span class="text-slate-500">0</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="px-4 py-8 text-center text-slate-500">No campaigns sent yet. Compose your first email above.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% endblock %}

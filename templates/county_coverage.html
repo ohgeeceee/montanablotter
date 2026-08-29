@@ -1,0 +1,108 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana County Coverage" %}
+{% set meta_description = "Live coverage status for all 56 Montana counties — which counties Montana Blotter is actively reporting, which have sources configured, and which still need coverage." %}
+{% set canonical_url = "https://montanablotter.com/county-coverage" %}
+{% set og_title = "Montana County Coverage | Montana Blotter" %}
+{% set og_description = meta_description %}
+{% set active_nav = "county-coverage" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Montana county coverage",
+  "description": "Coverage status for all 56 Montana counties — active reporting, configured sources, and counties awaiting coverage.",
+  "url": "https://montanablotter.com/county-coverage"
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Coverage</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <span class="public-eyebrow">Statewide Coverage</span>
+                <h1 class="public-title public-title--medium">County Coverage</h1>
+                <p class="public-copy">
+                    Every Montana county, ranked by population, with a live read on whether Montana Blotter is actively publishing blotter reports, has sources configured, or still needs coverage.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">At a Glance</p>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem;">
+                        <div class="public-coverage-stat public-coverage-stat--green">
+                            <p class="public-coverage-label">Active</p>
+                            <p class="public-coverage-value">{{ status_counts.active or 0 }}</p>
+                        </div>
+                        <div class="public-coverage-stat public-coverage-stat--blue">
+                            <p class="public-coverage-label">Partial</p>
+                            <p class="public-coverage-value">{{ status_counts.partial or 0 }}</p>
+                        </div>
+                        <div class="public-coverage-stat public-coverage-stat--amber">
+                            <p class="public-coverage-label">Configured</p>
+                            <p class="public-coverage-value">{{ status_counts.configured or 0 }}</p>
+                        </div>
+                        <div class="public-coverage-stat public-coverage-stat--muted">
+                            <p class="public-coverage-label">Not Covered</p>
+                            <p class="public-coverage-value" style="color:var(--adm-text-soft);">{{ status_counts.not_covered or 0 }}</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-section">
+    <div class="public-card">
+        <div class="public-card__body">
+            <p class="public-card__eyebrow">All 56 Counties</p>
+            <p class="mb-2 text-sm text-slate-600">
+                Counties are ordered by population rank so the highest-impact gaps show up first.
+            </p>
+        </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="public-table">
+            <thead>
+                <tr>
+                    <th class="text-left">County</th>
+                    <th class="text-left">Status</th>
+                    <th class="text-right">Blotters (30d)</th>
+                    <th class="text-left">Fetcher / Source</th>
+                    <th class="text-right">Pop. Rank</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in rows %}
+            <tr class="{% if row.status == 'active' %}public-table-row--green{% elif row.status == 'partial' %}public-table-row--blue{% elif row.status == 'not_covered' %}public-table-row--muted{% endif %}">
+                <td class="font-semibold text-slate-900">{{ row.county }} County</td>
+                <td>
+                    <span class="public-pill public-pill--{{ row.status }}">{{ row.status|replace('_',' ')|title }}</span>
+                </td>
+                <td class="text-right font-mono text-sm tabular-nums">{{ row.blotters_30d }}</td>
+                <td class="text-sm text-slate-600">
+                    {% if row.fetcher_module %}<span class="text-slate-900 font-medium">{{ row.fetcher_module }}</span>{% endif %}
+                    {% if row.source_types %}<span class="text-slate-500"> · {{ row.source_types }}</span>{% endif %}
+                    {% if not row.fetcher_module and not row.source_types %}<span class="text-slate-400 italic">No source</span>{% endif %}
+                </td>
+                <td class="text-right text-sm text-slate-500 tabular-nums">{{ row.population_rank }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

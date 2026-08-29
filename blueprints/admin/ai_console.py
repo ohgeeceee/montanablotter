@@ -49,7 +49,7 @@ def _friendly_ai_error_message(exc: Exception) -> str:
     return f"AI query failed: {message[:300]}" if message else "AI query failed."
 
 
-@admin_bp.route('/ai')
+@admin_bp.route('/system/ai')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_ai_console():
@@ -63,7 +63,7 @@ def admin_ai_console():
     )
 
 
-@admin_bp.route('/ai/query', methods=['POST'])
+@admin_bp.route('/system/ai/query', methods=['POST'])
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_ai_query():
@@ -107,7 +107,7 @@ def admin_ai_query():
     )
 
 
-@admin_bp.route('/ai/confirm', methods=['POST'])
+@admin_bp.route('/system/ai/confirm', methods=['POST'])
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_ai_confirm():
@@ -140,7 +140,7 @@ def admin_ai_confirm():
     )
 
 
-@admin_bp.route('/ai/cancel', methods=['POST'])
+@admin_bp.route('/system/ai/cancel', methods=['POST'])
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_ai_cancel():

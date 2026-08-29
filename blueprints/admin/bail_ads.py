@@ -20,7 +20,7 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 # ---------------------------------------------------------------------------
 
 
-@admin_bp.route('/bail-ads')
+@admin_bp.route('/revenue/bail-ads')
 @login_required
 def admin_bail_ads():
     import app as _app_module
@@ -477,7 +477,7 @@ def admin_bail_ads():
     )
 
 
-@admin_bp.route('/bail-ads/agencies')
+@admin_bp.route('/revenue/bail-ads/agencies')
 @login_required
 def admin_bail_agency_cms():
     import app as _app_module
@@ -489,7 +489,7 @@ def admin_bail_agency_cms():
     return redirect(f'{target}#agency-cms')
 
 
-@admin_bp.route('/bail-ads/simulator')
+@admin_bp.route('/revenue/bail-ads/simulator')
 @login_required
 def admin_bail_ads_simulator():
     import app as _app_module
@@ -616,7 +616,7 @@ def admin_bail_ads_simulator():
     )
 
 
-@admin_bp.route('/bail-ads/agencies/create', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/agencies/create', methods=['POST'])
 @login_required
 def admin_bail_agency_cms_create():
     import app as _app_module
@@ -666,7 +666,7 @@ def admin_bail_agency_cms_create():
     return redirect(f"{url_for('admin.admin_bail_ads')}#agency-cms")
 
 
-@admin_bp.route('/bail-ads/agencies/<int:agency_id>/update', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/agencies/<int:agency_id>/update', methods=['POST'])
 @login_required
 def admin_bail_agency_cms_update(agency_id):
     import app as _app_module
@@ -862,7 +862,7 @@ def admin_bail_agency_cms_update(agency_id):
     return redirect(f"{url_for('admin.admin_bail_ads')}#agency-cms")
 
 
-@admin_bp.route('/bail-ads/agencies/<int:agency_id>/delete', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/agencies/<int:agency_id>/delete', methods=['POST'])
 @login_required
 def admin_bail_agency_cms_delete(agency_id):
     import app as _app_module
@@ -887,7 +887,7 @@ def admin_bail_agency_cms_delete(agency_id):
     return redirect(f"{url_for('admin.admin_bail_ads')}#agency-cms")
 
 
-@admin_bp.route('/bail-ads/attribution/export.csv')
+@admin_bp.route('/revenue/bail-ads/attribution/export.csv')
 @login_required
 def admin_bail_ads_attribution_export():
     import app as _app_module
@@ -944,7 +944,7 @@ def admin_bail_ads_attribution_export():
     return response
 
 
-@admin_bp.route('/bail-ads/<int:inquiry_id>/status', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/<int:inquiry_id>/status', methods=['POST'])
 @login_required
 def admin_bail_ads_update_status(inquiry_id):
     next_status = (request.form.get('status') or '').strip().lower()
@@ -976,7 +976,7 @@ def admin_bail_ads_update_status(inquiry_id):
     return redirect(url_for('admin.admin_bail_ads'))
 
 
-@admin_bp.route('/bail-ads/creatives/<int:creative_id>/status', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/creatives/<int:creative_id>/status', methods=['POST'])
 @login_required
 def admin_bail_ads_creative_status(creative_id):
     next_status = (request.form.get('status') or '').strip().lower()
@@ -1027,7 +1027,7 @@ def admin_bail_ads_creative_status(creative_id):
     return redirect(url_for('admin.admin_bail_ads'))
 
 
-@admin_bp.route('/bail-ads/orders/<int:order_id>/status', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/orders/<int:order_id>/status', methods=['POST'])
 @login_required
 def admin_bail_ads_order_status(order_id):
     business_name = (request.form.get('business_name') or '').strip()[:120]
@@ -1072,7 +1072,7 @@ def admin_bail_ads_order_status(order_id):
     return redirect(url_for('admin.admin_bail_ads'))
 
 
-@admin_bp.route('/bail-ads/orders/<int:order_id>/delete', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/orders/<int:order_id>/delete', methods=['POST'])
 @login_required
 def admin_bail_ads_order_delete(order_id):
     conn = get_db()
@@ -1095,7 +1095,7 @@ def admin_bail_ads_order_delete(order_id):
     return redirect(url_for('admin.admin_bail_ads'))
 
 
-@admin_bp.route('/bail-ads/orders/bulk-status', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/orders/bulk-status', methods=['POST'])
 @login_required
 def admin_bail_ads_bulk_order_status():
     next_status = (request.form.get('status') or '').strip().lower()
@@ -1154,7 +1154,7 @@ def admin_bail_ads_bulk_order_status():
     return redirect(url_for('admin.admin_bail_ads'))
 
 
-@admin_bp.route('/bail-ads/leads/<int:lead_id>/status', methods=['POST'])
+@admin_bp.route('/revenue/bail-ads/leads/<int:lead_id>/status', methods=['POST'])
 @login_required
 def admin_bail_consumer_lead_status(lead_id):
     import app as _app_module

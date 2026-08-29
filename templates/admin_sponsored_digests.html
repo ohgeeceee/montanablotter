@@ -14,7 +14,7 @@
     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
         Add a sponsorship
     </div>
-    <form method="post" action="/admin/sponsored-digests/add" class="p-4 grid gap-3 md:grid-cols-2">
+    <form method="post" action="/admin/content/sponsored-digests/add" class="p-4 grid gap-3 md:grid-cols-2">
         <div>
             <label class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">County</label>
             <select name="county" required class="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm">
@@ -107,7 +107,7 @@
                     {% else %}<span class="text-slate-500">inactive</span>{% endif %}
                 </td>
                 <td class="px-3 py-2 text-right">
-                    <form method="post" action="/admin/sponsored-digests/{{ r.id }}/toggle" class="inline">
+                    <form method="post" action="/admin/content/sponsored-digests/{{ r.id }}/toggle" class="inline">
                         <button type="submit" class="rounded bg-slate-100 px-2 py-1 text-xs hover:bg-slate-200">
                             {% if r.is_active %}Deactivate{% else %}Activate{% endif %}
                         </button>

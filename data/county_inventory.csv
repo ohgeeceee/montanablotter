@@ -1,0 +1,57 @@
+county,status,blotters_30d,fetcher_module,source_types,stale_alerts,population_rank
+Beaverhead,configured,0,beaverhead_inmate.py,jail_roster,0,12
+Big Horn,configured,0,,jail_roster,0,13
+Blaine,not_covered,0,,,0,14
+Broadwater,configured,0,broadwater_inmate.py,jail_roster,0,15
+Brown,not_covered,0,,,0,54
+Carbon,configured,0,carbon_inmate.py,jail_roster,0,16
+Carter,not_covered,0,,,0,17
+Cascade,partial,9,cascade_roster.py,jail_roster,0,2
+Chouteau,not_covered,0,,,0,18
+Custer,configured,0,custer_inmate.py,jail_roster,0,19
+Daniels,not_covered,0,,,0,20
+Dawson,configured,0,dawson_inmate.py,jail_roster,0,21
+Deer Lodge,not_covered,0,,,0,22
+Fallon,configured,0,,jail_roster,0,23
+Fergus,configured,0,fergus_inmate.py,jail_roster,0,11
+Flathead,active,30,flathead_inmate.py,jail_roster,0,5
+Gallatin,active,42,,jail_roster,0,4
+Garfield,not_covered,0,,,0,55
+Glacier,configured,0,,jail_roster,0,24
+Golden Valley,not_covered,0,,,0,25
+Hill,partial,5,phillips_inmate.py,"jail_roster, jail_roster",0,26
+Jefferson,active,17,,jail_roster,0,7
+Judith Basin,not_covered,0,,,0,27
+Lake,configured,0,lake_inmate.py,jail_roster,0,8
+Lewis and Clark,active,12,,"jail_roster, jail_roster",0,10
+Liberty,not_covered,0,,,0,28
+Lincoln,configured,0,lincoln_inmate.py,jail_roster,0,29
+Madison,configured,0,madison_inmate.py,jail_roster,0,30
+McCone,not_covered,0,,,0,31
+Meagher,configured,0,meagher_inmate.py,jail_roster,0,32
+Mineral,configured,0,mineral_inmate.py,jail_roster,0,33
+Missoula,active,30,missoula.py,jail_roster,1,3
+Musselshell,not_covered,0,,,0,34
+Park,configured,0,,jail_roster,0,35
+Pendroy,not_covered,0,,,0,56
+Petroleum,not_covered,0,,,0,36
+Phillips,configured,0,phillips_inmate.py,jail_roster,0,37
+Pondera,configured,0,pondera_inmate.py,jail_roster,0,38
+Powder River,not_covered,0,,,0,39
+Powell,configured,0,powell_inmate.py,jail_roster,0,40
+Prairie,not_covered,0,,,0,41
+Ravalli,configured,0,,jail_roster,0,42
+Richland,not_covered,0,,,0,6
+Roosevelt,configured,0,,jail_roster,0,43
+Rosebud,configured,0,rosebud_inmate.py,jail_roster,0,44
+Sanders,configured,0,,jail_roster,0,45
+Sheridan,not_covered,0,,,0,46
+Silver Bow,configured,0,silver_bow_inmate.py,"jail_roster, jail_roster",0,9
+Stillwater,configured,0,stillwater_inmate.py,jail_roster,0,47
+Sweet Grass,not_covered,0,,,0,48
+Teton,not_covered,0,,,0,49
+Toole,not_covered,0,,,0,50
+Treasure,not_covered,0,,,0,51
+Valley,configured,0,valley_inmate.py,jail_roster,0,52
+Wheatland,configured,0,wheatland_inmate.py,jail_roster,0,53
+Yellowstone,partial,9,yellowstone_inmate.py,jail_roster,0,1

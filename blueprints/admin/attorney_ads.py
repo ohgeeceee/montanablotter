@@ -24,7 +24,7 @@ def _counties_from_text(text: str) -> list[str]:
     return [c.strip() for c in (text or '').split(',') if c.strip()]
 
 
-@admin_bp.route('/attorney-ads')
+@admin_bp.route('/revenue/attorney-ads')
 @login_required
 def admin_attorney_ads():
     from init_db import ensure_attorney_ad_schema
@@ -108,7 +108,7 @@ def admin_attorney_ads():
     )
 
 
-@admin_bp.route('/attorney-ads/listing/new', methods=['GET', 'POST'])
+@admin_bp.route('/revenue/attorney-ads/listing/new', methods=['GET', 'POST'])
 @login_required
 def admin_attorney_ads_listing_new():
     if request.method == 'POST':
@@ -140,7 +140,7 @@ def admin_attorney_ads_listing_new():
                            current_year=datetime.now().year)
 
 
-@admin_bp.route('/attorney-ads/listing/<int:listing_id>/edit', methods=['GET', 'POST'])
+@admin_bp.route('/revenue/attorney-ads/listing/<int:listing_id>/edit', methods=['GET', 'POST'])
 @login_required
 def admin_attorney_ads_listing_edit(listing_id):
     conn = get_db()
@@ -183,7 +183,7 @@ def admin_attorney_ads_listing_edit(listing_id):
     )
 
 
-@admin_bp.route('/attorney-ads/listing/<int:listing_id>/status', methods=['POST'])
+@admin_bp.route('/revenue/attorney-ads/listing/<int:listing_id>/status', methods=['POST'])
 @login_required
 def admin_attorney_ads_listing_status(listing_id):
     is_active = 1 if request.form.get('is_active') else 0
@@ -197,7 +197,7 @@ def admin_attorney_ads_listing_status(listing_id):
     return redirect(url_for('.admin_attorney_ads'))
 
 
-@admin_bp.route('/attorney-ads/listing/<int:listing_id>/tier', methods=['POST'])
+@admin_bp.route('/revenue/attorney-ads/listing/<int:listing_id>/tier', methods=['POST'])
 @login_required
 def admin_attorney_ads_listing_tier(listing_id):
     tier = (request.form.get('sponsor_tier') or '').strip()
@@ -217,7 +217,7 @@ def admin_attorney_ads_listing_tier(listing_id):
     return redirect(url_for('.admin_attorney_ads'))
 
 
-@admin_bp.route('/attorney-ads/listing/<int:listing_id>/delete', methods=['POST'])
+@admin_bp.route('/revenue/attorney-ads/listing/<int:listing_id>/delete', methods=['POST'])
 @login_required
 def admin_attorney_ads_listing_delete(listing_id):
     conn = get_db()
@@ -229,7 +229,7 @@ def admin_attorney_ads_listing_delete(listing_id):
     return redirect(url_for('.admin_attorney_ads'))
 
 
-@admin_bp.route('/attorney-ads/claim/<int:claim_id>/status', methods=['POST'])
+@admin_bp.route('/revenue/attorney-ads/claim/<int:claim_id>/status', methods=['POST'])
 @login_required
 def admin_attorney_ads_claim_status(claim_id):
     status = (request.form.get('status') or '').strip().lower()
@@ -308,7 +308,7 @@ def admin_attorney_ads_claim_status(claim_id):
     return redirect(url_for('.admin_attorney_ads'))
 
 
-@admin_bp.route('/attorney-ads/import-csv', methods=['POST'])
+@admin_bp.route('/revenue/attorney-ads/import-csv', methods=['POST'])
 @login_required
 def admin_attorney_ads_import_csv():
     upload = request.files.get('csv_file')

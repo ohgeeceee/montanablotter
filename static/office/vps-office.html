@@ -76,16 +76,13 @@
 
 <script>
 const AGENTS = {
-  'montanablotter-web': { name:'Montana Blotter', role:'Public Site', emoji:'📰', host:'127.0.0.1', ports:[5000], color:'#f5a623', link:'/', external:false },
-  'blotter-host':       { name:'Blotter Host', role:'Router', emoji:'🌐', host:'127.0.0.1', ports:[3000], color:'#60a5fa', link:'https://blotter.host', external:true },
-  'claw3d-office':      { name:'Claw3D Office', role:'3D Studio', emoji:'🧊', host:'127.0.0.1', ports:[3000], color:'#67e8f9', link:'/admin/office/3d', external:false },
   'openclaw-gateway':   { name:'OpenClaw Gateway', role:'Runtime Hub', emoji:'🧠', host:'127.0.0.1', ports:[18789], color:'#a78bfa', link:'/admin/agents', external:false },
   'agent-events':       { name:'Agent Events', role:'Observability', emoji:'📡', host:'0.0.0.0', ports:[8010], color:'#34d399', link:'/admin/agents?panel=events', external:false },
   'redis':              { name:'Redis', role:'Queue / Cache', emoji:'🟥', host:'127.0.0.1', ports:[6379], color:'#f87171', link:'/admin/agents?panel=redis', external:false },
   'nginx':              { name:'Nginx', role:'Edge / TLS', emoji:'🟩', host:'127.0.0.1', ports:[80,443], color:'#4ade80', link:'/admin/command-center', external:false },
 };
 
-const ORDER = ['openclaw-gateway','claw3d-office','montanablotter-web','blotter-host','agent-events','redis','nginx'];
+const ORDER = ['openclaw-gateway','montanablotter-web','blotter-host','agent-events','redis','nginx'];
 const grid = document.getElementById('office-grid');
 const snack = document.getElementById('snack');
 const label = document.getElementById('net-label').textContent = 'Local services';

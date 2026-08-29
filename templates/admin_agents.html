@@ -116,9 +116,9 @@
             <span
               id="agent-stream-config"
               class="hidden"
-              data-stream-url="/admin/agents/stream"
+              data-stream-url="/admin/system/agents/stream"
               aria-hidden="true"
-            >/admin/agents/stream</span>
+            >/admin/system/agents/stream</span>
             {% for name in known_agents %}
             <button class="filter-btn px-2 py-1 rounded-md text-xs font-bold border border-slate-300 bg-white text-slate-700 hover:bg-slate-100" data-filter="{{ name }}" onclick="toggleFilter(this)">{{ name }}</button>
             {% endfor %}
@@ -581,7 +581,7 @@
 
   async function refreshClientSnapshot() {
     try {
-      const res = await fetch('/admin/agents/client-snapshot', { cache: 'no-store' });
+      const res = await fetch('/admin/system/agents/client-snapshot', { cache: 'no-store' });
       if (!res.ok) return;
       renderClientSnapshot(await res.json());
     } catch (_) {}
@@ -589,7 +589,7 @@
 
   async function refreshAgentSnapshot() {
     try {
-      const res = await fetch('/admin/agents/snapshot', { cache: 'no-store' });
+      const res = await fetch('/admin/system/agents/snapshot', { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
       const agents = data.agents || {};

@@ -12,7 +12,7 @@ from db import get_db
 from . import _log_admin_action, admin_bp, require_role
 
 
-@admin_bp.route('/posts/<int:post_id>/correct', methods=['POST'])
+@admin_bp.route('/operations/posts/<int:post_id>/correct', methods=['POST'])
 @require_role()
 def log_correction(post_id):
     """Append a public correction to a post. Reason is required."""

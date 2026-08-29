@@ -1,0 +1,506 @@
+[
+  {
+    "county": "Beaverhead",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "beaverhead_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 12
+  },
+  {
+    "county": "Big Horn",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 13
+  },
+  {
+    "county": "Blaine",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 14
+  },
+  {
+    "county": "Broadwater",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "broadwater_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 15
+  },
+  {
+    "county": "Brown",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 54
+  },
+  {
+    "county": "Carbon",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "carbon_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 16
+  },
+  {
+    "county": "Carter",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 17
+  },
+  {
+    "county": "Cascade",
+    "status": "partial",
+    "blotters_30d": 9,
+    "fetcher_module": "cascade_roster.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 2
+  },
+  {
+    "county": "Chouteau",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 18
+  },
+  {
+    "county": "Custer",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "custer_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 19
+  },
+  {
+    "county": "Daniels",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 20
+  },
+  {
+    "county": "Dawson",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "dawson_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 21
+  },
+  {
+    "county": "Deer Lodge",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 22
+  },
+  {
+    "county": "Fallon",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 23
+  },
+  {
+    "county": "Fergus",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "fergus_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 11
+  },
+  {
+    "county": "Flathead",
+    "status": "active",
+    "blotters_30d": 30,
+    "fetcher_module": "flathead_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 5
+  },
+  {
+    "county": "Gallatin",
+    "status": "active",
+    "blotters_30d": 42,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 4
+  },
+  {
+    "county": "Garfield",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 55
+  },
+  {
+    "county": "Glacier",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 24
+  },
+  {
+    "county": "Golden Valley",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 25
+  },
+  {
+    "county": "Hill",
+    "status": "partial",
+    "blotters_30d": 5,
+    "fetcher_module": "phillips_inmate.py",
+    "source_types": "jail_roster, jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 26
+  },
+  {
+    "county": "Jefferson",
+    "status": "active",
+    "blotters_30d": 17,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 7
+  },
+  {
+    "county": "Judith Basin",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 27
+  },
+  {
+    "county": "Lake",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "lake_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 8
+  },
+  {
+    "county": "Lewis and Clark",
+    "status": "active",
+    "blotters_30d": 12,
+    "fetcher_module": "",
+    "source_types": "jail_roster, jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 10
+  },
+  {
+    "county": "Liberty",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 28
+  },
+  {
+    "county": "Lincoln",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "lincoln_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 29
+  },
+  {
+    "county": "Madison",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "madison_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 30
+  },
+  {
+    "county": "McCone",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 31
+  },
+  {
+    "county": "Meagher",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "meagher_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 32
+  },
+  {
+    "county": "Mineral",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "mineral_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 33
+  },
+  {
+    "county": "Missoula",
+    "status": "active",
+    "blotters_30d": 30,
+    "fetcher_module": "missoula.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 1,
+    "population_rank": 3
+  },
+  {
+    "county": "Musselshell",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 34
+  },
+  {
+    "county": "Park",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 35
+  },
+  {
+    "county": "Pendroy",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 56
+  },
+  {
+    "county": "Petroleum",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 36
+  },
+  {
+    "county": "Phillips",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "phillips_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 37
+  },
+  {
+    "county": "Pondera",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "pondera_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 38
+  },
+  {
+    "county": "Powder River",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 39
+  },
+  {
+    "county": "Powell",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "powell_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 40
+  },
+  {
+    "county": "Prairie",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 41
+  },
+  {
+    "county": "Ravalli",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 42
+  },
+  {
+    "county": "Richland",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 6
+  },
+  {
+    "county": "Roosevelt",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 43
+  },
+  {
+    "county": "Rosebud",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "rosebud_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 44
+  },
+  {
+    "county": "Sanders",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 45
+  },
+  {
+    "county": "Sheridan",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 46
+  },
+  {
+    "county": "Silver Bow",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "silver_bow_inmate.py",
+    "source_types": "jail_roster, jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 9
+  },
+  {
+    "county": "Stillwater",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "stillwater_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 47
+  },
+  {
+    "county": "Sweet Grass",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 48
+  },
+  {
+    "county": "Teton",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 49
+  },
+  {
+    "county": "Toole",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 50
+  },
+  {
+    "county": "Treasure",
+    "status": "not_covered",
+    "blotters_30d": 0,
+    "fetcher_module": "",
+    "source_types": "",
+    "stale_alerts": 0,
+    "population_rank": 51
+  },
+  {
+    "county": "Valley",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "valley_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 52
+  },
+  {
+    "county": "Wheatland",
+    "status": "configured",
+    "blotters_30d": 0,
+    "fetcher_module": "wheatland_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 53
+  },
+  {
+    "county": "Yellowstone",
+    "status": "partial",
+    "blotters_30d": 9,
+    "fetcher_module": "yellowstone_inmate.py",
+    "source_types": "jail_roster",
+    "stale_alerts": 0,
+    "population_rank": 1
+  }
+]

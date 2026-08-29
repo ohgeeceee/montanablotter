@@ -1,0 +1,107 @@
+{% extends "admin.html" %}
+
+{% block title %}Template Library | Montana Blotter Admin{% endblock %}
+
+{% block admin_page_title %}
+  <div class="flex items-center gap-3 mb-6">
+    <div class="p-3 bg-slate-800 rounded-full">
+      <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14-10V5a2 2 0 00-2-2M5 19l3-3m3 3l3-3"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-lg font-bold text-white">Template Library</h1>
+      <p class="text-xs text-slate-400 mt-0.5">Create, edit, and manage reusable email templates for your campaigns.</p>
+    </div>
+  </div>
+{% endblock %}
+
+{% block admin_content %}
+
+  {# ── Filters ── #}
+  <div class="flex flex-wrap gap-3 mb-6 items-center">
+    <form method="GET" action="{{ url_for('admin.admin_email_templates') }}" class="flex flex-wrap gap-3 items-center">
+      <input type="text" name="q" value="{{ search }}"
+             class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none w-56"
+             placeholder="Search templates...">
+      <select name="audience" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+        <option value="all" {% if audience_filter == 'all' %}selected{% endif %}>All Audiences</option>
+        {% for aud in audiences %}
+        <option value="{{ aud }}" {% if audience_filter == aud %}selected{% endif %}>{{ aud }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition">Filter</button>
+    </form>
+    <a href="{{ url_for('admin.admin_email_templates_create') }}"
+       class="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-blue-600/20">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      New Template
+    </a>
+  </div>
+
+  {# ── Template table ── #}
+  <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-900 text-slate-400 uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-3 font-medium">Template</th>
+            <th class="px-4 py-3 font-medium">Audience</th>
+            <th class="px-4 py-3 font-medium">Subject</th>
+            <th class="px-4 py-3 font-medium text-right">Body Size</th>
+            <th class="px-4 py-3 font-medium text-right">Updated</th>
+            <th class="px-4 py-3 font-medium text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-700">
+          {% for t in templates %}
+          <tr class="hover:bg-slate-700/30 transition">
+            <td class="px-4 py-3">
+              <span class="text-white font-medium block max-w-[180px] truncate" title="{{ t.name }}">{{ t.name }}</span>
+              <span class="text-[10px] text-slate-500">ID: {{ t.id }}</span>
+            </td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 bg-slate-700 text-slate-300 rounded text-[10px] font-medium uppercase">
+                {{ t.audience }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-slate-300 truncate max-w-[200px]" title="{{ t.subject }}">{{ t.subject }}</td>
+            <td class="px-4 py-3 text-slate-400 text-right">{{ t.body_length or 0 }} chars</td>
+            <td class="px-4 py-3 text-slate-500 text-right">{{ t.updated_at }}</td>
+            <td class="px-4 py-3 text-center">
+              <form method="POST" action="{{ url_for('admin.admin_email_templates') }}" class="inline">
+                <input type="hidden" name="template_id" value="{{ t.id }}">
+                <input type="hidden" name="action" value="edit">
+                <button type="submit" class="text-blue-400 hover:text-blue-300 mx-1" title="Edit">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 16H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                </button>
+              </form>
+              <form method="POST" action="{{ url_for('admin.admin_email_template_delete', template_id=t.id) }}"
+                    onsubmit="return confirm('Delete template \"{0}\"?'.replace('{0}','{{ t.name }}'))"
+                    class="inline">
+                <button type="submit" class="text-red-400 hover:text-red-300 mx-1" title="Delete">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="px-4 py-12 text-center text-slate-500">
+              No templates found. Create your first template to get started.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% endblock %}

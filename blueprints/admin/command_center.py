@@ -249,7 +249,7 @@ def _build_feed() -> dict:
     }
 
 
-@admin_bp.route('/hub')
+@admin_bp.route('/operations/live')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_hub():
@@ -257,14 +257,14 @@ def admin_hub():
     return redirect(url_for('admin.admin_dashboard'), code=301)
 
 
-@admin_bp.route('/command-center')
+@admin_bp.route('/operations/live')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_command_center():
     return render_template('admin_command_center.html')
 
 
-@admin_bp.route('/command-center/runbook')
+@admin_bp.route("/operations/command-center/runbook")
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_command_center_runbook():

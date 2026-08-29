@@ -16,7 +16,7 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 # ---------------------------------------------------------------------------
 
 
-@admin_bp.route('/blog')
+@admin_bp.route('/content/blog')
 @login_required
 def admin_blog():
     import app as _app_module
@@ -28,7 +28,7 @@ def admin_blog():
     return render_template('admin_blog.html', posts=posts, workflow=workflow)
 
 
-@admin_bp.route('/blog/workflow', methods=['GET', 'POST'])
+@admin_bp.route('/content/blog/workflow', methods=['GET', 'POST'])
 @login_required
 def admin_blog_workflow():
     import app as _app_module
@@ -73,7 +73,7 @@ def admin_blog_workflow():
     )
 
 
-@admin_bp.route('/blog/new', methods=['GET', 'POST'])
+@admin_bp.route('/content/blog/new', methods=['GET', 'POST'])
 @login_required
 def admin_blog_new():
     import app as _app_module
@@ -120,7 +120,7 @@ def admin_blog_new():
     return render_template('admin_blog_edit.html', post=None, form=form)
 
 
-@admin_bp.route('/blog/<int:post_id>/edit', methods=['GET', 'POST'])
+@admin_bp.route('/content/blog/<int:post_id>/edit', methods=['GET', 'POST'])
 @login_required
 def admin_blog_edit(post_id):
     import app as _app_module
@@ -148,7 +148,7 @@ def admin_blog_edit(post_id):
     return render_template('admin_blog_edit.html', post=post, form=post)
 
 
-@admin_bp.route('/blog/<int:post_id>/delete', methods=['POST'])
+@admin_bp.route('/content/blog/<int:post_id>/delete', methods=['POST'])
 @login_required
 def admin_blog_delete(post_id):
     conn = get_db()

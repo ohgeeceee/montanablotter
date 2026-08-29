@@ -34,14 +34,14 @@ def _is_local_heartbeat(request_headers) -> bool:
     return (request_headers.get("X-Internal-Mission-Control") or "").strip() == "local"
 
 
-@admin_bp.route("/mission-control")
+@admin_bp.route("/operations/mission-control")
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_mission_control():
     return redirect(url_for("admin.admin_command_center"))
 
 
-@admin_bp.route("/mission-control/runbook")
+@admin_bp.route("/operations/mission-control/runbook")
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_mission_control_runbook():

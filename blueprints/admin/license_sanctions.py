@@ -6,7 +6,7 @@ from blueprints.admin import admin_bp, require_role
 from db import get_db
 
 
-@admin_bp.route('/license-sanctions')
+@admin_bp.route('/content/license-sanctions')
 @require_role('super_admin', 'admin')
 def admin_license_sanctions():
     conn = get_db()
