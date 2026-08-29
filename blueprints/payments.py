@@ -1316,13 +1316,15 @@ def checkout_warrant_access():
                 'metadata': {
                     'flow': 'warrant_access',
                     'public_user_id': str(public_user_id),
-                    'plan': plan,
+                    'plan': 'warrant_access',
+                    'interval': plan,
                 },
             },
             metadata={
                 'flow': 'warrant_access',
                 'public_user_id': str(public_user_id),
-                'plan': plan,
+                'plan': 'warrant_access',
+                'interval': plan,
             },
         )
         checkout_url = _checkout_redirect_url(checkout_session)
