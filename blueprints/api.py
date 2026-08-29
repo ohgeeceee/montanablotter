@@ -2083,10 +2083,28 @@ def _warrant_payload(row: sqlite3.Row) -> dict:
 
 
 @api_bp.route('/api/v1/warrants')
-@require_api_key(allow_anonymous=True)
-@cached_api(timeout=120)
 def api_v1_warrants():
-    """List active warrant records with optional county and search filters."""
+    """List active warrant records with optional county and search filters.
+
+    Warrant data is a paid product. Gate on the same function the HTML
+    warrant pages use so the two surfaces never drift apart.
+    """
+    from flask import session
+    from services.monetization.paywall import user_has_warrant_access
+
+    if not user_has_warrant_access():
+        authenticated = bool(session.get('public_user_id') or session.get('_user_id'))
+        return jsonify({
+            'ok': False,
+            'error': 'warrant_access_required',
+            'detail': (
+                'Warrant records require an active warrant_access subscription '
+                'or an active 24h ad-unlock grant.'
+            ),
+            'login_required': not authenticated,
+            'subscribe_url': '/wanted/subscribe',
+            'ad_unlock_url': '/ad/watch',
+        }), 401
     county = (request.args.get('county') or '').strip()[:80]
     q = (request.args.get('q') or '').strip()[:120]
     status = (request.args.get('status') or 'active').strip().lower()[:20]

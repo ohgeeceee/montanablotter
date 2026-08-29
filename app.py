@@ -4145,7 +4145,7 @@ def _apply_subscription_stripe_event(conn, event):
                     '''
                     UPDATE public_users
                     SET is_subscribed = 0,
-                        subscriber_plan = 'scout',
+                        subscriber_plan = 'free',
                         stripe_subscription_id = '',
                         subscription_status = ?,
                         subscription_canceled_at = datetime('now')
@@ -6996,6 +6996,7 @@ def inject_public_nav():
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
         {'id': 'data_center', 'href': '/datacenter', 'label': 'Data Center'},
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
+        {'id': 'county-coverage', 'href': '/county-coverage', 'label': 'Coverage'},
         {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
         {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons'},
     ]
@@ -9114,6 +9115,27 @@ def meetings_geojson():
     return app.response_class(
         _json.dumps({'type': 'FeatureCollection', 'features': features}),
         mimetype='application/json',
+    )
+
+
+@app.route('/county-coverage')
+def public_county_coverage():
+    """Public page showing coverage status for all 56 Montana counties."""
+    conn = get_db()
+    from services.ops.county_inventory_persistence import refresh_county_inventory
+    refresh_county_inventory(conn)
+    ci_rows = conn.execute(
+        "SELECT * FROM county_inventory ORDER BY population_rank, county"
+    ).fetchall()
+    conn.close()
+    rows = [dict(r) for r in ci_rows]
+    status_counts = {}
+    for s in ["active", "partial", "configured", "not_covered"]:
+        status_counts[s] = sum(1 for r in rows if r["status"] == s)
+    return render_template(
+        'county_coverage.html',
+        rows=rows,
+        status_counts=status_counts,
     )
 
 
