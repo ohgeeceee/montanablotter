@@ -106,7 +106,8 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
         self.assertEqual(kwargs['customer_email'], 'trial-user@example.com')
         self.assertEqual(kwargs['metadata']['flow'], 'warrant_access')
         self.assertEqual(kwargs['metadata']['public_user_id'], '7')
-        self.assertEqual(kwargs['metadata']['plan'], 'monthly')
+        self.assertEqual(kwargs['metadata']['plan'], 'warrant_access')
+        self.assertEqual(kwargs['metadata']['interval'], 'monthly')
         self.assertEqual(len(kwargs['line_items']), 1)
         self.assertEqual(kwargs['line_items'][0]['price'], 'price_test_monthly')
 
@@ -122,7 +123,8 @@ class WarrantAccessCheckoutTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         kwargs = create_mock.call_args.kwargs
-        self.assertEqual(kwargs['metadata']['plan'], 'weekly')
+        self.assertEqual(kwargs['metadata']['plan'], 'warrant_access')
+        self.assertEqual(kwargs['metadata']['interval'], 'weekly')
         self.assertEqual(len(kwargs['line_items']), 1)
         self.assertEqual(kwargs['line_items'][0]['price'], 'price_test_weekly')
 

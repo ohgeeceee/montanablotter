@@ -164,14 +164,36 @@ class AdUnlockPaywallTestCase(unittest.TestCase):
             from flask import session as flask_session
             flask_session['public_user_id'] = uid
             with self._mock_anon():
-                # Plan is 'scout' (free), no subscription.
-                self.assertEqual(self.get_user_plan(), 'scout')
+                # Plan is 'free' (no subscription), no ad grant.
+                self.assertEqual(self.get_user_plan(), 'free')
                 # No grant yet — no access.
                 self.assertFalse(self.user_has_warrant_access())
                 # Record a grant — now access.
                 self.record_ad_unlock(public_user_id=uid, watch_seconds=20, ip_address='5.6.7.8')
                 self.assertTrue(self.user_has_warrant_access())
                 self.assertTrue(self.user_has_ad_unlocked_warrant())
+
+    def test_warrant_access_plan_grants_access(self):
+        """A user stored with subscriber_plan='warrant_access' (the value real
+        Stripe provisioning writes) must pass user_has_warrant_access().
+
+        Regression: WARRANT_PLANS only contained {'plus','pro'}, so paid users
+        whose plan was literally 'warrant_access' were locked out of the warrant
+        pages despite an active subscription. See fix in paywall.py WARRANT_PLANS.
+        """
+        uid = _mk_public_user(self.db_path)
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            "UPDATE public_users SET subscriber_plan='warrant_access', is_subscribed=1, subscription_status='active' WHERE id=?",
+            (uid,),
+        )
+        conn.commit()
+        conn.close()
+        with self.app.test_request_context() as ctx:
+            from flask import session as flask_session
+            flask_session['public_user_id'] = uid
+            with self._mock_anon():
+                self.assertTrue(self.user_has_warrant_access())
 
     def test_paywall_anon_user_returns_false(self):
         """Anonymous user (no public_user_id) cannot have an ad grant."""
