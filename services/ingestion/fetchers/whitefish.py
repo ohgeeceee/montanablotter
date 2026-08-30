@@ -108,7 +108,7 @@ def _parse_label_date(label: str, href: str) -> datetime | None:
         if diff <= 365:
             ref = datetime(2026, 8, 12, tzinfo=timezone.utc)
             seconds_per_id = 86400.0 / 12.0  # ~12 docs/day
-            return ref + timezone.utc.fromtimestamp((7012 - doc_id) * seconds_per_id)
+            return ref + timedelta(seconds=(7012 - doc_id) * seconds_per_id)
     return None
 
 

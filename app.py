@@ -7187,6 +7187,7 @@ def inject_public_nav():
         {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
         {'id': 'county-coverage', 'href': '/county-coverage', 'label': 'Coverage'},
         {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
+        {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
         {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons'},
     ]
     public_more_nav_groups = [
@@ -7220,7 +7221,6 @@ def inject_public_nav():
         {
             'title': 'News & help',
             'items': [
-                {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
                 {'id': 'learn', 'href': '/learn', 'label': 'Know Your Rights'},
                 {'id': 'support', 'href': '/support', 'label': 'Help & Support'},
             ],
