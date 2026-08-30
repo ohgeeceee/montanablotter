@@ -12,6 +12,75 @@
 <span class="text-slate-900 font-semibold">{{ breadcrumb_label|default("New Jail Bookings") }}</span>
 {% endblock %}
 
+{% block extra_head %}
+{% if selected_source %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": {{ (selected_source.county_name ~ " County Jail Bookings")|tojson }},
+  "description": {{ meta_description|tojson }},
+  "url": {{ canonical_url|tojson }},
+  "keywords": [
+    {{ selected_source.county_name|tojson }},
+    "Montana jail bookings",
+    "inmate roster",
+    "detention center",
+    "public records"
+  ],
+  "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "creator": {
+    "@type": "GovernmentOrganization",
+    "name": {{ selected_source.facility_name|tojson }}
+    {% if selected_source.roster_url %},
+    "url": {{ selected_source.roster_url|tojson }}
+    {% endif %}
+  },
+  "provider": {
+    "@type": "NewsMediaOrganization",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com"
+  }{% if selected_source.last_success_at %},
+  "dateModified": {{ selected_source.last_success_at|tojson }}{% endif %},
+  "mainEntity": {
+    "@type": "ItemList",
+    "numberOfItems": {{ summary.current_bookings }},
+    "itemListElement": [
+      {% for row in rows[:20] %}
+      {
+        "@type": "Person",
+        "name": {{ row.person_name|tojson }}
+      }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ]
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://montanablotter.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Jail Rosters", "item": "https://montanablotter.com/jail-rosters"},
+    {"@type": "ListItem", "position": 3, "name": {{ (selected_source.county_name ~ " County Jail Bookings")|tojson }}, "item": {{ canonical_url|tojson }}}
+  ]
+}
+</script>
+{% else %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://montanablotter.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Jail Bookings", "item": "https://montanablotter.com/jail-bookings"}
+  ]
+}
+</script>
+{% endif %}
+{% endblock %}
+
 {% block hero %}
 <section class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white py-12 px-4 sm:px-6">
     <div class="max-w-6xl mx-auto">

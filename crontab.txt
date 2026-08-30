@@ -159,6 +159,11 @@ BASH_ENV=/root/montanablotter/.env
 # from any public source, so the records carry no photo.
 10 6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_valley --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county valley
 
+# Glacier County jail roster — poll every 15 minutes for new bookings.
+# Source: WordPress active-inmate-report posts; fetcher lives in
+# services/ingestion/fetchers/public_roster_inmate.py:fetch_glacier_bookings.
+7-59/15 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_glacier --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county glacier
+
 # Remaining Zuercher portal counties plus the other enabled roster adapters — poll every 4 hours.
 0 */4 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_all --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py
 
@@ -221,3 +226,10 @@ BASH_ENV=/root/montanablotter/.env
 # challenge (Playwright with a fresh context per subpath bypasses it; see
 # services.persons.missing.fetch_official_missing_person_snapshot).
 9-59/15 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missing_person_sync --log /root/montanablotter/logs/missing_person_sync.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/sync_missing_persons.py
+
+# --- Funniest blotters humor scorer (added 2026-08-30) ---
+# Scores any records with NULL humor_score for the public /funniest feed.
+# Idempotent: only touches unscored rows and writes 0 to ineligible/denied
+# rows. Hourly at :25, offset from the :15/:30 email + image jobs. Writes only
+# the indexed humor_score column, so it shares the blotter_db_writer lock.
+25 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name score_humor --shared-lock blotter_db_writer --wait-for-lock 300 --timeout 600 --log /root/montanablotter/logs/score_humor.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/score_humor.py
