@@ -55,14 +55,12 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 @admin_bp.route('/operations', strict_slashes=False)
 @login_required
 def admin_root():
-    """Role-aware landing.
+    """Landing page for all roles.
 
-    - super_admin → command center (live ops, system pulse)
-    - everyone else → operations dashboard (intake, alerts, coverage)
+    Everyone lands on the styled Operations Summary dashboard. The live
+    Command Center (/admin/operations/live) remains reachable as a link
+    from the dashboard's shortcuts.
     """
-    role = getattr(current_user, 'role', '') or ''
-    if role == 'super_admin':
-        return redirect(url_for('admin.admin_command_center'))
     return redirect(url_for('admin.admin_dashboard'))
 
 

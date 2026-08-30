@@ -68,6 +68,7 @@
     {% call card('Operations Shortcuts') %}
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem;">
       {{ shortcut_card('Ingestion Health', 'Investigate failed jobs and stale sources.', href='/admin/operations/ingestion?status=failed', accent='amber') }}
+      {{ shortcut_card('Command Center', 'Live ops wall: pipeline, feed, agent/system health.', href='/admin/operations/live', accent='purple') }}
       {{ shortcut_card('Source Registry', 'Official source coverage, freshness, and health.', href='/admin/operations/sources', accent='blue') }}
       {{ shortcut_card('Data Center Ops', 'Freshness, refresh timestamps, stale feeds.', href='/admin/operations/data-center', accent='green') }}
       {{ shortcut_card('Review Queue', 'Pending, flagged, and clean editorial states.', href='/admin/operations/review', accent='muted') }}

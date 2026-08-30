@@ -80,15 +80,15 @@ class AdminDashboardTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers['Location'], '/admin/dashboard')
 
-    def test_admin_root_redirects_super_admin_to_command_center(self) -> None:
-        """super_admin users land on the live-ops command center."""
+    def test_admin_root_redirects_super_admin_to_dashboard(self) -> None:
+        """super_admin users land on the operations dashboard (command center is a link)."""
         super_admin_id = self._create_admin_user(role='super_admin')
         client = app_module.app.test_client()
         self._login_session(client, super_admin_id)
 
         response = client.get('/admin', follow_redirects=False)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.headers['Location'], '/admin/operations/live')
+        self.assertEqual(response.headers['Location'], '/admin/dashboard')
 
     def test_admin_hub_route_removed(self) -> None:
         """/admin/hub was removed during the admin-panel cleanup."""
