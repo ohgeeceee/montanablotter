@@ -5430,7 +5430,7 @@ def _cross_source_overlap(conn, post, records):
     }
 
 
-def _build_provenance_card(conn, post, records, *, skip_overlap=False):
+def _build_provenance_card(conn, post, records):
     source_meta = _source_channel_meta(post)
     ingestion_job = None
     pipeline_events = []
@@ -5464,13 +5464,7 @@ def _build_provenance_card(conn, post, records, *, skip_overlap=False):
 
     parse_quality = _parse_quality(records, post['county'], source_meta['extraction_method'])
     summary_meta = _infer_summary_method(post, event_map.get('summary_method', {}).get('details'))
-    if skip_overlap:
-        # Homepage ticker fast-path: the provenance card is only used to render a
-        # confidence badge (score/label/source_label) there, so the expensive N+1
-        # cross-source duplicate scan is skipped. Detail pages keep the full check.
-        duplicate_meta = {'label': 'Passed', 'detail': 'Duplicate check deferred; view the record for full provenance.', 'status': 'ok'}
-    else:
-        duplicate_meta = _cross_source_overlap(conn, post, records)
+    duplicate_meta = _cross_source_overlap(conn, post, records)
 
     normalize_details = event_map.get('normalize', {}).get('details', {})
     skipped_duplicates = normalize_details.get('duplicate_incidents_skipped')
@@ -5526,7 +5520,7 @@ def _build_provenance_card(conn, post, records, *, skip_overlap=False):
     }
 
 
-def _build_record_provenance_card(conn, record, blotter_records, *, skip_overlap=False):
+def _build_record_provenance_card(conn, record, blotter_records):
     record_context = {
         'id': record['post_id'] or record['id'],
         'county': record['county'],
@@ -5544,7 +5538,7 @@ def _build_record_provenance_card(conn, record, blotter_records, *, skip_overlap
         'extraction_method': record['extraction_method'],
         'extraction_warnings': record['extraction_warnings'],
     }
-    card = _build_provenance_card(conn, record_context, blotter_records, skip_overlap=skip_overlap)
+    card = _build_provenance_card(conn, record_context, blotter_records)
     if record['post_title']:
         card['summary_method']['detail'] += f" Linked report: {record['post_title']}."
     return card
@@ -5644,7 +5638,6 @@ def _annotate_recent_records(conn, recent_records):
                 conn,
                 detail,
                 blotter_cache.get(int(detail['blotter_id']), []),
-                skip_overlap=True,
             )
             item['confidence_badge'] = _confidence_badge_meta(card)
         else:
@@ -5844,7 +5837,6 @@ def _annotate_posts_with_confidence(conn, posts):
                 conn,
                 detail,
                 blotter_records,
-                skip_overlap=True,
             )
             item['confidence_badge'] = _confidence_badge_meta(card)
         else:
@@ -5942,31 +5934,14 @@ def _homepage_recent_records(
     limit=10,
 ):
     record_date_sql = _record_roundup_date_sql('records.date')
-    # Pick the newest clean post per blotter via a GROUP BY CTE (no correlated
-    # subquery), then LEFT JOIN records to it. Bare JOIN on blotter_id would let
-    # a single blotter (e.g. one Missoula public-report post covering ~97 records)
-    # monopolize the ticker; the per-record query then surfaces 6 records that all
-    # link to the same covering post. The dedupe in Python below is the second
-    # layer of defense: two records from the same post can still appear in the
-    # result set, so we collapse by post_id.
-    #
-    # Perf: the previous correlated-subquery form forced SQLite to scan all
-    # ~55k records and build a temp B-tree for the ORDER BY on every homepage hit
-    # (~4s). We instead restrict records to the last 120 days (covers every active
-    # blotter) so the sort runs over a small window, and the latest-clean-post
-    # lookup becomes a single GROUP BY instead of a per-row scalar subquery.
+    # Pick the newest clean post per blotter via a correlated subquery, then
+    # LEFT JOIN records to it. Bare JOIN on blotter_id would let a single
+    # blotter (e.g. one Missoula public-report post covering ~97 records)
+    # monopolize the ticker; the per-record query then surfaces 6 records
+    # that all link to the same covering post. The dedupe in Python below
+    # is the second layer of defense: two records from the same post can
+    # still appear in the result set, so we collapse by post_id.
     sql = f"""
-        WITH latest_clean_post AS (
-            SELECT p.id, p.blotter_id, p.title, p.summary, p.agency_name, p.city,
-                   p.case_status, p.audit_status
-            FROM posts p
-            JOIN (
-                SELECT blotter_id, MAX(id) AS max_id
-                FROM posts
-                WHERE COALESCE(audit_status, 'pending') = 'clean'
-                GROUP BY blotter_id
-            ) m ON m.max_id = p.id
-        )
         SELECT
             records.id,
             records.date,
@@ -5975,18 +5950,23 @@ def _homepage_recent_records(
             COALESCE(NULLIF(records.incident_type, ''), NULLIF(records.incident, ''), 'Incident') AS incident_label,
             COALESCE(NULLIF(records.location, ''), '') AS location,
             COALESCE(records.details, '') AS details,
-            latest_clean_post.id AS post_id,
-            latest_clean_post.title AS post_title,
-            COALESCE(NULLIF(latest_clean_post.agency_name, ''), 'Unknown agency') AS agency_name,
-            COALESCE(NULLIF(latest_clean_post.city, ''), '') AS city,
-            COALESCE(latest_clean_post.case_status, 'pending') AS case_status
+            latest_post.id AS post_id,
+            latest_post.title AS post_title,
+            COALESCE(NULLIF(latest_post.agency_name, ''), 'Unknown agency') AS agency_name,
+            COALESCE(NULLIF(latest_post.city, ''), '') AS city,
+            COALESCE(latest_post.case_status, 'pending') AS case_status
         FROM records
-        LEFT JOIN latest_clean_post ON latest_clean_post.blotter_id = records.blotter_id
-        WHERE COALESCE(latest_clean_post.audit_status, 'pending') = 'clean'
-          AND (
-            records.date >= date('now', '-120 days')
-            OR records.date GLOB '[0-9][0-9]/[0-9][0-9]/[0-9][0-9]'
-          )
+        LEFT JOIN (
+            SELECT p.id, p.blotter_id, p.title, p.summary, p.agency_name, p.city,
+                   p.case_status, p.audit_status
+            FROM posts p
+            WHERE p.id = (
+                SELECT MAX(p2.id) FROM posts p2
+                WHERE p2.blotter_id = p.blotter_id
+                  AND COALESCE(p2.audit_status, 'pending') = 'clean'
+            )
+        ) latest_post ON latest_post.blotter_id = records.blotter_id
+        WHERE COALESCE(latest_post.audit_status, 'pending') = 'clean'
     """
     params = []
 
@@ -5994,13 +5974,13 @@ def _homepage_recent_records(
         sql += " AND records.county = ?"
         params.append(county)
     if city:
-        sql += " AND COALESCE(latest_clean_post.city, '') LIKE ?"
+        sql += " AND COALESCE(latest_post.city, '') LIKE ?"
         params.append(f'%{city}%')
     if agency_type:
-        sql += " AND COALESCE(latest_clean_post.agency_type, '') = ?"
+        sql += " AND COALESCE(latest_post.agency_type, '') = ?"
         params.append(agency_type)
     if agency:
-        sql += " AND COALESCE(latest_clean_post.agency_name, '') = ?"
+        sql += " AND COALESCE(latest_post.agency_name, '') = ?"
         params.append(agency)
     if search_query:
         st = f'%{search_query}%'
@@ -6010,8 +5990,8 @@ def _homepage_recent_records(
                 OR COALESCE(records.incident, '') LIKE ?
                 OR COALESCE(records.details, '') LIKE ?
                 OR COALESCE(records.location, '') LIKE ?
-                OR COALESCE(latest_clean_post.title, '') LIKE ?
-                OR COALESCE(latest_clean_post.summary, '') LIKE ?
+                OR COALESCE(latest_post.title, '') LIKE ?
+                OR COALESCE(latest_post.summary, '') LIKE ?
             )
         """
         params.extend([st, st, st, st, st, st])
@@ -6019,12 +5999,12 @@ def _homepage_recent_records(
         sql += " AND records.date = ?"
         params.append(date_sql_val)
     if status_filter in ('active', 'pending', 'resolved'):
-        sql += " AND COALESCE(latest_clean_post.case_status, 'pending') = ?"
+        sql += " AND COALESCE(latest_post.case_status, 'pending') = ?"
         params.append(status_filter)
 
     sql += f"""
         ORDER BY
-            CASE COALESCE(latest_clean_post.case_status, 'pending')
+            CASE COALESCE(latest_post.case_status, 'pending')
                 WHEN 'active' THEN 0
                 WHEN 'pending' THEN 1
                 ELSE 2
@@ -15963,8 +15943,6 @@ from blueprints.admin_geocode import admin_geocode_bp
 app.register_blueprint(admin_geocode_bp)
 app.register_blueprint(threedhub_bp)
 app.register_blueprint(chat_agent_bp)
-from blueprints.admin.sex_offender import admin_sex_offender_bp
-app.register_blueprint(admin_sex_offender_bp, url_prefix='/admin/content')
 app.register_blueprint(sitemap_bp)
 app.after_request(after_api_request)
 

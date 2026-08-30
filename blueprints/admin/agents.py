@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import Response, current_app, jsonify, redirect, render_template, send_from_directory, url_for
+from flask import Response, current_app, jsonify, redirect, render_template, send_from_directory
 import config
 from flask import stream_with_context
 from flask_login import login_required
@@ -333,6 +333,21 @@ def admin_agents():
 
     return redirect(url_for('admin.admin_command_center'))
 
+
+@admin_bp.route('/office')
+@admin_bp.route('/operations/office')
+@login_required
+def admin_office():
+    return redirect(url_for('admin.admin_office_view'))
+
+
+@admin_bp.route('/office/')
+@admin_bp.route('/operations/office/')
+@login_required
+def admin_office_view():
+    # VPS canvas office — live probes of every service on the box.
+    static_root = current_app.static_folder or 'static'
+    return send_from_directory(static_root, 'office/vps-office.html')
 
 
 @admin_bp.route('/system/agents/client-snapshot')

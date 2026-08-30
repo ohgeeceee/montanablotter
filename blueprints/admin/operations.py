@@ -55,12 +55,14 @@ from blueprints.admin import admin_bp, require_role, _log_admin_action
 @admin_bp.route('/operations', strict_slashes=False)
 @login_required
 def admin_root():
-    """Landing page for all roles.
+    """Role-aware landing.
 
-    Everyone lands on the styled Operations Summary dashboard. The live
-    Command Center (/admin/operations/live) remains reachable as a link
-    from the dashboard's shortcuts.
+    - super_admin → command center (live ops, system pulse)
+    - everyone else → operations dashboard (intake, alerts, coverage)
     """
+    role = getattr(current_user, 'role', '') or ''
+    if role == 'super_admin':
+        return redirect(url_for('admin.admin_command_center'))
     return redirect(url_for('admin.admin_dashboard'))
 
 
@@ -1120,4 +1122,14 @@ def admin_settings():
     )
 
 
+@admin_bp.route('/emails', methods=['GET', 'POST'])
+@login_required
+def admin_emails():
+    """Legacy route redirected to the current digest email ops console."""
+    return redirect(url_for('admin.admin_email_ops'), code=301)
 
+
+@admin_bp.route('/emails/template/<template_type>')
+@login_required
+def get_email_template(template_type):
+    return redirect(url_for('admin.admin_email_ops'), code=301)

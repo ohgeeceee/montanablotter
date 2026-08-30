@@ -80,23 +80,24 @@ class AdminDashboardTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers['Location'], '/admin/dashboard')
 
-    def test_admin_root_redirects_super_admin_to_dashboard(self) -> None:
-        """super_admin users land on the operations dashboard (command center is a link)."""
+    def test_admin_root_redirects_super_admin_to_command_center(self) -> None:
+        """super_admin users land on the live-ops command center."""
         super_admin_id = self._create_admin_user(role='super_admin')
         client = app_module.app.test_client()
         self._login_session(client, super_admin_id)
 
         response = client.get('/admin', follow_redirects=False)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.headers['Location'], '/admin/dashboard')
+        self.assertEqual(response.headers['Location'], '/admin/command-center')
 
-    def test_admin_hub_route_removed(self) -> None:
-        """/admin/hub was removed during the admin-panel cleanup."""
+    def test_admin_hub_redirects_to_dashboard(self) -> None:
+        """/admin/hub is a backwards-compat alias for /admin/dashboard."""
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
         response = client.get('/admin/hub', follow_redirects=False)
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.headers['Location'], '/admin/dashboard')
 
     def test_admin_dashboard_renders_operations_summary(self) -> None:
         client = app_module.app.test_client()
@@ -109,11 +110,14 @@ class AdminDashboardTests(unittest.TestCase):
         self.assertIn('Operations Summary', html)
         self.assertIn('Recent source files', html)
         self.assertIn('County record volume', html)
-        self.assertIn('/admin/operations/ingestion', html)
+        self.assertIn('/admin/ingestion', html)
         self.assertIn('/admin/operations/sources', html)
+        self.assertIn('/admin/operations/redaction', html)
         self.assertIn('/admin/audience/subscribers', html)
         self.assertIn('/admin/analytics', html)
         self.assertIn('Operations Shortcuts', html)
+        self.assertIn('/admin/office/', html)
+        self.assertIn('>Office<', html)
 
 
 if __name__ == '__main__':

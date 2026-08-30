@@ -133,12 +133,6 @@ def _admin_login_lockout_minutes(conn=None) -> int:
 
 
 def _login_rate_limited(conn, username: str, ip_address: str):
-    # Login lockout disabled per user request (2026-08-29): the brute-force
-    # throttle was blocking legitimate admin access. Kept as a no-op so failed
-    # attempts are still recorded for audit via _record_login_attempt, but the
-    # gate can never block a real login. Re-enable by reverting this early return.
-    return False, 0
-
     window_minutes = _admin_login_window_minutes(conn=conn)
     max_attempts = _admin_login_max_attempts(conn=conn)
     lockout_minutes = _admin_login_lockout_minutes(conn=conn)
@@ -211,20 +205,14 @@ def admin_login():
             'SELECT * FROM users WHERE username = ?',
             (username,),
         ).fetchone()
-        # Verify against the stored hash. A malformed or legacy hash (e.g. a
-        # truncated/garbage value, or NULL password_hash) must NOT raise and
-        # crash login with a 500 — treat it as an invalid credential instead.
-        password_valid = False
-        if user_row and user_row['password_hash']:
-            try:
-                password_valid = bool(
-                    _raw_bcrypt.checkpw(
-                        password.encode('utf-8'),
-                        user_row['password_hash'].encode('utf-8'),
-                    )
-                )
-            except (ValueError, TypeError):
-                password_valid = False
+        password_valid = bool(
+            user_row
+            and user_row['password_hash']
+            and _raw_bcrypt.checkpw(
+                password.encode('utf-8'),
+                user_row['password_hash'].encode('utf-8'),
+            )
+        )
         is_active_account = bool(user_row and user_row['is_active'])
         has_admin_role = bool(user_row and (user_row['role'] or '').strip() in ADMIN_ACCESS_ROLES)
         is_valid = bool(password_valid and is_active_account and has_admin_role)
@@ -266,8 +254,8 @@ def admin_login():
 
 @admin_bp.route('/panel')
 def admin_panel_redirect():
-    """Legacy /admin/panel redirect — the 3D office console was removed."""
-    return redirect(url_for('admin.admin_dashboard'))
+    """Legacy /admin/panel redirect to the 3D operator console."""
+    return redirect(url_for('admin.admin_office_view'))
 
 
 @admin_bp.route('/logout')

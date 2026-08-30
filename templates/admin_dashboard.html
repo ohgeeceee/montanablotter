@@ -68,15 +68,16 @@
     {% call card('Operations Shortcuts') %}
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem;">
       {{ shortcut_card('Ingestion Health', 'Investigate failed jobs and stale sources.', href='/admin/operations/ingestion?status=failed', accent='amber') }}
-      {{ shortcut_card('Command Center', 'Live ops wall: pipeline, feed, agent/system health.', href='/admin/operations/live', accent='purple') }}
       {{ shortcut_card('Source Registry', 'Official source coverage, freshness, and health.', href='/admin/operations/sources', accent='blue') }}
       {{ shortcut_card('Data Center Ops', 'Freshness, refresh timestamps, stale feeds.', href='/admin/operations/data-center', accent='green') }}
       {{ shortcut_card('Review Queue', 'Pending, flagged, and clean editorial states.', href='/admin/operations/review', accent='muted') }}
-      {{ shortcut_card('Analytics Hub', 'Traffic, content, and conversion performance.', href='/admin/analytics', accent='green') }}
+      {{ shortcut_card('Analytics Hub', 'Traffic, content, and conversion performance.', href='/admin/system/analytics', accent='green') }}
+      {{ shortcut_card('Hermes Workspace', 'Unified AI console with live agent monitoring.', href='/admin/system/workspace', accent='purple') }}
       {{ shortcut_card('Blog & Editorial', 'Manage posts, workflow, and publishing.', href='/admin/content/blog', accent='sky') }}
       {{ shortcut_card('Subscribers', 'Manage status, county coverage, exports.', href='/admin/audience/subscribers', accent='muted') }}
       {{ shortcut_card('Email Campaigns', 'Draft, send, and track outbound email campaigns.', href='/admin/email', accent='blue') }}
       {{ shortcut_card('Recovery Ads', 'Manage recovery ad orders and CMS.', href='/admin/revenue/recovery-ads', accent='muted') }}
+      {{ shortcut_card('3D Office', 'Monitor the 3D print fleet.', href='/admin/operations/office/', accent='muted') }}
     </div>
     {% endcall %}
 
