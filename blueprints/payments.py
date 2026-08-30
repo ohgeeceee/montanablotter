@@ -1363,23 +1363,32 @@ def subscribe_success():
 
 
 # ---------------------------------------------------------------------------
-# Paid name-removal / privacy suppression (one-time $999)
+# Paid name-removal / privacy suppression (one-time fee; amount set in Stripe)
 # ---------------------------------------------------------------------------
 
 @payments_bp.route('/remove-my-name', methods=['GET', 'POST'])
 def remove_my_name():
     """Public request form for paid name suppression.
 
-    A one-time $999 payment covers a verified privacy review. On approval the
-    person's name is REDACTED (not deleted) across public records. Requires
-    human review before suppression is applied — payment alone does not suppress.
+    A one-time payment (amount shown via NAME_SUPPRESS_AMOUNT_LABEL, charged
+    through the Stripe Price in NAME_SUPPRESS_PRICE_ID) covers a verified privacy
+    review. On approval the person's name is REDACTED (not deleted) across public
+    records. Requires human review before suppression is applied — payment alone
+    does not suppress.
     """
+    # Pre-fill from query string (e.g. a "Request removal" CTA on a person page).
+    prefill_name = (request.args.get('name') or '').strip()
+    prefill_county = (request.args.get('county') or '').strip()
     errors = []
+    submitted_name = prefill_name
+    submitted_county = prefill_county
     if request.method == 'POST':
         person_name = (request.form.get('person_name') or '').strip()
         dob = (request.form.get('dob') or '').strip()
         county = (request.form.get('county') or '').strip()
         email = (request.form.get('email') or '').strip().lower()
+        submitted_name = person_name
+        submitted_county = county
         if len(person_name) < 2:
             errors.append('Please enter the full name to suppress.')
         if '@' not in email or '.' not in email:
@@ -1441,6 +1450,9 @@ def remove_my_name():
     return render_template(
         'remove_my_name.html',
         errors=errors,
+        amount_label=config.NAME_SUPPRESS_AMOUNT_LABEL,
+        prefill_name=submitted_name,
+        prefill_county=submitted_county,
         active_nav='remove-name',
         page_title='Remove My Name — Montana Blotter',
         current_year=datetime.now().year,

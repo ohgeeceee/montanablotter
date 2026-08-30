@@ -12,7 +12,7 @@
     </div>
     <h1 class="text-4xl font-black tracking-tight text-slate-900">Name Removal &amp; Privacy Suppression</h1>
     <p class="mx-auto mt-3 max-w-xl text-base text-slate-500 leading-7">
-      A one-time <strong>$999</strong> payment covers a verified privacy review of your public records
+      A one-time <strong>{{ amount_label }}</strong> payment covers a verified privacy review of your public records
       on Montana Blotter. On approval, your name is <strong>redacted</strong> (masked) across jail
       bookings, warrants, and related posts. We do not delete government source records — we suppress
       your name from public presentation after human review.
@@ -42,7 +42,8 @@
       <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Full name to suppress</label>
       <input type="text" name="person_name" required
              class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800"
-             placeholder="e.g. John A Doe">
+             placeholder="e.g. John A Doe"
+             value="{{ prefill_name or '' }}">
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
@@ -55,7 +56,8 @@
         <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">County (optional)</label>
         <input type="text" name="county"
                class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800"
-               placeholder="e.g. Cascade">
+               placeholder="e.g. Cascade"
+               value="{{ prefill_county or '' }}">
       </div>
     </div>
     <div>
@@ -66,7 +68,7 @@
     </div>
     <button type="submit"
             class="w-full rounded-xl bg-slate-900 py-4 text-base font-black text-white hover:bg-slate-800 transition-colors">
-      Continue to Secure Payment — $999
+      Continue to Secure Payment — {{ amount_label }}
     </button>
     <p class="text-xs text-slate-400 text-center">
       You will be redirected to Stripe. Suppression is applied only after our review of your request.

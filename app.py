@@ -9565,6 +9565,7 @@ def public_person_profile(name_slug):
     conn.close()
     if not context:
         return render_template('404.html'), 404
+    context['name_removal_amount_label'] = config.NAME_SUPPRESS_AMOUNT_LABEL
     name = context['display_name']
     counties_str = ', '.join(context['counties'])
     return render_template(
@@ -14698,6 +14699,7 @@ def person_detail(name_slug):
         bookings=bookings,
         county_slug=county_slug,
         canonical_url=canonical,
+        name_removal_amount_label=config.NAME_SUPPRESS_AMOUNT_LABEL,
         page_title=f"{person_name} — Montana Blotter Public Records",
         meta_description=f"Public booking records for {person_name} in Montana. Data sourced from official jail rosters.",
     )
