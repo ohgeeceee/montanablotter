@@ -147,4 +147,7 @@
       </section>
     </div>
   </article>
+
+  {% from "includes/remove_name_ad.html" import render_remove_name_ad %}
+  {{ render_remove_name_ad(display_name=person.full_name, amount_label=name_removal_amount_label) }}
 </main>

@@ -182,5 +182,8 @@
         </section>
         {% endif %}
     </aside>
+
+    {% from "includes/remove_name_ad.html" import render_remove_name_ad %}
+    {{ render_remove_name_ad(display_name=none, amount_label=name_removal_amount_label) }}
 </main>
 {% endblock %}

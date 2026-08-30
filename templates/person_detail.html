@@ -73,6 +73,9 @@
     {% endfor %}
   </div>
 
+  {% from "includes/remove_name_ad.html" import render_remove_name_ad %}
+  {{ render_remove_name_ad(display_name=person_name, amount_label=name_removal_amount_label) }}
+
   <div class="mt-10 public-sidebar-card p-5 text-sm text-slate-600">
     <h2 class="font-semibold text-slate-800 mb-2">Record Correction or Removal</h2>
     <p>If you believe a record on this page is inaccurate or you are entitled to expungement under Montana law, please <a href="/about" class="text-blue-600 hover:underline">contact us</a> with supporting documentation.</p>

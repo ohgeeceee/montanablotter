@@ -1,0 +1,27 @@
+{# templates/includes/remove_name_ad.html
+   Self-promotional ad unit for the "Remove My Name" privacy-suppression service.
+   Renders on individual person / arrest-record pages.
+
+   Usage:
+     {% from "includes/remove_name_ad.html" import render_remove_name_ad %}
+     {{ render_remove_name_ad(display_name=display_name, amount_label=name_removal_amount_label) }}
+#}
+{% macro render_remove_name_ad(display_name=None, amount_label='$99') %}
+<section class="public-sidebar-card p-5 border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white"
+         aria-label="Remove your name from Montana Blotter">
+    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-indigo-600 mb-2">
+        <i class="fas fa-shield-alt mr-1"></i> Montana Blotter Services
+    </p>
+    <h2 class="text-base font-black text-slate-900 leading-snug">Get your name removed from this page</h2>
+    <p class="mt-2 text-sm text-slate-600 leading-6">
+        Don't want your arrest record showing up in Google? Request privacy suppression for a one-time
+        <span class="font-bold text-slate-900">{{ amount_label }}</span> review fee. On approval, your name is
+        redacted across Montana Blotter &mdash; bookings, warrants, and related posts.
+    </p>
+    <a href="/remove-my-name?name={{ (display_name or '') | urlencode }}"
+       class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black uppercase tracking-[0.08em] text-white hover:bg-slate-800 transition-colors">
+        Remove My Name &middot; {{ amount_label }}
+    </a>
+    <p class="mt-2 text-[11px] text-slate-400 text-center">Redaction applied only after human review.</p>
+</section>
+{% endmacro %}

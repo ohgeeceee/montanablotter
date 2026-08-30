@@ -9527,6 +9527,7 @@ def public_court_case_detail(slug):
         og_title=page_title,
         og_description=meta_description,
         active_nav='courts',
+        name_removal_amount_label=config.NAME_SUPPRESS_AMOUNT_LABEL,
         current_year=datetime.now().year,
     )
 
@@ -9760,6 +9761,7 @@ def public_case_journey_detail(slug):
         og_title=f"{journey['title']} | Case Journey | Montana Blotter",
         og_description=journey.get('summary') or f"Public case journey for {journey['county']} County, Montana.",
         active_nav='case_journeys',
+        name_removal_amount_label=config.NAME_SUPPRESS_AMOUNT_LABEL,
         current_year=datetime.now().year,
     )
 
@@ -9807,6 +9809,7 @@ def missing_person_detail(slug):
         og_title=f"{person['full_name']} | Montana Missing Persons",
         og_description=person['summary'],
         **context,
+        name_removal_amount_label=config.NAME_SUPPRESS_AMOUNT_LABEL,
         current_year=datetime.now().year,
     )
 
@@ -9872,6 +9875,7 @@ def wanted_detail(slug):
         og_description=record['charges_text'] or f"Active warrant in {record['county']} County, Montana.",
         attorneys=attorneys,
         **context,
+        name_removal_amount_label=config.NAME_SUPPRESS_AMOUNT_LABEL,
         current_year=datetime.now().year,
     )
 
@@ -11709,6 +11713,7 @@ def public_record_detail(record_id):
         parent_post_title=record['post_title'],
         jsonld_item_page=jsonld_item_page,
         jsonld_article=jsonld_article,
+        name_removal_amount_label=config.NAME_SUPPRESS_AMOUNT_LABEL,
     )
 
 

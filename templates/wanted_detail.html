@@ -91,5 +91,8 @@
     {% with county = record.county %}
       {% include "includes/attorney_referral.html" %}
     {% endwith %}
+
+    {% from "includes/remove_name_ad.html" import render_remove_name_ad %}
+    {{ render_remove_name_ad(display_name=record.person_name, amount_label=name_removal_amount_label) }}
 </div>
 {% endblock %}

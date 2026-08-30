@@ -6,6 +6,8 @@ from flask import Blueprint, abort, jsonify, render_template, request, url_for
 
 from services.monetization.paywall import preview_allowed
 
+import config as config
+
 detention_bp = Blueprint('detention', __name__)
 
 _get_db = None
@@ -344,6 +346,7 @@ def booking_detail(booking_id):
             paywall_blocked=paywall_blocked,
             paywall_counts=paywall_counts,
             sponsored_ads=sponsored_ads,
+            name_removal_amount_label=config.NAME_SUPPRESS_AMOUNT_LABEL,
         )
     finally:
         conn.close()
