@@ -1042,6 +1042,44 @@ def ensure_attorney_checkout_schema(conn):
             updated_at TEXT DEFAULT (datetime('now'))
         )
     ''')
+    # Drift repair: the table may already exist from an older migration without
+    # the columns added above (CREATE TABLE IF NOT EXISTS skips it). Add any
+    # missing columns non-destructively so the indexes below can be created and
+    # migrate() can finish instead of aborting on a missing-column index.
+    _ACL_COLUMNS = [
+        ("order_id", "INTEGER NOT NULL DEFAULT 0"),
+        ("token", "TEXT"),
+        ("firm_name", "TEXT"),
+        ("contact_name", "TEXT"),
+        ("email", "TEXT"),
+        ("phone", "TEXT"),
+        ("website", "TEXT"),
+        ("logo_path", "TEXT"),
+        ("photo_path", "TEXT"),
+        ("blurb", "TEXT"),
+        ("tagline", "TEXT"),
+        ("is_featured", "INTEGER NOT NULL DEFAULT 0"),
+        ("status", "TEXT NOT NULL DEFAULT 'pending'"),
+        ("montana_bar_verified", "INTEGER NOT NULL DEFAULT 0"),
+        ("montana_bar_member_at", "TEXT"),
+        ("is_disqualified", "INTEGER NOT NULL DEFAULT 0"),
+        ("disqualify_reason", "TEXT"),
+        ("placement_county", "TEXT"),
+        ("placement_tier", "TEXT"),
+        ("listing_position", "INTEGER"),
+        ("ttl_at", "TEXT"),
+        ("impressions", "INTEGER NOT NULL DEFAULT 0"),
+        ("clicks", "INTEGER NOT NULL DEFAULT 0"),
+        ("created_at", "TEXT DEFAULT (datetime('now'))"),
+        ("updated_at", "TEXT DEFAULT (datetime('now'))"),
+    ]
+    existing = {row[1] for row in conn.execute("PRAGMA table_info('attorney_checkout_listings')")}
+    for col, col_type in _ACL_COLUMNS:
+        if col not in existing:
+            try:
+                conn.execute(f"ALTER TABLE attorney_checkout_listings ADD COLUMN {col} {col_type}")
+            except sqlite3.OperationalError:
+                pass  # already added concurrently
     conn.execute(
         'CREATE INDEX IF NOT EXISTS idx_acl_order ON attorney_checkout_listings(order_id)'
     )
