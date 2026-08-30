@@ -1,0 +1,108 @@
+{% extends "public_page_base.html" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Funniest Police Blotters",
+  "description": "The lighter side of Montana law enforcement — loose livestock, lawn gnomes, and other small-town absurdity, drawn from public records.",
+  "url": "https://montanablotter.com/funniest",
+  "publisher": { "@type": "Organization", "name": "Montana Blotter", "url": "https://montanablotter.com" }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:820px;margin:0 auto;padding:2rem 1rem;">
+  <h1 style="margin-bottom:.25rem;">Funniest Police Blotters</h1>
+  <p style="color:#555;margin-bottom:.5rem;">
+    The lighter side of Montana law enforcement — loose livestock, lawn gnomes, and other
+    small-town absurdity, pulled from public records.
+  </p>
+  <p style="color:#888;font-size:.82rem;margin-bottom:2rem;">
+    These are real incidents, lightly ranked for humor. We never mock victims: domestic
+    violence, sexual assault, and other sensitive calls are excluded. Names and personal
+    details are redacted before anything appears here.
+  </p>
+
+  {% if not items %}
+    <div style="text-align:center;padding:4rem 1rem;background:#f8f8f8;border-radius:8px;">
+      <h2 style="color:#444;">No howlers just yet</h2>
+      <p style="color:#666;">The humor scorer is still chewing through the blotter. Check back soon.</p>
+    </div>
+  {% else %}
+    <div style="display:flex;flex-direction:column;gap:1.25rem;">
+      {% for item in items %}
+      <article id="item-{{ item.id }}" style="border:1px solid #e3ddd0;border-radius:10px;padding:1.25rem 1.5rem;background:#fffdf8;box-shadow:0 1px 2px rgba(0,0,0,.04);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap;">
+          <span style="font-size:.78rem;color:#999;text-transform:uppercase;letter-spacing:.04em;">
+            {% if item.county %}{{ item.county }}{% if item.date %} &middot; {{ item.date }}{% endif %}
+            {% elif item.date %}{{ item.date }}{% endif %}
+          </span>
+          <span title="Humor score" style="font-size:.78rem;color:#b8860b;font-weight:700;">&#9733; {{ item.humor_score }}</span>
+        </div>
+        <p style="font-size:1.12rem;line-height:1.5;margin:.5rem 0 .25rem;font-weight:600;color:#222;">
+          {{ item.incident }}
+        </p>
+        {% if item.details %}
+        <p style="color:#444;margin:.25rem 0 .5rem;line-height:1.45;">{{ item.details }}</p>
+        {% endif %}
+        {% if item.location %}
+        <p style="color:#777;font-size:.85rem;margin:0 0 .5rem;"><i class="fas fa-map-marker-alt"></i> {{ item.location }}</p>
+        {% endif %}
+        <div style="font-size:.8rem;">
+          <button type="button" class="mb-copy-link" data-url="{{ item.share_url }}"
+                  style="background:none;border:none;color:#1a6b3c;cursor:pointer;padding:0;font-size:.8rem;font-weight:600;">
+            &#128279; Copy link
+          </button>
+          <span class="mb-copy-feedback" style="color:#1a6b3c;margin-left:.4rem;display:none;">Copied!</span>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <nav style="display:flex;justify-content:space-between;align-items:center;margin-top:2rem;gap:1rem;">
+      <div>
+        {% if prev_url %}
+        <a href="{{ prev_url }}" style="text-decoration:none;color:#1a6b3c;font-weight:600;">&larr; Newer</a>
+        {% endif %}
+      </div>
+      <span style="color:#888;font-size:.85rem;">Page {{ page }} of {{ total_pages }}</span>
+      <div>
+        {% if next_url %}
+        <a href="{{ next_url }}" style="text-decoration:none;color:#1a6b3c;font-weight:600;">Older &rarr;</a>
+        {% endif %}
+      </div>
+    </nav>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        resolve();
+      } catch (e) { reject(e); }
+    });
+  }
+  document.querySelectorAll('.mb-copy-link').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var url = btn.getAttribute('data-url');
+      copyText(url).then(function () {
+        var fb = btn.parentElement.querySelector('.mb-copy-feedback');
+        if (fb) { fb.style.display = 'inline'; setTimeout(function () { fb.style.display = 'none'; }, 1500); }
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

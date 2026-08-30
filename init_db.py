@@ -1434,6 +1434,16 @@ def migrate():
     except sqlite3.OperationalError:
         pass  # Column already exists
 
+    # humor_score powers the public /funniest feed. NULL until scored.
+    try:
+        cursor.execute("ALTER TABLE records ADD COLUMN humor_score REAL")
+        print("✅ Added records.humor_score")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_records_humor_score ON records(humor_score)"
+    )
+
     for col, definition in [
         ('email', 'TEXT'),
         ('created_at', 'TEXT'),

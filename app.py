@@ -1214,6 +1214,8 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/wanted/',
     '/arrests/',
     '/county/',  # county blotter listing
+    '/funniest',  # public humor feed, read-only + PII-scrubbed
+    '/funniest.json',
 )
 _SIGNIN_WALL_EXEMPT_EXACT = {
     '/',
@@ -15941,6 +15943,8 @@ from blueprints.sponsored_listings import sponsored_bp
 app.register_blueprint(sponsored_bp)
 from blueprints.api_keys import api_keys_bp
 app.register_blueprint(api_keys_bp)
+from blueprints.funny import funny_bp
+app.register_blueprint(funny_bp)
 from blueprints.admin_geocode import admin_geocode_bp
 app.register_blueprint(admin_geocode_bp)
 app.register_blueprint(threedhub_bp)
