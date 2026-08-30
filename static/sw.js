@@ -35,6 +35,13 @@ self.addEventListener('fetch', event => {
   // Only handle same-origin requests
   if (url.origin !== location.origin) return;
 
+  // Pass through non-GET requests (form POSTs, etc.) untouched. Intercepting a
+  // form-submit navigation here and following its cross-origin 302 (e.g. to
+  // checkout.stripe.com) yields a cross-origin body the browser cannot use as a
+  // top-level navigation, silently dropping the redirect. Let the browser handle
+  // these natively so server redirects are followed correctly.
+  if (request.method !== 'GET') return;
+
   // Static assets: cache-first
   if (url.pathname.startsWith('/static/')) {
     event.respondWith(
