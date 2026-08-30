@@ -1686,6 +1686,14 @@ body > .public-masthead {
   margin-top: 1rem;
 }
 
+/* Remove My Name ad button — keep its label white even inside the
+   newspaper view, where `article.mb-newspaper a { color: inherit }` would
+   otherwise make white-on-dark text invisible. */
+.rn-ad-btn,
+article.mb-newspaper a.rn-ad-btn {
+  color: #ffffff !important;
+}
+
 .public-btn {
   display: inline-flex;
   align-items: center;
