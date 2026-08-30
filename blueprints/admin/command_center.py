@@ -257,6 +257,7 @@ def admin_command_center():
 
 
 @admin_bp.route("/operations/command-center/runbook")
+@admin_bp.route("/operations/runbook")
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_command_center_runbook():
