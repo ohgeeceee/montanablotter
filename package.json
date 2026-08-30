@@ -1,0 +1,12 @@
+{
+  "name": "montanablotter-tailwind",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Tailwind build for Montana Blotter (replaces cdn.tailwindcss.com runtime dependency)",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i ./static/_tailwind_input.css -o ./static/tailwind.generated.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

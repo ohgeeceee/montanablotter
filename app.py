@@ -1425,6 +1425,148 @@ def _newspaper_stats() -> dict:
 def inject_newspaper_stats():
     return _newspaper_stats()
 
+
+def _admin_financial_pulse() -> dict:
+    """Compute MRR and lifetime revenue for the admin 'Financial Pulse' widget.
+
+    Pulls active subscription amounts from every monetization source (ad orders,
+    donor subscriptions, public-user plans) and lifetime revenue from succeeded
+    donations plus paid ad orders. Each source is isolated in its own try/except so a
+    missing table never breaks admin page rendering. Returns dollar floats.
+    """
+    mrr_cents = 0
+    total_rev_cents = 0
+
+    try:
+        conn = get_db()
+    except Exception:
+        return {'mrr': 0.0, 'total_rev': 0.0}
+
+    def _safe(sql, params=()):
+        try:
+            return conn.execute(sql, params).fetchall()
+        except Exception:
+            return []
+
+    try:
+        # --- Recurring ad orders (active = currently paying) ---
+        bail_pkg = {}
+        try:
+            from blueprints.admin import bail_ads as _bail_mod
+            bail_pkg = _bail_mod._bail_ad_package_lookup()
+        except Exception:
+            try:
+                bail_pkg = _bail_ad_package_lookup()
+            except Exception:
+                bail_pkg = {}
+        for row in _safe(
+            "SELECT package_id, billing_cycle, amount_cents FROM bail_ad_orders WHERE status = 'active'"
+        ):
+            cycle = (row['billing_cycle'] or 'monthly').lower()
+            pkg = bail_pkg.get(row['package_id']) or {}
+            amt = int(row['amount_cents'] or 0) or (pkg.get('price_monthly_cents') or 0)
+            if cycle == 'annual':
+                mrr_cents += amt // 12
+            else:
+                mrr_cents += amt
+                total_rev_cents += amt
+
+        rec_pkg = {}
+        try:
+            from blueprints import recovery_ads as _rec_mod
+            rec_pkg = _rec_mod._recovery_ad_package_lookup()
+        except Exception:
+            rec_pkg = {}
+        for row in _safe(
+            "SELECT package_id, billing_cycle FROM recovery_ad_orders WHERE status = 'active'"
+        ):
+            cycle = (row['billing_cycle'] or 'monthly').lower()
+            pkg = rec_pkg.get(row['package_id']) or {}
+            monthly = pkg.get('price_monthly_cents') or 0
+            annual = pkg.get('price_annual_cents') or 0
+            if cycle == 'annual':
+                mrr_cents += annual // 12
+            else:
+                mrr_cents += monthly
+                total_rev_cents += monthly
+
+        law_pkg = {}
+        try:
+            from blueprints import lawyer_ads as _law_mod
+            law_pkg = _law_mod._package_lookup()
+        except Exception:
+            law_pkg = {}
+        for row in _safe(
+            "SELECT package_id, billing_cycle, amount_cents FROM lawyer_ad_orders WHERE status = 'active'"
+        ):
+            cycle = (row['billing_cycle'] or 'monthly').lower()
+            pkg = law_pkg.get(row['package_id']) or {}
+            monthly = int(row['amount_cents'] or 0) or (pkg.get('price_monthly_cents') or 0)
+            annual = pkg.get('price_annual_cents') or 0
+            if cycle == 'annual':
+                mrr_cents += annual // 12
+            else:
+                mrr_cents += monthly
+                total_rev_cents += monthly
+
+        att_pkg = {}
+        try:
+            from blueprints import attorney_checkout as _att_mod
+            att_pkg = _att_mod._attorney_package_lookup()
+        except Exception:
+            att_pkg = {}
+        for row in _safe(
+            "SELECT package_id, billing_cycle FROM attorney_checkout_orders WHERE status = 'active'"
+        ):
+            cycle = (row['billing_cycle'] or 'monthly').lower()
+            pkg = att_pkg.get(row['package_id']) or {}
+            monthly = pkg.get('price_monthly_cents') or 0
+            annual = pkg.get('price_annual_cents') or 0
+            if cycle == 'annual':
+                mrr_cents += annual // 12
+            else:
+                mrr_cents += monthly
+                total_rev_cents += monthly
+
+        # --- Donor subscriptions (recurring donations) ---
+        for row in _safe(
+            "SELECT amount_cents FROM donations WHERE mode = 'monthly' AND status = 'succeeded'"
+        ):
+            mrr_cents += int(row['amount_cents'] or 0)
+
+        # --- Public-user plan subscriptions (plus / pro) ---
+        plan_monthly = {'plus': 599, 'pro': 1999, 'blotter_plus': 599, 'blotter_pro': 1999}
+        for plan, cents in plan_monthly.items():
+            try:
+                n = conn.execute(
+                    "SELECT COUNT(*) FROM public_users WHERE is_active = 1 AND subscriber_plan = ?",
+                    (plan,),
+                ).fetchone()[0]
+                mrr_cents += int(n) * cents
+            except Exception:
+                pass
+
+        # --- Lifetime revenue: all-time succeeded donations ---
+        rev_row = conn.execute(
+            "SELECT COALESCE(SUM(amount_cents), 0) FROM donations WHERE status = 'succeeded'"
+        ).fetchone()
+        total_rev_cents += int(rev_row[0]) if rev_row else 0
+    except Exception:
+        pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    return {'mrr': round(mrr_cents / 100.0, 2), 'total_rev': round(total_rev_cents / 100.0, 2)}
+
+
+@app.context_processor
+def inject_admin_financial_pulse():
+    return _admin_financial_pulse()
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 

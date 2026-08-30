@@ -6,7 +6,7 @@
     <meta name="facebook-domain-verification" content="hov8m0bh6slqwz6y1guh07p5cect0h" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Montana Blotter | Admin{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='tailwind.generated.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
