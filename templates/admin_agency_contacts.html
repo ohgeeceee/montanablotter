@@ -28,6 +28,7 @@
   <div class="adm-card-header">Add New Contact</div>
   <form method="POST" action="{{ url_for('admin.admin_agency_contacts_add') }}"
         style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr)) auto;gap:10px;align-items:end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
       <label class="adm-label">County *</label>
       <select name="county" required class="adm-input">
@@ -111,6 +112,7 @@
           <form method="POST"
                 action="{{ url_for('admin.admin_agency_contacts_delete', contact_id=c.id) }}"
                 onsubmit="return confirm('Remove this contact?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="adm-btn adm-btn-sm adm-btn-danger">Remove</button>
           </form>
         </td>

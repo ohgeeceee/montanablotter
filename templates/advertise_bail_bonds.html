@@ -518,6 +518,7 @@
                 {% endif %}
 
                 <form id="bail-ad-inquiry-form" method="post" action="/advertise/bail-bonds" class="space-y-3 adbl-apply-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="source" value="{{ request.args.get('source', 'advertise_page') }}">
                     <input type="hidden" name="simulator_logo_path" value="">
                     <input type="hidden" name="simulator_target_url" value="">
@@ -676,6 +677,7 @@
             {% endwith %}
 
             <form method="post" action="/advertise/bail-bonds/contact" class="mt-5 space-y-3 adbl-schedule-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] uppercase tracking-[0.14em] font-bold text-slate-700 mb-1" for="call_name">Your name *</label>

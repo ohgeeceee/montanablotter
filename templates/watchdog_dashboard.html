@@ -95,6 +95,7 @@
                             <span class="text-xs text-slate-400 ml-2">{{ alert.data_sources }}</span>
                         </div>
                         <form method="POST" action="/watchdog/dashboard/{{ sub.token }}/alerts/{{ alert.id }}/delete" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="text-red-400 hover:text-red-600 text-xs font-bold transition" title="Remove">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -107,6 +108,7 @@
 
                     <!-- Add alert form -->
                     <form method="POST" action="/watchdog/dashboard/{{ sub.token }}/alerts" class="mt-4 flex gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="text" name="keyword" placeholder="Add keyword (e.g. DUI, Gallatin, poaching...)" required
                                class="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:border-blue-500" id="wd-add-keyword">
                         <select name="data_sources" class="rounded-lg border border-slate-200 px-3 py-2 text-sm" id="wd-alert-source">
@@ -141,6 +143,7 @@
                             {% endif %}
                         </div>
                         <form method="POST" action="/watchdog/dashboard/{{ sub.token }}/spending-alerts/{{ alert.id }}/delete" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="text-red-400 hover:text-red-600 text-xs font-bold transition" title="Remove">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -152,6 +155,7 @@
                     {% endif %}
 
                     <form method="POST" action="/watchdog/dashboard/{{ sub.token }}/spending-alerts" class="grid md:grid-cols-4 gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <select name="alert_type" class="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                             <option value="vendor">Vendor Award</option>
                             <option value="agency_threshold">Agency Threshold</option>

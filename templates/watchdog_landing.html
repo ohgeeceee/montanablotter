@@ -192,6 +192,7 @@
                 {% endif %}
 
                 <form method="POST" action="/watchdog/subscribe" class="space-y-4" id="watchdog-signup-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div>
                         <label class="wd-form-label">Email *</label>
                         <input type="email" name="email" required placeholder="reporter@example.com" class="wd-form-input" id="watchdog-email">

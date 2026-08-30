@@ -22,6 +22,7 @@
         </div>
 
         <form method="post" action="/register" id="register-form" class="public-detail-frame__body space-y-6">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ next_url }}">
             <input type="hidden" name="g-recaptcha-response" id="recaptcha-token">
 

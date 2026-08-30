@@ -31,6 +31,7 @@
   <div style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
     <a href="{{ url_for('admin.admin_attorney_ads_listing_new') }}" class="btn btn-primary" style="padding:.5rem 1rem;background:#0f172a;color:#fff;border-radius:4px;text-decoration:none;">+ New Listing</a>
     <form method="POST" action="{{ url_for('admin.admin_attorney_ads_import_csv') }}" enctype="multipart/form-data" style="display:flex;gap:.5rem;align-items:center;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="file" name="csv_file" accept=".csv" required style="font-size:.85rem;">
       <button type="submit" class="btn btn-secondary" style="padding:.5rem 1rem;background:#64748b;color:#fff;border:none;border-radius:4px;cursor:pointer;">Import CSV</button>
     </form>
@@ -77,6 +78,7 @@
         <td>{{ a.county }}</td>
         <td>
           <form method="POST" action="{{ url_for('admin.admin_attorney_ads_listing_tier', listing_id=a.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <select name="sponsor_tier" onchange="this.form.submit()" style="font-size:.85rem;padding:.2rem;">
               {% for tier_id, tier_label in tier_choices.items() %}
               <option value="{{ tier_id }}" {% if a.sponsor_tier == tier_id or (not a.sponsor_tier and not tier_id) %}selected{% endif %}>{{ tier_label }}</option>
@@ -86,12 +88,14 @@
         </td>
         <td>
           <form method="POST" action="{{ url_for('admin.admin_attorney_ads_listing_status', listing_id=a.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="checkbox" name="is_active" value="1" {% if a.is_active %}checked{% endif %} onchange="this.form.submit()">
           </form>
         </td>
         <td>
           <a href="{{ url_for('admin.admin_attorney_ads_listing_edit', listing_id=a.id) }}" style="color:#0f172a;font-size:.85rem;margin-right:.75rem;">Edit</a>
           <form method="POST" action="{{ url_for('admin.admin_attorney_ads_listing_delete', listing_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Delete this listing?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" style="background:none;border:none;color:#dc2626;font-size:.85rem;cursor:pointer;padding:0;">Delete</button>
           </form>
         </td>
@@ -125,6 +129,7 @@
         <td>{{ claim.tier_requested|capitalize }}</td>
         <td>
           <form method="POST" action="{{ url_for('admin.admin_attorney_ads_claim_status', claim_id=claim.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <select name="status" onchange="this.form.submit()" style="font-size:.85rem;padding:.2rem;">
               {% for s in ['pending', 'approved', 'rejected'] %}
               <option value="{{ s }}" {% if claim.status == s %}selected{% endif %}>{{ s|capitalize }}</option>
@@ -136,10 +141,12 @@
         <td>
           {% if claim.status == 'pending' %}
           <form method="POST" action="{{ url_for('admin.admin_attorney_ads_claim_status', claim_id=claim.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="status" value="approved">
             <button type="submit" style="background:none;border:none;color:#16a34a;font-size:.85rem;cursor:pointer;padding:0;margin-right:.5rem;">Approve</button>
           </form>
           <form method="POST" action="{{ url_for('admin.admin_attorney_ads_claim_status', claim_id=claim.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="status" value="rejected">
             <button type="submit" style="background:none;border:none;color:#dc2626;font-size:.85rem;cursor:pointer;padding:0;">Reject</button>
           </form>

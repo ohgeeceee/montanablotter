@@ -20,6 +20,7 @@
 {% block admin_content %}
 
   <form method="POST" action="{{ url_for('admin.admin_email_templates') }}" class="space-y-5 max-w-3xl">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
     {# Name #}
     <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">

@@ -102,6 +102,7 @@
         <!-- Claim panel -->
         <div class="px-6 pb-6">
             <form id="claim-form" method="POST" action="/api/ad-unlock/complete" class="space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="nonce" id="claim-nonce" value="{{ nonce }}">
                 <input type="hidden" name="watch_seconds" id="claim-watch" value="0">
                 <input type="hidden" name="provider" id="claim-provider" value="youtube">

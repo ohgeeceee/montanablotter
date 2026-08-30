@@ -29,6 +29,7 @@
   {% endif %}
 
   <form method="POST" action="{{ url_for('recovery_ads.advertise_recovery_control_panel_update', token=token) }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h2 style="font-size:1.1rem;border-bottom:1px solid #eee;padding-bottom:.5rem;margin-bottom:1rem;">Your Listing</h2>
 
     <div style="margin-bottom:1rem;">

@@ -13,6 +13,7 @@
 
         <div class="w-full lg:w-auto">
             <form method="POST" action="/subscribe" class="w-full flex flex-col sm:flex-row gap-2 subscribe-form-track" data-subscribe-source="{{ source_tag or 'inline_cta' }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="source" value="{{ source_tag or 'inline_cta' }}">
                 <input type="email"
                        name="email"

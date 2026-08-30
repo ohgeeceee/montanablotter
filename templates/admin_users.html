@@ -102,6 +102,7 @@
                         </td>
                         <td class="px-5 py-4">
                             <form method="post" action="/admin/system/users/{{ user.id }}/role" class="flex items-center gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <select name="role" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">
                                     {% for value, label in role_options.items() %}
                                     <option value="{{ value }}" {% if user.role == value %}selected{% endif %}>{{ label }}</option>
@@ -133,6 +134,7 @@
                         </td>
                         <td class="px-5 py-4">
                             <form method="post" action="/admin/system/users/{{ user.id }}/status" class="flex justify-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="is_active" value="{{ 0 if user.is_active else 1 }}">
                                 <button type="submit"
                                         class="rounded-lg px-3 py-2 text-xs font-black uppercase tracking-[0.12em] {% if user.is_active %}bg-rose-600 text-white hover:bg-rose-700{% else %}bg-emerald-600 text-white hover:bg-emerald-700{% endif %} transition">

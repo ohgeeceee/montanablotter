@@ -7,6 +7,7 @@
   <p style="color:#666;margin-bottom:1.5rem;">Package: {{ package.name or order.package_id }} · Status: {{ order.status }}</p>
 
   <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="margin-bottom:1rem;">
       <label style="display:block;font-weight:600;margin-bottom:.25rem;">Tagline</label>
       <input type="text" name="tagline" value="{{ order.tagline or '' }}" maxlength="120" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">

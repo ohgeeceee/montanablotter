@@ -79,6 +79,7 @@
             </div>
             <div class="public-detail-frame__body">
                 <form method="post" action="/wanted/notify-when-cleared" class="public-form" style="display:flex;flex-direction:column;gap:1rem;max-width:560px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="public-form__field">
                         <label for="person_name" style="display:block;font-weight:600;margin-bottom:0.25rem;">Full name on the warrant *</label>
                         <input type="text" id="person_name" name="person_name" required minlength="2" maxlength="120"

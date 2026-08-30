@@ -136,6 +136,7 @@
                 {% endif %}
 
                 <form method="post" action="/sponsored-digest" class="mt-4 space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div>
                         <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">County</label>
                         <input name="county" required maxlength="80" placeholder="e.g. Gallatin"

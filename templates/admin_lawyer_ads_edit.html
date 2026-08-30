@@ -12,6 +12,7 @@
   {% endif %}
 
   <form method="POST" enctype="multipart/form-data" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="grid-column:1 / -1;">
       <label style="display:block;font-weight:600;margin-bottom:.25rem;">Firm name</label>
       <input type="text" name="firm_name" value="{{ order.firm_name }}" required maxlength="200"

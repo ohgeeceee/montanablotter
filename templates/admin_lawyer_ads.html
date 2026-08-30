@@ -193,6 +193,7 @@
                             </a>
                             {% if order.status == 'active' %}
                             <form method="POST" action="{{ url_for('admin.admin_lawyer_ads_cancel', order_id=order.id) }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" onclick="return confirm('Cancel this order?');"
                                         class="ml-3 text-xs font-black uppercase tracking-[0.1em] text-rose-700 hover:underline">
                                     Cancel

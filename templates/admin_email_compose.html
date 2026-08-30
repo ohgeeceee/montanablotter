@@ -56,6 +56,7 @@
 
   {# ── Campaign fields ── #}
   <form id="campaign-form" method="POST" action="{{ url_for('admin.admin_email_compose') }}" class="space-y-5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="audience" id="form-audience" value="{{ audience }}">
 
     {# Campaign name #}

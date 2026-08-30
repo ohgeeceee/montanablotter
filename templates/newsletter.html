@@ -129,6 +129,7 @@
                     {% endif %}
                 </div>
                 <form method="post" action="/subscribe" class="space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="source" value="newsletter_landing">
                     <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Email address</label>
                     <input type="email" name="email" required placeholder="you@example.com"

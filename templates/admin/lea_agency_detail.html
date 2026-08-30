@@ -36,6 +36,7 @@
 
     {% if agency.verification_status != 'verified' %}
     <form method="post" action="{{ url_for('.lea_verify_agency', agency_id=agency.id) }}" style="display:inline;" onsubmit="return confirm('Verify {{ agency.org_name }}?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" style="padding:.4rem 1rem;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">✓ Verify</button>
     </form>
     {% endif %}
@@ -44,6 +45,7 @@
     <details style="display:inline-block;">
       <summary style="cursor:pointer;padding:.4rem 1rem;background:#dc2626;color:#fff;border-radius:4px;font-weight:500;font-size:.9rem;">✕ Reject</summary>
       <form method="post" action="{{ url_for('.lea_reject_agency', agency_id=agency.id) }}" style="margin-top:.5rem;padding:.5rem;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label style="display:block;font-size:.85rem;margin-bottom:.3rem;">Rejection reason:</label>
         <textarea name="reason" required rows="2" style="width:100%;padding:.3rem;border:1px solid #fecaca;border-radius:3px;" placeholder="Why is this agency being rejected?"></textarea>
         <button type="submit" style="margin-top:.3rem;padding:.3rem .8rem;background:#dc2626;color:#fff;border:none;border-radius:3px;cursor:pointer;">Confirm Rejection</button>

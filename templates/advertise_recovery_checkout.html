@@ -12,6 +12,7 @@
   {% endif %}
 
   <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="margin-bottom:1rem;">
       <label style="display:block;font-weight:600;margin-bottom:.25rem;">Recovery Center Name *</label>
       <input type="text" name="center_name" value="{{ form_data.center_name }}" required maxlength="120" style="width:100%;padding:.6rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">

@@ -36,6 +36,7 @@
                 <td class="px-4 py-3 text-slate-500">{{ listing.created_at[:10] if listing.created_at else '-' }}</td>
                 <td class="px-4 py-3">
                     <form method="POST" action="/sponsored/admin/listings/{{ listing.id }}/toggle">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="text-sm font-bold
                             {% if listing.is_active %}text-red-600 hover:text-red-800{% else %}text-emerald-600 hover:text-emerald-800{% endif %}">
                             {{ 'Deactivate' if listing.is_active else 'Activate' }}

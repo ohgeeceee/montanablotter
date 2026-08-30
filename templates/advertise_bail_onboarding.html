@@ -51,6 +51,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <section class="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
             <form method="post" enctype="multipart/form-data" class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block text-xs uppercase tracking-[0.14em] font-black text-slate-500 mb-2">Headline *</label>
                     <input type="text" name="headline" required value="{{ form_data.headline or '' }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm">

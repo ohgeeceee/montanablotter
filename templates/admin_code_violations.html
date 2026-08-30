@@ -8,6 +8,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 mb-6">
         <h2 class="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-3">Upload Export File</h2>
         <form method="post" action="{{ url_for('admin.admin_code_violations_upload') }}" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div>
                 <label class="block text-xs font-medium text-slate-500 mb-1">Source</label>
                 <select name="source_key" required class="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white min-w-[180px]">

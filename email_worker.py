@@ -152,6 +152,14 @@ class EmailWorker:
                 server=config.GMAIL_IMAP_SERVER or 'imap.gmail.com',
                 port=int(config.GMAIL_IMAP_PORT or 993),
             ))
+        if (config.ADVERTISING_IMAP_USER or '').strip() and (config.ADVERTISING_IMAP_PASSWORD or '').strip():
+            accounts.append(_ImapAccount(
+                label='advertising',
+                user=config.ADVERTISING_IMAP_USER,
+                password=config.ADVERTISING_IMAP_PASSWORD,
+                server=config.ADVERTISING_IMAP_SERVER or 'imap.ionos.com',
+                port=int(config.ADVERTISING_IMAP_PORT or 993),
+            ))
         return accounts
 
     def _validate_accounts(self) -> str | None:
@@ -482,6 +490,14 @@ class EmailWorker:
         seen_message_ids: set[str] = set()
 
         for account in self.accounts:
+            # Forward-only inboxes (advertising@) are never part of the
+            # blotter-ingest pipeline — they just re-send to MB_EMAIL_FORWARD_TO.
+            if account.label == 'advertising':
+                try:
+                    self._process_forward_account(account)
+                except Exception as e:
+                    logging.error(f"Forward account {account.label!r} failed: {e}")
+                continue
             try:
                 total_processed += self._process_account_inbox(account, seen_message_ids)
             except Exception as e:
@@ -682,6 +698,115 @@ class EmailWorker:
 
             mail.expunge()
             return processed_count
+        finally:
+            with contextlib.suppress(Exception):
+                mail.close()
+            with contextlib.suppress(Exception):
+                mail.logout()
+
+    # ---------------------------------------------------------------------------
+    # Forward-only account handling (advertising@ etc.)
+    # ---------------------------------------------------------------------------
+
+    def _forward_message_via_smtp(self, msg, *, to_addr: str) -> tuple[bool, str]:
+        """Re-send an already-parsed email message to ``to_addr`` via SMTP.
+
+        Preserves the original From/Subject so the forwarded copy reads
+        naturally in the destination inbox; the original raw message is
+        attached as original.eml so nothing is lost. Returns (ok, error).
+        """
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.mime.application import MIMEApplication
+
+        server = config.SMTP_SERVER or 'smtp.gmail.com'
+        port = int(config.SMTP_PORT or 587)
+        user = config.SMTP_USER
+        password = config.SMTP_PASSWORD
+        if not (server and port and user and password):
+            return False, 'smtp_not_configured'
+
+        try:
+            wrapper = MIMEMultipart('mixed')
+            wrapper['Subject'] = f"Fwd: {msg.get('subject', 'No Subject')}"
+            wrapper['From'] = f"Montana Blotter <{user}>"
+            wrapper['To'] = to_addr
+            wrapper['Reply-To'] = (msg.get('from') or user)
+
+            note = MIMEText(
+                "Forwarded from the Montana Blotter advertising inbox.\n"
+                f"Original from: {msg.get('from', 'unknown')}\n"
+                f"Original subject: {msg.get('subject', 'No Subject')}\n",
+                'plain',
+            )
+            wrapper.attach(note)
+
+            raw = msg.as_bytes()
+            attachment = MIMEApplication(raw, Name='original.eml')
+            attachment['Content-Disposition'] = 'attachment; filename="original.eml"'
+            wrapper.attach(attachment)
+
+            with smtplib.SMTP(server, port, timeout=30) as smtp:
+                smtp.starttls()
+                smtp.login(user, password)
+                smtp.sendmail(user, to_addr, wrapper.as_string())
+            return True, ''
+        except Exception as e:
+            logging.warning("Forward of advertising message failed: %s", e)
+            return False, str(e)[:200]
+
+    def _process_forward_account(self, account: '_ImapAccount') -> int:
+        """Poll a forward-only inbox (advertising@) and re-send each UNSEEN
+        message to ``config.EMAIL_FORWARD_TO``. These messages never enter the
+        blotter-ingest pipeline. Returns the number forwarded.
+        """
+        to_addr = (config.EMAIL_FORWARD_TO or '').strip()
+        if not to_addr or '@' not in to_addr:
+            logging.warning(
+                "[advertising] No MB_EMAIL_FORWARD_TO configured — skipping forward account"
+            )
+            return 0
+
+        mail = self._connect_imap(account)
+        try:
+            mail.select("INBOX")
+            status, messages = mail.search(None, 'UNSEEN')
+            if status != 'OK' or not messages[0]:
+                logging.info(f"[{account.label}] No new emails to forward")
+                return 0
+
+            email_ids = messages[0].split()
+            forwarded = 0
+            for num in email_ids:
+                try:
+                    res, msg_data = mail.fetch(num, "(RFC822)")
+                    for response_part in msg_data:
+                        if not isinstance(response_part, tuple):
+                            continue
+                        msg = email.message_from_bytes(response_part[1])
+                        subject = msg.get('subject', 'No Subject')
+                        sender = msg.get('from', 'Unknown')
+                        logging.info(
+                            f"[{account.label}] Forwarding email: {subject!r} from {sender}"
+                        )
+                        ok, err = self._forward_message_via_smtp(msg, to_addr=to_addr)
+                        if ok:
+                            self._move_to_processed(mail, num)
+                            forwarded += 1
+                        else:
+                            logging.error(
+                                f"[{account.label}] Forward failed for {subject!r}: {err}"
+                            )
+                except Exception as e:
+                    logging.error(
+                        f"[{account.label}] Error forwarding email {num}: {e}"
+                    )
+                    continue
+
+            with contextlib.suppress(Exception):
+                mail.expunge()
+            return forwarded
         finally:
             with contextlib.suppress(Exception):
                 mail.close()

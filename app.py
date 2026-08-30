@@ -152,6 +152,8 @@ WINTER_STORM_SUPPORT_BANNER_DEFAULTS = {
     'subscribe_label': 'Get Alerts',
 }
 app.config.update(
+    SESSION_COOKIE_NAME=config.SESSION_COOKIE_NAME,
+    SESSION_COOKIE_DOMAIN=config.SESSION_COOKIE_DOMAIN,
     SESSION_COOKIE_HTTPONLY=config.SESSION_COOKIE_HTTPONLY,
     SESSION_COOKIE_SAMESITE=config.SESSION_COOKIE_SAMESITE,
     SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
@@ -1564,7 +1566,9 @@ def _admin_financial_pulse() -> dict:
 
 @app.context_processor
 def inject_admin_financial_pulse():
-    return _admin_financial_pulse()
+    ctx = _admin_financial_pulse()
+    ctx['name_removal_amount_label'] = config.NAME_SUPPRESS_AMOUNT_LABEL
+    return ctx
 
 
 def allowed_file(filename):

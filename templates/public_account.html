@@ -109,6 +109,7 @@
             <p class="public-card__eyebrow">Display Name</p>
             <p class="mt-1 text-sm text-slate-600">This is how your name appears on comments.</p>
             <form method="post" action="/account/update-name" class="mt-4 flex flex-wrap gap-3 items-start">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="text" name="display_name" value="{{ account_user.display_name }}"
                        class="public-form-input" maxlength="120" required style="flex:1; min-width:180px;">
                 <button type="submit" class="public-btn public-btn--primary">Save</button>
@@ -119,6 +120,7 @@
             <p class="public-card__eyebrow">Digest Counties</p>
             <p class="mt-1 text-sm text-slate-600">Select the counties you want in your morning digest. Leave all unchecked for statewide coverage.</p>
             <form method="post" action="/account/update-counties" class="mt-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {% for county in counties %}
                     <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 cursor-pointer hover:bg-slate-100">
@@ -136,6 +138,7 @@
         <section id="password-settings" class="public-card p-6">
             <p class="public-card__eyebrow">Change Password</p>
             <form method="post" action="/account/update-password" class="mt-4 space-y-4 max-w-md">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="public-form-label">Current Password</label>
                     <input type="password" name="current_password" class="public-form-input" required autocomplete="current-password">

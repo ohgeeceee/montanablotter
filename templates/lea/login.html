@@ -10,6 +10,7 @@
     {% endif %}
 
     <form method="POST" action="{{ url_for('lea_panel.login') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div style="margin-bottom:1rem;">
             <label style="display:block;margin-bottom:0.25rem;font-weight:600;font-size:0.9rem;">Username</label>
             <input type="text" name="username" required style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;">

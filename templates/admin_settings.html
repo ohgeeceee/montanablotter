@@ -56,6 +56,7 @@
                     <p class="text-xs text-slate-500 mt-1">Admin login abuse controls backed by `app_settings`.</p>
                 </div>
                 <form method="post" class="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_auth_settings">
                     <div>
                         <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.admin_login_max_attempts.label }}</label>
@@ -92,6 +93,7 @@
                     <p class="text-xs text-slate-500 mt-1">Manual upload and alerting controls that the runtime can honor immediately.</p>
                 </div>
                 <form method="post" class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_ingestion_settings">
                     <div>
                         <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">{{ setting_specs.max_upload_mb.label }}</label>
@@ -121,6 +123,7 @@
                     <p class="text-xs text-slate-500 mt-1">Feature-flag control for public donations and top-of-site support messaging.</p>
                 </div>
                 <form method="post" class="p-5 flex flex-col gap-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="save_revenue_settings">
                     <label class="inline-flex items-center gap-3">
                         <input type="checkbox" name="donations_enabled" value="1" {% if setting_values.donations_enabled %}checked{% endif %}
@@ -164,6 +167,7 @@
                     <p class="text-xs text-slate-500 mt-1">Update your current admin password.</p>
                 </div>
                 <form method="post" class="p-5 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="change_password">
                     <div>
                         <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">New password</label>

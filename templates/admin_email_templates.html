@@ -73,6 +73,7 @@
             <td class="px-4 py-3 text-slate-500 text-right">{{ t.updated_at }}</td>
             <td class="px-4 py-3 text-center">
               <form method="POST" action="{{ url_for('admin.admin_email_templates') }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="template_id" value="{{ t.id }}">
                 <input type="hidden" name="action" value="edit">
                 <button type="submit" class="text-blue-400 hover:text-blue-300 mx-1" title="Edit">
@@ -84,6 +85,7 @@
               <form method="POST" action="{{ url_for('admin.admin_email_template_delete', template_id=t.id) }}"
                     onsubmit="return confirm('Delete template \"{0}\"?'.replace('{0}','{{ t.name }}'))"
                     class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="text-red-400 hover:text-red-300 mx-1" title="Delete">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>

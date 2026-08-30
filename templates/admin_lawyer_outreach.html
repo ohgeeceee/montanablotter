@@ -50,6 +50,7 @@
   <div style="margin-bottom:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;">
     <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_run_worker') }}"
           style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-primary"
               style="padding:.5rem 1rem;background:#1e40af;color:#fff;border-radius:4px;border:none;cursor:pointer;">
         Run cadence worker now
@@ -57,6 +58,7 @@
     </form>
     <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_import_csv') }}"
           style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-secondary"
               style="padding:.5rem 1rem;background:#475569;color:#fff;border-radius:4px;border:none;cursor:pointer;">
         Re-import target_list.csv
@@ -91,9 +93,11 @@
         <td style="padding:.5rem;">{{ em.subject[:80] }}{% if em.subject|length > 80 %}…{% endif %}</td>
         <td style="padding:.5rem;text-align:right;">
           <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_email_send', email_id=em.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" style="background:#047857;color:#fff;border:none;padding:.3rem .7rem;border-radius:4px;cursor:pointer;">Send</button>
           </form>
           <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_email_skip', email_id=em.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" style="background:#9ca3af;color:#fff;border:none;padding:.3rem .7rem;border-radius:4px;cursor:pointer;">Skip</button>
           </form>
         </td>

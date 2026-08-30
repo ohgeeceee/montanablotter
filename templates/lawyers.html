@@ -200,6 +200,7 @@
             <h2 class="text-2xl font-black text-slate-900 mt-2">Need a lawyer right now?</h2>
             <p class="text-sm text-slate-600 mt-2">Tell us where you are and what kind of help you need. We route it to active advertisers covering your county — usually within minutes during business hours.</p>
             <form method="post" action="/lawyers/intake" class="mt-5 space-y-3 lawyer-intake-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="source" value="{{ 'lawyers_directory' if not selected_county else 'lawyers_directory:' ~ (selected_county|lower|replace(' ', '-')|replace('&', '-and-')) }}">
                 <input type="hidden" name="return_path" value="{{ request.path }}">
                 <input type="text" name="fax_number" tabindex="-1" autocomplete="off" style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">

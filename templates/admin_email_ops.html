@@ -80,6 +80,7 @@
 
             <div class="mt-5 flex flex-wrap gap-3">
                 <form method="post" action="/admin/audience/email-ops/send-test">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="target_date" value="{{ target_date }}">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <input type="email" name="recipient_email" value="{{ test_recipient or '' }}" placeholder="test@yourdomain.com"
@@ -93,6 +94,7 @@
                     </button>
                 </form>
                 <form method="post" action="/admin/audience/email-ops/send-now" onsubmit="return confirm('Send this digest to all active subscribers now?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="target_date" value="{{ target_date }}">
                     <button type="submit"
                             {% if not can_send_email_ops or not preview.all_posts or preview.matching_subscribers == 0 %}disabled{% endif %}
@@ -136,6 +138,7 @@
             <div class="flex flex-wrap gap-3 items-center">
                 <form method="post" action="/admin/audience/email-ops/send-weekly"
                       onsubmit="return confirm('Send the weekly digest to all active subscribers now?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="dry_run" value="0">
                     <button type="submit"
                             {% if not can_send_email_ops %}disabled{% endif %}
@@ -144,6 +147,7 @@
                     </button>
                 </form>
                 <form method="post" action="/admin/audience/email-ops/send-weekly">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="dry_run" value="1">
                     <button type="submit"
                             {% if not can_send_email_ops %}disabled{% endif %}
@@ -202,6 +206,7 @@
             </div>
 
             <form method="post" class="mt-5 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="target_date" value="{{ target_date }}">
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <div>
@@ -398,6 +403,7 @@
                 {% endif %}
                 {% if can_send_email_ops and preview.selected_run.failed_count %}
                 <form method="post" action="/admin/audience/email-ops/retry-failures" class="mt-4" onsubmit="return confirm('Retry failed recipients from run #{{ preview.selected_run.id }} now?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="target_date" value="{{ target_date }}">
                     <input type="hidden" name="run_id" value="{{ preview.selected_run.id }}">
                     <button type="submit"

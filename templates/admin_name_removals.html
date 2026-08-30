@@ -46,9 +46,11 @@
           <td class="px-4 py-3 text-right whitespace-nowrap">
             {% if r.status in ('paid','pending') %}
               <form method="post" action="/admin/name-removals/{{ r.id }}/approve" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700">Approve</button>
               </form>
               <form method="post" action="/admin/name-removals/{{ r.id }}/reject" class="inline ml-1">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-black text-white hover:bg-rose-700">Reject</button>
               </form>
             {% elif r.status == 'rejected' and r.rejection_reason %}

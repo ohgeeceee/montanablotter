@@ -226,6 +226,7 @@
                 </p>
             </div>
             <form method="POST" action="/alerts" class="flex gap-2 flex-shrink-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="form_type" value="county_alert">
                 <input type="hidden" name="county" value="{{ post.county }}">
                 <input type="hidden" name="alert_types" value="all">

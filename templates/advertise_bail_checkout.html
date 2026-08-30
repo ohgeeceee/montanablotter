@@ -48,6 +48,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <section class="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
             <form method="post" action="/advertise/bail-bonds/checkout" class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="source" value="{{ form_data.source or 'bail_ad_checkout' }}">
                 <input type="hidden" name="simulator_logo_path" value="{{ form_data.simulator_logo_path or '' }}">
                 <input type="hidden" name="simulator_target_url" value="{{ form_data.simulator_target_url or '' }}">

@@ -120,6 +120,7 @@
                         </td>
                         <td class="px-5 py-4">
                             <form method="post" action="/admin/audience/subscribers/{{ row.id }}/counties" class="space-y-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="text" name="counties" value="{{ row.counties }}" placeholder="Comma-separated counties"
                                        class="w-64 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">
                                 <button type="submit" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Save Counties</button>
@@ -127,6 +128,7 @@
                         </td>
                         <td class="px-5 py-4">
                             <form method="post" action="/admin/audience/subscribers/{{ row.id }}/notes" class="space-y-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <textarea name="notes" rows="3" placeholder="Internal notes"
                                           class="w-72 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">{{ row.notes }}</textarea>
                                 <button type="submit" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-700 hover:bg-slate-100 transition">Save Notes</button>
@@ -135,6 +137,7 @@
                         <td class="px-5 py-4">
                             <div class="flex justify-end">
                                 <form method="post" action="/admin/audience/subscribers/{{ row.id }}/status">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="active" value="{{ 0 if row.active else 1 }}">
                                     <button type="submit" class="rounded-lg px-3 py-2 text-xs font-black uppercase tracking-[0.12em] {% if row.active %}bg-rose-600 text-white hover:bg-rose-700{% else %}bg-emerald-600 text-white hover:bg-emerald-700{% endif %} transition">
                                         {{ 'Suppress' if row.active else 'Reactivate' }}

@@ -101,16 +101,19 @@
 
                 <div class="flex flex-col gap-3 lg:w-[320px]">
                     <form method="post" action="/admin/audience/comments/{{ row.id }}/status" class="space-y-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="status" value="approved">
                         <button type="submit" class="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white hover:bg-emerald-700 transition">Approve</button>
                     </form>
                     <form method="post" action="/admin/audience/comments/{{ row.id }}/status" class="space-y-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="status" value="rejected">
                         <input type="text" name="moderation_note" value="{{ row.moderation_note or '' }}" placeholder="Optional rejection note"
                                class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800">
                         <button type="submit" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50 transition">Reject</button>
                     </form>
                     <form method="post" action="/admin/audience/comments/{{ row.id }}/status" class="space-y-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="status" value="spam">
                         <button type="submit" class="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white hover:bg-rose-700 transition">Mark Spam</button>
                     </form>

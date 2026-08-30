@@ -134,6 +134,7 @@
             </div>
             <div class="public-detail-frame__body">
                 <form method="post" action="{{ url_for('attorney_ads.attorney_sponsorship_claim') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;color:#0f172a;font-weight:600;">
                         Firm name *

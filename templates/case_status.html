@@ -34,6 +34,7 @@
 
         <form method="post" action="/case-status"
               class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="grid gap-4 md:grid-cols-[minmax(0,2fr),1fr,auto] md:items-end">
                 <div>
                     <label class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Case number</label>

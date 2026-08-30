@@ -134,6 +134,7 @@
                         <td class="px-4 py-3">
                             {% if row.active %}
                             <form method="post" action="/admin/audience/alerts/{{ row.id }}/deactivate">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold">Deactivate</button>
                             </form>
                             {% endif %}
@@ -184,6 +185,7 @@
                         <td class="px-4 py-3">
                             {% if row.active %}
                             <form method="post" action="/admin/audience/alerts/watch/{{ row.id }}/deactivate">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold">Deactivate</button>
                             </form>
                             {% endif %}

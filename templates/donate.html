@@ -76,6 +76,7 @@
                 {% endif %}
 
                 <form id="donate-checkout-form" action="/donate/checkout" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="mode" id="donate-mode" value="{{ 'monthly' if donation_campaign and donation_campaign.key == 'bondsman_command_center' else 'one_time' }}">
                     <input type="hidden" name="amount_cents" id="donate-amount-cents" value="{{ suggested_amounts_cents[0] if suggested_amounts_cents else donation_min_cents }}">
                     <input type="hidden" name="source" value="{{ donate_source }}">

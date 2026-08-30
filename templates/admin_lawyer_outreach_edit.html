@@ -12,6 +12,7 @@
 
   <div style="display:flex;gap:.5rem;margin-bottom:2rem;flex-wrap:wrap;">
     <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_advance', prospect_id=prospect.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <select name="stage" style="padding:.4rem;border:1px solid #ccc;border-radius:4px;">
         {% for s in stages %}
         <option value="{{ s }}" {% if s == prospect.stage %}selected{% endif %}>{{ stage_label(s) }}</option>
@@ -20,6 +21,7 @@
       <button type="submit" style="background:#1e40af;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer;">Advance</button>
     </form>
     <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_email', prospect_id=prospect.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" style="background:#475569;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer;">Re-queue next stage email</button>
     </form>
     <a href="{{ url_for('admin.admin_lawyer_outreach_sample_report', prospect_id=prospect.id) }}"
@@ -27,10 +29,12 @@
        View sample report →</a>
     <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_won', prospect_id=prospect.id) }}"
           onsubmit="return confirm('Mark {{ prospect.firm_name }} as WON?');" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" style="background:#047857;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer;">Mark WON</button>
     </form>
     <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_lost', prospect_id=prospect.id) }}"
           onsubmit="return confirm('Mark {{ prospect.firm_name }} as LOST?');" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" style="background:#9ca3af;color:#fff;border:none;padding:.4rem .8rem;border-radius:4px;cursor:pointer;">Mark LOST</button>
     </form>
   </div>
@@ -38,6 +42,7 @@
   <h2>Prospect fields</h2>
   <form method="POST" action="{{ url_for('admin.admin_lawyer_outreach_prospect_edit', prospect_id=prospect.id) }}"
         style="background:#f8fafc;padding:1rem 1.5rem;border-radius:6px;margin-bottom:2rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
       <label>Contact name<br><input name="contact_name" value="{{ prospect.contact_name or '' }}"
         style="width:100%;padding:.4rem;border:1px solid #ccc;border-radius:4px;"></label>

@@ -45,6 +45,7 @@
             <h2 class="text-lg font-black text-slate-900">Add Booking Entry</h2>
             <p class="mt-2 text-sm text-slate-500">Use this to publish a clean public entry while automated county roster ingestion is still being expanded.</p>
             <form method="post" action="/admin/operations/jail-bookings/create" class="mt-5 space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block text-[11px] uppercase tracking-[0.14em] font-black text-slate-500 mb-2">County Source</label>
                     <select name="source_id" required class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
@@ -264,6 +265,7 @@
                         </td>
                         <td class="px-5 py-4">
                             <form method="post" action="/admin/operations/jail-bookings/{{ row.id }}/status" class="flex justify-end gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <select name="booking_status" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800">
                                     <option value="current" {% if row.booking_status == 'current' %}selected{% endif %}>Current</option>
                                     <option value="released" {% if row.booking_status == 'released' %}selected{% endif %}>Released</option>

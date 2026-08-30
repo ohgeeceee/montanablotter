@@ -113,6 +113,7 @@
                         </div>
                     </div>
                     <form method="POST" action="/alerts" class="public-form-grid" style="margin-top:1.25rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="form_type" value="county_alert">
                         <input type="hidden" name="source" value="{{ source or 'alerts_page' }}">
                         <div>
@@ -152,6 +153,7 @@
                         Your watch name is <strong>never published or shared</strong>. This is a private notification only. Alerts are based on text matching and may not be exact.
                     </div>
                     <form method="POST" action="/alerts" class="public-form-grid" style="margin-top:1.25rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="form_type" value="name_watch">
                         <input type="hidden" name="source" value="{{ source or 'alerts_page' }}">
                         <div>

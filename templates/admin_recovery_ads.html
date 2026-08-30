@@ -55,6 +55,7 @@
         <td>{{ package_lookup.get(order.package_id, {}).get('name', order.package_id) }}</td>
         <td>
           <form method="POST" action="{{ url_for('admin.admin_recovery_ads_order_status', order_id=order.id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <select name="status" onchange="this.form.submit()" style="font-size:.85rem;padding:.2rem;">
               {% for s in ['pending','active','inactive','cancelled'] %}
               <option value="{{ s }}" {% if order.status==s %}selected{% endif %}>{{ s }}</option>

@@ -9,6 +9,7 @@
         <div class="public-detail-frame__body space-y-6">
             {% if public_user %}
             <form method="post" action="/comments" class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="content_type" value="{{ comment_thread.content_type }}">
                 <input type="hidden" name="content_id" value="{{ comment_thread.content_id }}">
                 <input type="hidden" name="next" value="{{ request.path }}">

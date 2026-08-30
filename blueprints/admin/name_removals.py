@@ -15,10 +15,9 @@ from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from db import get_db
+from blueprints.admin import admin_bp
 from utils.auth_constants import ADMIN_ACCESS_ROLES
 from services.monetization.name_suppression import apply_suppression
-
-admin_bp = Blueprint('admin_name_removals', __name__, url_prefix='/admin')
 
 
 def _require_admin():
@@ -86,7 +85,7 @@ def admin_name_removal_approve(request_id):
             abort(404)
         if row['status'] in ('applied', 'rejected'):
             conn.close()
-            return redirect(url_for('admin_name_removals.admin_name_removals', status='all'))
+            return redirect(url_for('admin.admin_name_removals', status='all'))
         applied = apply_suppression(
             request_id=request_id,
             person_name=row['person_name'],
@@ -100,7 +99,7 @@ def admin_name_removal_approve(request_id):
         conn.commit()
     finally:
         conn.close()
-    return redirect(url_for('admin_name_removals.admin_name_removals', status='all'))
+    return redirect(url_for('admin.admin_name_removals', status='all'))
 
 
 @admin_bp.route('/name-removals/<int:request_id>/reject', methods=['POST'])
@@ -117,4 +116,4 @@ def admin_name_removal_reject(request_id):
         conn.commit()
     finally:
         conn.close()
-    return redirect(url_for('admin_name_removals.admin_name_removals', status='all'))
+    return redirect(url_for('admin.admin_name_removals', status='all'))
