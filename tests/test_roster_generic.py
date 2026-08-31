@@ -22,7 +22,9 @@ from services.ingestion.roster_generic import (
     index_by_header,
     fetch_park_bookings,
     fetch_beaverhead_bookings,
+    fetch_chouteau_bookings,
     _parse_beaverhead_text,
+    _parse_chouteau_text,
     _normalize_beaverhead_name,
     _normalize_beaverhead_date,
 )
@@ -363,6 +365,107 @@ class FetchBeaverheadBookingsTests(unittest.TestCase):
         # The parser is exercised end-to-end through the wrapper
         self.assertGreater(len(records), 0)
         self.assertEqual(records[0].person_name, "Nicholas C. Amos")
+
+
+# ---------------------------------------------------------------------------
+# Chouteau County (Wix-hosted PDF, link discovered from landing page)
+# ---------------------------------------------------------------------------
+
+CHOUTEAU_TEXT_SAMPLE = """Inmate Population Printed on June 29, 2026
+
+Booking Date/Time Last, First Name Age Hold Reasons
+06/27/26 23:45 Foust, Charles 51 Charge: 61-8-1002(1)(a)[1st] - Driving Under The Influence Of Alcohol and or Drugs - 1st Offense; Charge: 61-6-301(2)[3rd] - Operating Without Liability Insurance In Effect - 3rd Offense
+06/12/26 19:18 Knecht, Onie 39 Warrant: Unspecified warrant ; Warrant: Unspecified warrant
+06/11/26 15:23 Spotted Eagle, 52 Sentenced: Serving 0 days - Concurrent
+Stephanie
+06/11/26 15:23 Naranjo, Tisha 47 DOC Hold for Department of Corrections
+06/11/26 15:23 Lawrence, Troy 42 Charge: 46-6-210 - Arrest On A Warrant By Peace Officer
+06/11/26 15:23 Bullshoe, Galen Jr 50 DOC Hold for Department of Corrections
+05/15/26 15:31 Waddell, Marcus Jr 25 Warrant Charge: Unspecified warrant (45-5-625(2)(b) - Sexual Abuse of Children Under 16)
+"""
+
+
+class ParseChouteauTextTests(unittest.TestCase):
+    def test_parses_inmates(self):
+        records = _parse_chouteau_text(CHOUTEAU_TEXT_SAMPLE, source_url="x")
+        self.assertEqual(len(records), 7)
+        self.assertEqual(records[0].person_name, "Charles Foust")
+        self.assertEqual(records[0].booking_at, "2026-06-27")
+        self.assertEqual(records[0].age, 51)
+        self.assertIn("Driving Under The Influence", records[0].charges_summary)
+
+    def test_wrapped_first_name_joins(self):
+        records = _parse_chouteau_text(CHOUTEAU_TEXT_SAMPLE, source_url="x")
+        spotted = next(r for r in records if r.person_name == "Stephanie Spotted Eagle")
+        self.assertEqual(spotted.person_name, "Stephanie Spotted Eagle")
+        self.assertEqual(spotted.age, 52)
+
+    def test_jr_suffix_stays_in_last_name(self):
+        records = _parse_chouteau_text(CHOUTEAU_TEXT_SAMPLE, source_url="x")
+        bullshoe = next(r for r in records if r.person_name == "Galen Bullshoe Jr")
+        self.assertEqual(bullshoe.person_name, "Galen Bullshoe Jr")
+        waddell = next(r for r in records if r.person_name == "Marcus Waddell Jr")
+        self.assertEqual(waddell.person_name, "Marcus Waddell Jr")
+
+    def test_unique_source_record_ids(self):
+        records = _parse_chouteau_text(CHOUTEAU_TEXT_SAMPLE, source_url="x")
+        ids = [r.source_record_id for r in records]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_empty_text_returns_empty(self):
+        self.assertEqual(_parse_chouteau_text("", source_url="x"), [])
+
+
+class FetchChouteauBookingsTests(unittest.TestCase):
+    def test_resolves_pdf_from_landing_page(self):
+        """The landing page links the rotating PDF; the fetcher must
+        extract that link and hand PDF bytes to pdfplumber."""
+        import io
+
+        landing = (
+            '<a data-aid="DOWNLOAD_DOCUMENT_LINK_WRAPPER_RENDERED" '
+            'href="//img1.wsimg.com/blobby/go/84a621ca/downloads/483fea65/'
+            'Inmate_Population_2026-06-29_06.14.52.pdf?ver=1784758477993">'
+            "Inmate Population</a>"
+        )
+        pdf_url = "https://img1.wsimg.com/blobby/go/84a621ca/downloads/483fea65/Inmate_Population_2026-06-29_06.14.52.pdf"
+
+        responses = {
+            "https://chouteaucountysheriff.com/": mock.Mock(
+                text=landing, content=b"<html/>", headers={}
+            ),
+            "https://img1.wsimg.com/blobby/go/84a621ca/downloads/483fea65/Inmate_Population_2026-06-29_06.14.52.pdf?ver=1784758477993": mock.Mock(
+                content=b"%PDF-1.4",
+                headers={"Content-Type": "application/pdf"},
+                url="https://img1.wsimg.com/blobby/go/84a621ca/downloads/483fea65/Inmate_Population_2026-06-29_06.14.52.pdf?ver=1784758477993",
+            ),
+        }
+
+        def fake_fetch(url, *a, **k):
+            return responses[url]
+
+        fake_pdfplumber = mock.MagicMock()
+        fake_pdfplumber.open.return_value.__enter__.return_value.pages = [
+            mock.Mock(extract_text=lambda: CHOUTEAU_TEXT_SAMPLE)
+        ]
+
+        opened_with: list[object] = []
+
+        def fake_open(arg, *args, **kwargs):
+            opened_with.append(arg)
+            return fake_pdfplumber.open.return_value
+
+        with mock.patch(
+            "services.ingestion.roster_generic.fetch_url",
+            side_effect=fake_fetch,
+        ), mock.patch.dict(
+            "sys.modules",
+            {"pdfplumber": mock.MagicMock(open=mock.Mock(side_effect=fake_open))},
+        ):
+            records = fetch_chouteau_bookings("https://chouteaucountysheriff.com/")
+
+        self.assertEqual(len(records), 7)
+        self.assertIsInstance(opened_with[0], io.BytesIO)
 
 
 if __name__ == "__main__":

@@ -67,7 +67,23 @@ DB_LOCK_RETRY_ATTEMPTS = int(getattr(config, "DB_LOCK_RETRY_ATTEMPTS", 5))
 DB_LOCK_RETRY_SLEEP_SECONDS = float(getattr(config, "DB_LOCK_RETRY_SLEEP_SECONDS", 3.0))
 PUBLISHER_PAYLOAD_PATH = str(getattr(config, "NEXTJS_JAIL_BOOKING_PAYLOAD_PATH", "") or "").strip()
 
-SUPPORTED_ADAPTERS = {"beaverhead", "big-horn", "broadwater", "cascade", "carbon", "custer", "dawson", "fallon", "fergus", "flathead", "gallatin", "glacier", "granite", "jefferson", "lake", "lewis-and-clark", "lincoln", "madison", "meagher", "mineral", "missoula", "park", "phillips", "pondera", "powell", "ravalli", "roosevelt", "rosebud", "sanders", "silver-bow", "stillwater", "valley", "wheatland", "yellowstone"}
+SUPPORTED_ADAPTERS = {"beaverhead", "big-horn", "broadwater", "cascade", "carbon", "chouteau", "custer", "dawson", "fallon", "fergus", "flathead", "gallatin", "glacier", "granite", "jefferson", "lake", "lewis-and-clark", "lincoln", "madison", "meagher", "mineral", "missoula", "park", "phillips", "pondera", "powell", "ravalli", "roosevelt", "rosebud", "sanders", "silver-bow", "stillwater", "valley", "wheatland", "yellowstone"}
+
+# Tier-1 counties (no prior roster source) served by the tolerant generic
+# Montana inmate fetcher. Each still needs a seeded jail_booking_sources row.
+GENERIC_MT_COUNTIES = {
+    "blaine", "carter", "daniels", "deer-lodge", "garfield", "golden-valley",
+    "judith-basin", "liberty", "mccone", "musselshell", "petroleum",
+    "powder-river", "prairie", "richland", "sheridan", "sweet-grass", "teton",
+    "toole", "treasure", "wibaux",
+    # Former "not implemented" stub adapters — now routed through the tolerant
+    # generic parser so they attempt fetch (and gracefully return empty when the
+    # source page has no roster data) instead of hard-failing.
+    "mineral", "granite", "powell", "pondera", "phillips", "dawson",
+}
+# Merge into the supported set so the orchestrator dispatches them.
+SUPPORTED_ADAPTERS = SUPPORTED_ADAPTERS | GENERIC_MT_COUNTIES
+
 SKIPPED_SOURCES = {
     "broadwater": "Site times out from ingest machine (TCP connect to 34.94.199.155:443 fails; both HTTP and HTTPS). Parser ready — re-enable when network path recovers.",
 }
@@ -117,6 +133,24 @@ TRACKED_SOURCES = {
         "phone": "406-758-5610",
         "coverage_tier": "major",
         "is_featured": 1,
+    },
+    "chouteau": {
+        "county_name": "Chouteau",
+        "facility_name": "Chouteau County Sheriff's Office Jail",
+        "roster_url": "https://chouteaucountysheriff.com/",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 1,
+        "notes": "Wix-hosted PDF; fetcher re-discovers the rotating Inmate_Population_*.pdf link each run. Adapter in roster_generic.fetch_chouteau_bookings.",
+    },
+    "blaine": {
+        "county_name": "Blaine",
+        "facility_name": "Blaine County Detention Center",
+        "roster_url": "https://www.blainecountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
     },
     "lake": {
         "county_name": "Lake",
@@ -229,14 +263,6 @@ TRACKED_SOURCES = {
         "phone": "406-874-3320",
         "coverage_tier": "standard",
         "is_featured": 0,
-    },
-    "lewis_clark": {
-        "county_name": "Lewis and Clark",
-        "facility_name": "Lewis and Clark County Detention Center",
-        "roster_url": "https://www.lccountymt.gov/Sheriff/Detention-Center",
-        "phone": "406-447-8235",
-        "coverage_tier": "major",
-        "is_featured": 1,
     },
     "lincoln": {
         "county_name": "Lincoln",
@@ -357,6 +383,206 @@ TRACKED_SOURCES = {
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
+    },
+    "carter": {
+        "county_name": "Carter",
+        "facility_name": "Carter County Jail",
+        "roster_url": "https://cartercountysheriff.us/inmate-search",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 1,
+        "notes": "Roster rendered via dmxAppConnect cards; fetched with Playwright. Detail pages are broken server-side, so list cards (name + booked-at) are parsed directly.",
+    },
+    "daniels": {
+        "county_name": "Daniels",
+        "facility_name": "Daniels County Jail",
+        "roster_url": "https://www.danielscountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "deer-lodge": {
+        "county_name": "Deer Lodge",
+        "facility_name": "Deer Lodge County Jail",
+        "roster_url": "https://www.deerlodgecountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "garfield": {
+        "county_name": "Garfield",
+        "facility_name": "Garfield County Jail",
+        "roster_url": "https://garfieldcountymt.gov/sheriff/",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "golden-valley": {
+        "county_name": "Golden Valley",
+        "facility_name": "Golden Valley County Jail",
+        "roster_url": "https://www.goldenvalleymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "judith-basin": {
+        "county_name": "Judith Basin",
+        "facility_name": "Judith Basin County Jail",
+        "roster_url": "https://www.judithbasincountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "liberty": {
+        "county_name": "Liberty",
+        "facility_name": "Liberty County Jail",
+        "roster_url": "https://www.libertycountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "mccone": {
+        "county_name": "McCone",
+        "facility_name": "McCone County Jail",
+        "roster_url": "https://mcconecountymt.gov/departments/sheriff-coroner",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "musselshell": {
+        "county_name": "Musselshell",
+        "facility_name": "Musselshell County Jail",
+        "roster_url": "https://www.musselshellcountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "park": {
+        "county_name": "Park",
+        "facility_name": "Park County Jail",
+        "roster_url": "https://www.parkcounty.org/Government-Departments/Sheriff-s-Office/",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "petroleum": {
+        "county_name": "Petroleum",
+        "facility_name": "Petroleum County Jail",
+        "roster_url": "https://www.petroleumcountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "powder-river": {
+        "county_name": "Powder River",
+        "facility_name": "Powder River County Jail",
+        "roster_url": "https://www.powderrivercounty.org/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "prairie": {
+        "county_name": "Prairie",
+        "facility_name": "Prairie County Jail",
+        "roster_url": "https://www.myr2m.com/PrairieCoRoster/NewInmates.aspx",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 1,
+        "notes": "Roster rendered via ASP.NET GridView; fetched with Playwright (browser-rendered).",
+    },
+    "richland": {
+        "county_name": "Richland",
+        "facility_name": "Richland County Jail",
+        "roster_url": "https://www.richlandcountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "sheridan": {
+        "county_name": "Sheridan",
+        "facility_name": "Sheridan County Jail",
+        "roster_url": "https://www.sheridancountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "sweet-grass": {
+        "county_name": "Sweet Grass",
+        "facility_name": "Sweet Grass County Jail",
+        "roster_url": "https://www.sweetgrasscountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "teton": {
+        "county_name": "Teton",
+        "facility_name": "Teton County Jail",
+        "roster_url": "https://www.tetoncountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "toole": {
+        "county_name": "Toole",
+        "facility_name": "Toole County Jail",
+        "roster_url": "https://toolecountymt.gov/sheriffs-office/",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "treasure": {
+        "county_name": "Treasure",
+        "facility_name": "Treasure County Jail",
+        "roster_url": "https://www.treasurecountymt.gov/tcsheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
+    },
+    "wibaux": {
+        "county_name": "Wibaux",
+        "facility_name": "Wibaux County Jail",
+        "roster_url": "https://www.wibauxcountymt.gov/sheriff",
+        "phone": None,
+        "coverage_tier": "standard",
+        "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "Registered from county source registry; roster fetcher pending.",
     },
 }
 
@@ -1495,6 +1721,15 @@ def _sync_records(
 def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[JailBookingRecord]:
     """Fetch records for a single source. Network/OCR work happens here, outside DB transactions."""
     county_slug = source["county_slug"]
+    if county_slug == "prairie":
+        from services.ingestion.fetchers.playwright_mt_inmate import fetch_playwright_bookings
+        return fetch_playwright_bookings(roster_url, county_slug=county_slug)
+    if county_slug == "carter":
+        from services.ingestion.fetchers.playwright_mt_inmate import fetch_carter_bookings
+        return fetch_carter_bookings(roster_url, county_slug=county_slug)
+    if county_slug in GENERIC_MT_COUNTIES:
+        from services.ingestion.fetchers.generic_mt_inmate import fetch_generic_mt_bookings
+        return fetch_generic_mt_bookings(roster_url, county_slug=county_slug)
     if county_slug == "big-horn":
         return fetch_big_horn_bookings(roster_url)
     if county_slug == "fallon":
@@ -1553,6 +1788,9 @@ def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[Jail
     if county_slug == "beaverhead":
         from services.ingestion.roster_generic import fetch_beaverhead_bookings
         return fetch_beaverhead_bookings(roster_url)
+    if county_slug == "chouteau":
+        from services.ingestion.roster_generic import fetch_chouteau_bookings
+        return fetch_chouteau_bookings(roster_url)
     if county_slug == "dawson":
         from services.ingestion.fetchers.dawson_inmate import fetch_dawson_bookings
         return fetch_dawson_bookings(roster_url)

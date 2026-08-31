@@ -24,6 +24,7 @@ import re
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Any, Callable, Iterable
+from urllib.parse import urljoin
 
 import requests
 
@@ -379,6 +380,195 @@ def _normalize_beaverhead_date(raw: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Chouteau County (PDF, link discovered from Wix landing page) — concrete adapter
+# ---------------------------------------------------------------------------
+
+
+class RosterLinkUnavailable(RuntimeError):
+    """Raised when a roster landing page no longer exposes the expected
+    download link (site layout changed, or the page is temporarily
+    unavailable). Callers treat this as a non-fatal skip so they don't
+    mistake it for "every inmate was released"."""
+
+
+# Each row starts with "MM/DD/YY HH:MM Last, First Age Hold Reasons".
+# Long names/charges wrap across lines in the extracted text, so we
+# accumulate every line after a record start until the next one.
+_CHOUTEAU_RECORD_START = re.compile(
+    r"^(\d{1,2}/\d{1,2}/\d{2,4})\s+(\d{1,2}:\d{2})\s+(.*)$"
+)
+_CHOUTEAU_PDF_LINK = re.compile(r'(?:href="([^"]*Inmate_Population[^"]*\.pdf[^"]*)")')
+_NAME_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv", "v"})
+
+
+def fetch_chouteau_bookings(source_url: str) -> list[JailBookingRecord]:
+    """Scrape the Chouteau County inmate roster.
+
+    The Chouteau County Sheriff site (Wix-hosted) publishes the roster as a
+    dated PDF whose URL contains a volatile UUID + ``?ver=`` timestamp and
+    changes on every publish. So we fetch the landing page, discover the
+    current ``Inmate_Population_*.pdf`` link, download that PDF, and parse
+    its text. The ``source_url`` passed in is the landing page
+    (https://chouteaucountysheriff.com/); the PDF URL is derived from it.
+    """
+    landing = fetch_url(source_url)
+    match = _CHOUTEAU_PDF_LINK.search(landing.text)
+    if not match:
+        raise RosterLinkUnavailable(
+            "Chouteau landing page did not contain an Inmate_Population PDF link; "
+            "site layout may have changed."
+        )
+    href = match.group(1)
+    if href.startswith("//"):
+        pdf_url = "https:" + href
+    elif href.startswith("http"):
+        pdf_url = href
+    else:
+        pdf_url = urljoin(source_url, href)
+
+    pdf_resp = fetch_url(pdf_url)
+    if not pdf_resp.content[:5].startswith(b"%PDF-"):
+        raise RosterLinkUnavailable(
+            f"Chouteau roster URL did not return a PDF (got "
+            f"{pdf_resp.headers.get('Content-Type', '')[:40]})"
+        )
+    try:
+        import io
+        import pdfplumber
+    except ImportError as exc:
+        raise RuntimeError("pdfplumber is required for the Chouteau PDF adapter") from exc
+
+    with pdfplumber.open(io.BytesIO(pdf_resp.content)) as pdf:
+        text = "\n".join((page.extract_text() or "") for page in pdf.pages)
+
+    if not text.strip():
+        raise RosterLinkUnavailable("Chouteau roster PDF contained no extractable text")
+
+    return _parse_chouteau_text(text, source_url=pdf_url)
+
+
+def _parse_chouteau_text(text: str, *, source_url: str) -> list[JailBookingRecord]:
+    """Parse extracted Chouteau PDF text into records.
+
+    Lines that begin with a ``MM/DD/YY HH:MM`` stamp start a new inmate;
+    everything until the next stamp (including wrapped lines) belongs to
+    that inmate. The first name sometimes wraps onto its own trailing line
+    (e.g. ``Spotted Eagle, 52 ... Concurrent`` then ``Stephanie``), which is
+    recovered by taking the age as the first bare integer and, when no token
+    precedes it, treating the final token of the block as the first name.
+    """
+    lines = [ln.strip() for ln in text.splitlines()]
+    records: list[JailBookingRecord] = []
+    seen: set[str] = set()
+
+    current: tuple[re.Match, list[str]] | None = None
+    for ln in lines:
+        m = _CHOUTEAU_RECORD_START.match(ln)
+        if m:
+            if current is not None:
+                _chouteau_flush(current, source_url, seen, records)
+            current = (m, [m.group(3)])
+        elif current is not None and ln:
+            current[1].append(ln)
+    if current is not None:
+        _chouteau_flush(current, source_url, seen, records)
+
+    logger.info("Chouteau roster: parsed %d record(s) from %s", len(records), source_url)
+    return records
+
+
+def _chouteau_flush(
+    current: tuple[re.Match, list[str]],
+    source_url: str,
+    seen: set[str],
+    out: list[JailBookingRecord],
+) -> None:
+    match, body_parts = current
+    body = " ".join(p for p in body_parts if p).strip()
+    if "," not in body:
+        return
+    surname, rest = body.split(",", 1)
+    surname = surname.strip()
+    rest = rest.strip()
+    if not surname:
+        return
+
+    tokens = rest.split()
+    age: int | None = None
+    age_idx: int | None = None
+    for i, tok in enumerate(tokens):
+        if re.fullmatch(r"\d{1,3}", tok):
+            age = int(tok)
+            age_idx = i
+            break
+
+    if age_idx is None:
+        first = ""
+        reasons = rest
+    else:
+        preceding = tokens[:age_idx]
+        following = tokens[age_idx + 1:]
+        if preceding:
+            # Move a trailing generational suffix (Jr/Sr/II/III/IV) to the
+            # surname so the display reads "First Last Suffix", e.g.
+            # "Bullshoe, Galen Jr" -> "Galen Bullshoe Jr".
+            suffix = ""
+            if preceding and preceding[-1].lower() in _NAME_SUFFIXES:
+                suffix = " " + preceding.pop()
+            first = " ".join(preceding)
+            if suffix:
+                surname = f"{surname}{suffix}"
+            reasons = " ".join(following)
+        elif following:
+            # Orphaned first name wrapped to the end of the block.
+            first = following[-1]
+            reasons = " ".join(following[:-1])
+        else:
+            first = ""
+            reasons = ""
+
+    person_name = f"{first} {surname}".strip() if first else surname
+    if not person_name:
+        return
+
+    booking_at = _normalize_chouteau_date(match.group(1))
+    booking_time = match.group(2)
+    charges = reasons.strip()
+    if not charges:
+        charges = "Chouteau County inmate — see official roster for hold reasons."
+
+    source_record_id = hashlib.sha1(
+        f"chouteau:{person_name.lower()}:{booking_at}:{booking_time}".encode("utf-8")
+    ).hexdigest()[:20]
+    if source_record_id in seen:
+        return
+    seen.add(source_record_id)
+
+    out.append(
+        JailBookingRecord(
+            source_record_id=source_record_id,
+            person_name=person_name.title(),
+            age=age,
+            booking_number=source_record_id[:12],
+            booking_at=booking_at,
+            charges_summary=charges[:1000],
+            source_url=source_url,
+        )
+    )
+
+
+def _normalize_chouteau_date(raw: str) -> str | None:
+    """Convert ``06/27/26`` -> ``2026-06-27`` (ISO), or None if unparseable."""
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2,4})$", raw)
+    if not m:
+        return None
+    mm, dd, yy = m.groups()
+    if len(yy) == 2:
+        yy = f"20{yy}" if int(yy) < 80 else f"19{yy}"
+    return f"{yy}-{int(mm):02d}-{int(dd):02d}"
+
+
+# ---------------------------------------------------------------------------
 # Common fetch helper
 # ---------------------------------------------------------------------------
 
@@ -413,5 +603,7 @@ __all__ = [
     "fetch_url",
     "fetch_park_bookings",
     "fetch_beaverhead_bookings",
+    "fetch_chouteau_bookings",
+    "RosterLinkUnavailable",
 ]
 
