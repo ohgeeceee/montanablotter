@@ -16088,12 +16088,20 @@ def blog_post(slug):
                ORDER BY created_at DESC LIMIT 3""",
             (cat, int(post['id']))).fetchall()
     if len(related) < 3:
-        extra = conn.execute(
-            """SELECT slug, title, excerpt, primary_category FROM blog_posts
-               WHERE published=1 AND id!=? AND slug NOT IN (%s)
-               ORDER BY created_at DESC LIMIT ?""" % (
-                ','.join('?' * (len(related) + 1))),
-            [int(post['id'])] + [r['slug'] for r in related] + [3 - len(related)]).fetchall()
+        exclude_slugs = [r['slug'] for r in related]
+        if exclude_slugs:
+            extra = conn.execute(
+                """SELECT slug, title, excerpt, primary_category FROM blog_posts
+                   WHERE published=1 AND id!=? AND slug NOT IN (%s)
+                   ORDER BY created_at DESC LIMIT ?""" % (
+                    ','.join('?' * len(exclude_slugs))),
+                [int(post['id'])] + exclude_slugs + [3 - len(related)]).fetchall()
+        else:
+            extra = conn.execute(
+                """SELECT slug, title, excerpt, primary_category FROM blog_posts
+                   WHERE published=1 AND id!=?
+                   ORDER BY created_at DESC LIMIT ?""",
+                [int(post['id']), 3 - len(related)]).fetchall()
         related = list(related) + list(extra)
 
     conn.close()

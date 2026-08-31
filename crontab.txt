@@ -85,6 +85,12 @@ BASH_ENV=/root/montanablotter/.env
 # web traffic ramp.
 30 5 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name daily_blog_worker --log /root/montanablotter/logs/daily_blog.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/daily_blog_worker.py
 
+# Seasonal public-safety post — one editorial/analysis piece per season, on
+# the first day of each season-boundary month (Jan/Apr/Jul/Oct). Idempotent by
+# season-year slug, so it only creates a fresh post each season. Logs to
+# logs/seasonal_roundup.log. 06:15 on those mornings.
+15 6 1 1,4,7,10 * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name seasonal_roundup --log /root/montanablotter/logs/seasonal_roundup.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/maintenance/seasonal_roundup.py
+
 # Court refresh — pulls new court cases and dispositions. Every 6h at :50
 # so it runs after agendas_ingest and run_all_scrapers.
 # NOTE: COLJ portal (montana-colj-calendar) is behind WAF as of 2026-06-17.
