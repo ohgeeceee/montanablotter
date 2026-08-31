@@ -140,49 +140,91 @@ class BlotterParser:
                     full_text += text + "\n"
 
         if not full_text.strip():
-            # No embedded text — try OCR with EasyOCR (prefer GPU when available).
-            try:
-                from pdf2image import convert_from_path
-                import easyocr
-                import numpy as np
+            full_text = self._ocr_extract()
 
-                # Lazy-load the model once per process
+        return full_text
+
+    def _ocr_extract(self) -> str:
+        """OCR an image-based PDF.
+
+        EasyOCR is the primary engine. On the production VPS (CPU only, no
+        GPU) EasyOCR at 100 DPI processes a typical 5-page scanned blotter
+        in ~3 minutes, which fits comfortably under the 15-minute RQ job
+        timeout. Tesseract is NOT reliable here: it hangs indefinitely on
+        dense scanned pages (confirmed on the Hill County media logs), so it
+        is only used as a last-resort fallback wrapped in a per-page timeout
+        so a single bad page can never stall the whole ingestion job.
+        """
+        from pdf2image import convert_from_path
+
+        # Primary: EasyOCR (prefer GPU when available).
+        try:
+            import easyocr
+            import numpy as np
+
+            pages = convert_from_path(self.pdf_path, dpi=100)
+            easy_text = []
+            for page in pages:
                 if not hasattr(BlotterParser, '_easyocr_reader'):
                     try:
                         import torch
                         gpu = torch.cuda.is_available()
                     except Exception:
                         gpu = False
-                    BlotterParser._easyocr_reader = easyocr.Reader(
-                        ['en'], gpu=gpu
-                    )
+                    BlotterParser._easyocr_reader = easyocr.Reader(['en'], gpu=gpu)
                 reader = BlotterParser._easyocr_reader
+                result = reader.readtext(np.array(page))
+                lines: dict[int, list[tuple[float, str]]] = {}
+                for bbox, txt, _conf in result:
+                    y_center = sum(p[1] for p in bbox) / 4
+                    line_key = int(y_center / 20)
+                    lines.setdefault(line_key, []).append((bbox[0][0], txt))
+                easy_text.append('\n'.join(
+                    ' '.join(t for _, t in sorted(lines[k], key=lambda x: x[0]))
+                    for k in sorted(lines.keys())
+                ))
+            ocr_text = '\n'.join(easy_text)
+            if ocr_text.strip():
+                return ocr_text
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                f"OCR prerequisites not installed for {self.pdf_path}: {e}"
+            )
+        except Exception as e:
+            logging.warning(
+                "EasyOCR failed for %s (%s: %s); trying Tesseract fallback",
+                self.pdf_path, type(e).__name__, e,
+            )
 
-                pages = convert_from_path(self.pdf_path, dpi=150)
-                for page in pages:
-                    img_np = np.array(page)
-                    result = reader.readtext(img_np)
-                    # Reconstruct lines by Y position
-                    lines: dict[int, list[tuple[float, str]]] = {}
-                    for bbox, text, _conf in result:
-                        y_center = sum(p[1] for p in bbox) / 4
-                        line_key = int(y_center / 20)
-                        lines.setdefault(line_key, []).append((bbox[0][0], text))
-                    page_text = '\n'.join(
-                        ' '.join(t for _, t in sorted(lines[k], key=lambda x: x[0]))
-                        for k in sorted(lines.keys())
+        # Last-resort fallback: Tesseract, guarded per page so a hang on one
+        # page cannot stall the entire job. Skips any page that exceeds the
+        # per-page budget instead of blocking forever.
+        try:
+            import pytesseract
+            import subprocess
+
+            pages = convert_from_path(self.pdf_path, dpi=150)
+            text_parts = []
+            for idx, page in enumerate(pages):
+                try:
+                    out = subprocess.run(
+                        ['tesseract', 'stdin', 'stdout', '-l', 'eng'],
+                        input=page.tobytes('png') if hasattr(page, 'tobytes') else None,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        timeout=120,
                     )
-                    full_text += page_text + '\n'
-            except FileNotFoundError as e:
-                raise RuntimeError(
-                    f"OCR prerequisites not installed for {self.pdf_path}: {e}"
-                )
-            except Exception as e:
-                raise RuntimeError(
-                    f"OCR failed for {self.pdf_path}: {type(e).__name__}: {e}"
-                )
-
-        return full_text
+                    if out.returncode == 0:
+                        text_parts.append(out.stdout.decode('utf-8', 'replace'))
+                except Exception as page_err:
+                    logging.warning(
+                        "Tesseract skipped page %s of %s: %s",
+                        idx, self.pdf_path, page_err,
+                    )
+            return '\n'.join(text_parts)
+        except Exception as e:
+            raise RuntimeError(
+                f"OCR failed for {self.pdf_path}: {type(e).__name__}: {e}"
+            )
 
     def _parse_text(self, full_text: str) -> Dict:
         """Shared parsing logic given raw text. Returns structured data dict."""
@@ -554,8 +596,10 @@ class BlotterParser:
                 if date_str:
                     break
 
-        # Split into per-incident blocks at each call number
-        blocks = re.split(r'\n(?=\d{2}-\d{4}\s)', text)
+        # Split into per-incident blocks at each call number.
+        # Havre call numbers are "YY-NNNNN" (2-digit year, 4-5 digit seq);
+        # allow 4-6 digits so longer sequences (e.g. 26-12162) split correctly.
+        blocks = re.split(r'\n(?=\d{2}-\d{4,6}\s)', text)
 
         for block in blocks:
             if not block.strip():
@@ -565,9 +609,9 @@ class BlotterParser:
             if not lines:
                 continue
 
-            # First line: "26-2080 O737 COMPLAINT C- NTA ISSUED WITH REPORT"
+            # First line: "26-12162 0802 COMPLAINT C- NTA ISSUED WITH REPORT"
             m = re.match(
-                r'^(\d{2}-\d{4})\s+([0O]?\d{3,4})\s*(.*)',
+                r'^(\d{2}-\d{4,6})\s+([0O]?\d{3,4})\s*(.*)',
                 lines[0])
             if not m:
                 continue

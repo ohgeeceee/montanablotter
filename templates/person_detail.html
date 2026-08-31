@@ -36,7 +36,7 @@
     <h1 class="public-detail-title">{{ person_name }}</h1>
     <p class="text-slate-500 text-sm mt-1">{{ bookings | length }} booking record{{ 's' if bookings | length != 1 else '' }} on file &middot; Montana Blotter Public Records</p>
     <a href="/remove-my-name?name={{ person_name | urlencode }}"
-       class="inline-flex items-center gap-1.5 mt-3 rounded-full bg-slate-900 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white hover:bg-slate-800 transition-colors">
+       class="rn-ad-btn inline-flex items-center gap-1.5 mt-3 rounded-full bg-slate-900 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white hover:bg-slate-800 transition-colors">
       Request removal &middot; {{ name_removal_amount_label }}
     </a>
   </div>

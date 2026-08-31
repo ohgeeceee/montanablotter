@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional
 
+import random
 import requests
 
 DB_PATH = os.getenv("MB_DB_PATH", "/root/montanablotter/blotter.db").strip() or "/root/montanablotter/blotter.db"
@@ -64,6 +65,39 @@ def _normalize_location(raw: str) -> str:
     s = _OBFUSCATED_NUM_RE.sub('', s)      # drop obfuscated house numbers
     s = _MM_RE.sub('', s)                  # drop "Mm" mile-marker prefix
     return s.strip()
+
+
+# Spread (degrees) applied to place-name-only geocodes (no street number) so the
+# map does not collapse thousands of city-centroid points onto one coordinate.
+# Deterministic per record_id so re-geocoding never moves a point.
+_CITY_SCATTER_DEG = 0.03
+
+
+def _is_street_level(raw_location: Optional[str]) -> bool:
+    """True when the location carries enough precision to keep exact coords.
+
+    A street/building number or mile marker means the geocoder resolved a real
+    point; a bare city name ("Bozeman, MT") does not and should be scattered.
+    """
+    if not raw_location:
+        return False
+    return any(ch.isdigit() for ch in _normalize_location(raw_location))
+
+
+def finalize_geocode_coords(record_id: int, raw_location: Optional[str], lat: float, lng: float):
+    """Return (lat, lng) to persist for a geocoded record.
+
+    Street-level locations keep their exact coordinates. Place-name-only
+    locations are scattered deterministically around the geocoded centroid so
+    the Crime Map / heatmap render a city-wide spread instead of one blob.
+    """
+    if _is_street_level(raw_location):
+        return lat, lng
+    rng = random.Random(record_id)
+    return (
+        lat + rng.uniform(-_CITY_SCATTER_DEG, _CITY_SCATTER_DEG),
+        lng + rng.uniform(-_CITY_SCATTER_DEG, _CITY_SCATTER_DEG),
+    )
 
 
 def _connect() -> sqlite3.Connection:
@@ -257,13 +291,14 @@ def backfill_geocodes(batch_size: int = 200, county: Optional[str] = None) -> di
     for row in rows:
         result = geocode_location(row["location"], county=row["county"])
         if result:
+            flat, flng = finalize_geocode_coords(row["id"], row["location"], result["lat"], result["lng"])
             conn.execute(
                 """
                 INSERT OR IGNORE INTO incident_geocodes
                   (record_id, raw_location, lat, lng, geocode_confidence, county, city, geocoded_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 """,
-                (row["id"], row["location"], result["lat"], result["lng"],
+                (row["id"], row["location"], flat, flng,
                  result["confidence"], row["county"], None),
             )
             processed += 1

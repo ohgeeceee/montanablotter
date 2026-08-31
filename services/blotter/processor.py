@@ -84,11 +84,13 @@ def _async_geocode_blotter_records(blotter_id: int) -> None:
             for row in rows:
                 result = geocode_location(row[1], county=row[2])
                 if result:
+                    from services.geo.pipeline import finalize_geocode_coords
+                    flat, flng = finalize_geocode_coords(row[0], row[1], result["lat"], result["lng"])
                     conn.execute(
                         """INSERT OR IGNORE INTO incident_geocodes
                            (record_id, raw_location, lat, lng, geocode_confidence, county, geocoded_at)
                            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))""",
-                        (row[0], row[1], result["lat"], result["lng"],
+                        (row[0], row[1], flat, flng,
                          result["confidence"], row[2]),
                     )
                     geocoded += 1

@@ -1686,11 +1686,16 @@ body > .public-masthead {
   margin-top: 1rem;
 }
 
-/* Remove My Name ad button — keep its label white even inside the
-   newspaper view, where `article.mb-newspaper a { color: inherit }` would
-   otherwise make white-on-dark text invisible. */
+/* Remove My Name ad button.
+   The markup uses Tailwind `bg-slate-900 text-white` for the dark background +
+   white label. If the generated Tailwind stylesheet is stale/unloaded, the
+   `text-white` survives but the dark background does not, leaving white text on
+   a light page = invisible ("font same color as button"). Pin both the dark
+   background and white text here so the button stays legible regardless of
+   Tailwind state, and stays correct inside the newspaper view. */
 .rn-ad-btn,
 article.mb-newspaper a.rn-ad-btn {
+  background-color: #0f172a !important; /* slate-900 */
   color: #ffffff !important;
 }
 

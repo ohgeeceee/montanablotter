@@ -229,6 +229,60 @@ class PublicApiTests(unittest.TestCase):
         self.assertIn("error", payload)
         self.assertIn("message", payload)
 
+    def test_geo_incidents_date_filter_handles_mmddyy_format(self) -> None:
+        # Records are stored in mixed formats (MM/DD/YY and ISO). The geo
+        # incidents/heatmap endpoints must normalize against the ISO date
+        # filters the Crime Map sends, otherwise last-N-days filters drop
+        # every MM/DD/YY record and the map renders empty.
+        conn = app_module.get_db()
+        blotter_id = conn.execute(
+            "INSERT INTO blotters (filename, county, status, file_path, source_type, upload_date) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("geo-report.pdf", "Gallatin", "processed", "/tmp/geo-report.pdf", "local_pdf", "2026-08-25"),
+        ).lastrowid
+        record_id = conn.execute(
+            "INSERT INTO records (blotter_id, date, time, incident, incident_type, location, county, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (blotter_id, "08/25/26", "12:00", "DUI", "DUI", "Main St", "Gallatin", "2026-08-25 12:00:00"),
+        ).lastrowid
+        conn.execute(
+            "INSERT INTO incident_geocodes (record_id, raw_location, lat, lng, geocode_confidence, county, city, geocoded_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (record_id, "Main St", 45.6769, -111.0429, "medium", "Gallatin", "Bozeman", "2026-08-25 12:00:00"),
+        )
+        conn.commit()
+        conn.close()
+
+        client = app_module.app.test_client()
+        response = client.get("/api/geo/incidents?date_from=2026-08-01&date_to=2026-08-30&limit=10")
+        self.assertEqual(response.status_code, 200)
+        incidents = response.get_json()["incidents"]
+        self.assertTrue(
+            any(i["id"] == record_id for i in incidents),
+            "MM/DD/YY record should be returned by ISO date filter",
+        )
+
+        heat = client.get("/api/geo/heatmap?date_from=2026-08-01&date_to=2026-08-30")
+        self.assertEqual(heat.status_code, 200)
+        self.assertGreater(len(heat.get_json()["points"]), 0)
+
+    def test_finalize_geocode_coords_scatter_is_deterministic(self) -> None:
+        # Place-name-only locations (no street number) must be scattered so the
+        # map does not pile thousands of records onto one city-centroid point.
+        from services.geo.pipeline import finalize_geocode_coords
+
+        # "Bozeman, MT" has no digit -> should move from the exact centroid.
+        lat, lng = finalize_geocode_coords(12345, "Bozeman, MT", 45.676998, -111.042931)
+        self.assertNotEqual((lat, lng), (45.676998, -111.042931))
+
+        # Deterministic: same record_id + raw location -> same scattered coords.
+        lat2, lng2 = finalize_geocode_coords(12345, "Bozeman, MT", 45.676998, -111.042931)
+        self.assertEqual((lat, lng), (lat2, lng2))
+
+        # Street-level location (has a number) keeps exact coordinates.
+        slat, slng = finalize_geocode_coords(999, "100 Main St", 45.6700, -111.0400)
+        self.assertEqual((slat, slng), (45.6700, -111.0400))
+
 
 if __name__ == "__main__":
     unittest.main()

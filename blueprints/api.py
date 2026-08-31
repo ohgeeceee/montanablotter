@@ -499,10 +499,10 @@ def api_geo_incidents():
         where.append('r.incident_type=?')
         params.append(incident_type)
     if date_from:
-        where.append('r.date>=?')
+        where.append(f'{_ISO}>=?')
         params.append(date_from)
     if date_to:
-        where.append('r.date<=?')
+        where.append(f'{_ISO}<=?')
         params.append(date_to)
     conn = get_db()
     sql = (
@@ -528,10 +528,10 @@ def api_geo_heatmap():
         where.append('g.county=?')
         params.append(county)
     if date_from:
-        where.append('r.date>=?')
+        where.append(f'{_ISO}>=?')
         params.append(date_from)
     if date_to:
-        where.append('r.date<=?')
+        where.append(f'{_ISO}<=?')
         params.append(date_to)
     conn = get_db()
     sql = (
