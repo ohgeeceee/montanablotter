@@ -862,6 +862,108 @@ def fetch_ravalli_bookings(source_url: str) -> list[JailBookingRecord]:
     return fetch_zuercher_bookings(source_url, county_name="Ravalli County")
 
 
+# Optional Node.js bridge for Zuercher portals.
+#
+# The Zuercher SPA calls two REST endpoints (GET .../api/portal/inmates/init and
+# POST .../api/portal/inmates/load). The Python fetcher above handles that directly.
+# A drop-in Node implementation lives at scripts/zuercher_fetcher.js (no browser
+# automation; native fetch + AbortController). This bridge lets an operator route
+# Zuercher fetches through that Node script instead of the Python path, by setting
+# MB_USE_NODE_ZUERCHER=1 in the environment.
+#
+# Reversible: if the env var is unset/0, this returns None and the caller keeps
+# using the existing fetch_zuercher_bookings() path. No existing behavior changes.
+_ZUERCHER_NODE_SCRIPT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "scripts",
+    "zuercher_fetcher.js",
+)
+
+
+def fetch_zuercher_bookings_via_node(
+    source_url: str, *, county_name: str = ""
+) -> list[JailBookingRecord] | None:
+    """Fetch Zuercher roster via the Node script. Returns None if disabled/unavailable.
+
+    Returns None (not []) so callers can fall back to the Python fetcher. A non-None
+    return is a parsed list of JailBookingRecord in the same shape as the Python path.
+    """
+    if not os.environ.get("MB_USE_NODE_ZUERCHER", "").strip() in ("1", "true", "True"):
+        return None
+    if not os.path.exists(_ZUERCHER_NODE_SCRIPT):
+        logger.warning("Node Zuercher bridge enabled but script missing: %s", _ZUERCHER_NODE_SCRIPT)
+        return None
+
+    api_base = source_url.rstrip("/")
+    if api_base.endswith("#/inmates"):
+        api_base = api_base[:-9].rstrip("/")
+
+    import subprocess
+
+    try:
+        proc = subprocess.run(
+            [
+                "node",
+                _ZUERCHER_NODE_SCRIPT,
+                "--county",
+                county_name or "Unknown",
+                "--url",
+                api_base,
+                "--json",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except Exception as exc:  # noqa: BLE001 - bridge must never crash the ingest loop
+        logger.warning("Node Zuercher bridge failed to invoke node: %s", exc)
+        return None
+
+    if proc.returncode == 2:
+        # Node script reported InmateLoadUnavailable (e.g. HTTP 500 on /load).
+        # Surface as SourceTemporarilyUnavailable so the release cascade is not
+        # triggered on a broken endpoint.
+        raise SourceTemporarilyUnavailable(
+            f"Node Zuercher bridge: inmates/load unavailable for {api_base}: "
+            f"{proc.stderr.strip()[:200]}"
+        )
+    if proc.returncode != 0:
+        logger.warning("Node Zuercher bridge exited %s: %s", proc.returncode, proc.stderr.strip()[:200])
+        return None
+
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        logger.warning("Node Zuercher bridge returned invalid JSON: %s", exc)
+        return None
+
+    records: list[JailBookingRecord] = []
+    for r in payload.get("records", []):
+        identity_parts = [
+            (r.get("inmate_name") or "").strip().upper(),
+            (r.get("agency") or "").strip().upper(),
+            (r.get("booking_date") or "").strip(),
+            "; ".join(r.get("charges", [])),
+        ]
+        source_record_id = hashlib.sha1("|".join(identity_parts).encode("utf-8")).hexdigest()[:20]
+        records.append(
+            JailBookingRecord(
+                source_record_id=source_record_id,
+                person_name=(r.get("inmate_name") or "").title(),
+                age=None,
+                booking_number=source_record_id[:12],
+                booking_at=_normalize_datetime(f"{(r.get('booking_date') or '')} 00:00"),
+                charges_summary="; ".join(r.get("charges", [])) or (
+                    f"Charge details available on the official {county_name} inmate portal."
+                    if county_name
+                    else "Charge details available on the official inmate portal."
+                ),
+                source_url=f"{api_base}/#/inmates",
+            )
+        )
+    return records
+
+
 def _parse_sanders_search_results(page_html: str, base_url: str) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for match in re.findall(
@@ -1416,6 +1518,9 @@ def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[Jail
     if county_slug == "flathead":
         return fetch_flathead_bookings(roster_url)
     if county_slug in ZUERCHER_COUNTIES:
+        node_records = fetch_zuercher_bookings_via_node(roster_url, county_name=source["county_name"])
+        if node_records is not None:
+            return node_records
         return fetch_zuercher_bookings(roster_url, county_name=source["county_name"])
     if county_slug == "missoula":
         from services.ingestion.fetchers.missoula_inmate import fetch_missoula_bookings
