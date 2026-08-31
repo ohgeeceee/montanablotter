@@ -64,3 +64,28 @@ government-hosted blotter pages:
 - Re-check Big Horn County Sheriff's Office if their CitizenRIMS public features are enabled later.
 - Re-check Billings Police Department if the official dashboard becomes a current rolling feed rather than a stale historical snapshot.
 - Periodically sweep smaller Montana city police pages for newly published blotter/log dashboards.
+
+## Jail Roster Coverage (added 2026-08-31)
+
+Daily jail-roster ingest covers ~22 of 56 Montana counties. Tracked in
+`jail_booking_sources` + `TRACKED_SOURCES` (services/ingestion/jail_bookings.py).
+Browser-rendered rosters (dmxAppConnect / ASP.NET GridView) use
+`services/ingestion/fetchers/playwright_mt_inmate.py` (system Chromium).
+
+Maintenance watch-items:
+- **Chouteau County** — Wix-hosted site; the jail roster PDF URL rotates on every
+  publish. The fetcher re-discovers the current link from the landing page each
+  run (scheduled daily 06:15 in crontab.txt). If Chouteau moves off Wix or stops
+  publishing the PDF, this breaks silently — re-scout.
+- **Carter County** — roster renders via dmxAppConnect cards; the per-inmate
+  detail pages (`inmate.php?bookingid=`) are broken server-side (PHP warning,
+  "inmate not found"), so only list-card name + booked-at are captured (no
+  charges). If the county fixes detail pages, extend the fetcher to pull charges.
+- **Broadwater County** — roster URL is reachable from a normal browser but
+  TCP-blocked from the ingest VPS; parser ready, needs an egress/proxy fix.
+- **Powder River / Wibaux (Dawson contract)** — Cloudflare 403 even after
+  headless render; deferred (low ROI vs. CAPTCHA-solve cost).
+- **11 no-roster counties** (Blaine, Daniels, Golden Valley, McCone, Musselshell,
+  Petroleum, Sheridan, Sweet Grass, Teton, Toole, Treasure) — no public roster;
+  FOIA/outreach plan in `docs/jail_coverage_foia_draft.md`.
+- See `docs/jail_tier2_assessment.md` for the full broken-source triage.
