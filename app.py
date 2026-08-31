@@ -16072,9 +16072,35 @@ def blog_post(slug):
         conn.close()
         return render_template('404.html'), 404
     comment_thread = _public_comments_context(conn, 'blog_post', post['id'])
+
+    # Reading time: ~200 wpm, minimum 1 minute.
+    word_count = len((post['body'] or '').split())
+    reading_time = max(1, round(word_count / 200))
+
+    # Related posts: same primary_category first (excluding this one), then
+    # fall back to the most recent other published posts.
+    related = []
+    cat = post['primary_category']
+    if cat:
+        related = conn.execute(
+            """SELECT slug, title, excerpt, primary_category FROM blog_posts
+               WHERE published=1 AND primary_category=? AND id!=?
+               ORDER BY created_at DESC LIMIT 3""",
+            (cat, int(post['id']))).fetchall()
+    if len(related) < 3:
+        extra = conn.execute(
+            """SELECT slug, title, excerpt, primary_category FROM blog_posts
+               WHERE published=1 AND id!=? AND slug NOT IN (%s)
+               ORDER BY created_at DESC LIMIT ?""" % (
+                ','.join('?' * (len(related) + 1))),
+            [int(post['id'])] + [r['slug'] for r in related] + [3 - len(related)]).fetchall()
+        related = list(related) + list(extra)
+
     conn.close()
     return render_template('blog_post.html', post=post,
                            comment_thread=comment_thread,
+                           reading_time=reading_time,
+                           related_posts=related,
                            current_year=datetime.now().year)
 
 

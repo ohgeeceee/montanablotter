@@ -458,6 +458,478 @@ That is why we track court cases alongside blotters and bookings. The arrest is
 the beginning; the docket is where the question gets answered.
 """,
     },
+    {
+        "slug": "montana-probation-violations-what-they-mean",
+        "title": "Probation Violations: The Charge Behind Montana's Busiest Court Dockets",
+        "primary_category": "analysis",
+        "tags": ["probation", "violations", "court", "montana", "analysis"],
+        "excerpt": "Scroll Montana's booking logs and one charge shows up again and again: probation violation. Here's why it dominates, and what it actually means.",
+        "body": """## The charge you see most
+
+Read enough Montana booking records and a pattern emerges fast. Alongside drug
+and theft charges, one entry recurs more than almost any other: **probation
+violation**. It is not a new crime in the street sense. It is a claim that
+someone already on supervision broke the rules of that supervision.
+
+## What a probation violation is
+
+When a Montana court sentences someone to probation instead of jail, it attaches
+conditions: check in with a probation officer, stay sober, keep a job, avoid
+certain people. A **probation violation** means the state says one of those
+conditions was broken. The original charge may have been resolved months or
+years earlier — the violation is about the supervision, not a fresh offense.
+
+Common triggers we see in the logs:
+
+- A missed check-in with the probation officer
+- A failed or skipped drug test
+- A new arrest while still on supervision
+- Leaving the county without permission
+
+## Why it fills the dockets
+
+Probation violations are a large share of Montana's jail intake because the
+system is self-reinforcing. A person on probation lives under constant
+monitoring; any slip — even a missed appointment — can become a new booking.
+That is different from someone who was never on supervision and simply goes about
+their life.
+
+It also means the raw booking count overstates how much *new* crime is
+happening. A good chunk of daily intake is people returning through a door they
+were already standing in.
+
+## What readers should take from this
+
+When you see "probation violation" in a blotter, read it as a supervision failure,
+not necessarily a dangerous act. It tells you about how Montana manages the people
+it has already sentenced — and how easily that management turns back into a
+booking. The number is a window into the supervision system, not just the crime rate.
+""",
+    },
+    {
+        "slug": "montana-bail-bond-how-it-works",
+        "title": "How Bail and Bonds Work in Montana (Without the Movie Nonsense)",
+        "primary_category": "guide",
+        "tags": ["bail", "bond", "montana", "court", "explainer"],
+        "excerpt": "Bail in Montana rarely looks like the movies. Here's how a bond actually gets set, what a bondsman does, and why some people walk free immediately.",
+        "body": """## Bail is not a fine
+
+A common misunderstanding: people think bail is a punishment you pay and that's
+the end of it. It is not. **Bail** is a promise — money held so that a person
+shows up for court. If they appear, the money comes back (minus any fees). If
+they skip, the court keeps it.
+
+## How a bond gets set
+
+After a booking, a judge or court officer sets a **bond amount**. That number
+reflects a risk call: how likely is this person to flee, and how serious is the
+charge? A $0 bond means "own recognizance" — the person is released on their
+word. A high bond means the court wanted a real financial lock.
+
+## Where a bondsman fits
+
+Most Montanans cannot post a $5,000 or $20,000 bond in cash. That is where a
+**bail bondsman** comes in: you pay the bondsman a non-refundable fee (often
+around 10%), and they post the full bond for you. You walk out; they carry the
+risk. If you skip, they lose the money and will try to find you.
+
+## What this means on the ground
+
+A high bond is not a finding of guilt. It is a holding decision made while the
+case is pending. And a low or zero bond is not a slap on the wrist — it is often
+a recognition that the person is low-flight-risk and that holding them costs the
+county more than releasing them would.
+
+When you read a bond figure in a Montana Blotter record, you are seeing a single
+moment of risk management — not a verdict, and not a punishment.
+""",
+    },
+    {
+        "slug": "lewis-and-clark-flathead-warrants-deep-dive",
+        "title": "Why Lewis and Clark and Flathead Lead Montana's Active Warrant Count",
+        "primary_category": "analysis",
+        "tags": ["warrants", "lewis and clark", "flathead", "montana", "analysis"],
+        "excerpt": "Two counties — Lewis and Clark and Flathead — account for most of Montana's 4,141 active warrants. The reason is about population and process, not danger.",
+        "body": """## Where the warrants concentrate
+
+Of the **4,141 active warrants** Montana Blotter currently tracks, two counties
+stand out: **Lewis and Clark** (around 2,000) and **Flathead** (around 1,580).
+Together they make up the bulk of the statewide total. If you only skimmed the
+headline number, you might read that as "those are the dangerous places." The
+data says otherwise.
+
+## Population explains part of it
+
+Lewis and Clark County is home to Helena, the state capital, and a sizable
+population. Flathead County wraps Kalispell and one of Montana's fastest-growing
+regions. More residents means more court activity, more citations, and — naturally
+— more warrants when those citations go unresolved.
+
+## Process explains the rest
+
+Both counties run active, well-maintained warrant systems that publish their
+lists. That matters more than people realize: a county that diligently tracks and
+posts warrants will *look* like it has more, simply because it is counting them.
+A county that lets old warrants sit in a drawer unseen has fewer "active" ones in
+any public count — not because it is safer, but because it is quieter about the
+backlog.
+
+## The honest read
+
+The warrant concentration in Lewis and Clark and Flathead is mostly a story of
+size and diligence, not threat. It is a useful reminder that any single aggregate
+number inherits the habits of the agencies that report it. We publish the lists so
+residents can clear old matters — not so anyone can scoreboard a county.
+""",
+    },
+    {
+        "slug": "funniest-police-blotter-entries-montana",
+        "title": "The Funniest Things We've Seen in Montana Police Blotters",
+        "primary_category": "editorial",
+        "tags": ["human interest", "blotter", "montana", "lighthearted"],
+        "excerpt": "Not every blotter entry is grim. Some are plainly human. A look at the lighter side of Montana's public-safety logs — names changed, dignity intact.",
+        "body": """## Blotters are human, not just serious
+
+Most of what shows up in a Montana police blotter is exactly what you'd expect:
+traffic, theft, disturbances. But read enough of them and you start to see the
+human comedy underneath the official language. Officers write these logs at 2
+a.m., after a long shift, and occasionally the dry facts tell a story all their
+own.
+
+## A few that stuck with us
+
+We are not here to mock anyone by name — these are composites drawn from the
+*style* of entries we see, with no real person attached:
+
+- The caller who reported a "suspicious looking cloud" parked too long in a
+  church lot. It was a van. With a very committed nap inside.
+- The theft report for "one (1) inflatable reindeer, clearly the better one of
+  the pair." The other reindeer was reportedly unharmed.
+- The welfare check that resolved when the subject answered the door holding a
+  sandwich and asked if everything was okay, because the commotion seemed
+  unusual for a Tuesday.
+- The burglary call placed *by* the person who had locked themselves out, then
+  remembered they were the homeowner mid-explanation.
+
+## Why we share this
+
+Montana Blotter exists to publish public records, not to embarrass. But the
+lighter entries are a reminder that behind every line is a person having an
+ordinary, messy, sometimes absurd day — same as the rest of us.
+
+The blotter is the public's record. That includes the funny parts. We just keep
+the names out of it.
+""",
+    },
+    {
+        "slug": "montana-dui-traffic-stops-what-happens",
+        "title": "What Happens After a DUI Traffic Stop in Montana",
+        "primary_category": "guide",
+        "tags": ["dui", "traffic stop", "montana", "arrest", "explainer"],
+        "excerpt": "A DUI stop is one of the most common entries in Montana blotters. Here's the step-by-step of what actually happens, from the shoulder to the booking.",
+        "body": """## The most common late-night call
+
+Drive any Montana highway on a weekend and the blotter will show it: DUI stops
+are among the most frequent impaired-driving contacts in the state. Here is what
+the record usually represents, step by step.
+
+## From the shoulder to the station
+
+1. **The stop** — an officer pulls a vehicle for a moving violation or a cue
+   (lane drift, late-night speed). Field observations start the record.
+2. **The assessment** — the officer may ask the driver to do roadside tasks or
+   take a breath test. Refusal has its own legal consequence in Montana.
+3. **The arrest** — if impairment is found, the person is taken into custody.
+   This is the moment a *booking* is created.
+4. **The booking** — fingerprint, photo, charge entry, and a bond set for
+   release pending court.
+5. **The court date** — the blotter ends; the docket begins.
+
+## What the blotter does and does not show
+
+A DUI entry in Montana Blotter shows the arrest and the charge. It does **not**
+show the outcome — whether the person was convicted, took a deferred sentence, or
+was acquitted. That part lives in the court record, which we track separately.
+
+## Why this matters to readers
+
+DUI is one of the few charges where the *stop* itself generates a public record
+almost immediately. That is why you see so many of them, and why it is worth
+waiting for the court record before drawing any conclusion about a person. The
+blotter is the moment of contact; the docket is the answer.
+""",
+    },
+    {
+        "slug": "montana-small-town-policing",
+        "title": "Small-Town Policing in Montana: One Officer, One Blotter",
+        "primary_category": "editorial",
+        "tags": ["small town", "rural", "montana", "policing", "editorial"],
+        "excerpt": "In much of Montana, law enforcement means a single officer covering hundreds of square miles. Here's what that looks like in the public record.",
+        "body": """## The rural reality
+
+Montana is a big, empty state in most of its miles. In dozens of towns, the
+entire police force is one or two people — sometimes a town marshal who also
+answers the code-enforcement calls. The county sheriff covers everything the
+town does not.
+
+When you read a blotter from one of these places, the volume is small. A handful
+of entries a week, if that. But each one carries more weight locally than a
+busy city log ever could, because everyone in town knows the names.
+
+## What the record shows
+
+In a small Montana community, the public record is intimate. A DUI, a dispute, a
+theft — it is all visible to neighbors. That visibility is the point of public
+records: in a town with no newspaper and no TV station, the blotter *is* the local
+news.
+
+## The trade-off
+
+The upside is accountability — a small department cannot easily hide what it
+does. The downside is exposure for the people in the log, who cannot disappear
+into a crowd the way they might in Billings or Missoula.
+
+Montana Blotter publishes these records the same way we publish the big-city
+ones, because the law does not grade transparency by population. But we apply the
+same redaction rules everywhere: victims protected, addresses out, dignity
+preserved. Small town or big city, the line is the same.
+""",
+    },
+    {
+        "slug": "montana-public-records-law-explained",
+        "title": "Montana's Public Records Law, in Plain English",
+        "primary_category": "guide",
+        "tags": ["public records law", "montana law", "transparency", "guide"],
+        "excerpt": "Montana has one of the stronger open-records traditions in the country. Here's the plain-English version of what the law actually says.",
+        "body": """## A constitutional right to know
+
+Montana's constitution is unusually direct about this: it says the public has the
+right to know what its government is doing. That single clause underpins almost
+everything Montana Blotter publishes. The records are not released as a favor.
+They are released because the public is legally entitled to them.
+
+## What counts as a public record
+
+Broadly, any record an agency makes or keeps in the course of its work — reports,
+rosters, warrants, meeting minutes, emails in some cases — is presumptively
+public. The default is *open*.
+
+## The exceptions that matter
+
+The law is not absolute. Records can be withheld for reasons like:
+
+- **Personal privacy** — a genuine invasion risk, not mere embarrassment
+- **Ongoing investigations** — material that would compromise a case
+- **Victim identities** — especially in sensitive crimes
+- **Security details** — that would put people in danger
+
+The key word is *presumptively*. The agency must justify closing a record, not
+the public justify opening it.
+
+## Why this is your right, not ours
+
+Montana Blotter is a convenience, not a source of the right. You could request
+any of these records yourself, from the agency that holds them, often for free or
+a small copy fee. We aggregate them so you do not have to file 56 separate
+requests. But the entitlement is yours — written into the state constitution.
+""",
+    },
+    {
+        "slug": "montana-jail-overcrowding-pretrial",
+        "title": "Pretrial Detention in Montana: Why Some Await Trial in Jail",
+        "primary_category": "analysis",
+        "tags": ["pretrial", "jail", "montana", "analysis", "bond"],
+        "excerpt": "A lot of Montana's jail population is not convicted of anything. They are waiting. Here's the pretrial piece of the booking picture.",
+        "body": """## Waiting is most of the population
+
+One of the least-understood facts about Montana jails: a large share of the
+people inside have not been convicted. They are **pretrial** — awaiting a court
+date, unable (or not allowed) to post bond. The booking log captures the moment
+they went in; it says nothing about what a jury later decides.
+
+## Why people stay in
+
+Several forces keep a person in jail before trial:
+
+- A **bond they cannot afford**, even a modest one
+- A **hold from another case** or jurisdiction
+- A **court's risk finding** that release was not appropriate
+- Simply **timing** — rural courts sit less often, so waits stretch
+
+None of these is a verdict. They are logistics and risk calls made while the case
+is pending.
+
+## What the data hides
+
+Because blotters only show the intake, a reader can mistake a pretrial detainee
+for a convicted person. They are not the same, and the law is explicit that the
+presumption of innocence applies until a finding. The docket — which we track
+alongside bookings — is where that question gets resolved.
+
+## Why it matters
+
+Montana's counties pay to house pretrial detainees, and those detainees lose work,
+housing, and stability while they wait. The booking number is the visible tip; the
+pretrial wait is the part the public rarely sees. Reading both together is the
+only honest way to understand the jail.
+""",
+    },
+    {
+        "slug": "montana-seasonal-crime-patterns",
+        "title": "Do Montana Crime Patterns Actually Follow the Seasons?",
+        "primary_category": "analysis",
+        "tags": ["seasonal", "trends", "montana", "analysis", "data"],
+        "excerpt": "Do crimes rise in summer and fall in winter in Montana? The blotters suggest the truth is quieter — and tied to weather and tourism more than anything.",
+        "body": """## The intuition
+
+Ask anyone and they will tell you: crime goes up in summer. Longer days, more
+people outside, more opportunity. It is a tidy story. The Montana blotters
+partly support it — and partly complicate it.
+
+## What the logs show
+
+Across the records we aggregate, a few seasonal threads appear:
+
+- **Summer tourism** in gateway towns (Columbia Falls, West Yellowstone,
+  Whitefish) pushes call volume up — more visitors means more contacts, not
+  necessarily more "crime."
+- **Winter** drops outdoor calls but shifts some activity indoors — domestic
+  and welfare checks persist year-round.
+- **Holiday periods** show bursts of theft and DUI, then a quick return to baseline.
+
+## The honest caveat
+
+Most Montana law-enforcement contact is routine and repeats regardless of season:
+traffic, welfare checks, property crimes. The seasonal swings are real but small
+next to the steady baseline. A county's busiest month is usually explained by a
+single event — a festival, a storm, a highway project — more than by the calendar.
+
+## What readers should take
+
+If you want a dramatic seasonal crime wave, the data will disappoint you. Montana's
+blotters tell a steadier story: a constant hum of ordinary policing, with small
+weather- and tourism-driven ripples on top. That is less exciting than the myth.
+It is also more true.
+""",
+    },
+    {
+        "slug": "montana-privacy-redaction-rules",
+        "title": "How Montana Blotter Decides What to Redact",
+        "primary_category": "guide",
+        "tags": ["privacy", "redaction", "montana", "transparency", "guide"],
+        "excerpt": "We publish public records, but not all of them, and never all of them raw. Here's the exact line we draw on redaction.",
+        "body": """## Publishing is a choice, not a dump
+
+Montana Blotter could, in theory, paste every record exactly as received. We do
+not, because raw publication harms people in ways the law and basic decency
+forbid. Redaction is the discipline of removing the parts that should never be
+public — while keeping the record's public value intact.
+
+## What we always redact
+
+- **Home addresses** and other locational details that invite harassment
+- **Victim names** in domestic violence and sexual-assault cases
+- **Juvenile identifiers** where the law protects them
+- **Contact information** like phone numbers and emails
+
+## What we keep
+
+- The fact of an arrest or incident
+- The charge as alleged
+- The agency and the date
+- The jurisdiction
+
+The public still gets the oversight value of the record. The private person keeps
+the details that serve no public purpose.
+
+## The removal path
+
+Beyond automatic redaction, Montana Blotter offers a **human-reviewed
+name-suppression** process. You request it, a person reviews it, and on approval
+your name is redacted across bookings, warrants, and related posts. It is a
+one-time review, not a blanket erase — because a public record and a person's
+dignity are not the same thing, but they do have to coexist.
+
+Transparency is the default. Dignity is the limit. We hold both.
+""",
+    },
+    {
+        "slug": "montana-domestic-violence-blotter-handling",
+        "title": "How Montana Blotter Handles Domestic Violence Records",
+        "primary_category": "editorial",
+        "tags": ["domestic violence", "victims", "privacy", "montana", "editorial"],
+        "excerpt": "Domestic violence is one of the most common — and most sensitive — calls in Montana blotters. Here's our policy on covering it, and why we name no victims.",
+        "body": """## The hardest call type
+
+Domestic violence shows up constantly in Montana's public-safety logs. It is also
+the call type where careless publication does the most damage. A blotter entry
+names the *arrested* party, but the person who called for help is often named
+nowhere — and should stay that way.
+
+## Our rule: victims are not the story
+
+When we publish a domestic-violence incident, we apply strict redaction:
+
+- **No victim name.** Ever. Naming a victim is not news; it is harm, and in many
+  cases it endangers the person we should be protecting.
+- **No address.** Location detail can lead an abuser straight to a survivor.
+- **No speculative narrative.** We report the record, not a courtroom dramatization.
+
+## Why this is consistent with transparency
+
+Some argue that redacting victims undermines the public record. We disagree. The
+public value of a domestic-violence entry is that the *response* happened and was
+logged — accountability for the agency and the accused. The victim's identity
+adds no oversight value and creates real risk. Transparency and safety are not
+opposed here; the first simply does not require the second.
+
+## A note to survivors
+
+If your name appears anywhere in our records in a way that puts you at risk, our
+human-reviewed suppression process exists for exactly this. Reach out. We will
+fix it. The record can stay; your safety comes first.
+""",
+    },
+    {
+        "slug": "montana-crime-map-how-to-use",
+        "title": "How to Use Montana Blotter's Crime Map and Atlas",
+        "primary_category": "guide",
+        "tags": ["crime map", "atlas", "montana", "how-to", "guide"],
+        "excerpt": "Montana Blotter has a map and an atlas that turn raw records into geography. Here's how to actually use them to understand your area.",
+        "body": """## Records become places
+
+A list of bookings is useful. A map of bookings is something else — it lets you
+see where public-safety activity concentrates, by town, by county, by highway.
+Montana Blotter's **crime map** and **crime atlas** do exactly that: they plot the
+records we aggregate onto Montana's actual geography.
+
+## Start with your county
+
+Open the atlas and pick your county. You will see the agencies that publish
+there, the volume of records, and — importantly — the gaps where nothing is
+published. The gaps are as informative as the dots: they tell you which agencies
+are still closed doors.
+
+## Layer by record type
+
+Both tools let you filter:
+
+- **Bookings** — who was taken into custody and where
+- **Warrants** — where active warrants cluster
+- **Blotter calls** — the day-to-day incident map
+- **Missing persons** — the alerts we carry
+
+Switching layers changes the picture. Warrants may cluster where bookings do not,
+because a warrant is a backlog, not a fresh event.
+
+## Read it honestly
+
+A dense map dot is not a "bad neighborhood." It is usually a busy agency, a
+popular highway, or a county that publishes thoroughly. The map is a starting
+point for questions, not a verdict on a place. Use it to ask *why* — then check
+the underlying records, where the real answers live.
+""",
+    },
 ]
 
 

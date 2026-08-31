@@ -360,17 +360,29 @@ locations, motives, arrests, or trend claims that are not supported below.
 Context:
 {json.dumps(context_payload, indent=2)}
 
-Rules:
-- Keep it about Montana policing, crime, and public-safety activity.
-- Write a strong factual title and a 1-2 sentence excerpt.
-- Write the body in Markdown with short sections and bullets where useful.
+Voice and structure (this is the most important part — readers say the posts
+feel robotic, so break the pattern):
+- Write like a real Montana journalist who actually read the blotter, not like
+  a wire summary. Concrete and plain-spoken, never corporate.
+- OPEN with a specific, scene-setting sentence. Never start with
+  "[County] dominated Montana's blotter" or "[County] County posted the heaviest
+  law enforcement activity." Vary the opener every single day.
+- VARY sentence length. Mix one short punchy line with a longer explanatory one.
+  Avoid the same rhythm in every paragraph.
+- Use a human lede: a detail, a contrast, or a "here's what caught our eye"
+  angle. Let the reader feel why this day's data matters.
+- FORBIDDEN phrases (do not use): "dominated Montana's blotter coverage",
+  "busiest jurisdiction in the current reporting window", "heaviest law
+  enforcement workload", "in broader context", "the latest blotter data shows",
+  "making it the most frequently reported". Find fresher wording.
 - The post must feel like one of these editorial formats depending on story_mode:
-  - statewide: statewide roundup with what stood out and where to read more
-  - county_focus: focus on the busiest county in the recent window
-  - incident_focus: focus on the most common incident type in the recent window
+  - statewide: what stood out across the state and where to read more
+  - county_focus: a grounded look at the busiest county, with context on why
+  - incident_focus: what the most common call type actually looks like on the ground
+- Include a short "What this means for readers" angle —实用性, not just numbers.
 - Include a section that links readers back to Montana Blotter report pages.
 - Do not name private people or speculate about guilt.
-- Return valid JSON only with keys: title, excerpt, body.
+- Aim for 350-550 words. Return valid JSON only with keys: title, excerpt, body.
 """
 
     try:
@@ -378,8 +390,11 @@ Rules:
             model="claude-sonnet-4-6",
             max_tokens=1800,
             system=(
-                "You write grounded local-news analysis for a Montana public-safety site. "
-                "Be specific, restrained, and factual. Return JSON only."
+                "You are a Montana public-safety journalist writing for Montana Blotter. "
+                "You write grounded, varied, human-voiced local-news analysis — never a "
+                "formulaic wire summary. You vary your opening sentence and sentence "
+                "rhythm every day, lead with concrete detail, and avoid stock phrases. "
+                "You are specific and restrained with facts. Return JSON only."
             ),
             messages=[{"role": "user", "content": prompt}],
             timeout=60,
