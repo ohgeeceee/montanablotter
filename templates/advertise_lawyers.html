@@ -289,6 +289,44 @@
   @media (max-width: 560px) {
     .adlvl-steps { grid-template-columns: 1fr; }
   }
+
+  /* --- Polish pass: hero balance, marketplace framing, breadcrumb, pricing --- */
+  .public-hero__grid { grid-template-columns: 1.4fr 1fr; align-items: center; }
+  @media (max-width: 880px) { .public-hero__grid { grid-template-columns: 1fr; } }
+
+  .adlvl-hero-aside {
+    border: 1px solid var(--public-border, rgba(20,14,4,0.18));
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(251,250,247,0.98));
+    box-shadow: var(--public-shadow, 0 12px 30px -22px rgba(20,14,4,0.35));
+    padding: 1.2rem 1.25rem;
+    height: 100%;
+  }
+  .adlvl-hero-aside__kicker {
+    color: var(--public-amber, #b8860b);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.6rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .adlvl-hero-aside__title {
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: 1.3rem; font-weight: 800; color: var(--public-text, #1c140a);
+    margin-top: 0.35rem; line-height: 1.15;
+  }
+  .adlvl-hero-aside__copy {
+    color: var(--public-muted, #4a3a26);
+    font-size: 0.85rem; line-height: 1.55; margin-top: 0.55rem;
+  }
+  .adlvl-hero-aside .adlvl-hero-cta { margin-top: 1rem; }
+
+  /* Breadcrumb contrast */
+  .public-breadcrumb, .public-breadcrumb a, .public-breadcrumb span { color: var(--public-text, #1c140a); }
+
+  /* Pricing card tightening + description contrast */
+  .adlvl-tier { padding: 1.2rem 1.15rem 1.15rem; }
+  .adlvl-tier__price { font-size: 1.9rem; }
+  .adlvl-tier__sub { font-size: 0.82rem; line-height: 1.5; }
+  .adlvl-tier__copy { font-size: 0.82rem; line-height: 1.5; }
+  .adlvl-tier__note { font-size: 0.74rem; line-height: 1.45; }
 </style>
 {% endblock %}
 
@@ -310,19 +348,19 @@
 
                 <div class="adlvl-stats" role="list">
                     <div class="adlvl-stat" role="listitem">
-                        <div class="adlvl-stat__label">Active listings</div>
-                        <div class="adlvl-stat__value">{{ coverage_stats.active_listings }}</div>
-                        <div class="adlvl-stat__sub">lawyers on the directory</div>
+                        <div class="adlvl-stat__label">Marketplace</div>
+                        <div class="adlvl-stat__value">Open</div>
+                        <div class="adlvl-stat__sub">accepting firms now</div>
                     </div>
                     <div class="adlvl-stat" role="listitem">
-                        <div class="adlvl-stat__label">Counties covered</div>
-                        <div class="adlvl-stat__value">{{ coverage_stats.counties_with_coverage }}</div>
-                        <div class="adlvl-stat__sub">across Montana</div>
+                        <div class="adlvl-stat__label">Counties open</div>
+                        <div class="adlvl-stat__value">56 / 56</div>
+                        <div class="adlvl-stat__sub">all of Montana</div>
                     </div>
                     <div class="adlvl-stat" role="listitem">
                         <div class="adlvl-stat__label">Gold slots filled</div>
                         <div class="adlvl-stat__value">{{ coverage_stats.gold_count }} / 56</div>
-                        <div class="adlvl-stat__sub">1 per county, by design</div>
+                        <div class="adlvl-stat__sub">one per county, by design</div>
                     </div>
                     <div class="adlvl-stat" role="listitem">
                         <div class="adlvl-stat__label">Plans from</div>
@@ -331,6 +369,13 @@
                     </div>
                 </div>
             </div>
+
+            <aside class="adlvl-hero-aside" aria-label="Why advertise">
+                <p class="adlvl-hero-aside__kicker">Why Montana Blotter</p>
+                <h2 class="adlvl-hero-aside__title">The moment a Montanan needs a lawyer, you're there.</h2>
+                <p class="adlvl-hero-aside__copy">Families reach for a phone the hour someone is arrested, a crash happens, or custody changes. Your listing sits on that exact page — tap-to-call, county-targeted, live the same day you check out.</p>
+                <a href="#pricing" class="adlvl-hero-cta inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 text-xs font-black uppercase tracking-[0.14em]">See packages</a>
+            </aside>
         </div>
     </div>
 </section>
