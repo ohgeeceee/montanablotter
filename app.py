@@ -7188,6 +7188,7 @@ def inject_public_nav():
         {'id': 'county-coverage', 'href': '/county-coverage', 'label': 'Coverage'},
         {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
         {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
+        {'id': 'learn', 'href': '/learn', 'label': 'Know Your Rights'},
         {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons'},
     ]
     public_more_nav_groups = [
@@ -7221,7 +7222,6 @@ def inject_public_nav():
         {
             'title': 'News & help',
             'items': [
-                {'id': 'learn', 'href': '/learn', 'label': 'Know Your Rights'},
                 {'id': 'support', 'href': '/support', 'label': 'Help & Support'},
             ],
         },
@@ -16016,19 +16016,36 @@ def blog():
     latest_weekly_digest = _latest_weekly_digest(conn)
     category = request.args.get('category', '').strip().lower()
 
-    # Check whether the category column exists (it may not be migrated yet)
+    # The blog uses `primary_category` (guide / analysis / editorial / None for
+    # the daily auto-roundups). The old `category` column check was dead code.
     bp_columns = {row[1] for row in conn.execute('PRAGMA table_info(blog_posts)')}
-    has_category = 'category' in bp_columns
+    has_category = 'primary_category' in bp_columns
+
+    # Featured post + category pills only when the column exists (older
+    # test/schema snapshots may not have migrated primary_category yet).
+    featured = None
+    categories = []
+    if has_category:
+        featured = conn.execute(
+            """SELECT * FROM blog_posts
+               WHERE published=1 AND primary_category IN ('guide','analysis','editorial')
+               ORDER BY created_at DESC LIMIT 1"""
+        ).fetchone()
+        categories = conn.execute(
+            """SELECT lower(primary_category) AS cat, COUNT(*) AS n
+               FROM blog_posts WHERE published=1 AND primary_category IS NOT NULL
+               GROUP BY lower(primary_category) ORDER BY n DESC"""
+        ).fetchall()
 
     if category and has_category:
         total = conn.execute(
-            'SELECT COUNT(*) FROM blog_posts WHERE published=1 AND lower(category)=?',
+            'SELECT COUNT(*) FROM blog_posts WHERE published=1 AND lower(primary_category)=?',
             (category,)).fetchone()[0]
         posts = conn.execute(
-            'SELECT * FROM blog_posts WHERE published=1 AND lower(category)=? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+            'SELECT * FROM blog_posts WHERE published=1 AND lower(primary_category)=? ORDER BY created_at DESC LIMIT ? OFFSET ?',
             (category, per_page, (page - 1) * per_page)).fetchall()
     else:
-        category = ''  # normalise so template gets empty string when no-op
+        category = ''
         total = conn.execute(
             'SELECT COUNT(*) FROM blog_posts WHERE published=1').fetchone()[0]
         posts = conn.execute(
@@ -16040,6 +16057,8 @@ def blog():
     return render_template('blog.html', posts=posts, total=total,
                            page=page, total_pages=total_pages,
                            active_category=category,
+                           featured=featured,
+                           categories=categories,
                            latest_weekly_digest=latest_weekly_digest,
                            current_year=datetime.now().year)
 
