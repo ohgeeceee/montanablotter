@@ -63,6 +63,14 @@ Net: re-scouting these five yielded **zero** new fetchable official rosters. The
 Cloudflare trio (Meagher/Rosebud/Stillwater) share the Powder River/Wibaux block
 pattern — a single Cloudflare-bypass investment would cover all five if pursued.
 
+**Bypass tested 2026-08-31:** headless Chromium (system google-chrome) with stealth args
+(`--disable-blink-features=AutomationControlled`), a real Windows UA, and
+`navigator.webdriver` neutralized was tried against meaghercountyjail.org / rosebudcountyjailmt.org /
+stillwatercountyjailmt.org. All three returned a ~270-byte empty interstitial (no "just a moment"
+challenge, no inmate data) — a silent IP/fingerprint block, not a solvable JS challenge.
+A working bypass needs a residential proxy + solved `cf_clearance` cookie (CAPTCHA service) or a
+pre-warmed profile. **Deferred** by default (paid third-party + ToS/legal exposure).
+
 ### Chouteau — DONE
 Wix-hosted PDF with a rotating URL. Fetcher re-discovers the link from the
 landing page each run; scheduled in crontab.txt (daily 06:15). No action.
