@@ -205,14 +205,24 @@ def admin_login():
             'SELECT * FROM users WHERE username = ?',
             (username,),
         ).fetchone()
-        password_valid = bool(
-            user_row
-            and user_row['password_hash']
-            and _raw_bcrypt.checkpw(
-                password.encode('utf-8'),
-                user_row['password_hash'].encode('utf-8'),
-            )
-        )
+        password_valid = False
+        stored_hash = None
+        if user_row:
+            row_keys = set(user_row.keys()) if hasattr(user_row, 'keys') else set()
+            if 'password_hash' in row_keys:
+                stored_hash = user_row['password_hash']
+            elif 'password' in row_keys:
+                stored_hash = user_row['password']
+        if stored_hash:
+            try:
+                password_valid = bool(
+                    _raw_bcrypt.checkpw(
+                        password.encode('utf-8'),
+                        stored_hash.encode('utf-8'),
+                    )
+                )
+            except (ValueError, TypeError, AttributeError):
+                password_valid = False
         is_active_account = bool(user_row and user_row['is_active'])
         has_admin_role = bool(user_row and (user_row['role'] or '').strip() in ADMIN_ACCESS_ROLES)
         is_valid = bool(password_valid and is_active_account and has_admin_role)

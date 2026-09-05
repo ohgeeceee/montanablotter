@@ -72,6 +72,7 @@ def register_admin_blueprint(app):
     from blueprints.admin import agents     # noqa: F401
     from blueprints.admin import audience   # noqa: F401
     from blueprints.admin import bail_ads   # noqa: F401
+    from blueprints.admin import advertising_center
     from blueprints.admin import blog       # noqa: F401
     from blueprints.admin import donations  # noqa: F401
     from blueprints.admin import email_campaigns  # noqa: F401
@@ -96,3 +97,4 @@ def register_admin_blueprint(app):
     from blueprints.admin import lea_management  # noqa: F401
     from blueprints.admin import name_removals  # noqa: F401
     app.register_blueprint(admin_bp)
+    app.register_blueprint(advertising_center.media_kit_bp)

@@ -120,6 +120,11 @@ body.admin-shell {
 }
 
 .admin-nav-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
   font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -127,6 +132,25 @@ body.admin-shell {
   color: var(--adm-amber);
   padding: 0 8px 4px;
   margin-bottom: 1px;
+}
+
+.admin-nav-group-label::-webkit-details-marker {
+  display: none;
+}
+
+.admin-nav-group-chevron {
+  color: var(--adm-text-muted);
+  font-size: 0.8rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.admin-nav-group[open] .admin-nav-group-chevron {
+  transform: rotate(180deg);
+}
+
+.admin-nav-group-items {
+  padding-top: 2px;
 }
 
 .admin-nav-link {

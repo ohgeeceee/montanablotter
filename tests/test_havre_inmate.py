@@ -169,11 +169,9 @@ class HavreRowParserTests(unittest.TestCase):
         rec = _row_to_record(row, source_path=self.source_path, row_idx=0)
         self.assertIsNotNone(rec)
         self.assertEqual(rec.person_name, "Doe, John")
-        # Havre rosters have no age column; a standalone "35" cell is
-        # accepted by _coerce_age as a numeric age, but the live Havre
-        # roster has no age column at all, so age is None in practice.
-        # Unit tests that pass a standalone numeric cell still get an age.
-        self.assertEqual(rec.age, 35)
+        # Havre rosters have no age column; _row_to_record sets age=None
+        # unconditionally for all Havre records regardless of cell content.
+        self.assertIsNone(rec.age)
         self.assertEqual(rec.booking_at, "2026-01-15 14:30:00")
         self.assertIn("DUI", rec.charges_summary)
         self.assertIn("Bond $5,000.00", rec.charges_summary)

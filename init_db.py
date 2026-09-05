@@ -1377,6 +1377,36 @@ def ensure_advertise_sales_lead_schema(conn):
     conn.commit()
 
 
+def ensure_advertising_center_schema(conn):
+    """Canonical business pipeline; source orders remain in their own systems."""
+    conn.execute('''CREATE TABLE IF NOT EXISTS advertising_prospects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        business_name TEXT NOT NULL,
+        business_key TEXT NOT NULL UNIQUE,
+        contact_name TEXT NOT NULL DEFAULT '',
+        email TEXT NOT NULL DEFAULT '',
+        phone TEXT NOT NULL DEFAULT '',
+        counties TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT 'general',
+        stage TEXT NOT NULL DEFAULT 'new'
+            CHECK(stage IN ('new','contacted','proposal_sent','active','lost','paused')),
+        next_follow_up TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        version INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS advertising_prospect_sources (
+        source_type TEXT NOT NULL,
+        source_id INTEGER NOT NULL,
+        prospect_id INTEGER NOT NULL REFERENCES advertising_prospects(id),
+        PRIMARY KEY(source_type, source_id)
+    )''')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_ad_prospect_followup ON advertising_prospects(stage, next_follow_up)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_ad_prospect_sources ON advertising_prospect_sources(prospect_id)')
+    conn.commit()
+
+
 def migrate():
     """Safely apply schema changes to an existing DB without data loss"""
     conn = sqlite3.connect(DB_PATH)
@@ -1386,6 +1416,7 @@ def migrate():
     _create_core_tables(cursor)
     ensure_source_material_schema(conn)
     ensure_public_meeting_schema(conn)
+    ensure_advertising_center_schema(conn)
 
     # Add lat/lon to meeting_locations for map display
     for col, definition in [('lat', 'REAL'), ('lon', 'REAL')]:

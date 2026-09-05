@@ -30,6 +30,8 @@ from services.push.expo_sender import (
 
 import functools
 
+from services.monetization.name_suppression import redact_person_name, redact_text
+
 
 # ---------------------------------------------------------------------------
 # Server-side response cache helper
@@ -2060,15 +2062,16 @@ def api_v1_court_lookup():
 # ---------------------------------------------------------------------------
 
 def _warrant_payload(row: sqlite3.Row) -> dict:
+    county = row['county']
     return {
         'id': row['id'],
         'source_record_id': row['source_record_id'],
-        'county': row['county'],
+        'county': county,
         'city': row['city'],
-        'person_name': row['person_name'],
+        'person_name': redact_person_name(row['person_name'], county),
         'dob': row['dob'],
         'warrant_type': row['warrant_type'],
-        'charges_text': row['charges_text'],
+        'charges_text': redact_text(row['charges_text'], county),
         'issued_by': row['issued_by'],
         'issue_date': row['issue_date'],
         'bond_amount': row['bond_amount'],

@@ -28,7 +28,22 @@
                 {% if post_count and post_count > 0 %}
                 <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ post_count|int }} PII-screened posts</div>
                 {% endif %}
-                <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">Free. No paywall.</div>
+                <
+    {% if ad_slots %}
+    {% set newsletter_ad = ad_slots.get('newsletter_header', {}) %}
+    {% if newsletter_ad %}
+    <div class="public-hero__sponsor-badge mt-3 flex items-center gap-2">
+      <span class="text-[10px] font-black uppercase tracking-[0.2em]" style="color: var(--public-amber);">
+        Sponsored
+      </span>
+      <a href="{{ newsletter_ad.link_url }}" target="_blank" rel="noopener"
+         class="text-sm font-black uppercase tracking-[0.14em]"
+         style="color: var(--public-amber);">
+        {{ newsletter_ad.sponsor_name or 'Featured Sponsor' }}
+      </a>
+    </div>
+    {% endif %}
+    {% endif %}div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">Free. No paywall.</div>
             </div>
             <div class="mt-7 flex flex-wrap gap-3">
                 <a href="#subscribe" class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-slate-700">

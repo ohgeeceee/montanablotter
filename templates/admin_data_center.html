@@ -21,6 +21,31 @@
         </div>
     </div>
 
+    {% set live = operational_health %}
+    <section class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Live ingestion health</h2>
+            <p class="text-sm text-slate-500 mt-1">Direct checks of source data, separate from the cached dataset metrics below.</p>
+        </div>
+        <div class="grid gap-px bg-slate-200 md:grid-cols-3">
+            <div class="bg-white px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Arrest feed</p>
+                <p class="mt-2 text-lg font-black text-slate-900">{{ live.arrests.status|title }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ live.arrests.rows_last_24h }} records in the last 24 hours</p>
+            </div>
+            <div class="bg-white px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Jail rosters</p>
+                <p class="mt-2 text-lg font-black text-slate-900">{{ live.jail_rosters.status|title }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ live.jail_rosters.enabled_with_rows }} enabled sources with records; {{ live.jail_rosters.enabled_stale|length }} need attention</p>
+            </div>
+            <div class="bg-white px-5 py-4">
+                <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">DOJ offender registry</p>
+                <p class="mt-2 text-lg font-black text-slate-900">{{ live.sex_offender_registry.status|title }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ live.sex_offender_registry.active_count }} active records in {{ live.sex_offender_registry.county_count }} counties</p>
+            </div>
+        </div>
+    </section>
+
     <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
             <p class="text-[10px] uppercase tracking-[0.14em] font-black text-emerald-700">Fresh datasets</p>

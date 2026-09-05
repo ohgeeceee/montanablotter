@@ -47,12 +47,28 @@ _PRICING = {
         'monthly_label': '$79/mo',
         'annual_label': '$799/yr',
     },
+    'recovery': {
+        'label': 'Recovery Center',
+        'monthly_cents': 4900,
+        'annual_cents': 49900,
+        'monthly_label': '$49/mo',
+        'annual_label': '$499/yr',
+    },
 }
 
 
 def _app():
     from app import app
     return app
+
+
+def _table_has_column(conn, table_name: str, column_name: str) -> bool:
+    """Return True when the live SQLite table exposes the named column."""
+    try:
+        rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    except Exception:
+        return False
+    return any((row[1] if isinstance(row, tuple) else row['name']) == column_name for row in rows)
 
 
 def _stripe_keys():
@@ -77,15 +93,18 @@ def _stripe_keys():
 
 def get_sponsored_for_county(conn, county_slug: str) -> list[dict]:
     """Return all active sponsored listings for a given county."""
-    rows = conn.execute('''
+    has_expires_at = _table_has_column(conn, 'sponsored_listings', 'expires_at')
+    sql = '''
         SELECT id, business_name, business_type, phone, website, ad_text, logo_path
         FROM sponsored_listings
         WHERE county_slug = ?
           AND is_active = 1
           AND status = 'active'
-          AND (expires_at IS NULL OR expires_at > datetime('now'))
-        ORDER BY sort_order ASC, created_at DESC
-    ''', (county_slug,)).fetchall()
+    '''
+    if has_expires_at:
+        sql += "\n          AND (expires_at IS NULL OR expires_at > datetime('now'))"
+    sql += "\n        ORDER BY sort_order ASC, created_at DESC"
+    rows = conn.execute(sql, (county_slug,)).fetchall()
     return [dict(r) for r in rows]
 
 

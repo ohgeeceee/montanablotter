@@ -176,7 +176,23 @@
         <!-- Feed column -->
         <main class="public-main-stack">
 
-            {{ render_bail_banner(bail_ad_placements.banner, 'county_banner') }}
+            
+    {% if ad_slots %}
+    {% set sidebar_ad = ad_slots.get('sidebar_below_fold', {}) %}
+    {% if sidebar_ad %}
+    <div class="mb-sidebar-ad" style="margin-top: 2rem; border-top: 1px solid var(--public-border); padding-top: 1rem;">
+      {% if sidebar_ad.link_url %}
+      <a href="{{ sidebar_ad.link_url }}" target="_blank" rel="noopener" class="u-block u-bg-gray-50 u-border-t u-border-gray-300 u-px-3 u-py-3 text-sm text-gray-700 hover:text-gray-900">
+        Sponsored
+      </a>
+      {% else %}
+      <div class="u-block u-bg-gray-50 u-px-3 u-py-3 text-center text-xs text-gray-500">
+        {{ sidebar_ad.description or 'Sponsored' }}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+{% endif %}{{ render_bail_banner(bail_ad_placements.banner, 'county_banner') }}
 
             {% if posts %}
             <div class="public-panel-row">

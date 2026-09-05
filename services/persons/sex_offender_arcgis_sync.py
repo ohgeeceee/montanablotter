@@ -79,6 +79,8 @@ def _to_record(feature: dict[str, Any]) -> dict[str, Any] | None:
         "school_name": "",
         "school_address": "",
         "offense_description": offense,
+        # DOJ ArcGIS OFF_TYP drives the public registry classification.
+        "offender_type": offense,
         "conviction_date": None,
         "conviction_state": "MT",
         "conviction_county": str(attrs.get("COUNTY") or "").strip(),

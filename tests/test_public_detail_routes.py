@@ -1,4 +1,6 @@
+import json
 import os
+import re
 import sqlite3
 import tempfile
 import unittest
@@ -133,7 +135,7 @@ class PublicDetailRouteTests(unittest.TestCase):
         )
         conn.execute(
             """
-            INSERT INTO charge_explainers (
+            INSERT OR IGNORE INTO charge_explainers (
                 incident_type, slug, title, body, excerpt, charge_category, published
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
@@ -213,6 +215,113 @@ class PublicDetailRouteTests(unittest.TestCase):
         self.assertIn('/uploads/yellowstone-daily-report.pdf', html)
         self.assertNotIn('123 Main St', html)
         self.assertIn('[redacted home address]', html)
+
+        jsonld_blocks = re.findall(
+            r'<script type="application/ld\+json">\s*(.*?)\s*</script>',
+            html,
+            flags=re.DOTALL,
+        )
+        jsonld_payloads = [json.loads(block) for block in jsonld_blocks]
+        jsonld_types = {payload.get('@type') for payload in jsonld_payloads}
+        self.assertIn('ItemPage', jsonld_types)
+        self.assertIn('BreadcrumbList', jsonld_types)
+
+    def test_sex_offender_county_has_complete_search_metadata(self) -> None:
+        conn = app_module.get_db()
+        conn.execute(
+            """
+            INSERT INTO sex_offenders (
+                registry_id, full_name, status, address_city, address_county,
+                offender_type, updated_at
+            ) VALUES (?, ?, 'active', ?, ?, ?, ?)
+            """,
+            (
+                'seo-test-registrant',
+                'Example Registrant',
+                'Great Falls',
+                'Cascade',
+                'Violent',
+                '2026-09-05 10:00:00',
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        response = app_module.app.test_client().get('/sex-offender-updates/cascade')
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            '<title>Cascade County Violent and Sexual Offender Registry | Montana Blotter</title>',
+            html,
+        )
+        self.assertIn(
+            '<link rel="canonical" href="https://montanablotter.com/sex-offender-updates/cascade">',
+            html,
+        )
+        self.assertIn('Current violent and sexual offender registry information', html)
+        jsonld_blocks = re.findall(
+            r'<script type="application/ld\+json">\s*(.*?)\s*</script>',
+            html,
+            flags=re.DOTALL,
+        )
+        for block in jsonld_blocks:
+            json.loads(block)
+
+    def test_legacy_booking_filter_redirects_to_canonical_hub(self) -> None:
+        response = app_module.app.test_client().get(
+            '/blotter?type=bookings&county=Cascade',
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.headers['Location'], '/jail-bookings')
+
+    def test_sitemap_index_shards_large_sections_and_skips_empty_maps(self) -> None:
+        for _ in range(3):
+            self._seed_public_report()
+
+        conn = app_module.get_db()
+        for index in range(3):
+            conn.execute(
+                """
+                INSERT INTO jail_bookings (
+                    county_slug, county_name, facility_name, person_name,
+                    booking_status, is_current, first_seen_at, last_seen_at
+                ) VALUES (?, ?, ?, ?, 'current', 1, ?, ?)
+                """,
+                (
+                    'cascade',
+                    'Cascade',
+                    'Cascade County Detention Center',
+                    f'Example Booking {index}',
+                    f'2026-09-05 10:0{index}:00',
+                    f'2026-09-05 10:0{index}:00',
+                ),
+            )
+        conn.commit()
+        conn.close()
+
+        previous_limit = app_module.SITEMAP_URL_LIMIT
+        app_module.SITEMAP_URL_LIMIT = 2
+        try:
+            client = app_module.app.test_client()
+            index_response = client.get('/sitemap.xml')
+            index_xml = index_response.get_data(as_text=True)
+            records_page_two = client.get('/sitemap-records-2.xml')
+            bookings_page_two = client.get('/sitemap-bookings-2.xml')
+            records_page_three = client.get('/sitemap-records-3.xml')
+        finally:
+            app_module.SITEMAP_URL_LIMIT = previous_limit
+
+        self.assertEqual(index_response.status_code, 200)
+        self.assertIn('/sitemap-records-2.xml', index_xml)
+        self.assertIn('/sitemap-bookings-2.xml', index_xml)
+        self.assertNotIn('/sitemap-seo.xml', index_xml)
+        self.assertNotIn('/sitemap-images.xml', index_xml)
+        self.assertEqual(records_page_two.status_code, 200)
+        self.assertEqual(bookings_page_two.status_code, 200)
+        self.assertEqual(records_page_three.status_code, 404)
 
     def test_pending_post_and_records_are_not_public(self) -> None:
         post_id, record_id = self._seed_public_report(audit_status='pending')

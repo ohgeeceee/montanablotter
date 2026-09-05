@@ -31,6 +31,12 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles/shell.css', v='20260704b') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='public-redesign.css', v='20260704b') }}">
   {% block extra_head %}{% endblock %}
+<!-- TikTok Pixel -->
+<script type="text/javascript">
+  !function(e){var t=e.document.createElement("script");t.async=!0,t.src="https://www.tiktok.com/ads/pixel/events.js",e.document.head.appendChild(t)}(window);
+  !function(e){var t=e.document.createElement("script");t.async=!0,t.src="https://www.tiktok.com/i18n/pixel.js",e.document.head.appendChild(t)}(window);
+</script>
+<!-- End TikTok Pixel -->
 
   {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
   {% for pr in pagination_rels %}
@@ -180,7 +186,31 @@
         {% endif %}
       </nav>
 
-      <div class="mb-shell-header__actions">
+      <div 
+    {% if ad_slots %}
+    {% set header_ad = ad_slots.get('header_masthead', {}) %}
+    {% if header_ad %}
+    <div class="mb-shell-header__ad-slot" style="margin-left: auto; margin-right: -1rem; width: 728px; margin-top: 1rem;">
+      {% if header_ad.link_url %}
+      <a href="{{ header_ad.link_url }}" target="_blank" rel="noopener" class="u-block u-border-b u-border-gray-300 u-px-3 u-py-2 text-sm text-gray-700 hover:text-gray-900">
+        Sponsored by {{ header_ad.sponsor_name or 'Advertiser' }}
+      </a>
+      {% else %}
+      <div class="u-block u-bg-gray-50 u-border-b u-border-gray-300 u-px-3 u-py-2 text-center text-xs text-gray-500">
+        {{ header_ad.description or 'Advertisement' }}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+{% endif %}
+    {% if ad_slots %}
+    {% set header_ad = ad_slots.get('header_masthead', {}) %}
+    {% if header_ad and header_ad.daily_impressions > 0 %}
+    <div class="mb-shell-header__stat-badge" style="margin-left: 1rem; white-space: nowrap;">
+      <span class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">📊 {{ header_ad.daily_impressions }} impressions today</span>
+    </div>
+    {% endif %}
+    {% endif %}class="mb-shell-header__actions">
         <a href="/subscribe" class="u-button u-button-primary u-hidden u-md-inline-flex" data-nav-track="1" data-nav-location="header_action" data-short-label="{{ public_action_labels.subscribe }}" data-full-label="{{ public_action_labels.subscribe_full }}">{{ public_action_labels.subscribe }}</a>
 
         {% if public_user %}

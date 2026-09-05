@@ -28,6 +28,8 @@ ARRESTS_FRESH_HOURS = 24
 ARRESTS_STALE_HOURS = 48
 JAIL_FRESH_HOURS = 24
 JAIL_STALE_HOURS = 48
+SVOR_FRESH_HOURS = 30
+SVOR_STALE_HOURS = 54
 
 
 @dataclass(frozen=True)
@@ -93,7 +95,12 @@ def check_arrests() -> dict[str, Any]:
     now = _now()
     thresholds = Thresholds(ARRESTS_FRESH_HOURS, ARRESTS_STALE_HOURS)
 
-    records_latest = _safe_query("SELECT MAX(created_at) AS m FROM records")
+    # A few legacy imports stored a name in created_at. Ignore malformed values
+    # so one bad row cannot mask an otherwise healthy ingest.
+    records_latest = _safe_query(
+        "SELECT MAX(created_at) AS m FROM records "
+        "WHERE created_at GLOB '????-??-??*'"
+    )
     blotters_latest = _safe_query("SELECT MAX(upload_date) AS m FROM blotters")
     docs_latest = _safe_query(
         "SELECT MAX(created_at) AS m FROM source_documents "
@@ -250,13 +257,57 @@ def check_jail_rosters() -> dict[str, Any]:
     }
 
 
+def check_sex_offender_registry() -> dict[str, Any]:
+    """Inspect the latest statewide Montana DOJ SVOR snapshot."""
+    now = _now()
+    thresholds = Thresholds(SVOR_FRESH_HOURS, SVOR_STALE_HOURS)
+    snapshots = _safe_query(
+        """
+        SELECT snapshot_date, total_count, new_count, removed_count, changed_count
+        FROM sex_offender_snapshots
+        ORDER BY id DESC
+        LIMIT 1
+        """
+    )
+    latest = snapshots[0] if snapshots else None
+    snapshot_date = latest["snapshot_date"] if latest else None
+    age = _age_hours(snapshot_date, now)
+    active_rows = _safe_query(
+        "SELECT COUNT(*) AS c FROM sex_offenders WHERE status = 'active'"
+    )
+    county_rows = _safe_query(
+        """
+        SELECT COUNT(DISTINCT address_county) AS c
+        FROM sex_offenders
+        WHERE status = 'active' AND COALESCE(TRIM(address_county), '') <> ''
+        """
+    )
+    active_count = active_rows[0]["c"] if active_rows else 0
+    county_count = county_rows[0]["c"] if county_rows else 0
+    status = _classify(age, thresholds)
+    if status == "fresh" and (active_count < 500 or county_count < 40):
+        status = "missing"
+
+    return {
+        "status": status,
+        "snapshot_date": snapshot_date,
+        "snapshot_age_hours": age,
+        "active_count": active_count,
+        "county_count": county_count,
+        "new_count": latest["new_count"] if latest else None,
+        "removed_count": latest["removed_count"] if latest else None,
+        "changed_count": latest["changed_count"] if latest else None,
+    }
+
+
 def summarize() -> dict[str, Any]:
     arrests = check_arrests()
     jail = check_jail_rosters()
+    sex_offenders = check_sex_offender_registry()
 
     # Overall: worst-of
     rank = {"fresh": 0, "lagging": 1, "stale": 2, "missing": 3}
-    statuses = [arrests["status"], jail["status"]]
+    statuses = [arrests["status"], jail["status"], sex_offenders["status"]]
     overall = max(statuses, key=lambda s: rank.get(s, 3))
 
     return {
@@ -264,6 +315,7 @@ def summarize() -> dict[str, Any]:
         "status": overall,
         "arrests": arrests,
         "jail_rosters": jail,
+        "sex_offender_registry": sex_offenders,
         "sources": {
             "arrests_latest": arrests.get("latest_created_at"),
             "jail_latest_seen": max(
@@ -274,6 +326,7 @@ def summarize() -> dict[str, Any]:
                 ),
                 default=None,
             ),
+            "sex_offender_snapshot": sex_offenders.get("snapshot_date"),
         },
     }
 
@@ -291,6 +344,7 @@ def main(argv: list[str] | None = None) -> int:
             f"[freshness] status={payload['status']} "
             f"arrests={payload['arrests']['status']} "
             f"jail={payload['jail_rosters']['status']} "
+            f"svor={payload['sex_offender_registry']['status']} "
             f"arrests_latest={payload['arrests']['latest_created_at']} "
             f"jail_latest={payload['sources']['jail_latest_seen']}"
         )

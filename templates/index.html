@@ -27,10 +27,15 @@
   "sameAs": ["https://www.facebook.com/montananablotter"]
 }
 </script>
+<!-- TikTok Pixel -->
+<script type="text/javascript">
+  !function(e){var t=e.document.createElement("script");t.async=!0,t.src="https://www.tiktok.com/ads/pixel/events.js",e.document.head.appendChild(t)}(window);
+  !function(e){var t=e.document.createElement("script");t.async=!0,t.src="https://www.tiktok.com/i18n/pixel.js",e.document.head.appendChild(t)}(window);
+</script>
+<!-- End TikTok Pixel -->
 {% endblock %}
 
 {% block content %}
-<main class="mb-main">
 
   {% if missing_persons_alert and missing_persons_alert.rows %}
   {% set alert_person = missing_persons_alert.rows[0] %}
@@ -206,7 +211,7 @@
       <div class="mb-section-header__kicker">From county detention records</div>
       <h2 class="mb-section-header__title">Latest jail bookings</h2>
     </div>
-    <a href="/detention" class="mb-section-header__action">All bookings &rarr;</a>
+    <a href="/jail-bookings" class="mb-section-header__action">All bookings &rarr;</a>
   </header>
 
   <div style="overflow-x:auto;">
@@ -222,7 +227,7 @@
       </thead>
       <tbody>
         {% for b in recent_jail_bookings[:5] %}
-        <tr class="mb-data-table__row" onclick="window.location.href='/detention'">
+        <tr class="mb-data-table__row" onclick="window.location.href='/jail-bookings'">
           <td class="mb-data-table__cell">{{ b.person_name }}</td>
           <td class="mb-data-table__cell">{{ b.county_name }}</td>
           <td class="mb-data-table__cell">{{ b.charges_summary or 'Charges pending' }}</td>

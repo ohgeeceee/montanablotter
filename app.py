@@ -117,6 +117,7 @@ except Exception:
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 BASE_URL = config.BASE_URL
+SITEMAP_URL_LIMIT = 50000
 
 # Drift sentinel: log the absolute path of app.py at import time. If we ever
 # see nginx serving 5000 but the gunicorn process loaded a different app.py
@@ -153,11 +154,16 @@ WINTER_STORM_SUPPORT_BANNER_DEFAULTS = {
 }
 app.config.update(
     SESSION_COOKIE_NAME=config.SESSION_COOKIE_NAME,
-    SESSION_COOKIE_DOMAIN=config.SESSION_COOKIE_DOMAIN,
+    SESSION_COOKIE_DOMAIN=(config.SESSION_COOKIE_DOMAIN or None),
     SESSION_COOKIE_HTTPONLY=config.SESSION_COOKIE_HTTPONLY,
     SESSION_COOKIE_SAMESITE=config.SESSION_COOKIE_SAMESITE,
     SESSION_COOKIE_SECURE=config.SESSION_COOKIE_SECURE,
 )
+if os.environ.get('PYTEST_CURRENT_TEST'):
+    app.config.update(
+        SESSION_COOKIE_DOMAIN=None,
+        SESSION_COOKIE_SECURE=False,
+    )
 
 
 def _redact_public_pii(value):
@@ -685,14 +691,14 @@ COUNTY_DIRECTORY = {
     'blaine': {'name': 'Blaine', 'roster_url': None, 'phone': '406-357-3260', 'has_online_roster': False},
     'broadwater': {'name': 'Broadwater', 'roster_url': 'https://www.broadwatercountysheriff.org/roster.php', 'phone': '406-266-3445', 'has_online_roster': True},
     'carbon': {'name': 'Carbon', 'roster_url': 'https://carbonmt.gov/sheriff/', 'phone': '406-446-1234', 'has_online_roster': True},
-    'carter': {'name': 'Carter', 'roster_url': None, 'phone': '406-775-8741', 'has_online_roster': False},
+    'carter': {'name': 'Carter', 'roster_url': 'https://cartercountysheriff.us/inmate-search', 'phone': '406-775-8741', 'has_online_roster': True},
     'cascade': {'name': 'Cascade', 'roster_url': 'https://www.cascadecountymt.gov/314/Inmate-Roster', 'phone': '406-454-6840', 'has_online_roster': True},
     'chouteau': {'name': 'Chouteau', 'roster_url': 'https://chouteaucountysheriff.com/', 'phone': '406-622-3660', 'has_online_roster': True},
-    'custer': {'name': 'Custer', 'roster_url': None, 'phone': '406-874-3300', 'has_online_roster': False},
+    'custer': {'name': 'Custer', 'roster_url': 'https://ccmtgov-my.sharepoint.com/:b:/g/personal/jailroster_cascadecountymt_gov', 'phone': '406-874-3300', 'has_online_roster': True},
     'daniels': {'name': 'Daniels', 'roster_url': None, 'phone': '406-487-2691', 'has_online_roster': False},
     'dawson': {'name': 'Dawson', 'roster_url': 'https://www.dawsoncountymontana.com/sheriff', 'phone': '406-377-7600', 'has_online_roster': True},
     'deer-lodge': {'name': 'Deer Lodge', 'roster_url': 'https://www.adlc.us/DocumentCenter/View/248/Jail-Roster-08292025-PDF', 'phone': '406-563-5421', 'has_online_roster': True},
-    'fallon': {'name': 'Fallon', 'roster_url': None, 'phone': '406-778-2879', 'has_online_roster': False},
+    'fallon': {'name': 'Fallon', 'roster_url': 'https://falloncountymt.gov/sheriff', 'phone': '406-778-2879', 'has_online_roster': True},
     'fergus': {'name': 'Fergus', 'roster_url': 'https://fergusmt.gov/detention-center-roster', 'phone': '406-535-3860', 'has_online_roster': True},
     'flathead': {'name': 'Flathead', 'roster_url': 'https://apps.flathead.mt.gov/jailroster/', 'phone': '406-758-5610', 'has_online_roster': True},
     'gallatin': {'name': 'Gallatin', 'roster_url': 'https://gallatin-so-mt.zuercherportal.com/#/inmates', 'phone': '406-582-2100', 'has_online_roster': True},
@@ -703,7 +709,7 @@ COUNTY_DIRECTORY = {
     'hill': {'name': 'Hill', 'roster_url': None, 'phone': '406-265-5481', 'has_online_roster': False},
     'jefferson': {'name': 'Jefferson', 'roster_url': 'https://jefferson-so-mt.zuercherportal.com/#/inmates', 'phone': '406-225-4075', 'has_online_roster': True},
     'judith-basin': {'name': 'Judith Basin', 'roster_url': None, 'phone': '406-535-3860', 'has_online_roster': False},
-    'lake': {'name': 'Lake', 'roster_url': None, 'phone': '406-883-7301', 'has_online_roster': False},
+    'lake': {'name': 'Lake', 'roster_url': 'https://www.lakemt.gov/DocumentCenter/View/816/Jail_Roster-?bidId=', 'phone': '406-883-7301', 'has_online_roster': True},
     'lewis-and-clark': {'name': 'Lewis and Clark', 'roster_url': 'https://www.lccountymt.gov/Sheriff/Detention-Center', 'phone': '406-447-8270', 'has_online_roster': True},
     'liberty': {'name': 'Liberty', 'roster_url': None, 'phone': '406-759-5171', 'has_online_roster': False},
     'lincoln': {'name': 'Lincoln', 'roster_url': None, 'phone': '406-293-0242', 'has_online_roster': False},
@@ -722,7 +728,7 @@ COUNTY_DIRECTORY = {
     'prairie': {'name': 'Prairie', 'roster_url': 'https://www.myr2m.com/PrairieCoRoster/NewInmates.aspx', 'phone': '406-635-5738', 'has_online_roster': True},
     'ravalli': {'name': 'Ravalli', 'roster_url': 'https://ravallicounty.gov/239/Adult-Detention-Center', 'phone': '406-375-4060', 'has_online_roster': True},
     'richland': {'name': 'Richland', 'roster_url': None, 'phone': '406-433-2919', 'has_online_roster': False},
-    'roosevelt': {'name': 'Roosevelt', 'roster_url': None, 'phone': '406-653-6230', 'has_online_roster': False},
+    'roosevelt': {'name': 'Roosevelt', 'roster_url': 'https://www.rooseveltcountymt.gov/sheriff-coroner/', 'phone': '406-653-6230', 'has_online_roster': True},
     'rosebud': {'name': 'Rosebud', 'roster_url': None, 'phone': '406-346-2715', 'has_online_roster': False},
     'sanders': {'name': 'Sanders', 'roster_url': 'https://sanders-mt.publiclogs.com/', 'phone': '406-827-3584', 'has_online_roster': True},
     'sheridan': {'name': 'Sheridan', 'roster_url': None, 'phone': '406-765-1200', 'has_online_roster': False},
@@ -1570,6 +1576,63 @@ def inject_admin_financial_pulse():
     ctx['name_removal_amount_label'] = config.NAME_SUPPRESS_AMOUNT_LABEL
     return ctx
 
+
+@app.context_processor
+def inject_ad_inventory():
+    """Ad inventory stats and slot configurations for public templates."""
+    try:
+        from db import get_db
+        conn = get_db()
+        
+        # Get slot configurations
+        slots = conn.execute("""
+            SELECT slot_name, slot_description, slot_size, slot_position, priority, is_active
+            FROM ad_inventory_stats 
+            WHERE is_active = 1
+            ORDER BY priority ASC
+        """).fetchall()
+        
+        # Get impression counts for each slot
+        slot_stats = {}
+        for slot in slots:
+            name = slot[0]
+            stats = conn.execute("""
+                SELECT COALESCE(SUM(impressions), 0) as total_impressions,
+                       COALESCE(SUM(clicks), 0) as total_clicks,
+                       COALESCE(SUM(CASE WHEN date = date('now') THEN impressions END), 0) as daily_impressions,
+                       COALESCE(SUM(CASE WHEN date = date('now') THEN clicks END), 0) as daily_clicks
+                FROM ad_inventory_stats 
+                WHERE slot_name = ?
+                GROUP BY slot_name
+            """, (name,)).fetchone()
+            slot_stats[name] = {
+                'total_impressions': stats[0],
+                'total_clicks': stats[1],
+                'daily_impressions': stats[2],
+                'daily_clicks': stats[3],
+            }
+        
+        conn.close()
+        
+        return {
+            'ad_slots': {slot[0]: {
+                'description': slot[1],
+                'size': slot[2],
+                'position': slot[3],
+                'priority': slot[4],
+                **slot_stats.get(slot[0], {
+                    'total_impressions': 0,
+                    'total_clicks': 0,
+                    'daily_impressions': 0,
+                    'daily_clicks': 0,
+                })
+            } for slot in slots},
+        }
+    except Exception:
+        # Return empty defaults on error so templates never break
+        return {
+            'ad_slots': {},
+        }
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -7196,8 +7259,7 @@ def inject_public_nav():
             'title': 'Look up records',
             'items': [
                 {'id': 'meetings', 'href': _public_meetings_href(), 'label': 'Public Meetings'},
-                {'id': 'jail_rosters', 'href': '/detention', 'label': 'Jail Rosters'},
-                {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'New Bookings'},
+                {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'Jail Bookings'},
                 {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds'},
                 {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Tracking'},
             ],
@@ -7269,9 +7331,8 @@ def inject_public_nav():
         {'href': '/wanted', 'label': 'Active Warrants'},
         {'href': '/arrests', 'label': 'Arrests'},
         {'href': '/counties', 'label': 'Counties'},
-        {'href': '/jail-rosters', 'label': 'Jail Rosters'},
+        {'href': '/jail-bookings', 'label': 'Jail Bookings'},
         {'href': '/bail-bonds', 'label': 'Bail Bonds'},
-        {'href': '/jail-bookings', 'label': 'New Bookings'},
         {'href': '/bondsman/command-center', 'label': 'Bondsman Portal'} if public_user and getattr(public_user, 'is_subscribed', False) else None,
         {'href': '/learn', 'label': 'Know Your Rights'},
         {'href': '/support', 'label': 'Support'},
@@ -8662,7 +8723,7 @@ def api_status():
 
 @app.route('/health/freshness')
 def health_freshness():
-    """Data freshness for arrests and jail rosters.
+    """Data freshness for arrests, jail rosters, and the SVOR registry.
 
     Returns JSON. HTTP 200 even when status is "stale" — clients can
     read the `status` field. Use this to monitor whether the
@@ -9175,6 +9236,8 @@ def blotter():
     county = request.args.get('county', '')
     q = request.args.get('q', '')
     tab = request.args.get('type', 'all')
+    if tab == 'bookings':
+        return redirect(url_for('detention.jail_bookings'), code=301)
     page = max(1, request.args.get('page', 1, type=int))
     per_page = 20
 
@@ -10404,9 +10467,8 @@ def _sitemap_static_urls():
         (f'{BASE_URL}/cities', None),
         (f'{BASE_URL}/patterns', None),
         (f'{BASE_URL}/trends', None),
-        (f'{BASE_URL}/posts', None),
         (f'{BASE_URL}/arrests', None),
-        (f'{BASE_URL}/jail-rosters', None),
+        (f'{BASE_URL}/jail-bookings', None),
         (f'{BASE_URL}/bail-bonds', None),
         (f'{BASE_URL}/donate', None),
         (f'{BASE_URL}/advertise/bail-bonds', None),
@@ -10494,7 +10556,6 @@ def robots_txt():
         "Disallow: /register",
         "Disallow: /admin/",
         f"Sitemap: {BASE_URL}/sitemap.xml",
-        f"Sitemap: {BASE_URL}/sitemap-seo.xml",
         "",
     ])
     return Response(body, mimetype='text/plain')
@@ -10515,6 +10576,14 @@ def sitemap_index():
         WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
         """
     ).fetchone()
+    record_count_row = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM records
+        JOIN posts ON posts.blotter_id = records.blotter_id
+        WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
+        """
+    ).fetchone()
     journey_lastmod_row = conn.execute(
         'SELECT MAX(COALESCE(updated_at, created_at)) AS lastmod FROM case_journeys WHERE is_published = 1'
     ).fetchone()
@@ -10527,24 +10596,36 @@ def sitemap_index():
     booking_lastmod_row = conn.execute(
         'SELECT MAX(COALESCE(last_seen_at, first_seen_at, created_at)) AS lastmod FROM jail_bookings WHERE person_name IS NOT NULL AND person_name != \'\''
     ).fetchone()
+    booking_count_row = conn.execute(
+        "SELECT COUNT(*) AS count FROM jail_bookings WHERE person_name IS NOT NULL AND person_name != ''"
+    ).fetchone()
     so_lastmod_row = conn.execute(
         'SELECT MAX(COALESCE(updated_at, last_seen_at, first_seen_at)) AS lastmod FROM sex_offenders WHERE status = \'active\''
     ).fetchone()
     conn.close()
 
+    record_sitemap_pages = max(1, ((record_count_row['count'] or 0) + SITEMAP_URL_LIMIT - 1) // SITEMAP_URL_LIMIT)
+    booking_sitemap_pages = max(1, ((booking_count_row['count'] or 0) + SITEMAP_URL_LIMIT - 1) // SITEMAP_URL_LIMIT)
+    record_sections = [
+        ('records' if page == 1 else f'records-{page}', _iso_lastmod(record_lastmod_row['lastmod']) if record_lastmod_row else None)
+        for page in range(1, record_sitemap_pages + 1)
+    ]
+    booking_sections = [
+        ('bookings' if page == 1 else f'bookings-{page}', _iso_lastmod(booking_lastmod_row['lastmod']) if booking_lastmod_row else None)
+        for page in range(1, booking_sitemap_pages + 1)
+    ]
+
     sections = [
         ('static', None),
         ('locations', None),
-        ('seo', None),
         ('patterns', None),
         ('posts', _iso_lastmod(post_lastmod_row['lastmod']) if post_lastmod_row else None),
         ('case-journeys', _iso_lastmod(journey_lastmod_row['lastmod']) if journey_lastmod_row else None),
-        ('records', _iso_lastmod(record_lastmod_row['lastmod']) if record_lastmod_row else None),
+        *record_sections,
         ('blog', _iso_lastmod(blog_lastmod_row['lastmod']) if blog_lastmod_row else None),
         ('charges', _iso_lastmod(charges_lastmod_row['lastmod']) if charges_lastmod_row else None),
         ('license-sanctions', None),
-        ('bookings', _iso_lastmod(booking_lastmod_row['lastmod']) if booking_lastmod_row else None),
-        ('images', _iso_lastmod(booking_lastmod_row['lastmod']) if booking_lastmod_row else None),
+        *booking_sections,
         ('sex-offenders', _iso_lastmod(so_lastmod_row['lastmod']) if so_lastmod_row else None),
         ('criminal-cases', None),
     ]
@@ -10598,8 +10679,9 @@ def sitemap_posts():
     return _render_urlset(urls)
 
 
-@app.route('/sitemap-records.xml')
-def sitemap_records():
+def _sitemap_records_page(page):
+    if page < 1:
+        abort(404)
     conn = get_db()
     rows = conn.execute(
         """
@@ -10608,16 +10690,30 @@ def sitemap_records():
         JOIN posts ON posts.blotter_id = records.blotter_id
         WHERE COALESCE(posts.audit_status, 'pending') = 'clean'
         ORDER BY records.created_at DESC
-        LIMIT 50000
-        """
+        LIMIT ? OFFSET ?
+        """,
+        (SITEMAP_URL_LIMIT, (page - 1) * SITEMAP_URL_LIMIT),
     ).fetchall()
     conn.close()
+    if page > 1 and not rows:
+        abort(404)
     urls = [(f"{BASE_URL}/record/{row['id']}", _iso_lastmod(row['created_at'])) for row in rows]
     return _render_urlset(urls)
 
 
-@app.route('/sitemap-bookings.xml')
-def sitemap_bookings():
+@app.route('/sitemap-records.xml')
+def sitemap_records():
+    return _sitemap_records_page(1)
+
+
+@app.route('/sitemap-records-<int:page>.xml')
+def sitemap_records_shard(page):
+    return _sitemap_records_page(page)
+
+
+def _sitemap_bookings_page(page):
+    if page < 1:
+        abort(404)
     conn = get_db()
     rows = conn.execute(
         """
@@ -10625,12 +10721,25 @@ def sitemap_bookings():
         FROM jail_bookings
         WHERE person_name IS NOT NULL AND person_name != ''
         ORDER BY COALESCE(last_seen_at, first_seen_at, created_at) DESC
-        LIMIT 5000
-        """
+        LIMIT ? OFFSET ?
+        """,
+        (SITEMAP_URL_LIMIT, (page - 1) * SITEMAP_URL_LIMIT),
     ).fetchall()
     conn.close()
+    if page > 1 and not rows:
+        abort(404)
     urls = [(f"{BASE_URL}/booking/{row['id']}", _iso_lastmod(row['updated_at'])) for row in rows]
     return _render_urlset(urls)
+
+
+@app.route('/sitemap-bookings.xml')
+def sitemap_bookings():
+    return _sitemap_bookings_page(1)
+
+
+@app.route('/sitemap-bookings-<int:page>.xml')
+def sitemap_bookings_shard(page):
+    return _sitemap_bookings_page(page)
 
 
 @app.route('/sitemap-images.xml')
@@ -10660,7 +10769,7 @@ def sitemap_case_journeys():
 @app.route('/sitemap-patterns.xml')
 def sitemap_patterns():
     conn = get_db()
-    urls = [(f"{BASE_URL}/patterns", None)]
+    urls = []
     for pattern in PATTERN_DEFINITIONS.values():
         urls.append((f"{BASE_URL}/patterns/{pattern['slug']}", None))
         clause, params = _pattern_clause(pattern['slug'], 'records')
@@ -10758,7 +10867,6 @@ def sitemap_criminal_cases():
     ).fetchall()
     conn.close()
     urls = [(f"{BASE_URL}/court-case/{row['slug']}", _iso_lastmod(row['lastmod'])) for row in rows]
-    urls.append((f"{BASE_URL}/criminal-cases", None))
     return _render_urlset(urls)
 
 
@@ -12141,14 +12249,14 @@ def _decorate_jail_booking_row(row):
     # Paid privacy suppression: redact the person's name (and name within charges)
     # without deleting the underlying public record.
     try:
-        from services.monetization.name_suppression import redact_person_name
+        from services.monetization.name_suppression import redact_person_name, redact_text
         if item.get('person_name'):
             county = item.get('county_name') or item.get('county_slug')
             redacted = redact_person_name(item['person_name'], county)
             if redacted != item['person_name']:
                 item['person_name'] = redacted
                 if item.get('charges_summary'):
-                    item['charges_summary'] = redact_person_name(item['charges_summary'], county)
+                    item['charges_summary'] = redact_text(item['charges_summary'], county)
     except Exception:
         pass
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -12204,6 +12312,71 @@ def _decorate_jail_booking_run_row(row):
     return item
 
 
+def _jail_booking_map_counties(conn):
+    """Return all 56 counties with honest, freshness-aware booking coverage."""
+    source_rows = conn.execute(
+        '''
+        SELECT
+            s.*,
+            (
+                SELECT COUNT(*)
+                FROM jail_bookings jb
+                WHERE jb.source_id = s.id
+                  AND COALESCE(jb.is_current, 1) = 1
+            ) AS current_count,
+            (
+                SELECT COUNT(*)
+                FROM jail_bookings jb
+                WHERE jb.source_id = s.id
+                  AND datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) >= datetime('now', '-24 hours')
+                  AND datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) <= datetime('now', '+1 hour')
+            ) AS new_24h_count
+        FROM jail_booking_sources s
+        ORDER BY s.county_name ASC
+        '''
+    ).fetchall()
+    source_by_slug = {
+        row['county_slug']: row
+        for row in source_rows
+        if row['county_slug'] in COUNTY_DIRECTORY
+    }
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    counties = []
+    for slug, meta in COUNTY_DIRECTORY.items():
+        source = source_by_slug.get(slug)
+        current_count = int(source['current_count'] or 0) if source else 0
+        new_24h_count = int(source['new_24h_count'] or 0) if source else 0
+        last_success = _coerce_jail_booking_datetime(source['last_success_at']) if source else None
+        is_fresh = bool(last_success and timedelta(0) <= (now - last_success) <= timedelta(days=3))
+        is_available = bool(source and is_fresh)
+        if is_available and new_24h_count:
+            state = 'recent'
+            status_label = f'{new_24h_count} added in 24 hours'
+        elif is_available and current_count:
+            state = 'live'
+            status_label = f'{current_count} currently listed'
+        elif is_available:
+            state = 'live-empty'
+            status_label = 'Feed current; no active listings'
+        elif source and last_success:
+            state = 'stale'
+            status_label = 'Feed needs an update'
+        else:
+            state = 'unavailable'
+            status_label = 'No current booking feed'
+        counties.append({
+            'slug': slug,
+            'name': meta['name'],
+            'current_count': current_count,
+            'new_24h_count': new_24h_count,
+            'state': state,
+            'status_label': status_label,
+            'is_available': is_available,
+            'href': f'/jail-bookings/{slug}?status=current' if is_available else None,
+        })
+    return sorted(counties, key=lambda item: item['name'])
+
+
 def _jail_booking_public_context(conn, county_filter='', status_filter='current', q='', county_page=False):
     _sync_jail_booking_sources(conn)
     county_filter = (county_filter or '').strip().lower()
@@ -12230,7 +12403,6 @@ def _jail_booking_public_context(conn, county_filter='', status_filter='current'
             ) AS new_24h_count
         FROM jail_booking_sources s
         WHERE COALESCE(s.is_enabled, 1) = 1
-          AND COALESCE(s.is_featured, 0) = 1
         ORDER BY COALESCE(s.is_featured, 0) DESC, s.county_name ASC
         '''
     ).fetchall()
@@ -12322,7 +12494,9 @@ def _jail_booking_public_context(conn, county_filter='', status_filter='current'
         new_24h_params.append(county_filter)
     new_24h_count = conn.execute(new_24h_sql, new_24h_params).fetchone()[0]
 
-    tracked_counties = 1 if county_page and selected_source else sum(1 for row in sources if row['county_slug'] in MAJOR_JAIL_BOOKING_COUNTIES)
+    map_counties = _jail_booking_map_counties(conn)
+    available_map_counties = [row for row in map_counties if row['is_available']]
+    tracked_counties = 1 if county_page and selected_source else len(available_map_counties)
     recent_runs = conn.execute(
         '''
         SELECT
@@ -12340,19 +12514,19 @@ def _jail_booking_public_context(conn, county_filter='', status_filter='current'
     decorated_sources = [_decorate_jail_booking_source_row(row) for row in sources]
     decorated_runs = [_decorate_jail_booking_run_row(row) for row in recent_runs]
     selected_source = next((row for row in decorated_sources if row['county_slug'] == county_filter), None) if county_filter else None
-    page_title = "New Jail Bookings"
-    meta_description = "Track newly posted jail bookings from major Montana county rosters with county filters, booking timestamps, and official source links."
+    page_title = "Montana Jail Bookings"
+    meta_description = "Use the Montana county map to find current jail bookings, recent additions, and official county roster information."
     canonical_url = f"{BASE_URL}/jail-bookings"
-    og_title = "New Jail Bookings | Montana Blotter"
-    og_description = "Recent Montana jail bookings presented with county context, timestamps, and official source links."
-    hero_kicker = "Daily Booking Monitor"
-    hero_title = "New jail bookings from Montana's largest county rosters"
+    og_title = "Montana Jail Bookings | Montana Blotter"
+    og_description = "One statewide hub for Montana jail bookings, organized by county."
+    hero_kicker = "Statewide Booking Map"
+    hero_title = "Montana jail bookings by county"
     hero_description = (
-        "This page tracks newly published jail roster entries from major Montana counties and presents them in a cleaner statewide feed. "
-        "These records reflect booking or detention status only and do not imply guilt or conviction."
+        "Choose a county on the map, review its recent and current bookings, then open an individual record for more information. "
+        "A booking is not proof of guilt."
     )
     reset_href = "/jail-bookings"
-    breadcrumb_label = "New Jail Bookings"
+    breadcrumb_label = "Jail Bookings"
     if county_page and selected_source:
         page_title = f"{selected_source['county_name']} County Jail Bookings"
         meta_description = (
@@ -12377,6 +12551,8 @@ def _jail_booking_public_context(conn, county_filter='', status_filter='current'
         'rows': [_decorate_jail_booking_row(row) for row in rows],
         'sources': decorated_sources,
         'featured_sources': [row for row in decorated_sources if row['county_slug'] in MAJOR_JAIL_BOOKING_COUNTIES],
+        'map_counties': map_counties,
+        'county_choices': available_map_counties,
         'recent_runs': decorated_runs,
         'selected_source': selected_source,
         'county_locked': bool(county_page and selected_source),
@@ -14842,8 +15018,17 @@ def person_detail(name_slug):
     conn.close()
     if not bookings:
         return render_template('404.html'), 404
-    person_name = bookings[0]['person_name']
+    from services.monetization.name_suppression import redact_person_name, redact_text
+
+    bookings = [dict(row) for row in bookings]
     county_slug = _slugify_key(bookings[0]['county_slug'] or '')
+    county_name = bookings[0].get('county_name') or bookings[0].get('county_slug') or None
+    person_name = redact_person_name(bookings[0]['person_name'], county_name)
+    for booking in bookings:
+        booking['person_name'] = redact_person_name(booking.get('person_name'), county_name)
+        if booking.get('charges'):
+            booking['charges'] = redact_text(booking['charges'], county_name)
+
     canonical = f"{BASE_URL}/person/{name_slug}"
     return render_template(
         'person_detail.html',

@@ -1,0 +1,92 @@
+html,
+.mb-newspaper-body {
+  overflow-x: clip;
+}
+
+.mb-jail-map-card {
+  overflow: hidden;
+  border: 1px solid #dbe3ec;
+  border-radius: 1.25rem;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.mb-jail-map-grid {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+}
+
+.mb-jail-map-stage {
+  min-height: 330px;
+  border: 1px solid #cbd5e1;
+  border-radius: 1rem;
+  background: linear-gradient(145deg, #f8fafc, #eef2f7);
+  padding: 0.75rem;
+}
+
+.mb-jail-map-stage svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 300px;
+}
+
+.mb-jail-county {
+  fill: #e2e8f0;
+  stroke: #fff;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  transition: fill 140ms ease, stroke-width 140ms ease;
+}
+
+.mb-jail-county--recent { fill: #f97316; cursor: pointer; }
+.mb-jail-county--live { fill: #1e3a5f; cursor: pointer; }
+.mb-jail-county--live-empty { fill: #64748b; cursor: pointer; }
+.mb-jail-county--stale { fill: #cbd5e1; }
+.mb-jail-county--unavailable { fill: #e5e7eb; }
+
+.mb-jail-county-link:hover .mb-jail-county,
+.mb-jail-county-link:focus .mb-jail-county {
+  fill: #ea580c;
+  stroke: #0f172a;
+  stroke-width: 3;
+  outline: none;
+}
+
+.mb-jail-county-focus:focus {
+  stroke: #0f172a;
+  stroke-width: 3;
+  outline: none;
+}
+
+.mb-jail-map-status {
+  min-height: 5.5rem;
+  border-radius: 0.9rem;
+  background: #0f172a;
+  color: #fff;
+  padding: 1rem;
+}
+
+.mb-jail-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.mb-jail-map-key { display: inline-flex; align-items: center; gap: 0.4rem; }
+.mb-jail-map-swatch { width: 0.8rem; height: 0.8rem; border-radius: 0.25rem; }
+
+@media (min-width: 900px) {
+  .mb-jail-map-grid { grid-template-columns: minmax(0, 1.55fr) minmax(250px, 0.45fr); padding: 1.5rem; }
+  .mb-jail-map-stage { min-height: 460px; }
+  .mb-jail-map-stage svg { min-height: 430px; }
+}
+
+@media (max-width: 560px) {
+  .mb-jail-map-stage { min-height: 250px; padding: 0.35rem; }
+  .mb-jail-map-stage svg { min-height: 235px; }
+}

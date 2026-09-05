@@ -148,38 +148,49 @@ class ColjPortalScraper:
         self._apply_browser_hardening(court_label)
 
         warmup_url = 'https://coljportal.pubcourts.mt.gov/fullcourtweb/start.do'
-        try:
-            self.page.goto(warmup_url, wait_until='domcontentloaded')
-            self.page.wait_for_timeout(4000 + random.randint(0, 2000))
-        except Exception as exc:
-            print(f'  ⚠️ Warmup failed for {court_label}: {exc}')
+        for attempt in range(3):
             try:
-                self._apply_browser_hardening(court_label, retry=True)
                 self.page.goto(warmup_url, wait_until='domcontentloaded')
                 self.page.wait_for_timeout(4000 + random.randint(0, 2000))
-            except Exception as retry_exc:
-                print(f'  ⚠️ Warmup retry failed for {court_label}: {retry_exc}')
-                return False
+                break
+            except Exception as exc:
+                print(f'  ⚠️ Warmup failed for {court_label} ({attempt + 1}/3): {exc}')
+                if attempt == 2:
+                    return False
+                try:
+                    self._apply_browser_hardening(court_label, retry=True)
+                    self.page.goto(warmup_url, wait_until='domcontentloaded')
+                    self.page.wait_for_timeout(4000 + random.randint(0, 2000))
+                    break
+                except Exception as retry_exc:
+                    print(f'  ⚠️ Warmup retry failed for {court_label} ({attempt + 1}/3): {retry_exc}')
+                    if attempt == 2:
+                        return False
+                    self.page.wait_for_timeout(2000 + random.randint(0, 2000))
 
         try:
-            self.page.wait_for_selector("select[name='tenant']", timeout=10000)
+            self.page.wait_for_selector("select[name='tenant']", timeout=15000)
             self.page.select_option("select[name='tenant']", value=court_value)
         except Exception as exc:
             print(f'  ⚠️ Could not select court dropdown for {court_label}: {exc}')
             return False
 
-        self.page.wait_for_timeout(2000)
+        self.page.wait_for_timeout(2000 + random.randint(0, 1500))
 
-        try:
-            self.page.evaluate("() => { const form = document.querySelector('form'); if (form) form.submit(); }")
-            self.page.wait_for_load_state('networkidle')
-            self.page.wait_for_timeout(4000 + random.randint(0, 2000))
-        except Exception as exc:
-            print(f'  ⚠️ Login failed for {court_label}: {exc}')
-            return False
+        for submit_attempt in range(2):
+            try:
+                self.page.evaluate("() => { const form = document.querySelector('form'); if (form) form.submit(); }")
+                self.page.wait_for_load_state('networkidle', timeout=20000)
+                self.page.wait_for_timeout(4000 + random.randint(0, 2000))
+                break
+            except Exception as exc:
+                print(f'  ⚠️ Login submit failed for {court_label} ({submit_attempt + 1}/2): {exc}')
+                if submit_attempt == 1:
+                    return False
+                self.page.wait_for_timeout(3000 + random.randint(0, 2000))
 
         if 'Dashboard' not in self.page.title() and 'mainMenu' not in self.page.url:
-            print(f'  ⚠️ Unexpected page after login: {self.page.title()}')
+            print(f'  ⚠️ Unexpected page after login: {self.page.title()} | {self.page.url}')
             return False
 
         return True

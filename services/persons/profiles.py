@@ -95,6 +95,8 @@ def person_profile_context(
     conn: sqlite3.Connection,
     name_slug: str,
 ) -> dict[str, Any] | None:
+    from services.monetization.name_suppression import redact_person_name, redact_text
+
     slug = (name_slug or '').strip().lower()
     if not slug:
         return None
@@ -107,7 +109,13 @@ def person_profile_context(
     if not bookings:
         return None
 
-    display_name = _pretty_name(bookings[0]['person_name'])
+    county_name = bookings[0].get('county_name') or None
+    display_name = redact_person_name(_pretty_name(bookings[0]['person_name']), county_name)
+    for booking in bookings:
+        booking['person_name'] = redact_person_name(booking.get('person_name'), county_name)
+        if booking.get('charges_summary'):
+            booking['charges_summary'] = redact_text(booking['charges_summary'], county_name)
+
     last_name, first_name = _parse_last_first(bookings[0]['person_name'])
 
     court_cases: list[dict] = []

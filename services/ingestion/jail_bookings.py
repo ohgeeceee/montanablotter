@@ -417,7 +417,7 @@ TRACKED_SOURCES = {
     "garfield": {
         "county_name": "Garfield",
         "facility_name": "Garfield County Jail",
-        "roster_url": "https://garfieldcountymt.gov/sheriff/",
+        "roster_url": "https://www.garcosheriff.com/PDFs/current_inmates.pdf",
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
@@ -1457,13 +1457,11 @@ def _parse_cascade_pdf_text(pdf_text: str, source_url: str) -> list[JailBookingR
 
 
 def fetch_cascade_bookings(source_url: str) -> list[JailBookingRecord]:
-    page_html = _fetch_html(source_url)
-    pdf_url = _extract_cascade_pdf_url(page_html)
-    if not pdf_url:
-        logger.warning("Cascade roster: no PDF link found on %s", source_url)
-        return []
-    pdf_text = _fetch_pdf_text(pdf_url)
-    return _parse_cascade_pdf_text(pdf_text, pdf_url)
+    from services.ingestion.fetchers.cascade_public_viewer import (
+        fetch_cascade_public_viewer_bookings,
+    )
+
+    return fetch_cascade_public_viewer_bookings(source_url)
 
 
 def _record_run(

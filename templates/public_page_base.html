@@ -125,6 +125,12 @@
     }
     </script>
     {% block extra_head %}{% endblock %}
+<!-- TikTok Pixel -->
+<script type="text/javascript">
+  !function(e){var t=e.document.createElement("script");t.async=!0,t.src="https://www.tiktok.com/ads/pixel/events.js",e.document.head.appendChild(t)}(window);
+  !function(e){var t=e.document.createElement("script");t.async=!0,t.src="https://www.tiktok.com/i18n/pixel.js",e.document.head.appendChild(t)}(window);
+</script>
+<!-- End TikTok Pixel -->
     {% if recaptcha_site_key and not request.args.get('noads') %}
     <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
     {% endif %}
@@ -229,7 +235,7 @@
             <a href="/">Front Page</a>
             <a href="/blotter">Blotter</a>
             <a href="/counties">Counties</a>
-            <a href="/detention">Bookings</a>
+            <a href="/jail-bookings">Bookings</a>
             <a href="/missing-persons">Missing</a>
             <a href="/wanted">Warrants</a>
             <a href="/bail-bonds">Bail Bonds</a>
@@ -244,40 +250,57 @@
           </nav>
 
           {# Dateline strip — live record counts #}
-          <div class="mb-np-dateline" aria-label="Edition statistics">
-            <div class="mb-np-dateline__item">
-              <span class="mb-np-dateline__label">Edition</span>
-              <span class="mb-np-dateline__value">{{ np_edition_date or 'Daily' }}</span>
-            </div>
-            <div class="mb-np-dateline__item">
-              <span class="mb-np-dateline__label">Helena</span>
-              <span class="mb-np-dateline__value">{{ np_weather_temp }} &middot; {{ np_weather_sky }}</span>
-            </div>
-            <div class="mb-np-dateline__item">
-              <span class="mb-np-dateline__label">Records</span>
-              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_records or 0) }}</span>
-            </div>
-            <div class="mb-np-dateline__item">
-              <span class="mb-np-dateline__label">Blotters</span>
-              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_blotters or 0) }}</span>
-            </div>
-            <div class="mb-np-dateline__item">
-              <span class="mb-np-dateline__label">Bookings</span>
-              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_jails or 0) }}</span>
-            </div>
-            <div class="mb-np-dateline__item">
-              <span class="mb-np-dateline__label">Court Ev.</span>
-              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_courts or 0) }}</span>
-            </div>
-            <div class="mb-np-dateline__item">
-              <span class="mb-np-dateline__label">Sanctions</span>
-              <span class="mb-np-dateline__value">{{ '{:,}'.format(np_sanctions or 0) }}</span>
-            </div>
-            <div class="mb-np-dateline__item">
-              <span class="mb-np-dateline__label">Mt. Counties</span>
-              <span class="mb-np-dateline__value">{{ np_counties or 56 }}</span>
-            </div>
-          </div>
+          <!-- Enhanced front-page statistics panel -->
+<div class="mb-np-stat-panel" aria-label="Front page statistics">
+  <div class="mb-np-stat-panel__grid">
+    <!-- Edition -->
+    <div class="mb-np-stat-panel__item">
+      <div class="mb-np-stat-panel__label mb-np-stat-panel__label--small">Edition</div>
+      <div class="mb-np-stat-panel__value">{{ np_edition_date or 'Daily' }}</div>
+    </div>
+    
+    <!-- Weather -->
+    <div class="mb-np-stat-panel__item">
+      <div class="mb-np-stat-panel__label mb-np-stat-panel__label--small">Helena</div>
+      <div class="mb-np-stat-panel__value">{{ np_weather_temp }}&nbsp;°F&nbsp;·&nbsp;{{ np_weather_sky }}</div>
+    </div>
+    
+    <!-- Records - prominent callout -->
+    <div class="mb-np-stat-panel__item mb-np-stat-panel__item--primary">
+      <div class="mb-np-stat-panel__label mb-np-stat-panel__label--small">Records</div>
+      <div class="mb-np-stat-panel__value font-black text-3xl sm:text-4xl font-serif tracking-tight">{{ '{:,}'.format(np_records or 0) }}</div>
+      <div class="mb-np-stat-panel__subcaption text-slate-500 text-xs sm:text-sm">Total public records in archive</div>
+    </div>
+    
+    <!-- Blotters -->
+    <div class="mb-np-stat-panel__item">
+      <div class="mb-np-stat-panel__label mb-np-stat-panel__label--small">Blotters</div>
+      <div class="mb-np-stat-panel__value font-black text-3xl sm:text-4xl font-serif tracking-tight">{{ '{:,}'.format(np_blotters or 0) }}</div>
+      <div class="mb-np-stat-panel__subcaption text-slate-500 text-xs sm:text-sm">Daily activity reports</div>
+    </div>
+    
+    <!-- Bookings -->
+    <div class="mb-np-stat-panel__item">
+      <div class="mb-np-stat-panel__label mb-np-stat-panel__label--small">Bookings</div>
+      <div class="mb-np-stat-panel__value font-black text-3xl sm:text-4xl font-serif tracking-tight">{{ '{:,}'.format(np_jails or 0) }}</div>
+      <div class="mb-np-stat-panel__subcaption text-slate-500 text-xs sm:text-sm"> inmate bookings</div>
+    </div>
+    
+    <!-- Court -->
+    <div class="mb-np-stat-panel__item">
+      <div class="mb-np-stat-panel__label mb-np-stat-panel__label--small">Court</div>
+      <div class="mb-np-stat-panel__value font-black text-3xl sm:text-4xl font-serif tracking-tight">{{ '{:,}'.format(np_courts or 0) }}</div>
+      <div class="mb-np-stat-panel__subcaption text-slate-500 text-xs sm:text-sm"> case events</div>
+    </div>
+    
+    <!-- Counties -->
+    <div class="mb-np-stat-panel__item">
+      <div class="mb-np-stat-panel__label mb-np-stat-panel__label--small">Counties</div>
+      <div class="mb-np-stat-panel__value font-black text-3xl sm:text-4xl font-serif tracking-tight">{{ np_counties or 56 }}</div>
+      <div class="mb-np-stat-panel__subcaption text-slate-500 text-xs sm:text-sm">of 56 Montana counties</div>
+    </div>
+  </div>
+</div>
 
           {# OTBAR / On-the-beat strip #}
           <div class="mb-np-otbar" aria-label="Beat status">

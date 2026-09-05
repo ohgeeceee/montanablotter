@@ -279,6 +279,16 @@ def well_known_jobs() -> dict[str, dict]:
             "max_age_hours": 2,
             "cadence": "hourly",
         },
+        "sex_offender_sync": {
+            "log_path": f"{REPO_ROOT}/logs/sex_offender_sync.log",
+            "max_age_hours": 30,
+            "cadence": "twice daily",
+        },
+        "sex_offender_source_alerts": {
+            "log_path": f"{REPO_ROOT}/logs/sex_offender_source_alerts.log",
+            "max_age_hours": 8,
+            "cadence": "every 6 hours",
+        },
         "lawyer_outreach_cadence": {
             "log_path": f"{REPO_ROOT}/logs/lawyer_outreach_cadence.log",
             "max_age_hours": 26,

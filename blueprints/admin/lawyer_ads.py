@@ -138,6 +138,7 @@ def admin_lawyer_ads():
         orders=orders,
         recent_leads=recent_leads,
         stats=stats,
+        schema_ready=True,
         q=q,
         status_filter=status_filter,
         package_filter=package_filter,

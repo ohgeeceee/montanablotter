@@ -202,6 +202,25 @@ def admin_sources():
         enriched['health_state'] = health_state
         official_sources.append(enriched)
 
+    # Duplicate URLs are review candidates, not auto-merged: multiple agencies
+    # can legitimately use one shared government or vendor portal.
+    source_groups = {}
+    for item in health_dashboard['official_sources']:
+        source_url = (item.get('source_url') or '').strip().lower().rstrip('/')
+        if source_url:
+            source_groups.setdefault(source_url, []).append(item)
+    duplicate_source_groups = [
+        {
+            'source_url': source_url,
+            'count': len(items),
+            'agencies': sorted({item.get('agency') or 'Unnamed agency' for item in items}),
+            'source_types': sorted({item.get('source_type') or 'Unclassified' for item in items}),
+        }
+        for source_url, items in source_groups.items()
+        if len(items) > 1
+    ]
+    duplicate_source_groups.sort(key=lambda item: (-item['count'], item['source_url']))
+
     return render_template(
         'admin_sources.html',
         health_dashboard=health_dashboard,
@@ -209,6 +228,7 @@ def admin_sources():
         q=q,
         category_filter=category_filter,
         health_filter=health_filter,
+        duplicate_source_groups=duplicate_source_groups,
     )
 
 
@@ -310,9 +330,12 @@ def admin_meeting_duplicate_review():
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_data_center():
+    from services.ops.freshness import summarize as summarize_freshness
+
     conn = get_db()
     context = build_data_center_ops_summary(conn)
     conn.close()
+    context['operational_health'] = summarize_freshness()
     return render_template('admin_data_center.html', **context)
 
 

@@ -11,25 +11,13 @@
 
 {% block extra_head %}
 <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebPage",
-  "name": {{ (record_title ~ " incident record | Montana Blotter") | tojson }},
-  "description": {{ meta_description | tojson }},
-  "url": {{ canonical_url | tojson }},
-  "isPartOf": {
-    "@type": "WebSite",
-    "name": "Montana Blotter",
-    "url": "https://montanablotter.com/"
-  },
-  "about": {
-    "@type": "Thing",
-    "name": {{ record_title | tojson }}
-  },
-  "datePublished": {{ record.date | tojson }},
-  "dateModified": {{ provenance_card.source.received_at or record.date | tojson }}
-}
+{{ jsonld_item_page | tojson }}
 </script>
+{% if jsonld_article %}
+<script type="application/ld+json">
+{{ jsonld_article | tojson }}
+</script>
+{% endif %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",

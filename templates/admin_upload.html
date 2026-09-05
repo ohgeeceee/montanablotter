@@ -1,13 +1,13 @@
 {% extends "admin_base.html" %}
 
-{% block title %}Upload Blotter | Montana Blotter{% endblock %}
+{% block title %}Upload PDF | Montana Blotter{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto p-6">
 
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-        {% for message in messages %}
+        {% for category, message in messages %}
         <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-xl mb-6 flex items-center">
             <i class="fas fa-info-circle mr-2"></i> {{ message }}
         </div>
@@ -16,13 +16,23 @@
     {% endwith %}
 
     <div class="mb-8">
-        <h1 class="text-3xl font-black text-slate-900">Upload PDF Blotter</h1>
-        <p class="text-slate-500 mt-1">Upload a police blotter PDF to extract and store incident records.</p>
+        <h1 class="text-3xl font-black text-slate-900">Upload PDF</h1>
+        <p class="text-slate-500 mt-1">Upload a police blotter PDF or a county jail roster to sync bookings into Montana Blotter.</p>
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-8">
         <form action="/admin/operations/upload" method="POST" enctype="multipart/form-data" class="space-y-6">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Source type</label>
+                <select name="source_type" id="source_type"
+                        class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        onchange="toggleJailRoster()">
+                    <option value="blotter">Police blotter</option>
+                    <option value="jail_roster">Jail roster</option>
+                </select>
+            </div>
 
             <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">PDF File</label>
@@ -38,15 +48,15 @@
                 </div>
             </div>
 
-            <div>
+            <div id="county-field">
                 <label for="county" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    County <span class="text-slate-400 font-normal normal-case">(optional — auto-detected from PDF if left blank)</span>
+                    County <span class="text-slate-400 font-normal normal-case">(required for jail rosters)</span>
                 </label>
                 <select name="county" id="county"
                         class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="">-- Auto-detect --</option>
                     {% for county in counties %}
-                    <option value="{{ county }}">{{ county }}</option>
+                    <option value="{{ county | lower }}">{{ county }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -54,7 +64,7 @@
             <div class="flex gap-3 pt-2">
                 <button type="submit"
                         class="flex-1 bg-blue-600 text-white py-3 rounded-xl text-sm font-black hover:bg-blue-700 transition shadow-lg shadow-blue-200">
-                    <i class="fas fa-cogs mr-2"></i>Process PDF
+                    <i class="fas fa-cogs mr-2"></i>Upload PDF
                 </button>
                 <a href="/admin"
                    class="px-6 py-3 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
@@ -77,5 +87,11 @@ function updateFileName(input) {
         label.classList.add('text-blue-600');
     }
 }
+function toggleJailRoster() {
+    const type = document.getElementById('source_type').value;
+    const countyField = document.getElementById('county-field');
+    countyField.style.display = type === 'jail_roster' ? 'block' : 'none';
+}
+toggleJailRoster();
 </script>
 {% endblock %}

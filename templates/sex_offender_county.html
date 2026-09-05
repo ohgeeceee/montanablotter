@@ -1,13 +1,68 @@
 {% extends "public_page_base.html" %}
 
+{% set county_slug = county | lower | replace(' ', '-') %}
+{% set page_title = county ~ " County Violent and Sexual Offender Registry" %}
+{% set meta_description = "Current violent and sexual offender registry information for " ~ county ~ " County, Montana, with source context, locations, and public-record updates." %}
+{% set canonical_url = "https://montanablotter.com/sex-offender-updates/" ~ county_slug %}
+{% set og_title = page_title ~ " | Montana Blotter" %}
+{% set og_description = meta_description %}
+
 {% block breadcrumb %}
 <span class="public-breadcrumb__sep">/</span>
 <a href="/sex-offender-updates">Violent / Sexual Offender Updates</a>
 <span class="public-breadcrumb__sep">/</span>
-<a href="/sex-offender-updates/{{ county | lower | replace(' ', '-') }}">{{ county }} County</a>
+<a href="/sex-offender-updates/{{ county_slug }}">{{ county }} County</a>
 {% endblock %}
 
 {% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": {{ page_title | tojson }},
+  "description": {{ meta_description | tojson }},
+  "url": {{ canonical_url | tojson }},
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Montana Blotter",
+    "url": "https://montanablotter.com/"
+  },
+  "about": {
+    "@type": "Dataset",
+    "name": {{ (county ~ " County violent and sexual offender registry") | tojson }},
+    "spatialCoverage": {
+      "@type": "AdministrativeArea",
+      "name": {{ (county ~ " County, Montana") | tojson }}
+    }
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Montana Blotter",
+      "item": "https://montanablotter.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Violent and Sexual Offender Updates",
+      "item": "https://montanablotter.com/sex-offender-updates"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": {{ (county ~ " County") | tojson }},
+      "item": {{ canonical_url | tojson }}
+    }
+  ]
+}
+</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>

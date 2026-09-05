@@ -78,6 +78,31 @@ FEATURES = {
     # Analytics
     'county_analytics':    1,     # plus: per-county trends
     'statewide_analytics': 2,     # pro: statewide comparisons
+    # Directory & Listings
+    'lawyer_listing':        1,     # plus: lawyer directory listing
+    'lawyer_listing_unlimited': 2,  # pro: unlimited lawyer listings
+    'recovery_listing':      1,     # plus: recovery center listing
+    'recovery_listing_unlimited': 2, # pro: unlimited recovery listings
+    'directory_featured':    1,     # plus: featured directory placement
+    'directory_premium':     2,     # pro: premium directory placement
+
+    # Ad inventory
+    'sidebar_ad_premium':    2,     # pro: premium sidebar ad placement
+    'leaderboard_ad_unlimited': 2,  # pro: unlimited leaderboard ads
+
+    # Analytics & Reporting
+    'lawyer_performance':    1,     # plus: lawyer ad performance stats
+    'recovery_performance':  1,     # plus: recovery ad performance stats
+    'ad_revenue_report':     2,     # pro: detailed ad revenue reports
+
+    # Affiliate & Referral
+    'affiliate_links':       1,     # plus: affiliate links in content
+    'affiliate_revenue_share': 2,   # pro: enhanced revenue share
+    'referral_bounties':     2,     # pro: referral bounties for new users
+
+    # Exports & API
+    'lawyer_api_access':     2,     # pro: lawyer ad API access
+    'recovery_api_access':   2,     # pro: recovery ad API access
 }
 
 # Backward compat: plans that unlock warrant pages

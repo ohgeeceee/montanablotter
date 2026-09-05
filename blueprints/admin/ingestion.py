@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 
 import config
 from db import get_db
+from services.ingestion.jail_roster_upload import upload_jail_roster_pdf
 from utils.auth_constants import ADMIN_ACCESS_ROLES, CONTENT_REVIEW_ROLES, OPERATIONS_ROLES
 from blueprints.admin import admin_bp, require_role, _log_admin_action
 
@@ -161,7 +162,7 @@ def admin_retry_ingestion(job_id):
         return redirect(url_for('admin.admin_ingestion'))
 
     from pipeline_state import log_pipeline_event, set_ingestion_job_status
-    from processor import process_new_blotter, process_text_blotter
+    from services.blotter.processor import process_new_blotter, process_text_blotter
 
     try:
         set_ingestion_job_status(job_id, 'received', last_error=None, finished=False)
@@ -201,7 +202,7 @@ def admin_retry_ingestion(job_id):
 @admin_bp.route('/operations/upload', methods=['GET', 'POST'])
 @login_required
 def admin_upload():
-    """Admin PDF upload"""
+    """Upload a PDF — either a police blotter or a jail roster."""
 
     if request.method == 'POST':
         if 'file' not in request.files:
@@ -209,7 +210,8 @@ def admin_upload():
             return redirect(request.url)
 
         file = request.files['file']
-        county = request.form.get('county', '')
+        county = request.form.get('county', '').strip().lower()
+        source_type = request.form.get('source_type', 'blotter')
 
         if file.filename == '':
             flash('No file selected')
@@ -220,9 +222,33 @@ def admin_upload():
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
 
-            # Process the PDF
+            # Route to jail-roster upload if the user selected that mode
+            if source_type == 'jail_roster':
+                if not county:
+                    os.remove(filepath)
+                    flash('Select a county and choose "Jail Roster" as the source type.', 'error')
+                    return redirect(request.url)
+                try:
+                    stats = upload_jail_roster_pdf(filepath, county)
+                    errors = stats.get('errors', [])
+                    if errors:
+                        flash(f'Jail roster upload failed: {errors[0]}', 'error')
+                    else:
+                        flash(
+                            f'Jail roster synced: {stats.get("new_count", 0)} new, '
+                            f'{stats.get("updated_count", 0)} updated, '
+                            f'{stats.get("missing_count", 0)} released.',
+                            'success',
+                        )
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).exception('Jail roster upload failed')
+                    flash(f'Error uploading jail roster: {str(e)}', 'error')
+                return redirect(url_for('admin.admin_jail_bookings'))
+
+            # Legacy: process as a police blotter PDF
             try:
-                from processor import process_new_blotter
+                from services.blotter.processor import process_new_blotter
                 batch_id = process_new_blotter(filepath, county if county else None)
                 flash(f'Successfully processed! Batch #{batch_id} with incidents added.')
                 return redirect(url_for('admin.admin_dashboard'))

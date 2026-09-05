@@ -898,23 +898,28 @@ class IngestionSourceTests(unittest.TestCase):
             jail_booking_ingest._fetch_pdf_text("https://ccmtgov-my.sharepoint.com/roster.pdf")
         self.assertIn("authentication", str(ctx.exception).lower())
 
-    @mock.patch('services.ingestion.jail_bookings._fetch_pdf_text')
-    @mock.patch('services.ingestion.jail_bookings._fetch_html')
-    def test_fetch_cascade_bookings_end_to_end(self, mock_fetch_html, mock_fetch_pdf_text) -> None:
-        mock_fetch_html.return_value = '<a href="https://ccmtgov-my.sharepoint.com/roster.pdf">PDF</a>'
-        mock_fetch_pdf_text.return_value = "DOE, JOHN 30\nBooking: 03/15/2026\nCharges: Theft\nBond $0"
+    @mock.patch(
+        'services.ingestion.fetchers.cascade_public_viewer.fetch_cascade_public_viewer_bookings'
+    )
+    def test_fetch_cascade_bookings_uses_public_viewer(self, mock_viewer_fetch) -> None:
+        mock_viewer_fetch.return_value = [
+            jail_booking_ingest.JailBookingRecord(
+                source_record_id="cascade:00123456:2026-03-15 10:30:00",
+                person_name="Doe, John",
+                age=30,
+                booking_number="00123456",
+                booking_at="2026-03-15 10:30:00",
+                charges_summary="Theft",
+                source_url="https://cascadecountymt.gov/roster",
+            )
+        ]
         records = jail_booking_ingest.fetch_cascade_bookings("https://cascadecountymt.gov/roster")
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].person_name, "Doe, John")
         self.assertEqual(records[0].age, 30)
-        self.assertEqual(records[0].booking_at, "2026-03-15 00:00:00")
+        self.assertEqual(records[0].booking_at, "2026-03-15 10:30:00")
         self.assertIn("Theft", records[0].charges_summary)
-
-    @mock.patch('services.ingestion.jail_bookings._fetch_html')
-    def test_fetch_cascade_bookings_returns_empty_when_no_pdf_link(self, mock_fetch_html) -> None:
-        mock_fetch_html.return_value = "<div>No roster here</div>"
-        records = jail_booking_ingest.fetch_cascade_bookings("https://cascadecountymt.gov/roster")
-        self.assertEqual(len(records), 0)
+        mock_viewer_fetch.assert_called_once_with("https://cascadecountymt.gov/roster")
 
 
 if __name__ == "__main__":

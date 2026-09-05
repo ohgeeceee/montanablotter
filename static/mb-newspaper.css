@@ -321,6 +321,108 @@ article.mb-newspaper {
   .mb-np-dateline__item { border-right: 0; padding: 4px 10px; font-size: 9px; }
 }
 
+/* ---- Front-page stat panel (masthead edition strip + live counts) ---- */
+.mb-np-stat-panel {
+  margin: 0 0 18px;
+  padding: 0;
+}
+.mb-np-stat-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+}
+.mb-np-stat-panel__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 6px;
+  border-right: 1px solid rgba(20, 14, 4, 0.12);
+  text-align: center;
+}
+.mb-np-stat-panel__item:last-child { border-right: 0; }
+.mb-np-stat-panel__item--primary {
+  background: rgba(195, 66, 63, 0.06);
+}
+.mb-np-stat-panel__label {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5b5141;
+  margin-bottom: 4px;
+}
+.mb-np-stat-panel__label--small {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+}
+.mb-np-stat-panel__value {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 900;
+  font-size: clamp(1.2rem, 2.5vw, 1.75rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #0f0c07;
+}
+.mb-np-stat-panel__subcaption {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: #5b5141;
+  margin-top: 3px;
+}
+
+@media (max-width: 720px) {
+  .mb-np-stat-panel__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .mb-np-stat-panel__item {
+    padding: 8px 4px;
+  }
+}
+@media (max-width: 480px) {
+  .mb-np-stat-panel__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---- Edition strip (bottom of stat panel) ---- */
+.mb-np-edition-strip {
+  border-top: 1px solid rgba(20, 14, 4, 0.25);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.mb-np-edition-strip__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5b5141;
+}
+.mb-np-edition-strip__vol {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #96261f;
+}
+.mb-np-edition-strip__filed {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #5b5141;
+}
+.mb-np-edition-strip__filed span {
+  font-weight: 400;
+  color: #4b3f24;
+}
+
 /* ---- OTBAR (Off The Bar / On The Beat bar): red strip with rolling stat ---- */
 .mb-np-otbar {
   display: flex;

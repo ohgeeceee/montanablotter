@@ -80,12 +80,12 @@ def _decorate_warrant_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     # Paid privacy suppression: redact the person's name without deleting the
     # underlying public warrant record.
     try:
-        from services.monetization.name_suppression import redact_person_name
+        from services.monetization.name_suppression import redact_person_name, redact_text
         county = item.get('county') or None
         if item.get('person_name'):
             item['person_name'] = redact_person_name(item['person_name'], county)
         if item.get('charges_text'):
-            item['charges_text'] = redact_person_name(item['charges_text'], county)
+            item['charges_text'] = redact_text(item['charges_text'], county)
     except Exception:
         pass
     if item['warrant_type'] == 'jail-hold-warrant':

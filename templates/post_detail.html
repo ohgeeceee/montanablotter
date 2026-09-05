@@ -393,7 +393,23 @@
         </section>
         {% endif %}
     </aside>
-</main>
+
+    {% if ad_slots %}
+    {% set post_footer_ad = ad_slots.get('post_footer', {}) %}
+    {% if post_footer_ad %}
+    <div class="public-card-footer-ad mb-6">
+      {% if post_footer_ad.link_url %}
+      <a href="{{ post_footer_ad.link_url }}" target="_blank" rel="noopener" class="u-block u-bg-amber-50 u-border-t u-border-amber-300 u-px-3 u-py-3 text-sm text-amber-800 hover:text-amber-600 text-center">
+        Sponsored by {{ post_footer_ad.sponsor_name or 'Advertiser' }}
+      </a>
+      {% else %}
+      <div class="u-block u-bg-amber-50 u-px-3 u-py-3 text-center text-xs text-amber-600">
+        {{ post_footer_ad.description or 'Sponsored' }}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+{% endif %}</main>
 {% endblock %}
 
 {% block extra_scripts %}

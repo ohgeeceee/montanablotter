@@ -5,7 +5,7 @@
             <div>
                 <p class="mono uppercase tracking-widest" style="color: var(--amber); font-size: 0.58rem; font-weight: 700;">Statewide Missing Person Database</p>
                 <h2 class="serif" style="font-size: 1.45rem; line-height: 1.1; margin-top: 0.35rem;">{{ missing_persons_alert.total_active }} active missing-person alert{% if missing_persons_alert.total_active != 1 %}s{% endif %} and resolved cases kept visible.</h2>
-                <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem; max-width: 56rem;">
+                <p style="color: var(--public-text); font-size: 0.88rem; line-height: 1.5; margin-top: 0.55rem; max-width: 56rem;">
                     The database stays current as alerts are added, updated, and closed. {% if missing_persons_alert.latest_update_label %}Last updated {{ missing_persons_alert.latest_update_label }}.{% endif %}
                 </p>
             </div>

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, abort, jsonify, render_template, request, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 
 from services.monetization.paywall import preview_allowed
+from services.monetization.name_suppression import redact_person_name, redact_text
 
 import config as config
 
@@ -46,14 +47,8 @@ def _load_booking_context(*, county_filter='', status_filter='current', q='', co
 @detention_bp.route('/detention')
 @detention_bp.route('/jail-rosters')
 def jail_rosters():
-    booking_context = _load_booking_context(status_filter='recent')
-    roster_directory = _roster_directory_loader()
-    return render_template(
-        'detention_hub.html',
-        booking_context=booking_context,
-        roster_directory=roster_directory,
-        current_year=datetime.now().year,
-    )
+    """Keep old links working while presenting one canonical booking hub."""
+    return redirect(url_for('detention.jail_bookings'), code=301)
 
 
 @detention_bp.route('/jail-bookings')
@@ -267,7 +262,7 @@ def booking_detail(booking_id):
     """Individual jail booking detail page with rich SEO structured data."""
     conn = _get_db()
     try:
-        booking = conn.execute(
+        booking_row = conn.execute(
             """
             SELECT
                 jb.*,
@@ -280,8 +275,9 @@ def booking_detail(booking_id):
             """,
             (booking_id,),
         ).fetchone()
-        if not booking:
+        if not booking_row:
             abort(404)
+        booking = dict(booking_row)
 
         # Parse charges_json for structured data
         charges = []
@@ -298,10 +294,21 @@ def booking_detail(booking_id):
         charges_summary = booking['charges_summary'] or ''
         if not charges and charges_summary:
             charges = [{'description': charges_summary}]
+        county = booking['county_name'] or booking['county_slug'] or 'Unknown'
+
+        # Paid privacy suppression: redact the person's name and any embedded
+        # name mentions without deleting the underlying public record.
+        person_name = redact_person_name(booking['person_name'] or 'Unknown', county)
+        charges_summary = redact_text(charges_summary, county)
+        booking['charges_summary'] = charges_summary
+        for charge in charges:
+            if not isinstance(charge, dict):
+                continue
+            for key in ('description', 'charge'):
+                if charge.get(key):
+                    charge[key] = redact_text(charge[key], county)
 
         # Meta description
-        person_name = booking['person_name'] or 'Unknown'
-        county = booking['county_name'] or booking['county_slug'] or 'Unknown'
         facility = booking['facility_name'] or 'Unknown facility'
         meta_desc = (
             f"{person_name} booking record for {county} County, Montana. "

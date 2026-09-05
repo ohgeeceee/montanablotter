@@ -55,3 +55,14 @@ static/charts/*.png
 
 # Node build dependencies (Tailwind local build) — install via `npm install`.
 node_modules/
+
+# Timestamped safety copies created by agents (e.g. app.py.bak.20260903-feature).
+*.bak.*
+
+# Compressed DB snapshots and manual import staging.
+backups/*.gz
+backups/manual-imports/
+
+# Scratch space and generated audit artifacts.
+tmp/
+workspace/

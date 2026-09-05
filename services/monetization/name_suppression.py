@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from itertools import permutations
 
 from db import get_db
 
@@ -112,11 +113,17 @@ def redact_text(text: str | None, county: str | None = None,
         if len(tokens) == 1:
             pattern = re.compile(r"\b" + re.escape(tokens[0]) + r"\b", re.IGNORECASE)
         else:
-            # match the tokens in either order, allowing punctuation/whitespace
-            # between them (covers "John Doe", "Doe, John", "Doe John")
+            # Match any token ordering, allowing punctuation/whitespace between
+            # tokens (covers "John Doe", "Doe, John", "Swacker, Robert Stephen",
+            # etc.). Name suppressions are human-entered person names, so the
+            # token count is small enough for bounded permutations.
+            orderings = list(dict.fromkeys(permutations(tokens)))
+            separator = r"[\s,.;:/()\-]+"
             pattern = re.compile(
-                r"(?:" + ".*?".join(r"\b" + re.escape(t) + r"\b" for t in tokens)
-                + r")|(?:" + ".*?".join(r"\b" + re.escape(t) + r"\b" for t in reversed(tokens)) + r")",
+                "|".join(
+                    r"(?:" + separator.join(r"\b" + re.escape(t) + r"\b" for t in ordering) + r")"
+                    for ordering in orderings
+                ),
                 re.IGNORECASE,
             )
         text = pattern.sub(withheld_label, text)

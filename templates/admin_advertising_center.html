@@ -1,0 +1,34 @@
+{% extends 'admin_base.html' %}
+{% block title %}Advertising Center{% endblock %}
+{% block extra_head %}{{ super() }}<link rel="stylesheet" href="{{ url_for('static', filename='advertising-center.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='advertising-tools.css') }}">{% endblock %}
+{% block content %}
+<div class="ad-center">
+  <header class="ad-heading"><div><p class="ad-eyebrow">Revenue / Sales workspace</p><h1>Advertising Center</h1><p>One business record. County media kits. Your existing advertising tools.</p></div>
+  {% if can_write %}<a class="ad-button" href="{{ url_for('admin.advertising_prospect') }}">+ Add business</a>{% endif %}</header>
+  <div class="ad-grid">
+    <section class="ad-card"><span class="ad-number">{{ total }}</span><h2>Businesses in your pipeline</h2><p>Stages are sales notes, not billing or placement status.</p></section>
+    <section class="ad-card"><span class="ad-number">{{ due_count }}</span><h2>Follow-ups due</h2><a href="{{ url_for('admin.advertising_center', due=1) }}">Review today’s queue →</a></section>
+    <section class="ad-card"><span class="ad-number">{{ source_count }}</span><h2>Source groups to review</h2><a href="#source-inbox">Connect existing leads and orders →</a></section>
+  </div>
+  <section class="ad-card"><h2>County media kits</h2><p>Share a public link or print it to PDF. Includes published lawyer prices, current directory capacity, and measurement limitations. No prospect contact details appear publicly.</p>
+    <details><summary>Choose one of Montana’s 56 counties</summary><div class="ad-counties">{% for county in counties %}<a href="{{ url_for('advertising_media.county_media_kit', slug=county_slug(county)) }}" target="_blank" rel="noopener">{{ county }}</a>{% endfor %}</div></details>
+  </section>
+  <section class="ad-card"><h2>Business pipeline</h2>
+    <form class="ad-filters" method="get"><label>Search<input name="q" value="{{ q }}" placeholder="Business, email, or county"></label><label>Stage<select name="stage"><option value="">All stages</option>{% for key,label in stages.items() %}<option value="{{ key }}" {% if stage==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><label class="ad-check"><input type="checkbox" name="due" value="1" {% if due %}checked{% endif %}> Follow-ups due</label><button class="ad-button">Filter</button><a href="{{ url_for('admin.advertising_center') }}">Reset</a></form>
+    <div class="ad-table-wrap"><table><thead><tr><th>Business</th><th>County interests</th><th>Stage</th><th>Next follow-up</th></tr></thead><tbody>
+    {% for p in prospects %}<tr><td><a href="{{ url_for('admin.advertising_prospect', prospect_id=p.id) }}">{{ p.business_name }}</a><small>{{ p.email or 'No primary email' }}</small></td><td>{{ p.counties or 'Not specified' }}</td><td><span class="ad-badge">{{ stages[p.stage] }}</span></td><td>{{ p.next_follow_up or 'Not scheduled' }}</td></tr>
+    {% else %}<tr><td colspan="4">No businesses match. Add a business or connect an existing source below.</td></tr>{% endfor %}</tbody></table></div>
+    {% if prospects|length == 200 %}<p>Showing the first 200 matches. Narrow your search to find more.</p>{% endif %}
+  </section>
+  <section class="ad-card" id="source-inbox"><h2>Existing leads and orders</h2><p>Matching business names are grouped for review, not automatically merged. Link a group to an existing business to avoid another entry. Source orders, billing, and outreach history stay unchanged.</p>
+    <form method="get" class="ad-filters" action="{{ url_for('admin.advertising_center') }}#source-inbox"><label>Find existing leads<input name="source_q" value="{{ source_q }}" placeholder="Business, email, or county"></label><button class="ad-button">Search source inbox</button><a href="{{ url_for('admin.advertising_center') }}#source-inbox">Show all</a></form>
+    {% for group in groups %}<details class="ad-source"><summary>{{ group.business_name }} <span class="ad-badge">{{ group.records|length }} source record(s)</span></summary>
+      <p>{{ group.counties|sort|join(', ') or 'County not specified' }}</p>
+      {% if group.emails|length > 1 %}<p class="ad-warning">Multiple contact emails: review them before choosing a primary contact.</p>{% endif %}
+      <ul>{% for r in group.records %}<li>{{ r.label }} #{{ r.source_id }} — {{ r.email or 'No email' }}{% if r.status %} · {{ r.status }}{% endif %}{% if r.href %} · <a href="{{ r.href }}">Open source</a>{% endif %}{% if r.message %}<p class="ad-inquiry-message">{{ r.message }}</p>{% endif %}</li>{% endfor %}</ul>
+      {% if can_write %}<form method="post" action="{{ url_for('admin.advertising_link_source') }}" class="ad-filters"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="source_key" value="{{ group.key }}"><label>Business to connect<select name="prospect_id"><option value="">Create business (or reuse exact name)</option>{% for choice in choices %}<option value="{{ choice.id }}">{{ choice.business_name }}</option>{% endfor %}</select></label><button class="ad-button">Connect source records</button></form>{% endif %}
+    </details>{% else %}<p>{% if source_q %}No source groups match this search.{% else %}All available source records are connected. New inquiries will appear here automatically.{% endif %}</p>{% endfor %}
+  </section>
+  <section class="ad-card"><h2>Manage placements and outreach</h2><p>Use the existing tools for fulfillment. Nothing here creates a charge or sends a message.</p><nav class="ad-links"><a href="/admin/revenue/lawyer-ads">Lawyer paid orders</a><a href="/admin/revenue/bail-ads">Bail advertising</a><a href="/admin/revenue/recovery-ads">Recovery advertising</a><a href="/admin/revenue/lawyer-outreach">Lawyer outreach</a><a href="/admin/revenue/attorney-ads">Attorney directory</a></nav></section>
+</div>
+{% endblock %}

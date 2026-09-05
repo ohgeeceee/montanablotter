@@ -326,6 +326,7 @@ class EmailWorker:
             'call log',
             'dispatch log',
             'public report',
+            'press release',
         )
         if any(marker in text for marker in strong_positive_markers):
             return True

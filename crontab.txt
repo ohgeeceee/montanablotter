@@ -153,10 +153,17 @@ BASH_ENV=/root/montanablotter/.env
 50 */2 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_missoula --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county missoula
 
 # Cascade County jail roster — daily at 06:05.
-# NOTE (2026-06-23): Cascade's current SharePoint roster link is behind
-# authentication. The scheduled run will record the failure cleanly and
-# resume ingesting once the county makes the PDF publicly accessible.
-5 6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_cascade --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county cascade
+# Downloads the roster PDF from Cascade County's SharePoint
+# document library and emails it as an attachment to
+# records@montanablotter.com.
+5 6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/cascade_roster_email.py >> /root/montanablotter/logs/cascade_roster_email.log 2>&1
+
+# Hill County (Havre) jail roster — poll every 15 minutes.
+# HCSO sends the daily roster as a DOCX attachment to the IONOS inbox
+# (records@montanablotter.com). The email_worker picks these up, but
+# the dedicated poll catches anything the queue misses and provides a
+# fresh dedup window every 15 min.
+*/15 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_hill --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county hill
 
 # Valley County jail roster — daily at 06:10.
 # NOTE: Valley publishes a text-only roster (names + charges) via CivicPlus; the
@@ -237,6 +244,14 @@ BASH_ENV=/root/montanablotter/.env
 # challenge (Playwright with a fresh context per subpath bypasses it; see
 # services.persons.missing.fetch_official_missing_person_snapshot).
 9-59/15 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name missing_person_sync --log /root/montanablotter/logs/missing_person_sync.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/sync_missing_persons.py
+
+# --- Montana SVOR registry sync ---
+# Official MT DOJ statewide sexual/violent offender registry. Wait for the
+# shared SQLite writer lock rather than skipping when another ingest is active.
+37 4,16 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name sex_offender_sync --shared-lock blotter_db_writer --wait-for-lock 900 --timeout 1800 --log /root/montanablotter/logs/sex_offender_sync.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.persons.sex_offender_arcgis_sync --full-sync
+
+# Alert when the official source is unavailable, under-sized, or stale.
+12 */6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name sex_offender_source_alerts --timeout 180 --log /root/montanablotter/logs/sex_offender_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/sex_offender_source_alerts.py --max-stale-hours 30 --min-active 500 --min-counties 40
 
 # --- Funniest blotters humor scorer (added 2026-08-30) ---
 # Scores any records with NULL humor_score for the public /funniest feed.

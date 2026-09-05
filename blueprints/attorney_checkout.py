@@ -173,9 +173,18 @@ def apply_stripe_attorney_event(conn: sqlite3.Connection, event: dict) -> None:
     billing_cycle = (metadata.get('billing_cycle') or 'monthly').strip().lower()
     if billing_cycle not in ('monthly', 'annual'):
         billing_cycle = 'monthly'
-    token = (metadata.get('token') or '').strip()[:64] or secrets.token_urlsafe(24)
+    amount_cents = _attorney_price_cents(package_id, billing_cycle)
     stripe_customer_id = (data_object.get('customer') or '').strip()[:120]
     stripe_subscription_id = (data_object.get('subscription') or '').strip()[:120]
+    existing_order = conn.execute(
+        'SELECT id, token FROM attorney_checkout_orders WHERE stripe_session_id = ?',
+        (session_id,),
+    ).fetchone()
+    token = (metadata.get('token') or '').strip()[:64]
+    if not token and existing_order:
+        token = (existing_order['token'] or '').strip()[:64]
+    if not token:
+        token = secrets.token_urlsafe(24)
 
     activated_at = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') if mapped_status == 'active' else None
 
@@ -185,37 +194,65 @@ def apply_stripe_attorney_event(conn: sqlite3.Connection, event: dict) -> None:
             firm_name, contact_name, email, phone, website,
             package_id, billing_cycle,
             stripe_customer_id, stripe_subscription_id, stripe_session_id,
-            status, token, activated_at,
+            status, token, activated_at, amount_cents,
             counties_served, practice_areas, blurb, mt_bar_number
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(stripe_session_id) DO UPDATE SET
             status = excluded.status,
             stripe_subscription_id = COALESCE(excluded.stripe_subscription_id, stripe_subscription_id),
             stripe_customer_id = COALESCE(excluded.stripe_customer_id, stripe_customer_id),
+            amount_cents = COALESCE(attorney_checkout_orders.amount_cents, excluded.amount_cents),
             activated_at = COALESCE(attorney_checkout_orders.activated_at, excluded.activated_at)
         ''',
         (
             firm_name, contact_name, email, phone, website,
             package_id, billing_cycle,
             stripe_customer_id, stripe_subscription_id, session_id,
-            mapped_status, token, activated_at,
+            mapped_status, token, activated_at, amount_cents,
             counties_served, practice_areas, blurb, mt_bar_number,
         ),
     )
 
     if mapped_status == 'active':
-        order_row = conn.execute(
-            'SELECT id FROM attorney_checkout_orders WHERE stripe_session_id = ?',
+        order_row = existing_order or conn.execute(
+            'SELECT id, token FROM attorney_checkout_orders WHERE stripe_session_id = ?',
             (session_id,),
         ).fetchone()
         if order_row:
-            conn.execute(
-                '''
-                INSERT OR IGNORE INTO attorney_checkout_listings (order_id)
-                VALUES (?)
-                ''',
+            listing_row = conn.execute(
+                'SELECT id FROM attorney_checkout_listings WHERE order_id = ?',
                 (order_row['id'],),
-            )
+            ).fetchone()
+            if listing_row:
+                conn.execute(
+                    '''
+                    UPDATE attorney_checkout_listings
+                    SET token = ?, firm_name = ?, contact_name = ?, email = ?, phone = ?,
+                        website = ?, blurb = ?, is_featured = ?, placement_tier = ?,
+                        stripe_session_id = ?, updated_at = datetime('now')
+                    WHERE order_id = ?
+                    ''',
+                    (
+                        token, firm_name, contact_name, email, phone,
+                        website, blurb, 1 if package_id == 'gold' else 0, package_id,
+                        session_id, order_row['id'],
+                    ),
+                )
+            else:
+                conn.execute(
+                    '''
+                    INSERT INTO attorney_checkout_listings (
+                        order_id, token, firm_name, contact_name, email, phone,
+                        website, blurb, is_featured, status, placement_tier,
+                        stripe_session_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                    ''',
+                    (
+                        order_row['id'], token, firm_name, contact_name, email, phone,
+                        website, blurb, 1 if package_id == 'gold' else 0, package_id,
+                        session_id,
+                    ),
+                )
 
     conn.commit()
 

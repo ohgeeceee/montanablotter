@@ -1,0 +1,22 @@
+{% extends 'admin_base.html' %}
+{% block extra_head %}{{ super() }}<link rel="stylesheet" href="{{ url_for('static', filename='advertising-center.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='advertising-tools.css') }}">{% endblock %}
+{% block content %}<div class="ad-center">
+<a href="{{ url_for('admin.advertising_center') }}">← Advertising Center</a>
+<header class="ad-heading"><div><p class="ad-eyebrow">Business record{% if prospect_id %} / #{{ prospect_id }}{% endif %}</p><h1>{{ prospect.business_name or 'Add a business' }}</h1><p>Sales tracking only. Saving does not change billing, activate ads, or send email.</p></div>{% if prospect_id %}<a class="ad-button" href="{{ url_for('admin.advertising_proposal', prospect_id=prospect_id) }}">Prepare proposal draft</a>{% endif %}</header>
+{% if error %}<p role="alert" class="ad-warning">{{ error }}</p>{% endif %}
+{% if warnings %}<div class="ad-warning">This email is also used by {% for p in warnings %}<a href="{{ url_for('admin.advertising_prospect', prospect_id=p.id) }}">{{ p.business_name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}. Review for a duplicate; records have not been merged.</div>{% endif %}
+<form method="post" class="ad-card"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ prospect.version }}">
+<fieldset {% if not can_write %}disabled{% endif %}><div class="ad-form-grid">
+<label>Business name *<input name="business_name" required maxlength="160" value="{{ prospect.business_name or '' }}"></label>
+<label>Contact name<input name="contact_name" maxlength="120" value="{{ prospect.contact_name or '' }}"></label>
+<label>Primary email<input type="email" name="email" maxlength="254" value="{{ prospect.email or '' }}"></label>
+<label>Phone<input name="phone" maxlength="60" value="{{ prospect.phone or '' }}"></label>
+<label>Category<select name="category">{% for key,label in categories.items() %}<option value="{{ key }}" {% if prospect.category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label>Sales stage<select name="stage">{% for key,label in stages.items() %}<option value="{{ key }}" {% if prospect.stage==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label>Next follow-up (UTC date)<input type="date" name="next_follow_up" value="{{ prospect.next_follow_up or '' }}"></label>
+</div><fieldset class="ad-county-picker"><legend>County interests</legend><div class="ad-counties">{% for county in counties %}<label class="ad-check"><input type="checkbox" name="counties" value="{{ county }}" {% if county in selected_counties %}checked{% endif %}> {{ county }}</label>{% endfor %}</div></fieldset>
+<label>Internal notes<textarea name="notes" rows="5" maxlength="4000">{{ prospect.notes or '' }}</textarea></label>
+{% if can_write %}<button class="ad-button" type="submit">Save business</button>{% endif %}</fieldset></form>
+{% if selected_counties %}<section class="ad-card"><h2>Media kits for this business</h2><div class="ad-links">{% for county in selected_counties %}<a target="_blank" rel="noopener" href="{{ url_for('advertising_media.county_media_kit', slug=county_slug(county)) }}">{{ county }} media kit ↗</a>{% endfor %}</div><p>These public links contain county information only, never internal notes or contact details.</p></section>{% endif %}
+<section class="ad-card"><h2>Linked source records</h2><p>Live source status is shown separately from your sales stage.</p><div class="ad-table-wrap"><table><thead><tr><th>Source</th><th>Business / contact</th><th>Status / inquiry</th></tr></thead><tbody>{% for r in links %}<tr><td>{% if r.href %}<a href="{{ r.href }}">{{ r.label }} #{{ r.source_id }}</a>{% else %}{{ r.label }} #{{ r.source_id }}{% endif %}</td><td>{{ r.business_name }}<small>{{ r.contact_name }} {{ r.email }} {{ r.phone }}</small></td><td>{{ r.status or 'Not specified' }}{% if r.message %}<p class="ad-inquiry-message">{{ r.message }}</p>{% endif %}</td></tr>{% else %}<tr><td colspan="3">No linked records. Connect existing orders or leads from the Advertising Center.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>{% endblock %}

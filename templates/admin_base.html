@@ -56,8 +56,9 @@
     <div class="admin-sidebar-divider"></div>
 
     {# ── Group: Operations ── #}
-    <div class="admin-nav-group">
-      <div class="admin-nav-group-label">Operations</div>
+    <details class="admin-nav-group" {% if admin_path.startswith('/admin/operations') %}open{% endif %}>
+      <summary class="admin-nav-group-label">Operations <span class="admin-nav-group-chevron">⌄</span></summary>
+      <div class="admin-nav-group-items">
       <a href="/admin/operations" class="admin-nav-link {% if admin_path == '/admin/operations' %}active{% endif %}">
         <span class="admin-nav-icon">⌂</span> Dashboard
       </a>
@@ -106,13 +107,15 @@
       <a href="/admin/operations/office" class="admin-nav-link {% if admin_path.startswith('/admin/operations/office') %}active{% endif %}">
         <span class="admin-nav-icon">■</span> Office
       </a>
-    </div>
+      </div>
+    </details>
 
     <div class="admin-sidebar-divider"></div>
 
     {# ── Group: Content ── #}
-    <div class="admin-nav-group">
-      <div class="admin-nav-group-label">Content</div>
+    <details class="admin-nav-group" {% if admin_path.startswith('/admin/content') %}open{% endif %}>
+      <summary class="admin-nav-group-label">Content <span class="admin-nav-group-chevron">⌄</span></summary>
+      <div class="admin-nav-group-items">
       <a href="/admin/content/blog" class="admin-nav-link {% if admin_path.startswith('/admin/content/blog') %}active{% endif %}">
         <span class="admin-nav-icon">✎</span> Blog
       </a>
@@ -137,13 +140,15 @@
       <a href="/admin/content/case-watch" class="admin-nav-link {% if admin_path.startswith('/admin/content/case-watch') %}active{% endif %}">
         <span class="admin-nav-icon">◉</span> Case Watch
       </a>
-    </div>
+      </div>
+    </details>
 
     <div class="admin-sidebar-divider"></div>
 
     {# ── Group: Audience ── #}
-    <div class="admin-nav-group">
-      <div class="admin-nav-group-label">Audience</div>
+    <details class="admin-nav-group" {% if admin_path.startswith('/admin/audience') %}open{% endif %}>
+      <summary class="admin-nav-group-label">Audience <span class="admin-nav-group-chevron">⌄</span></summary>
+      <div class="admin-nav-group-items">
       <a href="/admin/audience/subscribers" class="admin-nav-link {% if admin_path.startswith('/admin/audience/subscribers') %}active{% endif %}">
         <span class="admin-nav-icon">☉</span> Subscribers
       </a>
@@ -159,13 +164,18 @@
       <a href="/admin/audience/contacts" class="admin-nav-link {% if admin_path.startswith('/admin/audience/contacts') %}active{% endif %}">
         <span class="admin-nav-icon">📇</span> Contacts
       </a>
-    </div>
+      </div>
+    </details>
 
     <div class="admin-sidebar-divider"></div>
 
     {# ── Group: Revenue ── #}
-    <div class="admin-nav-group">
-      <div class="admin-nav-group-label">Revenue</div>
+    <details class="admin-nav-group" {% if admin_path.startswith('/admin/revenue') or admin_path.startswith('/admin/name-removals') %}open{% endif %}>
+      <summary class="admin-nav-group-label">Revenue <span class="admin-nav-group-chevron">⌄</span></summary>
+      <div class="admin-nav-group-items">
+      <a href="/admin/revenue/advertising" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/advertising') %}active{% endif %}">
+        <span class="admin-nav-icon">▤</span> Advertising Center
+      </a>
       <a href="/admin/revenue/bail-ads" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/bail-ads') %}active{% endif %}">
         <span class="admin-nav-icon">⚡</span> Bail Ads
       </a>
@@ -176,10 +186,10 @@
         <span class="admin-nav-icon">$</span> Donations
       </a>
       <a href="/admin/revenue/attorney-ads" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/attorney-ads') %}active{% endif %}">
-        <span class="admin-nav-icon">⚖</span> Attorney Ads
+        <span class="admin-nav-icon">⚖</span> Attorney Directory
       </a>
       <a href="/admin/revenue/lawyer-ads" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/lawyer-ads') %}active{% endif %}">
-        <span class="admin-nav-icon">⚖</span> Lawyer Ads
+        <span class="admin-nav-icon">⚖</span> Lawyer Paid Orders
       </a>
       <a href="/admin/revenue/lawyer-outreach" class="admin-nav-link {% if admin_path.startswith('/admin/revenue/lawyer-outreach') %}active{% endif %}">
         <span class="admin-nav-icon">↗</span> Lawyer Outreach
@@ -187,13 +197,15 @@
       <a href="/admin/name-removals" class="admin-nav-link {% if admin_path.startswith('/admin/name-removals') %}active{% endif %}">
         <span class="admin-nav-icon">🛡</span> Name Removal ({{ name_removal_amount_label }})
       </a>
-    </div>
+      </div>
+    </details>
 
     <div class="admin-sidebar-divider"></div>
 
     {# ── Group: System ── #}
-    <div class="admin-nav-group">
-      <div class="admin-nav-group-label">System</div>
+    <details class="admin-nav-group" {% if admin_path.startswith('/admin/system') %}open{% endif %}>
+      <summary class="admin-nav-group-label">System <span class="admin-nav-group-chevron">⌄</span></summary>
+      <div class="admin-nav-group-items">
       <a href="/admin/system/users" class="admin-nav-link {% if admin_path.startswith('/admin/system/users') %}active{% endif %}">
         <span class="admin-nav-icon">👤</span> Users
       </a>
@@ -218,7 +230,8 @@
         <span class="admin-nav-icon">◉</span> Agents
       </a>
       {% endif %}
-    </div>
+      </div>
+    </details>
 
     {# Bottom bar {#}
     <div class="admin-sidebar-bottom">

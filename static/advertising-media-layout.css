@@ -1,0 +1,5 @@
+/* Keep sales pages focused; sitewide editorial counters are not audience claims. */
+.ad-media-body .mb-np-stat-panel,.ad-media-body .mb-np-otbar{display:none!important}
+.ad-media-body .mb-np-masthead__title{font-size:clamp(2rem,4vw,3.5rem)!important;line-height:1.05!important}
+.ad-media-body .mb-np-masthead{padding-top:16px!important;padding-bottom:16px!important}
+@media print{.ad-media-body .mb-np-masthead,.ad-media-body .mb-np-folio{display:none!important}.ad-media-body{padding:0!important;margin:0!important}}

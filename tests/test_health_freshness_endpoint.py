@@ -42,6 +42,15 @@ def client(tmp_path, monkeypatch):
         CREATE TABLE source_documents (id INTEGER PRIMARY KEY AUTOINCREMENT,
                                         source_type TEXT,
                                         created_at TEXT DEFAULT (datetime('now')));
+        CREATE TABLE sex_offenders (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    status TEXT,
+                                    address_county TEXT);
+        CREATE TABLE sex_offender_snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                             snapshot_date TEXT,
+                                             total_count INTEGER,
+                                             new_count INTEGER,
+                                             removed_count INTEGER,
+                                             changed_count INTEGER);
         """
     )
     conn.commit()
@@ -60,6 +69,22 @@ def test_health_freshness_endpoint_returns_json(client):
     assert "status" in data
     assert "arrests" in data
     assert "jail_rosters" in data
+    assert "sex_offender_registry" in data
+
+
+def test_health_freshness_ignores_malformed_record_timestamp(client, monkeypatch):
+    import services.ops.freshness as freshness
+
+    conn = freshness._connect()
+    try:
+        conn.execute("INSERT INTO records (created_at, county) VALUES (?, ?)", ("Whitford, Austin", "21"))
+        conn.execute("INSERT INTO records (created_at, county) VALUES (datetime('now'), ?)", ("Cascade",))
+        conn.commit()
+    finally:
+        conn.close()
+
+    payload = freshness.check_arrests()
+    assert payload["latest_created_at"] != "Whitford, Austin"
 
 
 def test_healthz_still_works(client):
