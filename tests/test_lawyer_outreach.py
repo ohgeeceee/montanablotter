@@ -148,6 +148,43 @@ class LawyerOutreachImporterTests(unittest.TestCase):
         ).fetchone()['stage']
         self.assertEqual(stage, 'day_5')  # import must NOT reset stage
 
+    def test_default_csv_path_prefers_enriched_list(self):
+        from services.lawyer_outreach import importer
+
+        self.assertTrue(os.path.exists(importer.DEFAULT_CSV_PATH))
+        self.assertEqual(
+            os.path.basename(importer.DEFAULT_CSV_PATH),
+            'target_list_filled.csv',
+            'Cadence must import the list fill_emails.py enriched; the base '
+            'target_list.csv has contact_email blank and stalls every prospect '
+            'at skipped_no_email.',
+        )
+
+    def test_shipped_enriched_csv_actually_carries_emails(self):
+        from services.lawyer_outreach import importer
+
+        with open(importer.DEFAULT_CSV_PATH, newline='', encoding='utf-8') as f:
+            rows = list(csv.DictReader(f))
+        self.assertGreaterEqual(len(rows), 50)
+        with_email = [r for r in rows if (r.get('contact_email') or '').strip()]
+        self.assertGreater(
+            len(with_email) / len(rows), 0.9,
+            'Enriched target list regressed to mostly-blank contact_email.',
+        )
+
+    def test_importer_does_not_blank_existing_contact_email(self):
+        from services.lawyer_outreach.importer import import_prospects_from_csv
+
+        import_prospects_from_csv(self.conn, self.csv_path)
+        blank_path = _write_csv(self.tmpdir, [_firm_row(email='')])
+        counts = import_prospects_from_csv(self.conn, blank_path)
+        self.assertEqual(counts['updated'], 1)
+        email = self.conn.execute(
+            "SELECT contact_email FROM lawyer_outreach_prospects WHERE firm_name = ?",
+            ('Alpine Law',),
+        ).fetchone()['contact_email']
+        self.assertEqual(email, 'jane@alpinelawmt.com')
+
 
 # ----------------------------------------------------- cadence worker tests --
 

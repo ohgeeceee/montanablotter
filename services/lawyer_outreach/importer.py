@@ -27,9 +27,19 @@ import sqlite3
 import sys
 
 
-DEFAULT_CSV_PATH = os.path.join(
+_OUTREACH_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    'scripts', 'attorney_outreach', 'target_list.csv',
+    'scripts', 'attorney_outreach',
+)
+
+# fill_emails.py writes harvested addresses to target_list_filled.csv; the base
+# target_list.csv ships with contact_email blank, which stalls the cadence at
+# skipped_no_email for every prospect.
+_ENRICHED_CSV_PATH = os.path.join(_OUTREACH_DIR, 'target_list_filled.csv')
+_BASE_CSV_PATH = os.path.join(_OUTREACH_DIR, 'target_list.csv')
+
+DEFAULT_CSV_PATH = (
+    _ENRICHED_CSV_PATH if os.path.exists(_ENRICHED_CSV_PATH) else _BASE_CSV_PATH
 )
 
 
@@ -58,10 +68,11 @@ def import_prospects_from_csv(
     Returns a counts dict {inserted, updated, skipped_blank}.
     """
     if not os.path.exists(csv_path):
-        raise FileNotFoundError(f'target_list.csv not found at {csv_path}')
+        raise FileNotFoundError(f'target list CSV not found at {csv_path}')
 
     rows = _load_rows(csv_path)
     counts = {'inserted': 0, 'updated': 0, 'skipped_blank': 0}
+    source_label = os.path.basename(csv_path)
 
     for raw in rows:
         firm = _normalize(raw.get('firm_name', ''))
@@ -92,7 +103,8 @@ def import_prospects_from_csv(
                 conn.execute(
                     '''UPDATE lawyer_outreach_prospects
                        SET city = ?, website = ?, contact_name = ?,
-                           contact_email = ?, practice_areas = ?, notes = ?,
+                           contact_email = COALESCE(?, contact_email),
+                           practice_areas = ?, notes = ?,
                            updated_at = datetime('now')
                        WHERE id = ?''',
                     (
@@ -106,12 +118,12 @@ def import_prospects_from_csv(
             if not dry_run:
                 conn.execute(
                     '''INSERT INTO lawyer_outreach_prospects
-                       (firm_name, county, city, website, contact_name,
-                        contact_email, practice_areas, notes, stage, status,
-                        last_action_at, next_action_at, source)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'day_1', 'queued',
-                               datetime('now'), datetime('now'), 'target_list.csv')''',
-                    params,
+                        (firm_name, county, city, website, contact_name,
+                         contact_email, practice_areas, notes, stage, status,
+                         last_action_at, next_action_at, source)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'day_1', 'queued',
+                                datetime('now'), datetime('now'), ?)''',
+                    params + (source_label,),
                 )
             counts['inserted'] += 1
 
@@ -123,7 +135,7 @@ def import_prospects_from_csv(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--csv', default=DEFAULT_CSV_PATH,
-                        help='Path to target_list.csv (default: scripts/attorney_outreach/target_list.csv)')
+                        help=f'Path to the prospect CSV (default: {DEFAULT_CSV_PATH})')
     parser.add_argument('--dry-run', action='store_true',
                         help='Report counts without writing to the DB')
     args = parser.parse_args()
