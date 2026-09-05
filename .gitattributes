@@ -1,0 +1,24 @@
+# Normalize all text files to LF in the repository. This project is edited from
+# both Windows and Linux; without this, core.autocrlf=true on a Windows checkout
+# rewrites every touched file to CRLF and produces whole-file diffs on the VPS.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.gz binary
+*.zip binary
+*.db binary
+*.sqlite binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.mp4 binary
+*.mov binary
+*.pyc binary
