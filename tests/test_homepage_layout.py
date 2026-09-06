@@ -473,7 +473,7 @@ class HomepageLayoutTests(unittest.TestCase):
         # The query surfaces one row per county then fills remaining slots
         # with the next-freshest counties, so all three fresh bookings are
         # guaranteed a top-5 spot even when a Hill roster refresh exists.
-        names = [r[0] for r in self._homepage_jail_booking_rows()]
+        names = self._homepage_jail_booking_rows()
         self.assertLess(names.index('Yellowstone Fresh'), names.index('Hill Person 0'))
         self.assertLess(names.index('Missoula Fresh'),    names.index('Hill Person 0'))
         self.assertLess(names.index('Silver Bow Fresh'),  names.index('Hill Person 0'))

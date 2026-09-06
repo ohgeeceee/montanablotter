@@ -80,37 +80,37 @@ class TestLEAAdminConsole(unittest.TestCase):
             sess['_fresh'] = True
 
     def test_unauthenticated_redirect(self) -> None:
-        response = self.client.get('/admin/lea-management')
+        response = self.client.get('/admin/system/lea')
         self.assertEqual(response.status_code, 302)
 
     def test_regular_user_denied(self) -> None:
         self._login_regular()
-        response = self.client.get('/admin/lea-management')
+        response = self.client.get('/admin/system/lea')
         # load_user returns None for non-admin roles, so Flask-Login redirects to login
         self.assertEqual(response.status_code, 302)
 
     def test_admin_dashboard_loads(self) -> None:
         self._login_admin()
-        response = self.client.get('/admin/lea-management')
+        response = self.client.get('/admin/system/lea')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'LEA Agency Management', response.data)
 
     def test_agency_directory_loads(self) -> None:
         self._login_admin()
-        response = self.client.get('/admin/lea-management/directory')
+        response = self.client.get('/admin/system/lea/directory')
         self.assertEqual(response.status_code, 200)
         # Should show the directory page (agencies might or might not appear depending on query)
         self.assertIn(b'Agency Directory', response.data)
 
     def test_agency_detail_loads(self) -> None:
         self._login_admin()
-        response = self.client.get(f'/admin/lea-management/agency/{self.agency_id}')
+        response = self.client.get(f'/admin/system/lea/agency/{self.agency_id}')
         self.assertIn(response.status_code, [200, 404])
 
     def test_verify_agency(self) -> None:
         self._login_admin()
         response = self.client.post(
-            f'/admin/lea-management/agency/{self.agency_id}/verify',
+            f'/admin/system/lea/agency/{self.agency_id}/verify',
             follow_redirects=True
         )
         # Should either succeed or gracefully handle the case
@@ -118,7 +118,7 @@ class TestLEAAdminConsole(unittest.TestCase):
 
     def test_audit_log_viewer_loads(self) -> None:
         self._login_admin()
-        response = self.client.get('/admin/lea-management/audit-log')
+        response = self.client.get('/admin/system/lea/audit-log')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Audit', response.data)
 
@@ -130,5 +130,5 @@ class TestLEAAdminConsole(unittest.TestCase):
     def test_dashboard_data_presence(self) -> None:
         """Dashboard shows agency count based on query results."""
         self._login_admin()
-        response = self.client.get('/admin/lea-management')
+        response = self.client.get('/admin/system/lea')
         self.assertEqual(response.status_code, 200)

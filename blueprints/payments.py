@@ -1511,6 +1511,61 @@ def pricing_page():
     )
 
 
+@payments_bp.route('/billing')
+def billing_portal():
+    """Self-service card updates and invoice history via the Stripe customer portal.
+
+    Without this a subscriber whose card is declined has no way to fix it, and
+    the subscription decays from past_due to canceled with reason payment_failed.
+    """
+    m = _app()
+    public_user_id = session.get('public_user_id')
+    if not public_user_id:
+        return redirect('/login?next=/billing')
+
+    subscription_id = ''
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                'SELECT stripe_subscription_id FROM public_users WHERE id = ?',
+                (int(public_user_id),),
+            ).fetchone()
+            subscription_id = ((row['stripe_subscription_id'] or '') if row else '').strip()
+        finally:
+            conn.close()
+    except Exception:
+        log.exception('billing portal: DB error fetching user %s', public_user_id)
+
+    if not subscription_id:
+        flash('No subscription found on this account yet.', 'error')
+        return redirect('/pricing')
+
+    keys = m._stripe_keys()
+    base_url = (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
+    stripe.api_key = keys['secret_key']
+    try:
+        subscription = stripe.Subscription.retrieve(subscription_id)
+        customer_id = subscription.get('customer') if hasattr(subscription, 'get') else None
+        if isinstance(customer_id, dict):
+            customer_id = customer_id.get('id')
+        if not customer_id:
+            raise RuntimeError(f'subscription {subscription_id} has no customer')
+        portal = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f'{base_url}/pricing',
+        )
+        portal_url = portal.get('url') if hasattr(portal, 'get') else None
+        if not portal_url:
+            raise RuntimeError('Stripe billing portal session did not return a URL')
+        log.info('billing portal: opened for user %s', public_user_id)
+        return redirect(portal_url)
+    except Exception as exc:
+        log.exception('billing portal: failed for user %s', public_user_id)
+        flash('We could not open the billing portal. Reply to any of our emails and we will fix it by hand.', 'error')
+        return redirect('/pricing')
+
+
 @payments_bp.route('/wanted/subscribe')
 def wanted_subscribe():
     """Paid landing page for the active-warrant database."""

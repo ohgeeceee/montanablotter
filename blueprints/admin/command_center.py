@@ -249,7 +249,7 @@ def _build_feed() -> dict:
     }
 
 
-@admin_bp.route('/operations/live')
+@admin_bp.route('/hub')
 @login_required
 @require_role(*ADMIN_ACCESS_ROLES)
 def admin_hub():

@@ -4337,6 +4337,27 @@ def _apply_subscription_stripe_event(conn, event):
                 ''',
                 (subscription_id,),
             )
+    elif event_type == 'invoice.payment_failed':
+        subscription_id = (data_object.get('subscription') or '').strip()
+        if subscription_id:
+            conn.execute(
+                '''
+                UPDATE public_users
+                SET subscription_status = 'past_due'
+                WHERE stripe_subscription_id = ?
+                ''',
+                (subscription_id,),
+            )
+            try:
+                from services.monetization.dunning import notify_payment_failed
+                notify_payment_failed(
+                    conn,
+                    subscription_id,
+                    data_object,
+                    event_id=(event.get('id') or ''),
+                )
+            except Exception as exc:
+                print(f"⚠️ dunning payment-failed notice failed for {subscription_id}: {exc}")
     elif event_type in {'customer.subscription.deleted', 'customer.subscription.updated'}:
         subscription_id = (data_object.get('id') or '').strip()
         status = (data_object.get('status') or '').strip().lower()
@@ -4351,7 +4372,30 @@ def _apply_subscription_stripe_event(conn, event):
                     ''',
                     (status, subscription_id),
                 )
+            elif status in {'past_due', 'unpaid', 'paused'}:
+                # Non-terminal: Stripe is still retrying. Keep access and keep
+                # stripe_subscription_id so a later invoice.paid can restore the
+                # row; blanking it here orphaned subscribers permanently.
+                conn.execute(
+                    '''
+                    UPDATE public_users
+                    SET subscription_status = ?
+                    WHERE stripe_subscription_id = ?
+                    ''',
+                    (status, subscription_id),
+                )
             else:
+                if event_type == 'customer.subscription.deleted':
+                    try:
+                        from services.monetization.dunning import notify_access_ended
+                        notify_access_ended(
+                            conn,
+                            subscription_id,
+                            plan=plan,
+                            event_id=(event.get('id') or ''),
+                        )
+                    except Exception as exc:
+                        print(f"⚠️ dunning access-ended notice failed for {subscription_id}: {exc}")
                 conn.execute(
                     '''
                     UPDATE public_users
@@ -4634,7 +4678,7 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
 
     # Fallback: route subscription/invoice lifecycle events when those events lack flow
     # metadata (subscription objects don't carry checkout metadata).
-    if event_type in {'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid'}:
+    if event_type in {'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid', 'invoice.payment_failed'}:
         _sub_id = (data_object.get('subscription') or data_object.get('id') or '').strip()
         if _sub_id:
             try:

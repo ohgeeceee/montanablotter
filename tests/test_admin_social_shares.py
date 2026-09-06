@@ -95,7 +95,7 @@ class AdminSocialSharesTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        response = client.get('/admin/social-shares')
+        response = client.get('/admin/content/social/shares')
         html = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn('Social Share Log', html)
@@ -106,7 +106,7 @@ class AdminSocialSharesTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        response = client.get('/admin/social-shares?platform=facebook')
+        response = client.get('/admin/content/social/shares?platform=facebook')
         html = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
         # The filter select should reflect the active filter
@@ -120,7 +120,7 @@ class AdminSocialSharesTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        response = client.get('/admin/social-shares/post/1')
+        response = client.get('/admin/content/social/shares/post/1')
         html = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn('Shares for post #1', html)
@@ -129,7 +129,7 @@ class AdminSocialSharesTests(unittest.TestCase):
 
     def test_unauthenticated_redirects(self) -> None:
         client = app_module.app.test_client()
-        response = client.get('/admin/social-shares', follow_redirects=False)
+        response = client.get('/admin/content/social/shares', follow_redirects=False)
         self.assertIn(response.status_code, (302, 303))
 
 

@@ -1,154 +1,153 @@
 {% extends "public_page_base.html" %}
 
-{% set active_nav = "subscribe" %}
+{% set page_title = "Subscribe to Daily Digests" %}
+{% set meta_description = "Subscribe to Montana Blotter daily digests and receive AI-summarized police blotters each morning at 7am MT." %}
+{% set canonical_url = "https://montanablotter.com/subscribe" %}
+{% set og_title = "Subscribe | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}subscribe-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Subscribe</span>
+{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto px-4 py-14 sm:px-6">
+<div class="max-w-3xl mx-auto px-4 py-14 sm:px-6">
 
-    <div class="text-center mb-12">
-        <div class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-red-700 mb-4">
-            Montana Blotter
+    {% if unsubscribed %}
+    <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <div class="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-check text-slate-500 text-xl"></i>
         </div>
-        <h1 class="text-4xl font-black tracking-tight text-slate-900">Choose Your Plan</h1>
-        <p class="mt-3 text-base text-slate-500 leading-7">Access Montana public records — from daily incident reports to statewide warrant data, court filings, and more.</p>
-    </div>
-
-    {% if already_subscribed %}
-    <div class="rounded-xl bg-green-50 border border-green-200 px-5 py-4 mb-6 text-sm text-green-800">
-        <p class="font-bold mb-1"><i class="fas fa-check-circle mr-2 text-green-600"></i>You already have an active subscription</p>
-        <p class="text-green-700">Head to the <a href="/account/subscription" class="underline font-bold">subscription settings</a> to manage your plan.</p>
-    </div>
-    {% endif %}
-
-    <!-- Pricing cards -->
-    <div class="grid md:grid-cols-3 gap-6 mb-10">
-
-        <!-- Free -->
-        <div class="rounded-3xl border-2 border-slate-200 bg-white shadow-lg overflow-hidden flex flex-col">
-            <div class="px-6 py-7 text-center">
-                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 mb-3">Free</p>
-                <div class="flex items-end justify-center gap-1">
-                    <span class="text-4xl font-black text-slate-900">$0</span>
-                </div>
-                <p class="text-sm text-slate-500 mt-1">Public access</p>
-            </div>
-            <div class="px-6 pb-6 flex-1 flex flex-col">
-                <ul class="space-y-3 mb-6 text-sm">
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> Current incident reports</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> 7 days of history</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> Basic search &amp; filters</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> 1 county alert</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-green-500 w-4"></i> Public-safety alerts</li>
-                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> Ad-free browsing</li>
-                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> Saved searches</li>
-                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> Name watchlists</li>
-                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> CSV / PDF exports</li>
-                </ul>
-                <div class="mt-auto">
-                    <span class="block w-full rounded-xl bg-slate-100 py-3.5 text-sm font-bold text-slate-400 text-center cursor-default">Current Plan</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Plus -->
-        <div class="rounded-3xl border-2 border-red-200 bg-white shadow-xl overflow-hidden flex flex-col relative">
-            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black uppercase tracking-[0.18em] px-3 py-1 rounded-full z-10">Most Popular</div>
-            <div class="bg-gradient-to-br from-red-600 to-red-800 px-6 py-7 text-white text-center">
-                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-red-200">Blotter Plus</p>
-                <div class="mt-2 flex items-end justify-center gap-2">
-                    <span class="text-4xl font-black">$5.99</span>
-                    <span class="mb-1.5 text-lg text-red-200">/month</span>
-                </div>
-                <p class="text-sm text-red-100">or <strong>$59/year</strong> &mdash; save 18%</p>
-            </div>
-            <div class="px-6 py-6 flex-1 flex flex-col">
-                <ul class="space-y-3 mb-6 text-sm">
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> <strong>12 months</strong> of searchable history</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> Up to <strong>5 counties</strong></li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> County, city &amp; agency alerts</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> <strong>5 name/keyword</strong> watchlists</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> <strong>10 saved searches</strong></li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> Daily digest email</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> <strong>Ad-free</strong> browsing</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> Track up to 5 cases</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-red-500 w-4"></i> PDF exports</li>
-                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-300 w-4"></i> CSV exports / API access</li>
-                </ul>
-                {% if is_logged_in %}
-                <a href="/checkout/plus?interval=monthly"
-                   class="mt-auto block w-full rounded-xl bg-red-600 py-3.5 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
-                    Subscribe <span class="text-red-200">$5.99</span>/mo
-                </a>
-                <a href="/checkout/plus?interval=annual"
-                   class="mt-2 block w-full rounded-xl border border-red-300 bg-white py-2.5 text-sm font-bold text-red-700 hover:bg-red-50 transition-colors text-center">
-                    or <strong>$59/year</strong>
-                </a>
-                {% else %}
-                <a href="/register?next=/checkout/plus%3Finterval%3Dmonthly"
-                   class="mt-auto block w-full rounded-xl bg-red-600 py-3.5 text-base font-black text-white hover:bg-red-700 transition-colors text-center">
-                    Create Account & Subscribe
-                </a>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Pro -->
-        <div class="rounded-3xl border-2 border-amber-200 bg-white shadow-xl overflow-hidden flex flex-col">
-            <div class="bg-gradient-to-br from-amber-600 to-amber-800 px-6 py-7 text-white text-center">
-                <p class="text-[11px] font-black uppercase tracking-[0.18em] text-amber-200">Blotter Pro</p>
-                <div class="mt-2 flex items-end justify-center gap-2">
-                    <span class="text-4xl font-black">$19.99</span>
-                    <span class="mb-1.5 text-lg text-amber-200">/month</span>
-                </div>
-                <p class="text-sm text-amber-100">or <strong>$199/year</strong> &mdash; save 17%</p>
-            </div>
-            <div class="px-6 py-6 flex-1 flex flex-col">
-                <ul class="space-y-3 mb-6 text-sm">
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> <strong>Full archive</strong> — no time limit</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> <strong>Statewide</strong> alerts &amp; unlimited counties</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Unlimited name/keyword watchlists</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Unlimited saved searches</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Unlimited case tracking</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> CSV &amp; PDF exports</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> API access</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Webhook alerts</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> County &amp; statewide analytics</li>
-                    <li class="flex items-center gap-3 text-slate-700"><i class="fas fa-check text-amber-500 w-4"></i> Priority support</li>
-                </ul>
-                {% if is_logged_in %}
-                <a href="/checkout/pro?interval=monthly"
-                   class="mt-auto block w-full rounded-xl bg-amber-600 py-3.5 text-base font-black text-white hover:bg-amber-700 transition-colors text-center">
-                    Subscribe <span class="text-amber-200">$19.99</span>/mo
-                </a>
-                <a href="/checkout/pro?interval=annual"
-                   class="mt-2 block w-full rounded-xl border border-amber-300 bg-white py-2.5 text-sm font-bold text-amber-700 hover:bg-amber-50 transition-colors text-center">
-                    or <strong>$199/year</strong>
-                </a>
-                {% else %}
-                <a href="/register?next=/checkout/pro%3Finterval%3Dmonthly"
-                   class="mt-auto block w-full rounded-xl bg-amber-600 py-3.5 text-base font-black text-white hover:bg-amber-700 transition-colors text-center">
-                    Create Account & Subscribe
-                </a>
-                {% endif %}
-            </div>
-        </div>
-
-    </div>
-
-    <p class="text-center text-[11px] text-slate-400 mb-6">
-        Secure Stripe checkout &bull; Cancel anytime &bull; No hidden fees
-    </p>
-
-    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-4 text-center text-sm text-slate-500">
-        Already have an account?
-        <a href="/login?next=/subscribe" class="font-bold text-slate-700 hover:text-slate-900 underline">Sign in to subscribe</a>
-    </div>
-
-    <div class="mt-8 text-center">
-        <a href="/" class="text-sm text-slate-400 hover:text-slate-600">
-            &larr; Back to Montana Blotter
+        <h1 class="text-2xl font-black text-slate-900 mb-2">Unsubscribed</h1>
+        <p class="text-slate-500 text-sm mb-6">
+            <strong>{{ email }}</strong> has been removed from all Montana Blotter daily digests.
+        </p>
+        <a href="/subscribe" class="text-blue-600 hover:text-blue-700 text-sm font-semibold">
+            Re-subscribe &rarr;
         </a>
     </div>
 
+    {% elif success %}
+    <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-envelope-open-text text-green-600 text-xl"></i>
+        </div>
+        <h1 class="text-2xl font-black text-slate-900 mb-2">
+            {% if updated %}Preferences Updated!{% else %}You're Subscribed!{% endif %}
+        </h1>
+        <p class="text-slate-500 text-sm mb-2">
+            Daily briefings will be sent to <strong>{{ email }}</strong> each morning at 7am MT.
+        </p>
+        <p class="text-slate-400 text-xs mb-6">Unsubscribe any time via the link in each email.</p>
+        <div class="flex items-center justify-center gap-2 flex-wrap">
+            <a href="/" class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-slate-700">
+                View Latest Reports
+            </a>
+            <a href="/donate?source=subscribe_success" class="inline-flex items-center justify-center rounded-2xl border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-white">
+                Support With Donation
+            </a>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="text-center mb-8">
+        <div class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-red-700 mb-4">
+            Free Daily Digest
+        </div>
+        <h1 class="text-3xl font-black tracking-tight text-slate-900">Get Daily Montana Blotter Alerts</h1>
+        <p class="mt-2 text-base text-slate-500">
+            One quick signup. No account required. Summarized at 7am MT every morning.
+        </p>
+        {% if subscriber_count and subscriber_count > 10 %}
+        <p class="mt-2 text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+            Join {{ subscriber_count|int }} Montana readers
+        </p>
+        {% endif %}
+    </div>
+
+    {% if error %}
+    <div class="rounded-xl bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm mb-6">
+        <i class="fas fa-exclamation-circle mr-2"></i>{{ error }}
+    </div>
+    {% endif %}
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+        <form method="POST" action="/subscribe" id="subscribe-form" class="space-y-5" data-subscribe-source="{{ source or 'subscribe_page' }}">
+            <input type="hidden" name="source" value="{{ source or 'subscribe_page' }}">
+            <input type="hidden" name="g-recaptcha-response" id="recaptcha-token">
+
+            <div>
+                <label for="subscribe-email" class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-1">
+                    Email Address
+                </label>
+                <input type="email" name="email" id="subscribe-email" required
+                       placeholder="you@example.com"
+                       class="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400">
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500 mb-1">
+                    County Preferences <span class="font-normal text-slate-400">(optional &mdash; leave blank for all counties)</span>
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 p-3 rounded-xl border border-slate-200 bg-slate-50 max-h-48 overflow-y-auto">
+                    {% for county in counties %}
+                    {% if county and county != 'Unknown' and county != 'docx' %}
+                    <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer hover:text-slate-900">
+                        <input type="checkbox" name="counties" value="{{ county }}" class="rounded border-slate-300 text-slate-900 focus:ring-slate-400">
+                        {{ county }}
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Select specific counties or leave empty for the full statewide digest.</p>
+            </div>
+
+            <button type="submit"
+                    class="w-full inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-slate-700">
+                <i class="fas fa-envelope mr-2"></i>Subscribe &mdash; It's Free
+            </button>
+
+            <p class="text-xs text-slate-500">
+                By subscribing, you agree to our
+                <a class="underline hover:text-slate-700" href="/terms-of-use">Terms of Use</a>
+                and
+                <a class="underline hover:text-slate-700" href="/privacy">Privacy Policy</a>.
+            </p>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+                <p class="font-black uppercase tracking-[0.14em] text-slate-500 mb-2">What You Get</p>
+                <p>Daily digest, top county highlights, and statewide warrant &amp; missing-person alerts.</p>
+                <p class="mt-2 text-slate-400">Free. No spam. Unsubscribe anytime.</p>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if recaptcha_site_key %}
+<script>
+document.getElementById('subscribe-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = this;
+    if (!window.grecaptcha || typeof grecaptcha.ready !== 'function' || typeof grecaptcha.execute !== 'function') {
+        form.submit();
+        return;
+    }
+    grecaptcha.ready(function() {
+        grecaptcha.execute('{{ recaptcha_site_key }}', {action: 'subscribe'}).then(function(token) {
+            document.getElementById('recaptcha-token').value = token;
+            form.submit();
+        }).catch(function() {
+            form.submit();
+        });
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

@@ -76,7 +76,7 @@ class AdminAIConsoleTests(unittest.TestCase):
     def test_admin_ai_requires_login(self) -> None:
         client = app_module.app.test_client()
 
-        response = client.get('/admin/ai')
+        response = client.get('/admin/system/ai')
 
         self.assertEqual(response.status_code, 302)
         self.assertIn('/admin/login', response.headers['Location'])
@@ -85,7 +85,7 @@ class AdminAIConsoleTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login_admin_session(client)
 
-        response = client.get('/admin/ai')
+        response = client.get('/admin/system/ai')
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
@@ -103,7 +103,7 @@ class AdminAIConsoleTests(unittest.TestCase):
                 'pending_action': None,
             }
             response = client.post(
-                '/admin/ai/query',
+                '/admin/system/ai/query',
                 data={'question': 'Find theft records', 'csrf_token': 'test-csrf-token'},
             )
 
@@ -120,7 +120,7 @@ class AdminAIConsoleTests(unittest.TestCase):
             "Error code: 401 - {'error': {'message': 'Invalid Authentication', 'type': 'invalid_authentication_error'}}"
         )):
             response = client.post(
-                '/admin/ai/query',
+                '/admin/system/ai/query',
                 data={'question': 'Find theft records', 'csrf_token': 'test-csrf-token'},
             )
 
@@ -146,7 +146,7 @@ class AdminAIConsoleTests(unittest.TestCase):
                 },
             }
             response = client.post(
-                '/admin/ai/query',
+                '/admin/system/ai/query',
                 data={'question': 'Draft a blog post', 'csrf_token': 'test-csrf-token'},
             )
 
@@ -187,7 +187,7 @@ class AdminAIConsoleTests(unittest.TestCase):
         with mock.patch('blueprints.admin.ai_console.execute_pending_admin_ai_action') as mocked_execute:
             mocked_execute.return_value = {'message': 'Draft created', 'target_id': 42}
             response = client.post(
-                '/admin/ai/confirm',
+                '/admin/system/ai/confirm',
                 data={'token': 'pending-token', 'csrf_token': 'test-csrf-token'},
             )
 
@@ -211,7 +211,7 @@ class AdminAIConsoleTests(unittest.TestCase):
             }
 
         response = client.post(
-            '/admin/ai/confirm',
+            '/admin/system/ai/confirm',
             data={'token': 'wrong-token', 'csrf_token': 'test-csrf-token'},
         )
 

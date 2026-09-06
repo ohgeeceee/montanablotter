@@ -127,6 +127,19 @@ class TestPaywall(unittest.TestCase):
                 self.assertTrue(allowed)
                 self.assertEqual(counts['day'], 0)
 
+    def test_payment_retry_grace_and_terminal_statuses(self):
+        for status, expected in [('past_due', 'pro'), ('unpaid', 'free'),
+                                 ('paused', 'free'), ('canceled', 'free')]:
+            with self.subTest(status=status):
+                with sqlite3.connect(self.db_path) as conn:
+                    uid = conn.execute(
+                        'INSERT INTO public_users (subscriber_plan, subscription_status) VALUES (?, ?)',
+                        ('professional', status),
+                    ).lastrowid
+                with self.app.test_request_context(), self._mock_anon():
+                    flask_session['public_user_id'] = uid
+                    self.assertEqual(self.get_user_plan(), expected)
+
     def test_get_user_plan_for_public_user(self):
         conn = sqlite3.connect(self.db_path)
         cur = conn.execute(
@@ -140,7 +153,7 @@ class TestPaywall(unittest.TestCase):
         with self.app.test_request_context():
             flask_session['public_user_id'] = uid
             with self._mock_anon():
-                self.assertEqual(self.get_user_plan(), 'professional')
+                self.assertEqual(self.get_user_plan(), 'pro')
                 self.assertTrue(self.user_has_access('insider'))
 
 

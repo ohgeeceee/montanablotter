@@ -86,10 +86,20 @@ class SigninWallTestCase(unittest.TestCase):
 
     def test_content_page_redirects_anonymous_to_login(self):
         # Use a detail-style path that would normally 404; the wall should
-        # intercept it first and send the visitor to login.
-        response = self.client.get('/wanted/1', follow_redirects=False)
+        # intercept it first and send the visitor to login. Booking detail
+        # pages are walled content (wanted pages are deliberately exempt).
+        response = self.client.get('/booking/1', follow_redirects=False)
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login', response.headers['Location'])
+
+    def test_wanted_routes_are_exempt_from_general_wall(self):
+        # /wanted pages bypass the general sign-in wall: warrant access has its
+        # own subscribe flow, so anonymous visitors are sent there instead of
+        # to /login.
+        response = self.client.get('/wanted/1', follow_redirects=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/wanted/subscribe', response.headers['Location'])
+        self.assertNotIn('/login', response.headers['Location'])
 
     def test_auth_routes_are_exempt(self):
         for path in ['/login', '/register']:

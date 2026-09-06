@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import sys
 import tempfile
 import unittest
 import unittest.mock
@@ -16,11 +17,28 @@ class PublicApiTests(unittest.TestCase):
         self.previous_db_path = config.DB_PATH
         self.previous_init_db_path = init_db.DB_PATH
         self.previous_app_db_path = app_module.config.DB_PATH
+        self.previous_sys_modules_app = sys.modules.get("app")
 
         config.DB_PATH = self.db_path
         init_db.DB_PATH = self.db_path
         app_module.config.DB_PATH = self.db_path
         app_module.app.config["TESTING"] = True
+
+        # Pin the app module under the name request-time blueprint helpers
+        # look up (`import app` inside blueprints/api.py). Earlier test files
+        # pop it from sys.modules, which would otherwise re-import a *new*
+        # app whose flask_caching Cache is not registered on this app's
+        # extensions dict (KeyError at flask_caching/__init__.py:189).
+        sys.modules["app"] = app_module
+
+        # Flask-Caching state leaks between temp-DB swaps. Clear any cached
+        # API responses so each test observes only its own seeded data.
+        api_cache = getattr(app_module, "api_cache", None)
+        if api_cache is not None:
+            try:
+                api_cache.clear()
+            except Exception:
+                pass
 
         bootstrap_conn = sqlite3.connect(self.db_path)
         bootstrap_conn.execute(
@@ -47,6 +65,11 @@ class PublicApiTests(unittest.TestCase):
         config.DB_PATH = self.previous_db_path
         init_db.DB_PATH = self.previous_init_db_path
         app_module.config.DB_PATH = self.previous_app_db_path
+        if sys.modules.get("app") is app_module:
+            if self.previous_sys_modules_app is None:
+                sys.modules.pop("app", None)
+            else:
+                sys.modules["app"] = self.previous_sys_modules_app
         if os.path.exists(self.db_path):
             os.unlink(self.db_path)
 

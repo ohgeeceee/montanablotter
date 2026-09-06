@@ -171,12 +171,13 @@ class MissoulaInmateFetcherTests(unittest.TestCase):
         self.assertEqual(records[0].booking_number, "2026-00000123")
 
     def test_fetch_missoula_bookings_with_viewstate_and_enrichment(self) -> None:
+        recent_booking = (datetime.now() - timedelta(days=5)).strftime("%m/%d/%Y %I:%M:%S %p")
         roster_html = (
             '<html><body><form>'
             '<input type="hidden" name="__VIEWSTATE" value="abc"/>'
             '<input type="hidden" name="__EVENTVALIDATION" value="def"/>'
             "Current Inmate List for Today:<br/>"
-            "DOE, JOHN ALAN<br/>35<br/>2026-00000123<br/>123456<br/>5/20/2026 9:30:00 AM<br/>Charges<br/>"
+            f"DOE, JOHN ALAN<br/>35<br/>2026-00000123<br/>123456<br/>{recent_booking}<br/>Charges<br/>"
             '<a href="javascript:__doPostBack(&#39;ctl00$MainContent$ParentRepeater$ctl01$lnkCharges&#39;,&#39;&#39;)">Charges</a>'
             "</form></body></html>"
         )

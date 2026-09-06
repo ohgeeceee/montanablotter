@@ -1,0 +1,20 @@
+{% set _rc_active = active_nav in ('resources', 'resources_attorneys', 'resources_treatment') %}
+<nav class="mb-resources-dir-nav" aria-label="Resources directory">
+  <style>
+    .mb-resources-dir-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.25rem 0 1.5rem; }
+    .mb-resources-dir-nav__link {
+      padding: 0.5rem 0.9rem;
+      border-radius: 9999px;
+      border: 1px solid #d8d2c4;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #334155;
+      text-decoration: none;
+    }
+    .mb-resources-dir-nav__link:hover { border-color: #b91c1c; color: #b91c1c; }
+    .mb-resources-dir-nav__link.is-active { background: #b91c1c; border-color: #b91c1c; color: #ffffff; }
+  </style>
+  <a href="/resources" class="mb-resources-dir-nav__link{% if _rc_active %} is-active{% endif %}">Resources</a>
+  <a href="/attorneys" class="mb-resources-dir-nav__link{% if active_nav == 'resources_attorneys' %} is-active{% endif %}">Attorney Directory</a>
+  <a href="/treatment-centers" class="mb-resources-dir-nav__link{% if active_nav == 'resources_treatment' %} is-active{% endif %}">Treatment Centers</a>
+</nav>

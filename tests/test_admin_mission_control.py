@@ -75,7 +75,7 @@ class AdminMissionControlTests(unittest.TestCase):
     def test_mission_control_page_requires_login(self) -> None:
         client = app_module.app.test_client()
 
-        response = client.get("/admin/mission-control")
+        response = client.get("/admin/operations/mission-control")
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/admin/login", response.headers["Location"])
@@ -83,7 +83,7 @@ class AdminMissionControlTests(unittest.TestCase):
     def test_runbook_page_requires_login(self) -> None:
         client = app_module.app.test_client()
 
-        response = client.get("/admin/mission-control/runbook")
+        response = client.get("/admin/operations/mission-control/runbook")
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/admin/login", response.headers["Location"])
@@ -154,32 +154,32 @@ class AdminMissionControlTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login(client)
 
-        response = client.get("/admin/mission-control")
+        response = client.get("/admin/operations/mission-control")
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/command-center", response.headers["Location"])
+        self.assertIn("/admin/operations/live", response.headers["Location"])
 
     def test_mission_control_runbook_redirects_to_command_center_runbook(self) -> None:
         client = app_module.app.test_client()
         self._login(client)
 
-        response = client.get("/admin/mission-control/runbook")
+        response = client.get("/admin/operations/mission-control/runbook")
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/command-center/runbook", response.headers["Location"])
+        self.assertIn("/admin/operations/runbook", response.headers["Location"])
 
     def test_command_center_runbook_renders(self) -> None:
         client = app_module.app.test_client()
         self._login(client)
 
-        response = client.get("/admin/command-center/runbook")
+        response = client.get("/admin/operations/command-center/runbook")
 
         html = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn("Command Center Runbook", html)
         self.assertIn("Primary Flask App", html)
         self.assertIn("systemctl status montanablotter.service", html)
-        self.assertIn("curl -sSI https://montanablotter.com/admin/command-center/runbook", html)
+        self.assertIn("curl -sSI https://montanablotter.com/admin/operations/runbook", html)
         self.assertIn("Agent Events Sidecar", html)
         self.assertNotIn("Agent Events Service Deployment", html)
         self.assertNotIn("ops/systemd/flask-app.service", html)

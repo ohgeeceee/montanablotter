@@ -38,6 +38,16 @@ PLAN_LABELS = {
     'pro': 'Pro',
 }
 
+# Legacy plan names written by older checkout flows. Remapped at read time to
+# the current tiers (mirrors the write-time map in
+# app._apply_subscription_stripe_event: insider -> plus, professional -> pro,
+# warrant_access -> plus).
+LEGACY_PLAN_REMAP = {
+    'insider': 'plus',
+    'professional': 'pro',
+    'warrant_access': 'plus',
+}
+
 # ---------------------------------------------------------------------------
 # Feature matrix
 # Each feature maps to the minimum plan level required.
@@ -192,6 +202,11 @@ def _generate_session_id() -> str:
 # Plan resolution
 # ---------------------------------------------------------------------------
 
+def normalize_plan(plan: str | None) -> str:
+    """Return the current-tier name for a stored plan (legacy-aware)."""
+    name = (plan or 'free').strip().lower()
+    return LEGACY_PLAN_REMAP.get(name, name)
+
 def get_user_plan() -> str:
     """Return the effective plan for the current requester."""
     if current_user.is_authenticated:
@@ -207,20 +222,20 @@ def get_user_plan() -> str:
         finally:
             conn.close()
         if row:
-            plan = (row['subscriber_plan'] or 'free').strip().lower()
-            status = (row['subscription_status'] or '').strip().lower()
             # Warrant access is sold as its own Stripe product but is treated as
             # the 'plus' tier for feature/access purposes (see app.py webhook
             # remap warrant_access -> plus). Resolve it so the gate and feature
             # matrix see a recognized plan.
-            if plan == 'warrant_access' and status in ('active', 'trialing'):
-                return 'plus'
-            if plan in PLAN_HIERARCHY and status in ('active', 'trialing'):
+            plan = normalize_plan(row['subscriber_plan'])
+            status = (row['subscription_status'] or '').strip().lower()
+            # Keep the promised grace period while Stripe retries a payment.
+            # Unpaid/paused/canceled subscriptions do not retain paid access.
+            if plan in PLAN_HIERARCHY and status in ('active', 'trialing', 'past_due'):
                 return plan
     return 'free'
 
 def get_plan_level(plan: str) -> int:
-    return PLAN_HIERARCHY.get(plan, 0)
+    return PLAN_HIERARCHY.get(normalize_plan(plan), 0)
 
 # ---------------------------------------------------------------------------
 # Feature gates

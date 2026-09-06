@@ -127,7 +127,7 @@ class SponsoredDigestsTests(unittest.TestCase):
     def test_admin_list_renders(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
-        r = client.get('/admin/sponsored-digests')
+        r = client.get('/admin/content/sponsored-digests')
         html = r.get_data(as_text=True)
         self.assertEqual(r.status_code, 200)
         self.assertIn('Sponsored County Digests', html)
@@ -136,7 +136,7 @@ class SponsoredDigestsTests(unittest.TestCase):
     def test_admin_add_creates_active_sponsorship(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
-        self._post(client, '/admin/sponsored-digests/add', {
+        self._post(client, '/admin/content/sponsored-digests/add', {
             'county': 'Yellowstone',
             'sponsor_name': 'Billings Bail Bonds',
             'sponsor_pitch': 'Call us first.',
@@ -147,7 +147,7 @@ class SponsoredDigestsTests(unittest.TestCase):
             'expires_on': '2026-12-31',
             'notes': 'Test sponsorship',
         })
-        r = client.get('/admin/sponsored-digests')
+        r = client.get('/admin/content/sponsored-digests')
         html = r.get_data(as_text=True)
         html = r.get_data(as_text=True)
         self.assertEqual(r.status_code, 200)
@@ -169,11 +169,11 @@ class SponsoredDigestsTests(unittest.TestCase):
     def test_admin_add_requires_county_and_name(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
-        self._post(client, '/admin/sponsored-digests/add', {
+        self._post(client, '/admin/content/sponsored-digests/add', {
             'county': '',
             'sponsor_name': '',
         })
-        r = client.get('/admin/sponsored-digests')
+        r = client.get('/admin/content/sponsored-digests')
         html = r.get_data(as_text=True)
         self.assertIn('required', html.lower())
 
@@ -181,13 +181,13 @@ class SponsoredDigestsTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login_admin_session(client)
         # First sponsor
-        self._post(client, '/admin/sponsored-digests/add', {
+        self._post(client, '/admin/content/sponsored-digests/add', {
             'county': 'Gallatin',
             'sponsor_name': 'Old Sponsor',
             'sponsor_url': 'https://old.example.com',
         })
         # New sponsor for the same county
-        self._post(client, '/admin/sponsored-digests/add', {
+        self._post(client, '/admin/content/sponsored-digests/add', {
             'county': 'Gallatin',
             'sponsor_name': 'New Sponsor',
             'sponsor_url': 'https://new.example.com',
@@ -209,7 +209,7 @@ class SponsoredDigestsTests(unittest.TestCase):
     def test_admin_toggle_deactivates(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
-        self._post(client, '/admin/sponsored-digests/add', {
+        self._post(client, '/admin/content/sponsored-digests/add', {
             'county': 'Cascade',
             'sponsor_name': 'GF Bail',
         })
@@ -220,7 +220,7 @@ class SponsoredDigestsTests(unittest.TestCase):
         ).fetchone()['id']
         conn.close()
 
-        self._post(client, f'/admin/sponsored-digests/{sid}/toggle', {})
+        self._post(client, f'/admin/content/sponsored-digests/{sid}/toggle', {})
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         active = conn.execute(
@@ -236,7 +236,7 @@ class SponsoredDigestsTests(unittest.TestCase):
 
         client = app_module.app.test_client()
         self._login_admin_session(client)
-        self._post(client, '/admin/sponsored-digests/add', {
+        self._post(client, '/admin/content/sponsored-digests/add', {
             'county': 'Flathead',
             'sponsor_name': 'Kalispell Bail',
             'sponsor_url': 'https://kalispell.example.com',
@@ -268,7 +268,7 @@ class SponsoredDigestsTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login_admin_session(client)
         # Sponsorship that has already expired
-        self._post(client, '/admin/sponsored-digests/add', {
+        self._post(client, '/admin/content/sponsored-digests/add', {
             'county': 'Ravalli',
             'sponsor_name': 'Hamilton Bonds',
             'starts_on': '2020-01-01',

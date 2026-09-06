@@ -244,6 +244,86 @@ def well_known_jobs() -> dict[str, dict]:
             "max_age_hours": 8,
             "cadence": "every 4 hours",
         },
+        "cascade_roster_email": {
+            "log_path": f"{REPO_ROOT}/logs/cascade_roster_email.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
+        "jail_booking_ingest_hill": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 2,
+            "cadence": "every 15 minutes",
+        },
+        "jail_booking_ingest_valley": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
+        "jail_booking_ingest_chouteau": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
+        "jail_booking_ingest_glacier": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 2,
+            "cadence": "every 15 minutes",
+        },
+        "jail_booking_ingest_statewide_daily": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
+        "lawyer_arrest_alerts_watcher": {
+            "log_path": f"{REPO_ROOT}/logs/lawyer_arrest_alerts.log",
+            "max_age_hours": 2,
+            "cadence": "every 15 minutes",
+        },
+        "warrant_ingest": {
+            "log_path": f"{REPO_ROOT}/logs/warrant_ingest.log",
+            "max_age_hours": 8,
+            "cadence": "every 6 hours",
+        },
+        "prune_page_views": {
+            "log_path": f"{REPO_ROOT}/logs/prune_page_views.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
+        "seasonal_roundup": {
+            "log_path": f"{REPO_ROOT}/logs/seasonal_roundup.log",
+            "max_age_hours": 2160,
+            "cadence": "seasonal",
+        },
+        "odc_discipline_monthly": {
+            "log_path": f"{REPO_ROOT}/logs/odc_discipline.log",
+            "max_age_hours": 750,
+            "cadence": "monthly",
+        },
+        "compress_mugshots": {
+            "log_path": f"{REPO_ROOT}/logs/compress_mugshots.log",
+            "max_age_hours": 26,
+            "cadence": "daily",
+        },
+        "lea_normalize": {
+            "log_path": f"{REPO_ROOT}/logs/lea_normalize.log",
+            "max_age_hours": 1,
+            "cadence": "every 5 minutes",
+        },
+        "lea_roster_ingest": {
+            "log_path": f"{REPO_ROOT}/logs/lea_roster_ingest.log",
+            "max_age_hours": 8,
+            "cadence": "every 4 hours",
+        },
+        "missing_person_sync": {
+            "log_path": f"{REPO_ROOT}/logs/missing_person_sync.log",
+            "max_age_hours": 2,
+            "cadence": "every 15 minutes",
+        },
+        "score_humor": {
+            "log_path": f"{REPO_ROOT}/logs/score_humor.log",
+            "max_age_hours": 2,
+            "cadence": "hourly",
+        },
         "morning_briefing": {
             "log_path": f"{REPO_ROOT}/logs/morning_briefing.log",
             "max_age_hours": 26,
