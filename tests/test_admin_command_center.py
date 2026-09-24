@@ -73,7 +73,7 @@ class AdminCommandCenterTests(unittest.TestCase):
         client = app_module.app.test_client()
         self._login(client)
 
-        response = client.get('/admin/command-center')
+        response = client.get('/admin/operations/live')
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
@@ -81,9 +81,9 @@ class AdminCommandCenterTests(unittest.TestCase):
         self.assertIn('Browse All Admin Tools', html)
         self.assertIn('All Admin Tools', html)
         self.assertIn('ops-health-bar', html)
-        self.assertIn('Claw3D Office Hub', html)
-        self.assertIn('<iframe', html)
-        self.assertIn('/admin/office/office', html)
+        self.assertIn('Command Center', html)
+        self.assertNotIn('<iframe', html)
+        self.assertNotIn('/admin/office/office', html)
         self.assertNotIn('Mission Control', html)
         self.assertNotIn('/admin/mission-control', html)
 

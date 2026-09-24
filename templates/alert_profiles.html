@@ -32,8 +32,11 @@
   .actions { display:flex; gap:8px; margin-top:10px; }
   .empty { color:var(--muted); font-size:14px; padding:24px 0; }
 </style>
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-newspaper.css">{% endif %}
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-page-flip.css">{% endif %}
 </head>
-<body>
+<body{% if request.args.get('newspaper') != '0' %} class="mb-newspaper-body"{% endif %}>
+{% if request.args.get('newspaper') != '0' %}<div class="mb-newspaper-stage"><div class="mb-newspaper-stack"><article class="mb-newspaper mb-newspaper--dark-inset">{% endif %}
 <div class="container">
   <h1>My Alert Profiles</h1>
   <p class="lead">Create location and incident-type alerts. Premium subscribers get more profiles, faster frequency, and richer delivery channels.</p>
@@ -187,5 +190,9 @@
 
   loadProfiles();
 </script>
+{% if request.args.get('newspaper') != '0' %}</article></div></div>{% endif %}
+{% if request.args.get('newspaper') != '0' %}
+<script src="/static/mb-page-flip.js" defer></script>
+{% endif %}
 </body>
 </html>

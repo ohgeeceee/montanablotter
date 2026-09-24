@@ -232,21 +232,28 @@
 
           {# Secondary top-of-paper nav #}
           <nav class="mb-np-nav" aria-label="Primary sections">
-            <a href="/">Front Page</a>
-            <a href="/blotter">Blotter</a>
-            <a href="/counties">Counties</a>
-            <a href="/jail-bookings">Bookings</a>
-            <a href="/missing-persons">Missing</a>
-            <a href="/wanted">Warrants</a>
-            <a href="/bail-bonds">Bail Bonds</a>
-            <a href="/lawyers">Lawyers</a>
-            <a href="/crime-map">Crime Map</a>
-            <a href="/crime-atlas">Crime Atlas</a>
-            <a href="/pro" class="font-black text-amber-600">Pro</a>
-            <a href="/blog">Blog</a>
-            <a href="/learn">Know Your Rights</a>
-            <a href="/about">About</a>
-            <a href="/corrections">Careers</a>
+            <div class="mb-np-nav__group" aria-label="Records">
+              <span class="mb-np-nav__label">Records</span>
+              <a href="/">Front Page</a>
+              <a href="/blotter">Blotter</a>
+              <a href="/counties">Counties</a>
+              <a href="/jail-bookings">Bookings</a>
+            </div>
+            <div class="mb-np-nav__group" aria-label="Safety">
+              <span class="mb-np-nav__label">Safety</span>
+              <a href="/sex-offender-updates">Registry</a>
+              <a href="/missing-persons">Missing</a>
+              <a href="/wanted">Warrants</a>
+              <a href="/crime-atlas">Crime Atlas</a>
+            </div>
+            <div class="mb-np-nav__group" aria-label="Services">
+              <span class="mb-np-nav__label">Services</span>
+              <a href="/bail-bonds">Bail Bonds</a>
+              <a href="/lawyers">Lawyers</a>
+              <a href="/pro" class="font-black text-amber-600">Pro</a>
+              <a href="/learn">Know Rights</a>
+              <a href="/blog">Blog</a>
+            </div>
           </nav>
 
           {# Dateline strip — live record counts #}
@@ -536,6 +543,12 @@
 
     <!-- ohgeeceee network registry: kept for sibling-site bootstrap; bar disabled. -->
     <script src="https://ohgeec.com/ogc-network.js" data-ogc-theme="light" data-ogc-bar="off" defer></script>
+
+    {# ---- Newspaper page-turn animation ---- #}
+    {% if request.args.get('newspaper') != '0' %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='mb-page-flip.css') }}">
+    <script src="{{ url_for('static', filename='mb-page-flip.js') }}" defer></script>
+    {% endif %}
 
 <!-- ═══════════════════════════ FOOTER MODALS ═══ -->
 

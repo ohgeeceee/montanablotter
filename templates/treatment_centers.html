@@ -1,0 +1,154 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Montana Treatment & Recovery Resources" %}
+{% set meta_description = "Free, hand-curated Montana addiction and mental-health treatment resources by county, plus statewide crisis lines available 24/7." %}
+{% set canonical_url = "https://montanablotter.com/treatment-centers" %}
+{% set og_title = "Montana Treatment & Recovery Resources" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}treatment-centers-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Treatment Centers</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Public Directory</p>
+                <h1 class="public-title public-title--medium">Montana addiction and recovery resources.</h1>
+                <p class="public-copy">
+                    A free, opt-in directory of addiction treatment, mental-health, and crisis resources across Montana &mdash; including statewide lines that answer 24/7. This is not medical advice and not an endorsement; in an emergency, call 911.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">By the numbers</p>
+                    <div style="display:flex;gap:1.25rem;margin-top:0.5rem;">
+                        <div>
+                            <div style="font-size:1.8rem;font-weight:700;line-height:1;">{{ total_entries }}</div>
+                            <div style="font-size:0.85rem;color:#475569;">statewide entries</div>
+                        </div>
+                        <div>
+                            <div style="font-size:1.8rem;font-weight:700;line-height:1;">{{ total_counties }}</div>
+                            <div style="font-size:0.85rem;color:#475569;">counties covered</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+
+        {% include "includes/resources_dir_nav.html" %}
+
+        {% if statewide_entries %}
+            <article class="public-detail-frame" style="background: linear-gradient(180deg, #fffdf0 0%, #fff 60%); border-left: 4px solid #16a085;">
+                <div class="public-detail-frame__header">
+                    <h2 class="public-detail-title">Statewide &mdash; call anytime</h2>
+                    <p class="public-detail-subtitle">24/7 crisis &amp; treatment lines</p>
+                </div>
+                <div class="public-detail-frame__body">
+                    <p style="font-size:0.9rem;color:#475569;margin:0 0 1rem;">
+                        These lines are available regardless of which county you live in. They are listed first so they are never more than one scroll away.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
+                        {% for entry in statewide_entries %}
+                        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:0.75rem;padding:1rem;">
+                            <p style="margin:0;font-weight:800;color:#0f172a;">{{ entry.name }}</p>
+                            {% if entry.organization %}
+                            <p style="margin:0.25rem 0 0;font-size:0.85rem;color:#475569;">{{ entry.organization }}</p>
+                            {% endif %}
+                            {% if entry.phone %}
+                            <p style="margin:0.5rem 0 0;font-size:0.9rem;">
+                                <a href="tel:{{ entry.phone }}" style="color:#16a085;text-decoration:none;font-weight:700;">{{ entry.phone }}</a>
+                            </p>
+                            {% endif %}
+                            {% if entry.website %}
+                            <p style="margin:0.25rem 0 0;font-size:0.85rem;">
+                                <a href="{{ entry.website }}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none;">{{ entry.website }}</a>
+                            </p>
+                            {% endif %}
+                            {% if entry.blurb %}
+                            <p style="margin:0.5rem 0 0;font-size:0.85rem;color:#334155;">{{ entry.blurb }}</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </article>
+        {% endif %}
+
+        {% for county, entries in by_county.items() %}
+            <article class="public-detail-frame">
+                <div class="public-detail-frame__header">
+                    <h2 class="public-detail-title">{{ county }} County</h2>
+                    <p class="public-detail-subtitle">{{ entries|length }} resource{{ '' if entries|length == 1 else 's' }}</p>
+                </div>
+                <div class="public-detail-frame__body">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
+                        {% for entry in entries %}
+                        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:0.75rem;padding:1rem;">
+                            <p style="margin:0;font-weight:800;color:#0f172a;">{{ entry.name }}</p>
+                            {% if entry.organization %}
+                            <p style="margin:0.25rem 0 0;font-size:0.85rem;color:#475569;">{{ entry.organization }}</p>
+                            {% endif %}
+                            {% if entry.phone %}
+                            <p style="margin:0.5rem 0 0;font-size:0.9rem;">
+                                <a href="tel:{{ entry.phone }}" style="color:#16a085;text-decoration:none;font-weight:700;">{{ entry.phone }}</a>
+                            </p>
+                            {% endif %}
+                            {% if entry.website %}
+                            <p style="margin:0.25rem 0 0;font-size:0.85rem;">
+                                <a href="{{ entry.website }}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:none;">{{ entry.website }}</a>
+                            </p>
+                            {% endif %}
+                            {% if entry.services %}
+                            <p style="margin:0.5rem 0 0;font-size:0.85rem;color:#334155;">{{ entry.services }}</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </article>
+        {% else %}
+            <article class="public-detail-frame">
+                <div class="public-detail-frame__body">
+                    <p class="public-policy-copy">
+                        County-level resources are being added on a rolling basis. In the meantime, the statewide lines above are available 24/7 anywhere in Montana.
+                    </p>
+                </div>
+            </article>
+        {% endfor %}
+
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Crisis help</p>
+                <h3 class="public-card__title">988 Suicide &amp; Crisis Lifeline</h3>
+                <p class="public-card__text" style="font-size:0.9rem;">
+                    Call or text <strong>988</strong> any time &mdash; free and confidential support for mental-health and substance-use crises.
+                </p>
+            </div>
+        </section>
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Disclaimer</p>
+                <p class="public-card__text" style="font-size:0.9rem;">
+                    Montana Blotter does not provide medical or legal advice and does not endorse any specific provider. Listings are opt-in and self-reported. If you are in immediate danger, call 911.
+                </p>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}

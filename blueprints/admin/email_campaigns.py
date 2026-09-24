@@ -19,6 +19,7 @@ import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from urllib.parse import quote
 
 from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -26,13 +27,19 @@ from flask_login import current_user, login_required
 from blueprints.admin import admin_bp, require_role, _log_admin_action
 from db import get_db
 import config
+from services.marketing.jail_roster_promotion import (
+    CAMPAIGN_NAME as JAIL_ROSTER_CAMPAIGN_NAME,
+    PLAIN_BODY as JAIL_ROSTER_PLAIN_BODY,
+    SUBJECT as JAIL_ROSTER_SUBJECT,
+    build_html_body as build_jail_roster_html,
+)
 
 from utils.auth_constants import ADMIN_ACCESS_ROLES, EMAIL_OPS_SEND_ROLES
 
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# SMTP helper (mirrors lawyer_outreach._send_email / audience patterns)
+# SMTP helper (mirrors audience patterns)
 # ---------------------------------------------------------------------------
 
 def _smtp_settings():
@@ -45,7 +52,13 @@ def _smtp_settings():
     }
 
 
-def _send_email(to_addr: str, subject: str, body: str, html_body: str | None = None) -> tuple[bool, str]:
+def _send_email(
+    to_addr: str,
+    subject: str,
+    body: str,
+    html_body: str | None = None,
+    unsubscribe_url: str = '',
+) -> tuple[bool, str]:
     """Send one outbound email. Returns (ok, error_message)."""
     s = _smtp_settings()
     if not (s['server'] and s['port'] and s['user'] and s['password']):
@@ -54,6 +67,8 @@ def _send_email(to_addr: str, subject: str, body: str, html_body: str | None = N
     msg['Subject'] = subject
     msg['From'] = f"Montana Blotter <{s['user']}>"
     msg['To'] = to_addr
+    if unsubscribe_url:
+        msg['List-Unsubscribe'] = f'<{unsubscribe_url}>'
     msg.attach(MIMEText(body, 'plain'))
     if html_body:
         msg.attach(MIMEText(html_body, 'html'))
@@ -73,35 +88,65 @@ def _send_email(to_addr: str, subject: str, body: str, html_body: str | None = N
 # ---------------------------------------------------------------------------
 
 AUDIENCE_LABELS = {
-    'lawyers':       'Attorneys & Law Firms',
     'bail_bondsmen': 'Bail Bondsmen & Bail Agencies',
     'clients':       'Subscribers & Registered Users',
+    'jail_roster_leads': 'Jail Roster Upgrade Leads',
     'courts':        'Courts & Judicial Offices',
     'police':        'Police Departments & Sheriff Offices',
 }
 
 AUDIENCE_DESCRIPTIONS = {
-    'lawyers':       'Subscribers whose agency_name contains law, attorney, legal, firm, or counsel.',
     'bail_bondsmen': 'Subscribers whose agency_name contains bail, bond, surety, or bailiff.',
     'clients':       'All active subscribers plus registered public_users with valid email addresses.',
+    'jail_roster_leads': 'Active email subscribers who are not current Plus or Pro customers and have not received this promotion in 30 days.',
     'courts':        'Agencies in the emailed_agencies table whose name contains court, district, judicia, clerk, or mt.gov judicial addresses.',
     'police':        'Agencies in the emailed_agencies table whose name contains police, sheriff, pd, LEO, or records@ addresses.',
 }
 
 
+def _jail_roster_lead_rows(conn, limit: int | None = None):
+    """Return consented upgrade leads, excluding paid users and recent sends."""
+    sql = """
+        SELECT MIN(s.id) AS id,
+               LOWER(TRIM(s.email)) AS email,
+               MAX(COALESCE(s.agency_name, '')) AS name,
+               MAX(COALESCE(s.counties, '')) AS counties,
+               MAX(COALESCE(s.token, '')) AS token
+        FROM subscribers s
+        WHERE s.active = 1
+          AND TRIM(COALESCE(s.email, '')) LIKE '%@%'
+          AND TRIM(COALESCE(s.token, '')) != ''
+          AND NOT EXISTS (
+              SELECT 1 FROM public_users u
+              WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(s.email))
+                AND COALESCE(u.is_active, 1) = 1
+                AND COALESCE(u.is_subscribed, 0) = 1
+                AND LOWER(COALESCE(u.subscriber_plan, '')) IN (
+                    'plus', 'pro', 'insider', 'professional', 'warrant_access'
+                )
+                AND LOWER(COALESCE(u.subscription_status, '')) IN ('active', 'trialing', 'past_due')
+          )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM email_campaign_deliveries d
+              JOIN email_campaigns c ON c.id = d.campaign_id
+              WHERE LOWER(TRIM(d.recipient_email)) = LOWER(TRIM(s.email))
+                AND c.audience = 'jail_roster_leads'
+                AND d.status = 'sent'
+                AND datetime(d.sent_at) >= datetime('now', '-30 days')
+          )
+        GROUP BY LOWER(TRIM(s.email))
+        ORDER BY LOWER(TRIM(s.email))
+    """
+    params: tuple[int, ...] = ()
+    if limit is not None:
+        sql += ' LIMIT ?'
+        params = (limit,)
+    return conn.execute(sql, params).fetchall()
+
+
 def _count_recipients(conn, audience: str) -> int:
     """Return the number of distinct email addresses for a given audience segment."""
-    if audience == 'lawyers':
-        return conn.execute(
-            """SELECT COUNT(DISTINCT email) FROM subscribers
-               WHERE active = 1
-                 AND agency_name IS NOT NULL
-                 AND (
-                     agency_name LIKE '%law%' OR agency_name LIKE '%attorney%'
-                     OR agency_name LIKE '%legal%' OR agency_name LIKE '%firm%'
-                     OR agency_name LIKE '%counsel%' OR agency_name LIKE '%esquire%'
-                 )"""
-        ).fetchone()[0]
     if audience == 'bail_bondsmen':
         return conn.execute(
             """SELECT COUNT(DISTINCT email) FROM subscribers
@@ -120,6 +165,8 @@ def _count_recipients(conn, audience: str) -> int:
                    SELECT email FROM public_users WHERE is_active = 1 AND email IS NOT NULL AND email != ''
                )"""
         ).fetchone()[0]
+    if audience == 'jail_roster_leads':
+        return len(_jail_roster_lead_rows(conn))
     if audience == 'courts':
         return conn.execute(
             """SELECT COUNT(DISTINCT email_address) FROM emailed_agencies
@@ -148,20 +195,6 @@ def _count_recipients(conn, audience: str) -> int:
 
 def _sample_recipients(conn, audience: str, limit: int = 5) -> list[dict]:
     """Return a small sample of email addresses for preview."""
-    if audience == 'lawyers':
-        rows = conn.execute(
-            """SELECT DISTINCT email, agency_name FROM subscribers
-               WHERE active = 1
-                 AND agency_name IS NOT NULL
-                 AND (
-                     agency_name LIKE '%law%' OR agency_name LIKE '%attorney%'
-                     OR agency_name LIKE '%legal%' OR agency_name LIKE '%firm%'
-                     OR agency_name LIKE '%counsel%' OR agency_name LIKE '%esquire%'
-                 )
-               ORDER BY agency_name LIMIT ?""",
-            (limit,),
-        ).fetchall()
-        return [{'email': r['email'], 'name': r['agency_name'] or ''} for r in rows]
     if audience == 'bail_bondsmen':
         rows = conn.execute(
             """SELECT DISTINCT email, agency_name FROM subscribers
@@ -185,6 +218,9 @@ def _sample_recipients(conn, audience: str, limit: int = 5) -> list[dict]:
                ORDER BY name LIMIT ?""",
             (limit,),
         ).fetchall()
+        return [{'email': r['email'], 'name': r['name'] or ''} for r in rows]
+    if audience == 'jail_roster_leads':
+        rows = _jail_roster_lead_rows(conn, limit=limit)
         return [{'email': r['email'], 'name': r['name'] or ''} for r in rows]
     if audience == 'courts':
         rows = conn.execute(
@@ -222,21 +258,7 @@ def _collect_recipient_emails(conn, audience: str, extra_emails: str = '') -> li
     """Return the full list of recipient emails for a campaign send."""
     emails: set[str] = set()
 
-    if audience == 'lawyers':
-        rows = conn.execute(
-            """SELECT DISTINCT email FROM subscribers
-               WHERE active = 1
-                 AND agency_name IS NOT NULL
-                 AND (
-                     agency_name LIKE '%law%' OR agency_name LIKE '%attorney%'
-                     OR agency_name LIKE '%legal%' OR agency_name LIKE '%firm%'
-                     OR agency_name LIKE '%counsel%' OR agency_name LIKE '%esquire%'
-                 )"""
-        ).fetchall()
-        for r in rows:
-            if r['email']:
-                emails.add(r['email'].strip().lower())
-    elif audience == 'bail_bondsmen':
+    if audience == 'bail_bondsmen':
         rows = conn.execute(
             """SELECT DISTINCT email FROM subscribers
                WHERE active = 1
@@ -260,6 +282,9 @@ def _collect_recipient_emails(conn, audience: str, extra_emails: str = '') -> li
         for r in rows:
             if r['email']:
                 emails.add(r['email'].strip().lower())
+    elif audience == 'jail_roster_leads':
+        for row in _jail_roster_lead_rows(conn):
+            emails.add(row['email'])
     elif audience == 'courts':
         rows = conn.execute(
             """SELECT DISTINCT email_address FROM emailed_agencies
@@ -291,7 +316,7 @@ def _collect_recipient_emails(conn, audience: str, extra_emails: str = '') -> li
                 emails.add(r['email_address'].strip().lower())
 
     # Merge any manually-entered extra emails
-    if extra_emails:
+    if extra_emails and audience != 'jail_roster_leads':
         for raw in extra_emails.split(','):
             raw = raw.strip().lower()
             if '@' in raw and len(raw) < 254:
@@ -306,30 +331,11 @@ def _collect_recipient_emails(conn, audience: str, extra_emails: str = '') -> li
 
 DEFAULT_TEMPLATES = [
     {
-        'name': 'Lawyer Outreach - Premium Subscription Pitch',
-        'audience': 'lawyers',
-        'subject': 'Montana court records, arrests, and case data - direct access for your firm',
-        'body': """Dear [Name],
-
-Montana Blotter tracks public safety, court, and arrest records across all 56 Montana counties - updated daily. Thousands of attorneys, bail bondsmen, and legal professionals already rely on it to stay ahead of cases in their markets.
-
-I'd like to offer your firm direct access to our Pro tier:
-
-  - 12 months of searchable history
-  - Statewide alerts across unlimited counties
-  - Daily case and arrest email digests by county
-  - Name, case number, charge, and keyword monitoring
-  - Watchlists with status-change notifications
-  - CSV and PDF exports for case files
-
-The Pro plan runs $19.99/month or $199/year - and you can start with a free 7-day trial.
-
-Would you like me to set up a trial for your firm? Reply to this email and I'll get you set up today.
-
-[Your Name]
-Montana Blotter - Public Records, Made Useful
-https://montanablotter.com""",
-        'notes': 'Leads with specific Montana coverage and the Pro feature set. Short, professional, and action-oriented.',
+        'name': JAIL_ROSTER_CAMPAIGN_NAME,
+        'audience': 'jail_roster_leads',
+        'subject': JAIL_ROSTER_SUBJECT,
+        'body': JAIL_ROSTER_PLAIN_BODY,
+        'notes': 'Consent-based upgrade campaign. Excludes active Plus/Pro customers and suppresses successful recipients for 30 days.',
     },
     {
         'name': 'Bail Bondsman Outreach - Daily Arrest Digest + Lead Access',
@@ -496,11 +502,15 @@ def _ensure_template_schema(conn):
             audience        TEXT NOT NULL,
             subject         TEXT NOT NULL,
             body            TEXT NOT NULL,
+            html_body       TEXT,
             notes           TEXT DEFAULT '',
             created_at      TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
+    template_columns = {row[1] for row in conn.execute('PRAGMA table_info(email_templates)').fetchall()}
+    if 'html_body' not in template_columns:
+        conn.execute('ALTER TABLE email_templates ADD COLUMN html_body TEXT')
     conn.execute("""
         CREATE TABLE IF NOT EXISTS email_campaigns (
             id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -521,17 +531,38 @@ def _ensure_template_schema(conn):
             updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS email_campaign_deliveries (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id         INTEGER NOT NULL,
+            recipient_email     TEXT NOT NULL,
+            status              TEXT NOT NULL,
+            error_message       TEXT DEFAULT '',
+            sent_at             TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (campaign_id) REFERENCES email_campaigns(id) ON DELETE CASCADE,
+            UNIQUE (campaign_id, recipient_email)
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_email_campaign_deliveries_recipient
+        ON email_campaign_deliveries(recipient_email, sent_at)
+    """)
 
 
 def _seed_default_templates(conn):
-    """Insert the 6 built-in templates if the table is empty."""
-    count = conn.execute("SELECT COUNT(*) FROM email_templates").fetchone()[0]
-    if count > 0:
-        return
+    """Insert any missing built-in templates without duplicating existing rows."""
     for t in DEFAULT_TEMPLATES:
+        exists = conn.execute(
+            'SELECT 1 FROM email_templates WHERE name = ? LIMIT 1',
+            (t['name'],),
+        ).fetchone()
+        if exists:
+            continue
         conn.execute(
-            "INSERT INTO email_templates (name, audience, subject, body, notes) VALUES (?, ?, ?, ?, ?)",
-            (t['name'], t['audience'], t['subject'], t['body'], t.get('notes', '')),
+            """INSERT INTO email_templates
+               (name, audience, subject, body, html_body, notes)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (t['name'], t['audience'], t['subject'], t['body'], t.get('html_body'), t.get('notes', '')),
         )
     conn.commit()
 
@@ -563,6 +594,10 @@ def admin_email_dashboard():
         "SELECT id, name, audience, subject, updated_at, LENGTH(body) AS body_length FROM email_templates ORDER BY updated_at DESC"
     ).fetchall()
     templates = [dict(r) for r in templates]
+    jail_roster_template_id = next(
+        (t['id'] for t in templates if t['name'] == JAIL_ROSTER_CAMPAIGN_NAME),
+        None,
+    )
 
     recent = conn.execute(
         """SELECT id, campaign_name, audience, subject, status,
@@ -585,6 +620,7 @@ def admin_email_dashboard():
         templates=templates,
         recent=recent,
         audience_counts=audience_counts,
+        jail_roster_template_id=jail_roster_template_id,
     )
 
 
@@ -609,6 +645,10 @@ def admin_email_compose():
 
     recipient_count = _count_recipients(conn, audience)
     sample = _sample_recipients(conn, audience, limit=5)
+    audience_counts = {
+        audience_key: _count_recipients(conn, audience_key)
+        for audience_key in AUDIENCE_LABELS
+    }
 
     conn.close()
 
@@ -617,6 +657,7 @@ def admin_email_compose():
         selected_template=selected_template,
         audience=audience,
         recipient_count=recipient_count,
+        audience_counts=audience_counts,
         samplerecipients=sample,
     )
 
@@ -702,10 +743,15 @@ def admin_email_compose_submit():
     sent_by = getattr(current_user, 'username', 'admin')
 
     for i, email in enumerate(recipient_emails):
-        context: dict[str, str] = {'Name': '', 'Agency': '', 'County': '', 'AgencyName': '', 'Plan': ''}
+        context: dict[str, str] = {
+            'Name': '', 'Agency': '', 'County': '', 'AgencyName': '', 'Plan': '',
+            'PricingURL': f"{config.BASE_URL.rstrip('/')}/pricing?source=jail_roster_email",
+            'UnsubscribeURL': '',
+        }
 
         sub = conn.execute(
-            "SELECT agency_name, counties, subscriber_plan FROM subscribers WHERE email = ?",
+            """SELECT agency_name, counties, subscriber_plan, token
+               FROM subscribers WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))""",
             (email,),
         ).fetchone()
         if sub:
@@ -714,6 +760,10 @@ def admin_email_compose_submit():
             context['County'] = sub['counties'] or ''
             context['AgencyName'] = sub['agency_name'] or ''
             context['Plan'] = sub['subscriber_plan'] or ''
+            if sub['token']:
+                context['UnsubscribeURL'] = (
+                    f"{config.BASE_URL.rstrip('/')}/unsubscribe?token={quote(sub['token'], safe='')}"
+                )
         else:
             pu = conn.execute(
                 "SELECT display_name, subscriber_plan FROM public_users WHERE email = ?",
@@ -733,8 +783,31 @@ def admin_email_compose_submit():
 
         personalized_body = _render_template(body, context)
         personalized_subject = _render_template(subject, context)
+        personalized_html = _render_template(html_body, context) if html_body else None
+        if audience == 'jail_roster_leads' and not personalized_html:
+            personalized_html = build_jail_roster_html(
+                context['Name'] or 'there',
+                context['PricingURL'],
+                context['UnsubscribeURL'],
+            )
 
-        ok, err = _send_email(email, personalized_subject, personalized_body, html_body or None)
+        ok, err = _send_email(
+            email,
+            personalized_subject,
+            personalized_body,
+            personalized_html,
+            context['UnsubscribeURL'],
+        )
+        conn.execute(
+            """INSERT INTO email_campaign_deliveries
+               (campaign_id, recipient_email, status, error_message, sent_at)
+               VALUES (?, ?, ?, ?, datetime('now'))
+               ON CONFLICT(campaign_id, recipient_email) DO UPDATE SET
+                   status = excluded.status,
+                   error_message = excluded.error_message,
+                   sent_at = excluded.sent_at""",
+            (campaign_id, email, 'sent' if ok else 'failed', err),
+        )
         if ok:
             success_count += 1
         else:
@@ -795,6 +868,31 @@ def admin_email_templates():
         search=search,
         audience_filter=audience_filter,
     )
+
+
+@admin_bp.route('/email/templates/new')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_email_templates_create():
+    """Open the focused new-template form."""
+    return render_template('admin_email_templates_create.html')
+
+
+@admin_bp.route('/email/templates/<int:template_id>/edit')
+@login_required
+@require_role(*ADMIN_ACCESS_ROLES)
+def admin_email_templates_edit(template_id):
+    """Open an existing reusable template for editing."""
+    conn = get_db()
+    _ensure_template_schema(conn)
+    row = conn.execute(
+        'SELECT * FROM email_templates WHERE id = ?', (template_id,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        flash('Email template not found.', 'error')
+        return redirect(url_for('admin.admin_email_templates'))
+    return render_template('admin_email_templates_edit.html', template=dict(row))
 
 
 @admin_bp.route('/email/templates', methods=['POST'])

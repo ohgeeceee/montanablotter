@@ -2,10 +2,10 @@
 email notifier in services/disposition/watcher.py.
 
 Covers:
-- GET /admin/case-watch renders for an authenticated admin
+- GET /admin/content/case-watch renders for an authenticated admin
 - ?pending=1 filter narrows the listing
-- POST /admin/case-watch/mark-notified stamps notified_admin_at
-- POST /admin/case-watch/refresh runs the refresh path
+- POST /admin/content/case-watch/mark-notified stamps notified_admin_at
+- POST /admin/content/case-watch/refresh runs the refresh path
 - Unauthenticated requests are redirected to login
 - notify_admin_of_new_outcomes() — no pending → no-op
 - notify_admin_of_new_outcomes() — successful send marks links notified
@@ -187,7 +187,7 @@ class AdminCaseWatchViewTests(_BaseCaseWatchTest):
     def test_list_renders_with_pending_and_stats(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
-        response = client.get('/admin/case-watch')
+        response = client.get('/admin/content/case-watch')
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn('Case Watch', html)
@@ -199,7 +199,7 @@ class AdminCaseWatchViewTests(_BaseCaseWatchTest):
     def test_pending_filter_excludes_already_notified(self) -> None:
         client = app_module.app.test_client()
         self._login_admin_session(client)
-        response = client.get('/admin/case-watch?pending=1')
+        response = client.get('/admin/content/case-watch?pending=1')
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn('Test, Anna Lynn', html)
@@ -211,7 +211,7 @@ class AdminCaseWatchViewTests(_BaseCaseWatchTest):
         client = app_module.app.test_client()
         self._login_admin_session(client)
         response = client.post(
-            '/admin/case-watch/mark-notified',
+            '/admin/content/case-watch/mark-notified',
             data={'link_id': str(self.link_a), 'csrf_token': 'test-csrf-token'},
             follow_redirects=False,
         )
@@ -242,7 +242,7 @@ class AdminCaseWatchViewTests(_BaseCaseWatchTest):
             conn.close()
 
         response = client.post(
-            '/admin/case-watch/mark-notified',
+            '/admin/content/case-watch/mark-notified',
             data={'csrf_token': 'test-csrf-token'},
             follow_redirects=False,
         )
@@ -264,7 +264,7 @@ class AdminCaseWatchViewTests(_BaseCaseWatchTest):
         client = app_module.app.test_client()
         self._login_admin_session(client)
         response = client.post(
-            '/admin/case-watch/refresh',
+            '/admin/content/case-watch/refresh',
             data={'csrf_token': 'test-csrf-token'},
             follow_redirects=False,
         )
@@ -272,7 +272,7 @@ class AdminCaseWatchViewTests(_BaseCaseWatchTest):
 
     def test_unauthenticated_redirects(self) -> None:
         client = app_module.app.test_client()
-        response = client.get('/admin/case-watch', follow_redirects=False)
+        response = client.get('/admin/content/case-watch', follow_redirects=False)
         self.assertIn(response.status_code, (302, 303))
 
 

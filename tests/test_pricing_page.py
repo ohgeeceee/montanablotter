@@ -28,13 +28,20 @@ class PricingPageTests(unittest.TestCase):
         if os.path.exists(self.db_path):
             os.unlink(self.db_path)
 
-    def test_pricing_page_monthly_buttons_use_direct_stripe_link(self) -> None:
+    def test_pricing_page_monthly_buttons_use_checkout_links(self) -> None:
+        # The pricing redesign routes subscriptions through the internal
+        # Stripe checkout flow (/checkout/<plan>?interval=...) instead of
+        # embedding raw buy.stripe.com links. Signed-out visitors are first
+        # sent through /register?next=... pointing at the same checkout URL.
         client = app_module.app.test_client()
         response = client.get('/pricing')
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(html.count('https://buy.stripe.com/28E14nfDS4O0gUa9KB8EM04'), 2)
+        self.assertIn('/checkout/plus', html)
+        self.assertIn('/checkout/pro', html)
+        self.assertEqual(html.count('interval%3Dmonthly'), 2)
+        self.assertIn('/login?next=/pricing', html)
 
 
 if __name__ == '__main__':

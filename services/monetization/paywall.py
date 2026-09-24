@@ -38,6 +38,16 @@ PLAN_LABELS = {
     'pro': 'Pro',
 }
 
+# Legacy plan names written by older checkout flows. Remapped at read time to
+# the current tiers (mirrors the write-time map in
+# app._apply_subscription_stripe_event: insider -> plus, professional -> pro,
+# warrant_access -> plus).
+LEGACY_PLAN_REMAP = {
+    'insider': 'plus',
+    'professional': 'pro',
+    'warrant_access': 'plus',
+}
+
 # ---------------------------------------------------------------------------
 # Feature matrix
 # Each feature maps to the minimum plan level required.
@@ -59,6 +69,7 @@ FEATURES = {
     'saved_searches':      1,     # plus: 10 saved searches
     'saved_searches_unlimited': 2, # pro: unlimited
     'daily_digest':        1,     # plus: daily digest email
+    'jail_roster_digest':  1,     # plus: up to 5 counties; pro: statewide
 
     # Case tracking
     'case_tracking':       1,     # plus: track 5 cases
@@ -79,8 +90,6 @@ FEATURES = {
     'county_analytics':    1,     # plus: per-county trends
     'statewide_analytics': 2,     # pro: statewide comparisons
     # Directory & Listings
-    'lawyer_listing':        1,     # plus: lawyer directory listing
-    'lawyer_listing_unlimited': 2,  # pro: unlimited lawyer listings
     'recovery_listing':      1,     # plus: recovery center listing
     'recovery_listing_unlimited': 2, # pro: unlimited recovery listings
     'directory_featured':    1,     # plus: featured directory placement
@@ -91,7 +100,6 @@ FEATURES = {
     'leaderboard_ad_unlimited': 2,  # pro: unlimited leaderboard ads
 
     # Analytics & Reporting
-    'lawyer_performance':    1,     # plus: lawyer ad performance stats
     'recovery_performance':  1,     # plus: recovery ad performance stats
     'ad_revenue_report':     2,     # pro: detailed ad revenue reports
 
@@ -101,7 +109,6 @@ FEATURES = {
     'referral_bounties':     2,     # pro: referral bounties for new users
 
     # Exports & API
-    'lawyer_api_access':     2,     # pro: lawyer ad API access
     'recovery_api_access':   2,     # pro: recovery ad API access
 }
 
@@ -192,6 +199,11 @@ def _generate_session_id() -> str:
 # Plan resolution
 # ---------------------------------------------------------------------------
 
+def normalize_plan(plan: str | None) -> str:
+    """Return the current-tier name for a stored plan (legacy-aware)."""
+    name = (plan or 'free').strip().lower()
+    return LEGACY_PLAN_REMAP.get(name, name)
+
 def get_user_plan() -> str:
     """Return the effective plan for the current requester."""
     if current_user.is_authenticated:
@@ -207,20 +219,18 @@ def get_user_plan() -> str:
         finally:
             conn.close()
         if row:
-            plan = (row['subscriber_plan'] or 'free').strip().lower()
-            status = (row['subscription_status'] or '').strip().lower()
             # Warrant access is sold as its own Stripe product but is treated as
             # the 'plus' tier for feature/access purposes (see app.py webhook
             # remap warrant_access -> plus). Resolve it so the gate and feature
             # matrix see a recognized plan.
-            if plan == 'warrant_access' and status in ('active', 'trialing'):
-                return 'plus'
+            plan = normalize_plan(row['subscriber_plan'])
+            status = (row['subscription_status'] or '').strip().lower()
             if plan in PLAN_HIERARCHY and status in ('active', 'trialing'):
                 return plan
     return 'free'
 
 def get_plan_level(plan: str) -> int:
-    return PLAN_HIERARCHY.get(plan, 0)
+    return PLAN_HIERARCHY.get(normalize_plan(plan), 0)
 
 # ---------------------------------------------------------------------------
 # Feature gates

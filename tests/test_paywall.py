@@ -140,7 +140,7 @@ class TestPaywall(unittest.TestCase):
         with self.app.test_request_context():
             flask_session['public_user_id'] = uid
             with self._mock_anon():
-                self.assertEqual(self.get_user_plan(), 'professional')
+                self.assertEqual(self.get_user_plan(), 'pro')
                 self.assertTrue(self.user_has_access('insider'))
 
 

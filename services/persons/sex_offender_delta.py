@@ -1,8 +1,8 @@
 """
 Violent / Sexual Offender Registry Delta Engine
 
-Compares current state against previous snapshot, classifies changes,
-and writes sex_offender_changes records.
+Compares current state against previous snapshot's stored active_state_json,
+classifies changes, and writes sex_offender_changes records.
 
 Usage:
     python sex_offender_delta.py
@@ -41,27 +41,26 @@ def _classify_change(old: dict[str, Any] | None, new: dict[str, Any] | None) -> 
 def compute_delta(conn: sqlite3.Connection, snapshot_id: int) -> list[dict[str, Any]]:
     """Compute delta since last snapshot and write change records."""
     prev = conn.execute(
-        'SELECT id FROM sex_offender_snapshots WHERE id < ? ORDER BY id DESC LIMIT 1',
+        'SELECT id, active_state_json FROM sex_offender_snapshots WHERE id < ? AND active_state_json IS NOT NULL ORDER BY id DESC LIMIT 1',
         (snapshot_id,),
     ).fetchone()
 
     changes = []
 
     if prev:
-        prev_id = prev['id']
-        prev_offenders = {
-            r['registry_id']: dict(r)
-            for r in conn.execute(
-                'SELECT * FROM sex_offenders WHERE last_seen_at <= (SELECT snapshot_date FROM sex_offender_snapshots WHERE id = ?)',
-                (prev_id,),
-            ).fetchall()
-        }
+        prev_offenders = json.loads(prev['active_state_json'])
     else:
         prev_offenders = {}
 
     current_offenders = {
-        r['registry_id']: dict(r)
-        for r in conn.execute("SELECT * FROM sex_offenders WHERE status = 'active'").fetchall()
+        str(r['registry_id']): {
+            'address_street': r['address_street'],
+            'address_city': r['address_city'],
+            'address_county': r['address_county'],
+            'status': r['status'],
+            'risk_level': r['risk_level'],
+        }
+        for r in conn.execute("SELECT registry_id, address_street, address_city, address_county, status, risk_level FROM sex_offenders WHERE status = 'active'").fetchall()
     }
 
     all_ids = set(prev_offenders.keys()) | set(current_offenders.keys())
@@ -73,9 +72,20 @@ def compute_delta(conn: sqlite3.Connection, snapshot_id: int) -> list[dict[str, 
         if old == new:
             continue
 
-        change_type, note = _classify_change(old, new)
-        offender = new or old
-        offender_id = offender['id']
+        # Get full offender record for name/county lookup
+        offender_row = conn.execute(
+            'SELECT id, full_name, address_county FROM sex_offenders WHERE registry_id = ?',
+            (rid,),
+        ).fetchone()
+        offender_id = offender_row['id'] if offender_row else None
+        full_name = offender_row['full_name'] if offender_row else 'Unknown'
+        address_county = offender_row['address_county'] if offender_row else 'Unknown'
+
+        # Only pass full_name/county when there's a real record (don't mask None)
+        old_aug = {**old, 'full_name': full_name, 'address_county': address_county} if old is not None else None
+        new_aug = {**new, 'full_name': full_name, 'address_county': address_county} if new is not None else None
+
+        change_type, note = _classify_change(old_aug, new_aug)
 
         conn.execute(
             '''

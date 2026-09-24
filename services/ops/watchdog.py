@@ -33,6 +33,7 @@ class MonitoredJob:
     log_path: Path
     max_age_hours: float
     cadence: str
+    first_due_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,23 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("jail_booking_ingest_ravalli", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
     MonitoredJob("jail_booking_ingest_missoula", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
     MonitoredJob("jail_booking_ingest_all", LOGS / "jail_booking_ingest.log", 8, "every 4 hours"),
+    MonitoredJob("jail_booking_ingest_cascade", LOGS / "jail_booking_ingest.log", 26, "daily"),
+    MonitoredJob("jail_booking_ingest_hill", LOGS / "jail_booking_ingest.log", 2, "every 15 minutes"),
+    MonitoredJob("jail_booking_ingest_valley", LOGS / "jail_booking_ingest.log", 26, "daily"),
+    MonitoredJob("jail_booking_ingest_chouteau", LOGS / "jail_booking_ingest.log", 26, "daily"),
+    MonitoredJob("jail_booking_ingest_glacier", LOGS / "jail_booking_ingest.log", 2, "every 15 minutes"),
+    MonitoredJob("jail_booking_ingest_statewide_daily", LOGS / "jail_booking_ingest.log", 26, "daily"),
+    MonitoredJob("warrant_ingest", LOGS / "warrant_ingest.log", 8, "every 6 hours"),
+    MonitoredJob("prune_page_views", LOGS / "prune_page_views.log", 26, "daily"),
+    # Installed August 31, after the July slot; first scheduled run is October 1.
+    MonitoredJob("seasonal_roundup", LOGS / "seasonal_roundup.log", 2256, "seasonal",
+                 datetime(2026, 10, 1, 6, 15, tzinfo=timezone.utc)),
+    MonitoredJob("odc_discipline_monthly", LOGS / "odc_discipline.log", 750, "monthly"),
+    MonitoredJob("compress_mugshots", LOGS / "compress_mugshots.log", 26, "daily"),
+    MonitoredJob("lea_normalize", LOGS / "lea_normalize.log", 1, "every 5 minutes"),
+    MonitoredJob("lea_roster_ingest", LOGS / "lea_roster_ingest.log", 8, "every 4 hours"),
+    MonitoredJob("missing_person_sync", LOGS / "missing_person_sync.log", 2, "every 15 minutes"),
+    MonitoredJob("score_humor", LOGS / "score_humor.log", 2, "hourly"),
     MonitoredJob("morning_briefing", LOGS / "morning_briefing.log", 26, "daily"),
     MonitoredJob("run_civic_publish", Path("/var/log/civic-publish.log"), 1, "every 10 minutes"),
     MonitoredJob("supreme_court_outcomes", LOGS / "supreme_court_outcomes.log", 26, "daily"),
@@ -86,16 +104,13 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("missoula_public_report", LOGS / "missoula_fetcher.log", 2, "hourly"),
     MonitoredJob("sex_offender_sync", LOGS / "sex_offender_sync.log", 30, "twice daily"),
     MonitoredJob("sex_offender_source_alerts", LOGS / "sex_offender_source_alerts.log", 8, "every 6 hours"),
-    # Per-firm lawyer outreach cadence — nightly import + queue.
-    # Logs to logs/lawyer_outreach_cadence.log. Cron never sends; admin
-    # blueprint is the only SMTP path. Daily cadence → 26h freshness window.
-    MonitoredJob("lawyer_outreach_cadence", LOGS / "lawyer_outreach_cadence.log", 26, "daily"),
 )
 
-# STATE_JOBS watches rows in the `scheduled_job_state` table — populated by
-# workers that explicitly record their own heartbeat. Currently nothing writes
-# to that table.
-STATE_JOBS: tuple[MonitoredStateJob, ...] = ()
+# job_runner records completion and exit status. A freshly written failure log
+# is not evidence that the Missoula source was successfully ingested.
+STATE_JOBS: tuple[MonitoredStateJob, ...] = (
+    MonitoredStateJob("missoula_public_report", 2, "hourly"),
+)
 
 SUCCESS_STATUSES = {"ok", "success"}
 
@@ -120,7 +135,11 @@ def _check_job(job: MonitoredJob, now: datetime) -> dict[str, object]:
     else:
         status = "missing"
 
+    if not exists and job.first_due_at and now < job.first_due_at:
+        status = "not_due"
+
     return {
+        "first_due_at": _isoformat(job.first_due_at),
         "name": job.name,
         "kind": "job",
         "cadence": job.cadence,
@@ -359,20 +378,21 @@ def _check_web_service() -> dict[str, object]:
 
 def run_watchdog() -> tuple[int, dict[str, object]]:
     now = datetime.now(timezone.utc)
+    state_names = {job.name for job in STATE_JOBS}
     job_checks = [
-        *[_check_job(job, now) for job in JOBS],
+        *[_check_job(job, now) for job in JOBS if job.name not in state_names],
         *[_check_state_job(job, now) for job in STATE_JOBS],
     ]
     service_checks = [_check_systemd_service(), _check_agent_events_service(), _check_web_service()]
     checks = [*service_checks, *job_checks]
-    failing = [item for item in checks if item["status"] != "ok"]
+    failing = [item for item in checks if item["status"] not in {"ok", "not_due"}]
     payload = {
         "checked_at": _isoformat(now),
         "job_count": len(job_checks),
         "service_count": len(service_checks),
         "failing_count": len(failing),
-        "failing_jobs": [item["name"] for item in job_checks if item["status"] != "ok"],
-        "failing_services": [item["name"] for item in service_checks if item["status"] != "ok"],
+        "failing_jobs": [item["name"] for item in job_checks if item["status"] not in {"ok", "not_due"}],
+        "failing_services": [item["name"] for item in service_checks if item["status"] not in {"ok", "not_due"}],
         "status": "ok" if not failing else "error",
         "service_checks": service_checks,
         "job_checks": job_checks,

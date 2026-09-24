@@ -30,19 +30,11 @@
     {% if title %}
     <div class="adm-card__header">
       <h2 class="adm-card__title">{{ title }}</h2>
-      {% if caller is defined %}{{ caller() }}{% endif %}
     </div>
     {% endif %}
     <div class="adm-card__body">
       {{ caller() }}
     </div>
-    {% if footer %}
-    </div>
-    <div style="padding:0.6rem 1.1rem; border-top:1px solid var(--adm-border); display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap;">
-      {{ caller() }}
-    </div>
-    <div class="adm-card__body" style="display:none;"></div>
-    {% endif %}
   </section>
 {% endmacro %}
 

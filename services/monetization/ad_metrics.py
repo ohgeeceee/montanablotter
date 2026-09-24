@@ -14,7 +14,7 @@ numbers. Centralizing the rollup here means:
 
 * Future analytics dashboards can call one function.
 * Tests for the rollup logic live in one place.
-* Adding a third ad product (e.g. attorney directory) only requires writing a
+* Adding a third ad product only requires writing a
   new aggregator that conforms to the same return shape.
 
 Public API:

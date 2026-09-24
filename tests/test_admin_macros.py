@@ -91,8 +91,8 @@ class AdminMacrosTests(unittest.TestCase):
 
     def test_form_field_renders_input(self) -> None:
         html = self._render('{% from "admin/_macros.html" import form_field %}{{ form_field("email", "Email", type="email", value="x@y.com", required=True) }}')
-        self.assertIn('adm-label-form', html)
-        self.assertIn('adm-input', html)
+        self.assertIn('adm-field__label', html)
+        self.assertIn('adm-field__input', html)
         self.assertIn('name="email"', html)
         self.assertIn('type="email"', html)
         self.assertIn('value="x@y.com"', html)
@@ -103,7 +103,7 @@ class AdminMacrosTests(unittest.TestCase):
             '{% from "admin/_macros.html" import form_select %}'
             '{{ form_select("status", "Status", ["active", "queued"], value="active") }}'
         )
-        self.assertIn('adm-select', html)
+        self.assertIn('adm-field__select', html)
         self.assertIn('name="status"', html)
         self.assertIn('value="active"', html)
         self.assertIn('value="queued"', html)
@@ -116,7 +116,7 @@ class AdminMacrosTests(unittest.TestCase):
             '{% from "admin/_macros.html" import shortcut_card %}'
             '{{ shortcut_card("Ingestion", "Health", href="/admin/ingestion", accent="amber") }}'
         )
-        self.assertIn('adm-cmd adm-cmd--amber', html)
+        self.assertIn('adm-shortcut adm-shortcut--amber', html)
         self.assertIn('href="/admin/ingestion"', html)
         self.assertIn('Ingestion', html)
         self.assertIn('Health', html)

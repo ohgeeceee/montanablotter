@@ -1,0 +1,78 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Resources & Directories" %}
+{% set meta_description = "Montana Blotter's free public resource directories: defense attorneys by county and addiction & mental-health treatment lines." %}
+{% set canonical_url = "https://montanablotter.com/resources" %}
+{% set og_title = "Resources & Directories" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}resources-page{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Resources</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div>
+            <p class="public-eyebrow">Public Directories</p>
+            <h1 class="public-title public-title--medium">Help, plainly listed.</h1>
+            <p class="public-copy">
+                Two free directories, kept short on purpose. One pairs readers with criminal-defense attorneys who have confirmed they take cases in their county. The other lists addiction and mental-health treatment lines &mdash; including statewide crisis numbers that answer 24/7.
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+
+        {% include "includes/resources_dir_nav.html" %}
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;">
+            <article class="public-card" style="background: linear-gradient(180deg, #fffdf0 0%, #fff 60%); border-top: 4px solid #c9a227;">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Legal help</p>
+                    <h2 class="public-card__title">Defense attorneys by county</h2>
+                    <p class="public-card__text">
+                        An opt-in directory of Montana-licensed criminal defense attorneys. Every listing has confirmed they accept cases in the counties shown. It is not legal advice and not an endorsement &mdash; it is a starting point.
+                    </p>
+                    <p>
+                        <a href="/attorneys" class="mb-button mb-button--secondary mb-button--sm">Browse the attorney directory</a>
+                    </p>
+                </div>
+            </article>
+
+            <article class="public-card" style="background: linear-gradient(180deg, #fffdf0 0%, #fff 60%); border-top: 4px solid #16a085;">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Recovery help</p>
+                    <h2 class="public-card__title">Treatment &amp; recovery resources</h2>
+                    <p class="public-card__text">
+                        A county-by-county directory of addiction treatment and mental-health resources, led by statewide crisis and treatment lines that answer around the clock. This is not medical advice; in an emergency, call 911.
+                    </p>
+                    <p>
+                        <a href="/treatment-centers" class="mb-button mb-button--secondary mb-button--sm">Browse treatment resources</a>
+                    </p>
+                </div>
+            </article>
+        </div>
+
+    </main>
+
+    <aside class="public-sidebar-stack">
+        <section class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Keep these pages honest</p>
+                <p class="public-card__text" style="font-size:0.9rem;">
+                    Both directories are free to be listed in and content-only &mdash; no checkout, no lead capture. If a listing is wrong or stale, email
+                    <a href="mailto:records@montanablotter.com" style="color:#2563eb;">records@montanablotter.com</a>.
+                </p>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}

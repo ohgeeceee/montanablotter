@@ -54,9 +54,19 @@ from blueprints.lea_panel import register_lea_panel
 from blueprints.lea_portal import register_lea_portal
 from blueprints.lea_connect import register_lea_connect
 from blueprints.recovery_ads import recovery_ads_bp
-from blueprints.attorney_ads import attorney_ads_bp
-from blueprints.attorney_checkout import attorney_checkout_bp
 from blueprints.lawyer_ads import lawyer_ads_bp
+from blueprints.bail_bond_ads import bail_bond_ads_bp
+from blueprints.bail_bond_ads import (
+    _normalize_bail_county,
+    _bail_ad_checkout_ready,
+    _bail_ad_public_packages,
+    _bail_lead_routing_targets,
+    _ensure_bail_consumer_lead_schema,
+    _active_bail_ad_listings,
+    _bail_county_sections,
+    _bail_help_contact,
+    _all_bail_counties,
+)
 from blueprints.threedhub import threedhub_bp
 from blueprints.chat_agent import chat_agent_bp
 from blueprints.sitemap import sitemap_bp
@@ -1142,8 +1152,7 @@ def enforce_billing_csrf():
             return redirect(request.referrer), 400
         if request.path.startswith('/lawyer-control-panel/'):
             return redirect(url_for('lawyer_ads.lawyers_directory')), 400
-        # Default: send the buyer back to the listing package page.
-        return redirect(url_for('lawyer_ads.advertise_lawyers')), 400
+        return redirect('/'), 400
 
 
 @app.before_request
@@ -1510,25 +1519,6 @@ def _admin_financial_pulse() -> dict:
             cycle = (row['billing_cycle'] or 'monthly').lower()
             pkg = law_pkg.get(row['package_id']) or {}
             monthly = int(row['amount_cents'] or 0) or (pkg.get('price_monthly_cents') or 0)
-            annual = pkg.get('price_annual_cents') or 0
-            if cycle == 'annual':
-                mrr_cents += annual // 12
-            else:
-                mrr_cents += monthly
-                total_rev_cents += monthly
-
-        att_pkg = {}
-        try:
-            from blueprints import attorney_checkout as _att_mod
-            att_pkg = _att_mod._attorney_package_lookup()
-        except Exception:
-            att_pkg = {}
-        for row in _safe(
-            "SELECT package_id, billing_cycle FROM attorney_checkout_orders WHERE status = 'active'"
-        ):
-            cycle = (row['billing_cycle'] or 'monthly').lower()
-            pkg = att_pkg.get(row['package_id']) or {}
-            monthly = pkg.get('price_monthly_cents') or 0
             annual = pkg.get('price_annual_cents') or 0
             if cycle == 'annual':
                 mrr_cents += annual // 12
@@ -2412,1812 +2402,6 @@ def _sync_public_user_subscription_from_donations(conn, public_user_id, email):
         )
 
 
-def _bail_ad_packages():
-    return [
-        {
-            'id': 'exclusive_county_sponsorship',
-            'name': 'The Horizon Exclusive',
-            'type': 'County Sponsorship',
-            'price_monthly_cents': 15000,
-            'price_annual_cents': 180000,
-            'county_slots': 1,
-            'badge': 'County Sponsorship',
-            'price_label_monthly': '$150 - $350',
-            'short_description': 'Exclusive county feed sponsorship with hyper-local branding.',
-            'full_description': 'Reserve a single county feed for one agency only and own the local arrest audience in that market.',
-            'pricing_model': 'county_tiered',
-            'features': [
-                'Exclusive county feed sponsorship',
-                'Single agency per county',
-                'Hyper-local branding',
-            ],
-            'cta': 'Select County',
-            'highlight': False,
-        },
-        {
-            'id': 'emergency_call_sidebar',
-            'name': 'The Summit Sidebar',
-            'type': 'Emergency Call Sidebar',
-            'price_monthly_cents': 30000,
-            'price_annual_cents': 360000,
-            'county_slots': 0,
-            'badge': 'Emergency Call Sidebar',
-            'short_description': 'Sticky 300x600 visibility built for emergency response traffic.',
-            'full_description': 'Stay visible through long scroll sessions with a persistent sidebar unit optimized for immediate mobile action.',
-            'features': [
-                '300x600 sticky sidebar unit',
-                'Persistent visibility on scroll',
-                'Mobile-first tap-to-call',
-            ],
-            'cta': 'Claim Sidebar',
-            'highlight': False,
-        },
-        {
-            'id': 'featured_bondsman_banner',
-            'name': 'The Big Sky Header',
-            'type': 'Top Banner Placement',
-            'price_monthly_cents': 45000,
-            'price_annual_cents': 540000,
-            'county_slots': 0,
-            'badge': 'Top Banner Placement',
-            'short_description': 'Premium statewide header built for first-view visibility.',
-            'full_description': 'Own the first thing readers see with a 970x250 placement spanning MontanaBlotter arrest coverage.',
-            'features': [
-                '970x250 premium header',
-                'Top-of-feed statewide visibility',
-                'First-view real estate',
-            ],
-            'cta': 'Secure Header',
-            'highlight': False,
-        },
-        {
-            'id': 'gold_bond_bundle',
-            'name': 'The Gold Bond Bundle',
-            'type': 'Market Dominance',
-            'price_monthly_cents': 65000,
-            'price_annual_cents': 780000,
-            'county_slots': 2,
-            'badge': 'Market Dominance',
-            'short_description': 'Header, sidebar, and county exclusivity bundled into one featured package.',
-            'full_description': 'Take over the highest-intent surfaces across MontanaBlotter with bundled pricing and multi-touch coverage.',
-            'features': [
-                'Includes Header + Sidebar',
-                'Plus 2 Exclusive Counties',
-                '15% bundled discount applied',
-            ],
-            'cta': 'Dominate Market',
-            'highlight': True,
-        },
-        {
-            'id': 'silver_link',
-            'name': 'The Silver Link',
-            'price_monthly_cents': 35000,
-            'price_annual_cents': 350000,
-            'county_slots': 1,
-            'badge': 'Sidebar + one county feed',
-            'legacy': True,
-            'active': False,
-            'features': [
-                'Emergency Call sticky sidebar ad placement',
-                'Sponsored link placement in one county feed',
-                'Mobile-first tap-to-call call-to-action',
-            ],
-        },
-        {
-            'id': 'gold_bond',
-            'name': 'The Gold Bond',
-            'price_monthly_cents': 65000,
-            'price_annual_cents': 650000,
-            'county_slots': 2,
-            'badge': 'Top banner + sidebar + 2 counties',
-            'legacy': True,
-            'active': False,
-            'features': [
-                'Featured Bondsman top banner placement',
-                'Emergency Call sticky sidebar placement',
-                'Sponsored coverage in two county feeds',
-            ],
-        },
-        {
-            'id': 'state_power',
-            'name': 'The State Power',
-            'price_monthly_cents': 150000,
-            'price_annual_cents': 1500000,
-            'county_slots': len(COUNTY_DATA),
-            'all_counties': True,
-            'badge': 'Statewide takeover package',
-            'legacy': True,
-            'active': False,
-            'features': [
-                'Top banner placement on all pages',
-                'Emergency Call sticky sidebar placement',
-                'County coverage across all Montana counties',
-            ],
-        },
-    ]
-
-
-def _bail_ad_public_packages():
-    return [pkg for pkg in _bail_ad_packages() if pkg.get('active', True)]
-
-
-def _format_bail_ad_currency(cents):
-    return f"${int(cents or 0) / 100:,.0f}"
-
-
-def _safe_bail_ad_simulator_image_url(raw_value):
-    value = (raw_value or '').strip()[:1000]
-    if not value:
-        return ''
-    parsed = urlparse(value)
-    if parsed.scheme in {'http', 'https'} and parsed.netloc:
-        return value
-    if not parsed.scheme and value.startswith('/'):
-        return value
-    return ''
-
-
-def _bail_ad_pricing_cards(package_options):
-    cards = []
-    for pkg in package_options:
-        cards.append(
-            {
-                'id': pkg['id'],
-                'name': pkg.get('name') or '',
-                'type': pkg.get('type') or pkg.get('badge') or '',
-                'price': pkg.get('price_label_monthly') or _format_bail_ad_currency(pkg.get('price_monthly_cents')),
-                'annual': f"{_format_bail_ad_currency(pkg.get('price_annual_cents'))}/yr",
-                'features': list(pkg.get('features') or []),
-                'cta': pkg.get('cta') or 'Select Package',
-                'highlight': bool(pkg.get('highlight')),
-                'checkoutUrl': url_for('payments.advertise_bail_bonds_checkout', package=pkg['id'], source='package_card'),
-            }
-        )
-    return cards
-
-
-def _bail_ad_package_id_for_simulator_view(view_name=''):
-    return 'emergency_call_sidebar' if (view_name or '').strip().lower() == 'sidebar' else 'featured_bondsman_banner'
-
-
-def _bail_ad_simulator_view_for_package(package_id=''):
-    return 'sidebar' if _normalize_bail_ad_package_id(package_id) == 'emergency_call_sidebar' else 'banner'
-
-
-def _bail_ad_simulator_preview(order):
-    return {
-        'logo_path': _safe_bail_ad_simulator_image_url((order or {}).get('simulator_logo_path') or ''),
-        'target_url': ((order or {}).get('simulator_target_url') or '').strip()[:300],
-        'share_url': ((order or {}).get('simulator_share_url') or '').strip()[:500],
-        'view': ((order or {}).get('simulator_view') or '').strip().lower()[:24],
-    }
-
-
-def _bail_ad_package_aliases():
-    return {
-        'starter': 'exclusive_county_sponsorship',
-        'growth': 'gold_bond_bundle',
-        'dominance': 'gold_bond_bundle',
-        'featured': 'featured_bondsman_banner',
-        'sidebar': 'emergency_call_sidebar',
-        'county': 'exclusive_county_sponsorship',
-        'gold_bundle': 'gold_bond_bundle',
-    }
-
-
-def _normalize_bail_ad_package_id(raw_value):
-    token = (raw_value or '').strip().lower()
-    if not token:
-        return ''
-    return _bail_ad_package_aliases().get(token, token)
-
-
-def _bail_ad_package_lookup():
-    lookup = {pkg['id']: pkg for pkg in _bail_ad_packages()}
-    for legacy_id, package_id in _bail_ad_package_aliases().items():
-        package = lookup.get(package_id)
-        if package:
-            lookup[legacy_id] = package
-    return lookup
-
-
-def _bail_ad_addons():
-    return [
-        {
-            'id': 'in_feed_integration',
-            'name': 'In-Feed Integration',
-            'description': 'Sponsored in-feed placement every 5th or 10th arrest entry.',
-            'price_monthly_cents': 20000,
-            'price_annual_cents': 200000,
-        },
-    ]
-
-
-def _bail_ad_addon_lookup():
-    return {addon['id']: addon for addon in _bail_ad_addons()}
-
-
-def _parse_addon_ids(raw_values):
-    lookup = _bail_ad_addon_lookup()
-    out = []
-    seen = set()
-    for raw in raw_values or []:
-        token = (raw or '').strip().lower()
-        if token in lookup and token not in seen:
-            seen.add(token)
-            out.append(token)
-    return out
-
-
-def _parse_budget_cents(raw_value):
-    token = (raw_value or '').strip().replace('$', '').replace(',', '')
-    if not token:
-        return None
-    try:
-        value = float(token)
-    except ValueError:
-        return None
-    cents = int(round(value * 100))
-    if cents <= 0:
-        return None
-    return min(cents, 100000000)
-
-
-def _bail_ad_checkout_ready():
-    return _stripe_ready_for_checkout()
-
-
-def _bail_ad_allowed_asset(filename):
-    if not filename or '.' not in filename:
-        return False
-    ext = filename.rsplit('.', 1)[1].lower()
-    return ext in {'png', 'jpg', 'jpeg', 'webp', 'gif'}
-
-
-def _ensure_bail_ad_simulator_order_columns(conn):
-    columns = {
-        (row['name'] if isinstance(row, sqlite3.Row) else row[1])
-        for row in conn.execute("PRAGMA table_info('bail_ad_orders')").fetchall()
-    }
-    additions = [
-        ('simulator_logo_path', "ALTER TABLE bail_ad_orders ADD COLUMN simulator_logo_path TEXT NOT NULL DEFAULT ''"),
-        ('simulator_target_url', "ALTER TABLE bail_ad_orders ADD COLUMN simulator_target_url TEXT NOT NULL DEFAULT ''"),
-        ('simulator_share_url', "ALTER TABLE bail_ad_orders ADD COLUMN simulator_share_url TEXT NOT NULL DEFAULT ''"),
-        ('simulator_view', "ALTER TABLE bail_ad_orders ADD COLUMN simulator_view TEXT NOT NULL DEFAULT ''"),
-    ]
-    for column_name, sql in additions:
-        if column_name not in columns:
-            conn.execute(sql)
-
-
-def _ensure_bail_ad_simulator_event_schema(conn):
-    conn.execute(
-        '''
-        CREATE TABLE IF NOT EXISTS bail_ad_simulator_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            event_type TEXT NOT NULL,
-            source TEXT NOT NULL DEFAULT '',
-            sim_view TEXT NOT NULL DEFAULT '',
-            county TEXT NOT NULL DEFAULT '',
-            agency_name TEXT NOT NULL DEFAULT '',
-            asset_path TEXT NOT NULL DEFAULT '',
-            share_url TEXT NOT NULL DEFAULT '',
-            internal_mode INTEGER NOT NULL DEFAULT 0,
-            ip_hash TEXT NOT NULL DEFAULT '',
-            referrer TEXT NOT NULL DEFAULT '',
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-        '''
-    )
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_ad_simulator_events_created ON bail_ad_simulator_events(created_at)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_ad_simulator_events_type ON bail_ad_simulator_events(event_type)')
-
-
-def _record_bail_ad_simulator_event(
-    conn,
-    event_type,
-    source='',
-    sim_view='',
-    county='',
-    agency_name='',
-    asset_path='',
-    share_url='',
-    internal_mode=False,
-):
-    if not event_type:
-        return
-    _ensure_bail_ad_simulator_event_schema(conn)
-    ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
-    referrer = (request.referrer or '')[:500]
-    conn.execute(
-        '''
-        INSERT INTO bail_ad_simulator_events (
-            event_type, source, sim_view, county, agency_name, asset_path, share_url, internal_mode, ip_hash, referrer
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''',
-        (
-            (event_type or '').strip()[:40],
-            (source or '').strip()[:80],
-            (sim_view or '').strip()[:24],
-            (county or '').strip()[:80],
-            (agency_name or '').strip()[:120],
-            (asset_path or '').strip()[:500],
-            (share_url or '').strip()[:500],
-            1 if internal_mode else 0,
-            ip_hash,
-            referrer,
-        ),
-    )
-
-
-def _parse_county_targets(raw_value):
-    raw = (raw_value or '').replace('\n', ',').replace(';', ',')
-    county_lookup = {county['name'].lower(): county['name'] for county in COUNTY_DATA.values()}
-    slug_lookup = {slug.lower(): county['name'] for slug, county in COUNTY_DATA.items()}
-    parsed = []
-    seen = set()
-    for token in raw.split(','):
-        value = token.strip()
-        if not value:
-            continue
-        key = value.lower()
-        normalized = county_lookup.get(key) or slug_lookup.get(key) or value[:64]
-        slug_key = normalized.lower()
-        if slug_key in seen:
-            continue
-        seen.add(slug_key)
-        parsed.append(normalized)
-        if len(parsed) >= max(12, len(COUNTY_DATA)):
-            break
-    return parsed
-
-
-def _all_bail_counties():
-    counties = []
-    seen = set()
-    for county in getattr(config, 'MONTANA_COUNTIES', []) or []:
-        name = (county or '').strip()
-        if not name:
-            continue
-        key = name.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        counties.append(name)
-    for county in COUNTY_DATA.values():
-        name = (county.get('name') or '').strip()
-        if not name:
-            continue
-        key = name.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        counties.append(name)
-    return sorted(counties)
-
-
-def _normalize_bail_county(raw_value):
-    value = (raw_value or '').strip()
-    if not value:
-        return ''
-    lower_map = {county.lower(): county for county in _all_bail_counties()}
-    slug_map = {_slugify_key(county): county for county in _all_bail_counties()}
-    token = value.lower()
-    if token in lower_map:
-        return lower_map[token]
-    if token in slug_map:
-        return slug_map[token]
-    slug = _slugify_key(value)
-    if slug in slug_map:
-        return slug_map[slug]
-    return value[:80]
-
-
-def _format_phone_for_tel(raw_phone):
-    token = ''.join(ch for ch in (raw_phone or '') if ch.isdigit())
-    if len(token) == 10:
-        token = f'1{token}'
-    if len(token) < 11:
-        return ''
-    return f'+{token}'
-
-
-def _bail_help_contact(default_phone=''):
-    phone = (getattr(config, 'BAIL_HELP_PHONE', '') or '').strip()
-    sms_number = (getattr(config, 'BAIL_HELP_SMS', '') or '').strip()
-    chat_url = (getattr(config, 'BAIL_HELP_CHAT_URL', '') or '').strip()
-
-    if not phone:
-        phone = (default_phone or '').strip()
-    if not sms_number:
-        sms_number = phone
-
-    tel_href = _format_phone_for_tel(phone)
-    sms_href = _format_phone_for_tel(sms_number)
-    return {
-        'phone': phone,
-        'phone_display': phone or 'Call',
-        'tel_href': f'tel:{tel_href}' if tel_href else '',
-        'sms_href': f'sms:{sms_href}' if sms_href else '',
-        'chat_url': chat_url,
-    }
-
-
-def _bail_ad_contract_context(onboarding_token: str | None = None):
-    configured_url = (getattr(config, 'LETSBAIL_AD_CONTRACT_URL', '') or '').strip()
-    support_email = (
-        (getattr(config, 'SMTP_USER', '') or '').strip()
-        or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
-    )
-    safe_token = (onboarding_token or '').strip()[:128]
-    contract_url = configured_url
-    if not contract_url and safe_token:
-        contract_url = url_for('payments.advertise_bail_private_contract', token=safe_token)
-    return {
-        'title': "Montana Blotter Contract",
-        'partner_name': "Montana Blotter",
-        'url': contract_url,
-        'external': bool(configured_url),
-        'updated_label': 'Updated March 19, 2026',
-        'summary': 'Review placement terms, recurring billing, creative standards, county inventory rules, and cancellation timing before launch.',
-        'support_email': support_email,
-        'highlights': [
-            'All creative is subject to Montana Blotter compliance and quality review before launch.',
-            'Subscriptions renew automatically on the selected billing cycle until canceled.',
-            'County exclusives and bundled placements remain subject to inventory availability.',
-        ],
-    }
-
-
-def _ensure_bail_consumer_lead_schema(conn):
-    conn.execute(
-        '''
-        CREATE TABLE IF NOT EXISTS bail_consumer_leads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            full_name TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            email TEXT,
-            county TEXT NOT NULL,
-            jail_facility TEXT,
-            callback_preference TEXT,
-            notes TEXT,
-            source TEXT,
-            status TEXT NOT NULL DEFAULT 'new',
-            routed_order_ids TEXT,
-            routed_business_names TEXT,
-            routed_emails TEXT,
-            routed_phones TEXT,
-            ip_hash TEXT,
-            referrer TEXT,
-            review_notes TEXT,
-            reviewed_by TEXT,
-            reviewed_at TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
-        )
-        '''
-    )
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_consumer_leads_created ON bail_consumer_leads(created_at)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_consumer_leads_status ON bail_consumer_leads(status)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_consumer_leads_county ON bail_consumer_leads(county)')
-    conn.execute(
-        '''
-        CREATE TABLE IF NOT EXISTS bail_consumer_lead_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            lead_id INTEGER,
-            event_type TEXT NOT NULL,
-            county TEXT,
-            source TEXT,
-            ip_hash TEXT,
-            referrer TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (lead_id) REFERENCES bail_consumer_leads(id) ON DELETE SET NULL
-        )
-        '''
-    )
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_consumer_events_created ON bail_consumer_lead_events(created_at)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_consumer_events_type ON bail_consumer_lead_events(event_type)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_consumer_events_county ON bail_consumer_lead_events(county)')
-
-
-def _record_bail_consumer_event(conn, event_type, county='', source='', lead_id=None):
-    safe_event = (event_type or '').strip().lower()[:40]
-    if not safe_event:
-        return
-    safe_county = _normalize_bail_county(county)[:80]
-    safe_source = (source or '').strip()[:80]
-    ip_hash = hashlib.sha256((_client_ip() or '').encode()).hexdigest()[:16]
-    referrer = (request.referrer or '')[:500]
-    conn.execute(
-        '''
-        INSERT INTO bail_consumer_lead_events (lead_id, event_type, county, source, ip_hash, referrer)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ''',
-        (
-            int(lead_id) if lead_id else None,
-            safe_event,
-            safe_county,
-            safe_source,
-            ip_hash,
-            referrer,
-        ),
-    )
-
-
-def _bail_lead_notify_recipients():
-    recipients = []
-    configured = getattr(config, 'BAIL_LEAD_NOTIFY_EMAILS', ()) or ()
-    if isinstance(configured, str):
-        configured = [part.strip() for part in configured.split(',') if part.strip()]
-    for entry in configured:
-        email = (entry or '').strip().lower()
-        if email and '@' in email and email not in recipients:
-            recipients.append(email)
-    if not recipients:
-        fallback = (getattr(config, 'SMTP_USER', '') or '').strip().lower()
-        if fallback and '@' in fallback:
-            recipients.append(fallback)
-    return recipients
-
-
-def _send_bail_lead_notification_email(to_emails, subject, body):
-    recipients = []
-    for value in to_emails or []:
-        email = (value or '').strip().lower()
-        if email and '@' in email and email not in recipients:
-            recipients.append(email)
-    if not recipients:
-        return False
-
-    smtp_user = (getattr(config, 'SMTP_USER', '') or '').strip()
-    smtp_password = (getattr(config, 'SMTP_PASSWORD', '') or '').strip()
-    smtp_server = (getattr(config, 'SMTP_SERVER', '') or '').strip()
-    smtp_port = int(getattr(config, 'SMTP_PORT', 587) or 587)
-    if not (smtp_user and smtp_password and smtp_server):
-        return False
-
-    msg = MIMEText(body, 'plain', 'utf-8')
-    msg['Subject'] = subject
-    msg['From'] = smtp_user
-    msg['To'] = ', '.join(recipients)
-    try:
-        smtp = smtplib.SMTP(smtp_server, smtp_port, timeout=20)
-        smtp.starttls()
-        smtp.login(smtp_user, smtp_password)
-        smtp.sendmail(smtp_user, recipients, msg.as_string())
-        smtp.quit()
-        return True
-    except Exception:
-        return False
-
-
-def _post_bail_lead_webhook(payload):
-    webhook_url = (getattr(config, 'BAIL_LEAD_WEBHOOK_URL', '') or '').strip()
-    if not webhook_url:
-        return False
-    try:
-        req = urllib.request.Request(
-            webhook_url,
-            data=json.dumps(payload).encode('utf-8'),
-            headers={'Content-Type': 'application/json'},
-            method='POST',
-        )
-        with urllib.request.urlopen(req, timeout=8):
-            return True
-    except (urllib.error.URLError, TimeoutError, ValueError):
-        return False
-
-
-def _active_bail_ad_listings(conn):
-    _ensure_bail_ad_simulator_order_columns(conn)
-    rows = conn.execute(
-        '''
-        SELECT
-            bail_ad_orders.id,
-            bail_ad_orders.business_name,
-            bail_ad_orders.phone,
-            bail_ad_orders.email,
-            bail_ad_orders.website_url,
-            bail_ad_orders.county_targets,
-            bail_ad_orders.package_id,
-            bail_ad_orders.status,
-            bail_ad_orders.simulator_logo_path,
-            bail_ad_orders.simulator_target_url,
-            bail_ad_creatives.headline,
-            bail_ad_creatives.body_copy,
-            bail_ad_creatives.cta_text,
-            bail_ad_creatives.target_url,
-            bail_ad_creatives.logo_path
-        FROM bail_ad_orders
-        LEFT JOIN bail_ad_creatives ON bail_ad_creatives.order_id = bail_ad_orders.id
-        WHERE bail_ad_orders.status = 'active'
-          AND (bail_ad_creatives.status = 'approved' OR bail_ad_creatives.status IS NULL)
-        ORDER BY datetime(bail_ad_orders.paid_at) DESC, datetime(bail_ad_orders.created_at) DESC
-        '''
-    ).fetchall()
-
-    listings = []
-    for row in rows:
-        county_list = _bail_ad_county_list(row['county_targets'])
-        phone_value = (row['phone'] or '').strip()
-        phone_token = _format_phone_for_tel(phone_value)
-        listings.append({
-            'id': row['id'],
-            'business_name': row['business_name'],
-            'phone': phone_value,
-            'phone_href': f"tel:{phone_token}" if phone_token else '',
-            'sms_href': f"sms:{phone_token}" if phone_token else '',
-            'email': row['email'],
-            'website_url': row['website_url'],
-            'counties': county_list,
-            'package_id': row['package_id'],
-            'status': row['status'],
-            'headline': row['headline'] or f"{row['business_name']} Bail Bonds",
-            'body_copy': row['body_copy'] or 'Licensed local bail bond support available.',
-            'cta_text': row['cta_text'] or 'Contact Now',
-            'target_url': row['target_url'] or row['simulator_target_url'] or row['website_url'] or '',
-            'logo_path': row['logo_path'] or row['simulator_logo_path'] or '',
-        })
-    return listings
-
-
-def _bail_ad_package_supports_banner(package_id=''):
-    return _normalize_bail_ad_package_id(package_id) in {
-        'featured_bondsman_banner',
-        'gold_bond_bundle',
-        'state_power',
-        'gold_bond',
-    }
-
-
-def _bail_ad_package_supports_sidebar(package_id=''):
-    return _normalize_bail_ad_package_id(package_id) in {
-        'emergency_call_sidebar',
-        'gold_bond_bundle',
-        'silver_link',
-        'state_power',
-        'gold_bond',
-    }
-
-
-def _bail_ad_package_supports_county(package_id=''):
-    return _normalize_bail_ad_package_id(package_id) in {
-        'exclusive_county_sponsorship',
-        'gold_bond_bundle',
-        'silver_link',
-        'gold_bond',
-        'state_power',
-    }
-
-
-def _bail_ad_clone_for_surface(listing, surface, county=''):
-    if not listing:
-        return None
-    item = dict(listing)
-    normalized_county = _normalize_bail_county(county)
-    item['surface'] = surface
-    item['tracking_county'] = normalized_county or (item.get('counties') or [''])[0]
-    if surface == 'banner':
-        item['surface_label'] = 'Featured Bondsman Banner'
-        item['surface_note'] = 'Sponsored statewide placement'
-        item['cta_text'] = item.get('cta_text') or 'Visit Sponsor'
-    elif surface == 'county':
-        item['surface_label'] = f"{normalized_county or 'County'} Sponsor"
-        item['surface_note'] = 'Exclusive local sponsor'
-        item['cta_text'] = item.get('cta_text') or 'Call Local Sponsor'
-    else:
-        item['surface_label'] = 'Emergency Call Sidebar'
-        item['surface_note'] = 'Persistent sponsored placement'
-        item['cta_text'] = item.get('cta_text') or 'Call Now'
-    return item
-
-
-def _bail_ad_public_placements(conn, county=''):
-    listings = _active_bail_ad_listings(conn)
-    normalized_county = _normalize_bail_county(county)
-
-    def _pick(predicate):
-        for listing in listings:
-            if predicate(listing):
-                return listing
-        return None
-
-    county_sponsor = None
-    if normalized_county:
-        county_sponsor = _pick(
-            lambda item: (
-                _bail_ad_package_supports_county(item.get('package_id'))
-                and normalized_county in (item.get('counties') or [])
-            )
-        )
-
-    banner = _pick(lambda item: _bail_ad_package_supports_banner(item.get('package_id')))
-
-    # Keep the public experience lighter: surface only one paid placement per
-    # page instead of stacking a top banner and a sticky sidebar together.
-    if county_sponsor:
-        return {
-            'banner': None,
-            'sidebar': _bail_ad_clone_for_surface(county_sponsor, 'county', county=normalized_county),
-            'county_sponsor': _bail_ad_clone_for_surface(county_sponsor, 'county', county=normalized_county),
-        }
-    if banner:
-        return {
-            'banner': _bail_ad_clone_for_surface(banner, 'banner', county=normalized_county),
-            'sidebar': None,
-            'county_sponsor': None,
-        }
-
-    sidebar = _pick(lambda item: _bail_ad_package_supports_sidebar(item.get('package_id')))
-
-    return {
-        'banner': None,
-        'sidebar': _bail_ad_clone_for_surface(sidebar, 'sidebar', county=normalized_county),
-        'county_sponsor': None,
-    }
-
-
-def _bail_county_sections(listings, selected_county=''):
-    selected = _normalize_bail_county(selected_county)
-    by_county = {}
-    for listing in listings:
-        counties = listing.get('counties') or ['Statewide']
-        for county in counties:
-            normalized_county = _normalize_bail_county(county) or county
-            if selected and normalized_county != selected:
-                continue
-            by_county.setdefault(normalized_county, []).append(listing)
-    return [{'county': county, 'listings': values} for county, values in sorted(by_county.items())]
-
-
-def _bail_lead_routing_targets(listings, county):
-    normalized_county = _normalize_bail_county(county)
-    targets = []
-    for listing in listings:
-        target_counties = listing.get('counties') or []
-        if target_counties and normalized_county and normalized_county not in target_counties:
-            continue
-        targets.append(listing)
-    return targets[:3]
-
-
-def _bail_advertiser_attribution_30d(conn, limit=120):
-    calls_by_order = {
-        int(row['order_id']): int(row['calls'] or 0)
-        for row in conn.execute(
-            '''
-            SELECT order_id, COUNT(*) AS calls
-            FROM bail_ad_events
-            WHERE order_id IS NOT NULL
-              AND event_type IN ('call', 'lead')
-              AND created_at >= date('now', '-30 days')
-            GROUP BY order_id
-            '''
-        ).fetchall()
-        if row['order_id'] is not None
-    }
-    texts_by_order = {
-        int(row['order_id']): int(row['texts'] or 0)
-        for row in conn.execute(
-            '''
-            SELECT order_id, COUNT(*) AS texts
-            FROM bail_ad_events
-            WHERE order_id IS NOT NULL
-              AND event_type = 'text'
-              AND created_at >= date('now', '-30 days')
-            GROUP BY order_id
-            '''
-        ).fetchall()
-        if row['order_id'] is not None
-    }
-
-    routed_by_order = {}
-    for row in conn.execute(
-        '''
-        SELECT routed_order_ids, status
-        FROM bail_consumer_leads
-        WHERE created_at >= date('now', '-30 days')
-        '''
-    ).fetchall():
-        order_ids = []
-        for token in (row['routed_order_ids'] or '').split(','):
-            clean = token.strip()
-            if not clean:
-                continue
-            try:
-                value = int(clean)
-            except ValueError:
-                continue
-            if value > 0:
-                order_ids.append(value)
-        for order_id in sorted(set(order_ids)):
-            stats_bucket = routed_by_order.setdefault(order_id, {'routed': 0, 'qualified': 0, 'booked': 0})
-            stats_bucket['routed'] += 1
-            if (row['status'] or '').strip().lower() in {'qualified', 'booked'}:
-                stats_bucket['qualified'] += 1
-            if (row['status'] or '').strip().lower() == 'booked':
-                stats_bucket['booked'] += 1
-
-    pipeline_order_ids = set(calls_by_order.keys()) | set(texts_by_order.keys()) | set(routed_by_order.keys())
-    order_lookup = {}
-    if pipeline_order_ids:
-        placeholders = ','.join('?' for _ in sorted(pipeline_order_ids))
-        for row in conn.execute(
-            f'''
-            SELECT id, business_name, package_id, status, county_targets
-            FROM bail_ad_orders
-            WHERE id IN ({placeholders})
-            ''',
-            tuple(sorted(pipeline_order_ids)),
-        ).fetchall():
-            order_lookup[int(row['id'])] = dict(row)
-
-    out = []
-    for order_id in sorted(pipeline_order_ids):
-        order_info = order_lookup.get(order_id) or {}
-        routed = int((routed_by_order.get(order_id) or {}).get('routed') or 0)
-        qualified = int((routed_by_order.get(order_id) or {}).get('qualified') or 0)
-        booked = int((routed_by_order.get(order_id) or {}).get('booked') or 0)
-        calls = int(calls_by_order.get(order_id, 0) or 0)
-        texts = int(texts_by_order.get(order_id, 0) or 0)
-        out.append({
-            'order_id': order_id,
-            'business_name': order_info.get('business_name') or f'Order #{order_id}',
-            'package_id': order_info.get('package_id') or '',
-            'status': order_info.get('status') or '',
-            'county_targets': order_info.get('county_targets') or '',
-            'calls': calls,
-            'texts': texts,
-            'routed_leads': routed,
-            'qualified_leads': qualified,
-            'booked_bonds': booked,
-            'qualified_rate_pct': (qualified / routed * 100.0) if routed else 0.0,
-            'booked_rate_pct': (booked / qualified * 100.0) if qualified else 0.0,
-        })
-    out.sort(
-        key=lambda item: (
-            item['booked_bonds'],
-            item['qualified_leads'],
-            item['routed_leads'],
-            item['calls'],
-            item['texts'],
-        ),
-        reverse=True,
-    )
-    return out[:max(1, int(limit or 120))]
-
-
-def _humanize_bail_ad_status(status):
-    mapping = {
-        'checkout_pending': 'Checkout Pending',
-        'active': 'Active',
-        'active_pending_creative_review': 'Active Pending Creative Review',
-        'payment_failed': 'Payment Failed',
-        'canceled': 'Canceled',
-        'paused': 'Paused',
-        'pending': 'Pending',
-        'approved': 'Approved',
-        'rejected': 'Rejected',
-    }
-    normalized = (status or '').strip().lower()
-    return mapping.get(normalized, normalized.replace('_', ' ').title() or 'Unknown')
-
-
-def _format_bail_ad_datetime(value, include_time=False, fallback='Pending'):
-    parsed = _parse_sqlite_timestamp(value)
-    if not parsed:
-        return fallback
-    fmt = '%b %d, %Y %I:%M %p UTC' if include_time else '%b %d, %Y'
-    return parsed.strftime(fmt).replace(' 0', ' ')
-
-
-def _bail_ad_control_panel_context(conn, token, session_id=''):
-    _ensure_bail_ad_simulator_order_columns(conn)
-    safe_token = (token or '').strip()[:128]
-    if not safe_token:
-        return None
-
-    order_row = conn.execute(
-        '''
-        SELECT
-            id,
-            business_name,
-            contact_name,
-            email,
-            phone,
-            website_url,
-            license_number,
-            county_targets,
-            package_id,
-            billing_cycle,
-            amount_cents,
-            currency,
-            status,
-            add_on_ids,
-            onboarding_token,
-            notes,
-            simulator_logo_path,
-            simulator_target_url,
-            simulator_share_url,
-            simulator_view,
-            paid_at,
-            created_at,
-            updated_at,
-            provider_session_id,
-            provider_subscription_id
-        FROM bail_ad_orders
-        WHERE onboarding_token = ?
-        LIMIT 1
-        ''',
-        (safe_token,),
-    ).fetchone()
-    if not order_row:
-        return None
-
-    package_lookup = _bail_ad_package_lookup()
-    addon_lookup = _bail_ad_addon_lookup()
-    order = dict(order_row)
-    package = package_lookup.get(order.get('package_id') or '') or {}
-    order['package_name'] = (package.get('name') if package else '') or (order.get('package_id') or '').replace('_', ' ').title()
-    order['status_label'] = _humanize_bail_ad_status(order.get('status'))
-    order['billing_label'] = ((order.get('billing_cycle') or 'monthly').replace('_', ' ')).title()
-    order['amount_display'] = f"${(int(order.get('amount_cents') or 0) / 100):,.2f}"
-    order['currency_display'] = (order.get('currency') or 'usd').upper()
-    order['county_list'] = _bail_ad_county_list(order.get('county_targets') or '')
-    order['county_count'] = len(order['county_list'])
-    order['package_badge'] = package.get('badge') or 'Advertiser Account'
-    order['package_features'] = package.get('features') or []
-    order['county_slots'] = int(package.get('county_slots') or 0)
-    order['add_on_labels'] = [
-        addon_lookup[addon_id]['name']
-        for addon_id in _parse_addon_ids((order.get('add_on_ids') or '').split(','))
-        if addon_id in addon_lookup
-    ]
-    order['created_label'] = _format_bail_ad_datetime(order.get('created_at'), include_time=True)
-    order['updated_label'] = _format_bail_ad_datetime(order.get('updated_at'), include_time=True)
-    order['paid_label'] = _format_bail_ad_datetime(
-        order.get('paid_at') or order.get('created_at'),
-        include_time=True,
-        fallback='Pending',
-    )
-
-    paid_at = _parse_sqlite_timestamp(order.get('paid_at') or order.get('created_at'))
-    cycle = (order.get('billing_cycle') or 'monthly').strip().lower()
-    renewal_days = 365 if cycle == 'annual' else 30
-    next_renewal_dt = paid_at + timedelta(days=renewal_days) if paid_at else None
-    days_to_renewal = None
-    if next_renewal_dt:
-        days_to_renewal = int((next_renewal_dt - datetime.utcnow()).total_seconds() // 86400)
-    order['next_renewal'] = next_renewal_dt.strftime('%b %d, %Y') if next_renewal_dt else 'Pending'
-    order['days_to_renewal'] = max(days_to_renewal, 0) if days_to_renewal is not None else None
-
-    creative_row = conn.execute(
-        '''
-        SELECT
-            id,
-            headline,
-            body_copy,
-            cta_text,
-            target_url,
-            logo_path,
-            status,
-            review_notes,
-            created_at,
-            updated_at
-        FROM bail_ad_creatives
-        WHERE order_id = ?
-        LIMIT 1
-        ''',
-        (order['id'],),
-    ).fetchone()
-    creative = dict(creative_row) if creative_row else None
-    if creative:
-        creative['status_label'] = _humanize_bail_ad_status(creative.get('status'))
-        creative['updated_label'] = _format_bail_ad_datetime(creative.get('updated_at'), include_time=True)
-        creative['created_label'] = _format_bail_ad_datetime(creative.get('created_at'), include_time=True)
-    simulator_preview = _bail_ad_simulator_preview(order)
-
-    slot_rows = conn.execute(
-        '''
-        SELECT county, slot_type, status, starts_at, ends_at, updated_at
-        FROM bail_ad_slots
-        WHERE order_id = ?
-        ORDER BY county ASC, slot_type ASC
-        ''',
-        (order['id'],),
-    ).fetchall()
-    slots = []
-    for row in slot_rows:
-        slot = dict(row)
-        slot['status_label'] = _humanize_bail_ad_status(slot.get('status'))
-        slot['starts_label'] = _format_bail_ad_datetime(slot.get('starts_at'), fallback='Pending')
-        slot['ends_label'] = _format_bail_ad_datetime(slot.get('ends_at'), fallback='Open')
-        slots.append(slot)
-
-    perf_row = conn.execute(
-        '''
-        SELECT
-            COALESCE(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) AS impressions,
-            COALESCE(SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END), 0) AS clicks,
-            COALESCE(SUM(CASE WHEN event_type = 'lead' THEN 1 ELSE 0 END), 0) AS leads,
-            COALESCE(SUM(CASE WHEN event_type = 'call' THEN 1 ELSE 0 END), 0) AS calls,
-            COALESCE(SUM(CASE WHEN event_type = 'text' THEN 1 ELSE 0 END), 0) AS texts
-        FROM bail_ad_events
-        WHERE order_id = ?
-          AND created_at >= date('now', '-30 days')
-        ''',
-        (order['id'],),
-    ).fetchone()
-    performance_30d = dict(perf_row) if perf_row else {
-        'impressions': 0,
-        'clicks': 0,
-        'leads': 0,
-        'calls': 0,
-        'texts': 0,
-    }
-    impressions = float(performance_30d.get('impressions') or 0)
-    clicks = float(performance_30d.get('clicks') or 0)
-    leads = float(performance_30d.get('leads') or 0)
-    calls = float(performance_30d.get('calls') or 0)
-    texts = float(performance_30d.get('texts') or 0)
-    performance_30d['ctr_pct'] = (clicks / impressions * 100.0) if impressions else 0.0
-    performance_30d['lead_rate_pct'] = (leads / clicks * 100.0) if clicks else 0.0
-    performance_30d['contact_actions'] = int(calls + texts + leads)
-
-    county_rows = conn.execute(
-        '''
-        SELECT
-            COALESCE(NULLIF(county, ''), 'Statewide') AS county,
-            COALESCE(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) AS impressions,
-            COALESCE(SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END), 0) AS clicks,
-            COALESCE(SUM(CASE WHEN event_type = 'lead' THEN 1 ELSE 0 END), 0) AS leads,
-            COALESCE(SUM(CASE WHEN event_type = 'call' THEN 1 ELSE 0 END), 0) AS calls,
-            COALESCE(SUM(CASE WHEN event_type = 'text' THEN 1 ELSE 0 END), 0) AS texts
-        FROM bail_ad_events
-        WHERE order_id = ?
-          AND created_at >= date('now', '-30 days')
-        GROUP BY COALESCE(NULLIF(county, ''), 'Statewide')
-        ORDER BY clicks DESC, impressions DESC, county ASC
-        ''',
-        (order['id'],),
-    ).fetchall()
-    county_performance_30d = []
-    for row in county_rows:
-        county_metrics = dict(row)
-        county_impressions = float(county_metrics.get('impressions') or 0)
-        county_clicks = float(county_metrics.get('clicks') or 0)
-        county_metrics['ctr_pct'] = (county_clicks / county_impressions * 100.0) if county_impressions else 0.0
-        county_performance_30d.append(county_metrics)
-
-    attribution = {
-        'calls': 0,
-        'texts': 0,
-        'routed_leads': 0,
-        'qualified_leads': 0,
-        'booked_bonds': 0,
-        'qualified_rate_pct': 0.0,
-        'booked_rate_pct': 0.0,
-    }
-    for item in _bail_advertiser_attribution_30d(conn, limit=10000):
-        if int(item.get('order_id') or 0) == int(order['id']):
-            attribution.update(item)
-            break
-
-    benchmark_row = conn.execute(
-        '''
-        SELECT
-            COUNT(DISTINCT order_id) AS advertiser_count,
-            COALESCE(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) AS impressions,
-            COALESCE(SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END), 0) AS clicks,
-            COALESCE(SUM(CASE WHEN event_type = 'lead' THEN 1 ELSE 0 END), 0) AS leads,
-            COALESCE(SUM(CASE WHEN event_type = 'call' THEN 1 ELSE 0 END), 0) AS calls,
-            COALESCE(SUM(CASE WHEN event_type = 'text' THEN 1 ELSE 0 END), 0) AS texts
-        FROM bail_ad_events
-        WHERE order_id IS NOT NULL
-          AND created_at >= date('now', '-30 days')
-        '''
-    ).fetchone()
-    benchmarks = dict(benchmark_row) if benchmark_row else {
-        'advertiser_count': 0,
-        'impressions': 0,
-        'clicks': 0,
-        'leads': 0,
-        'calls': 0,
-        'texts': 0,
-    }
-    advertiser_count = max(1, int(benchmarks.get('advertiser_count') or 0))
-    benchmarks['avg_clicks'] = float(benchmarks.get('clicks') or 0) / advertiser_count
-    benchmarks['avg_impressions'] = float(benchmarks.get('impressions') or 0) / advertiser_count
-    benchmarks['avg_contact_actions'] = (
-        float(benchmarks.get('calls') or 0)
-        + float(benchmarks.get('texts') or 0)
-        + float(benchmarks.get('leads') or 0)
-    ) / advertiser_count
-    benchmarks['click_index_pct'] = (
-        (float(performance_30d.get('clicks') or 0) / benchmarks['avg_clicks']) * 100.0
-        if benchmarks['avg_clicks'] else 0.0
-    )
-    benchmarks['contact_index_pct'] = (
-        (float(performance_30d.get('contact_actions') or 0) / benchmarks['avg_contact_actions']) * 100.0
-        if benchmarks['avg_contact_actions'] else 0.0
-    )
-
-    top_county = county_performance_30d[0] if county_performance_30d else None
-    top_county_share = (
-        (float(top_county.get('clicks') or 0) / clicks * 100.0)
-        if top_county and clicks else 0.0
-    )
-
-    booking_signal_score = min(
-        100,
-        int(
-            float(performance_30d.get('clicks') or 0) * 2
-            + float(attribution.get('calls') or 0) * 8
-            + float(attribution.get('texts') or 0) * 6
-            + float(attribution.get('qualified_leads') or 0) * 18
-            + float(attribution.get('booked_bonds') or 0) * 28
-        ),
-    )
-    if booking_signal_score >= 80:
-        signal_label = 'Booked'
-    elif booking_signal_score >= 55:
-        signal_label = 'High Intent'
-    elif booking_signal_score >= 30:
-        signal_label = 'Active'
-    elif booking_signal_score >= 10:
-        signal_label = 'Warming'
-    else:
-        signal_label = 'Cold Start'
-
-    launch_checklist = [
-        {
-            'title': 'Payment Confirmed',
-            'detail': f"{order['amount_display']} {order['currency_display']} recorded on {order['paid_label']}.",
-            'complete': bool(order.get('provider_session_id') or session_id),
-        },
-        {
-            'title': 'Creative Submitted',
-            'detail': (
-                f"Latest submission updated {creative['updated_label']}."
-                if creative else
-                'Headline, CTA, landing page, and logo still need to be submitted.'
-            ),
-            'complete': bool(creative),
-        },
-        {
-            'title': 'Compliance Review',
-            'detail': (
-                'Approved and ready for live placement.'
-                if creative and (creative.get('status') or '').lower() == 'approved' else
-                'Waiting on review or revisions before full rollout.'
-            ),
-            'complete': bool(creative and (creative.get('status') or '').lower() == 'approved'),
-        },
-        {
-            'title': 'Tracking Live',
-            'detail': (
-                f"{int(performance_30d.get('impressions') or 0)} tracked impressions in the last 30 days."
-                if performance_30d.get('impressions') else
-                'No live delivery recorded yet.'
-            ),
-            'complete': bool(performance_30d.get('impressions')),
-        },
-    ]
-
-    priority_actions = []
-    if not creative:
-        priority_actions.append({
-            'title': 'Submit creative assets',
-            'detail': 'The account is paid, but ad copy and destination details still need to be loaded before review can finish.',
-            'href': url_for('payments.advertise_bail_onboarding', token=safe_token),
-            'label': 'Open Onboarding',
-        })
-    elif (creative.get('status') or '').lower() == 'pending':
-        priority_actions.append({
-            'title': 'Review queue is in progress',
-            'detail': 'Your latest creative is pending moderation. Keep the control panel link handy for notes or revisions.',
-            'href': url_for('payments.advertise_bail_onboarding', token=safe_token),
-            'label': 'Review Submission',
-        })
-    elif (creative.get('status') or '').lower() == 'rejected':
-        priority_actions.append({
-            'title': 'Revise creative now',
-            'detail': 'The ad is blocked on compliance notes. Update the headline, copy, or destination to get back into rotation.',
-            'href': url_for('payments.advertise_bail_onboarding', token=safe_token),
-            'label': 'Fix Creative',
-        })
-
-    if performance_30d.get('clicks') and not attribution.get('routed_leads'):
-        priority_actions.append({
-            'title': 'Tighten your landing path',
-            'detail': 'Traffic is clicking but not routing into tracked leads. A direct call page or prefilled SMS path should convert harder.',
-            'href': url_for('payments.advertise_bail_onboarding', token=safe_token),
-            'label': 'Update CTA',
-        })
-
-    if days_to_renewal is not None and days_to_renewal <= 14:
-        priority_actions.append({
-            'title': 'Renewal window is close',
-            'detail': f"Next billing cycle lands in {max(days_to_renewal, 0)} day{'s' if days_to_renewal != 1 else ''}. Review ROI now before the next charge.",
-            'href': url_for('payments.advertise_bail_control_panel', token=safe_token),
-            'label': 'Check ROI',
-        })
-
-    if not priority_actions:
-        priority_actions.append({
-            'title': 'Account is in a holding pattern',
-            'detail': 'No urgent blockers are showing. Use the county radar and booking score below to decide whether to expand coverage.',
-            'href': url_for('payments.advertise_bail_control_panel', token=safe_token),
-            'label': 'Review Signals',
-        })
-
-    if top_county:
-        county_radar_body = (
-            f"{top_county['county']} is driving {int(round(top_county_share))}% of your 30-day clicks."
-            if clicks else
-            f"{top_county['county']} is the first county showing live ad delivery."
-        )
-        county_radar_value = top_county.get('county') or 'Statewide'
-    else:
-        county_radar_body = 'No county-level delivery is recorded yet. Once impressions start, this radar will isolate the hottest local pocket.'
-        county_radar_value = 'Standby'
-
-    if order['county_slots'] > 0 and order['county_list']:
-        exclusivity_value = f"{len(order['county_list'])} county lane{'s' if len(order['county_list']) != 1 else ''}"
-        exclusivity_body = f"Current county footprint: {', '.join(order['county_list'])}. This package is built to defend local share of voice, not just generate generic clicks."
-        exclusivity_title = 'Exclusivity Watch'
-    else:
-        exclusivity_value = f"{int(performance_30d.get('contact_actions') or 0)} response actions"
-        exclusivity_body = 'This placement leans on immediate tap-to-call behavior. Calls, texts, and form leads are grouped here to show buyer urgency, not just page traffic.'
-        exclusivity_title = 'Response Pressure'
-
-    if creative and (creative.get('status') or '').lower() == 'approved':
-        creative_value = 'Approved'
-        creative_body = 'Your ad creative has cleared review and is eligible for full placement rotation.'
-    elif creative and (creative.get('status') or '').lower() == 'pending':
-        creative_value = 'In Review'
-        creative_body = 'Creative is submitted and waiting on moderation. Keep the CTA and landing path stable until review finishes.'
-    elif creative and (creative.get('status') or '').lower() == 'rejected':
-        creative_value = 'Needs Revision'
-        creative_body = 'The current creative is blocked on review notes. Update it before traffic scaling makes sense.'
-    else:
-        creative_value = 'Not Started'
-        creative_body = 'No creative package is attached yet. Payment is complete, but launch is still blocked on onboarding.'
-
-    signature_features = [
-        {
-            'title': 'County Saturation Radar',
-            'value': county_radar_value,
-            'body': county_radar_body,
-        },
-        {
-            'title': 'Booking Signal Score',
-            'value': f'{booking_signal_score}/100',
-            'body': f"{signal_label} demand signal based on clicks, calls, texts, qualified leads, and booked bonds in the last 30 days.",
-        },
-        {
-            'title': exclusivity_title,
-            'value': exclusivity_value,
-            'body': exclusivity_body,
-        },
-        {
-            'title': 'Creative Approval Pulse',
-            'value': creative_value,
-            'body': creative_body,
-        },
-    ]
-
-    return {
-        'order': order,
-        'package': package,
-        'creative': creative,
-        'slots': slots,
-        'performance_30d': performance_30d,
-        'county_performance_30d': county_performance_30d,
-        'attribution': attribution,
-        'benchmarks': benchmarks,
-        'signature_features': signature_features,
-        'priority_actions': priority_actions[:3],
-        'launch_checklist': launch_checklist,
-        'booking_signal_score': booking_signal_score,
-        'signal_label': signal_label,
-        'simulator_preview': simulator_preview,
-    }
-
-
-_BAIL_OUTREACH_STATUSES = {
-    'new',
-    'queued',
-    'contacted',
-    'replied',
-    'meeting_scheduled',
-    'closed_won',
-    'closed_lost',
-    'do_not_contact',
-}
-
-
-def _crm_phone_token(raw_phone):
-    digits = ''.join(ch for ch in (raw_phone or '') if ch.isdigit())
-    if len(digits) > 10:
-        digits = digits[-10:]
-    return digits
-
-
-def _bail_agency_dedupe_key(agency_name, email, phone):
-    agency_token = _slugify_key(agency_name)[:80]
-    email_token = (email or '').strip().lower()[:160]
-    phone_token = _crm_phone_token(phone)
-    if not agency_token:
-        return ''
-    return f'{agency_token}|{email_token}|{phone_token}'
-
-
-def _ensure_bail_agency_outreach_schema(conn):
-    conn.execute(
-        '''
-        CREATE TABLE IF NOT EXISTS bail_agency_outreach (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            dedupe_key TEXT NOT NULL UNIQUE,
-            agency_name TEXT NOT NULL,
-            contact_name TEXT,
-            email TEXT,
-            phone TEXT,
-            counties TEXT,
-            source TEXT,
-            outreach_status TEXT NOT NULL DEFAULT 'new',
-            last_contacted_at TEXT,
-            next_follow_up_at TEXT,
-            owner TEXT,
-            email_subject_template TEXT,
-            email_body_template TEXT,
-            call_script_template TEXT,
-            notes TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
-        )
-        '''
-    )
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_agency_outreach_status ON bail_agency_outreach(outreach_status)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_agency_outreach_followup ON bail_agency_outreach(next_follow_up_at)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_agency_outreach_name ON bail_agency_outreach(agency_name)')
-    conn.execute(
-        '''
-        CREATE TABLE IF NOT EXISTS bail_agency_email_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            agency_id INTEGER,
-            agency_name TEXT NOT NULL,
-            recipient_email TEXT NOT NULL,
-            email_kind TEXT NOT NULL,
-            subject TEXT,
-            body_preview TEXT,
-            sent_by TEXT,
-            send_status TEXT NOT NULL,
-            error_message TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (agency_id) REFERENCES bail_agency_outreach(id) ON DELETE SET NULL
-        )
-        '''
-    )
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_agency_email_logs_created ON bail_agency_email_logs(created_at)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_agency_email_logs_agency ON bail_agency_email_logs(agency_id)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_agency_email_logs_status ON bail_agency_email_logs(send_status)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_bail_agency_email_logs_kind ON bail_agency_email_logs(email_kind)')
-
-
-def _log_bail_agency_email(
-    conn,
-    agency_id,
-    agency_name,
-    recipient_email,
-    email_kind,
-    subject,
-    body_preview,
-    sent_by,
-    send_status,
-    error_message='',
-):
-    conn.execute(
-        '''
-        INSERT INTO bail_agency_email_logs (
-            agency_id, agency_name, recipient_email, email_kind, subject, body_preview, sent_by, send_status, error_message
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''',
-        (
-            int(agency_id) if agency_id else None,
-            (agency_name or '').strip()[:160],
-            (recipient_email or '').strip().lower()[:160],
-            (email_kind or '').strip().lower()[:32],
-            (subject or '').strip()[:500],
-            (body_preview or '').strip()[:1200],
-            (sent_by or '').strip()[:120],
-            (send_status or '').strip().lower()[:32],
-            (error_message or '').strip()[:500],
-        ),
-    )
-
-
-def _seed_bail_agency_outreach(conn):
-    rows = conn.execute(
-        '''
-        SELECT business_name AS agency_name, contact_name, email, phone, counties_served AS counties, source
-        FROM bail_ad_inquiries
-        WHERE business_name IS NOT NULL AND business_name != ''
-        UNION ALL
-        SELECT business_name AS agency_name, contact_name, email, phone, county_targets AS counties, source
-        FROM bail_ad_orders
-        WHERE business_name IS NOT NULL AND business_name != ''
-        '''
-    ).fetchall()
-
-    for row in rows:
-        agency_name = (row['agency_name'] or '').strip()[:160]
-        if not agency_name:
-            continue
-        contact_name = (row['contact_name'] or '').strip()[:120]
-        email = (row['email'] or '').strip().lower()[:160]
-        phone = (row['phone'] or '').strip()[:40]
-        counties = (row['counties'] or '').strip()[:500]
-        source = (row['source'] or '').strip()[:80]
-        dedupe_key = _bail_agency_dedupe_key(agency_name, email, phone)
-        if not dedupe_key:
-            continue
-
-        conn.execute(
-            '''
-            INSERT INTO bail_agency_outreach (
-                dedupe_key, agency_name, contact_name, email, phone, counties, source, outreach_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'new')
-            ON CONFLICT(dedupe_key) DO UPDATE SET
-                contact_name = CASE
-                    WHEN (bail_agency_outreach.contact_name IS NULL OR bail_agency_outreach.contact_name = '')
-                         AND excluded.contact_name != '' THEN excluded.contact_name
-                    ELSE bail_agency_outreach.contact_name
-                END,
-                email = CASE
-                    WHEN (bail_agency_outreach.email IS NULL OR bail_agency_outreach.email = '')
-                         AND excluded.email != '' THEN excluded.email
-                    ELSE bail_agency_outreach.email
-                END,
-                phone = CASE
-                    WHEN (bail_agency_outreach.phone IS NULL OR bail_agency_outreach.phone = '')
-                         AND excluded.phone != '' THEN excluded.phone
-                    ELSE bail_agency_outreach.phone
-                END,
-                counties = CASE
-                    WHEN (bail_agency_outreach.counties IS NULL OR bail_agency_outreach.counties = '')
-                         AND excluded.counties != '' THEN excluded.counties
-                    ELSE bail_agency_outreach.counties
-                END,
-                source = CASE
-                    WHEN (bail_agency_outreach.source IS NULL OR bail_agency_outreach.source = '')
-                         AND excluded.source != '' THEN excluded.source
-                    ELSE bail_agency_outreach.source
-                END,
-                updated_at = datetime('now')
-            ''',
-            (dedupe_key, agency_name, contact_name, email, phone, counties, source),
-        )
-
-
-def _bail_agency_default_templates(agency):
-    agency_name = (agency.get('agency_name') or '').strip() or 'Your Agency'
-    counties = (agency.get('counties') or '').strip() or 'your target counties'
-    subject = f'Quick lead growth plan for {agency_name}'
-    body = (
-        f"Hi {{contact_name_or_team}},\n\n"
-        f"I run growth partnerships for Montana Blotter. We already have high-intent county traffic around {counties}, "
-        f"and I wanted to share a simple 30-day plan for {agency_name}.\n\n"
-        f"Plan focus:\n"
-        f"- More qualified inbound calls from your target counties\n"
-        f"- Better speed-to-lead using call/text routing\n"
-        f"- Clear weekly reporting on qualified leads and booked bonds\n\n"
-        f"If useful, I can send a 10-minute breakdown specific to your coverage area.\n\n"
-        f"Thanks,\n"
-        f"{{sender_name}}"
-    )
-    script = (
-        f"Hi {{contact_name_or_team}}, this is {{sender_name}} from Montana Blotter.\n"
-        f"We help bail bond agencies increase qualified county-level calls.\n"
-        f"Quick question: are you currently looking to improve lead quality, volume, or both?\n\n"
-        f"If both, I can share a 30-day plan for {agency_name} in {counties}.\n"
-        f"It takes 10 minutes to review."
-    )
-    return {
-        'subject': subject,
-        'email_body': body,
-        'call_script': script,
-    }
-
-
-def _render_bail_template(template_text, context):
-    rendered = template_text or ''
-    for key, value in context.items():
-        rendered = rendered.replace('{{' + key + '}}', value or '')
-    return rendered
-
-
-def _bail_agency_rendered_templates(agency):
-    defaults = _bail_agency_default_templates(agency)
-    subject_template = (agency.get('email_subject_template') or '').strip() or defaults['subject']
-    email_template = (agency.get('email_body_template') or '').strip() or defaults['email_body']
-    script_template = (agency.get('call_script_template') or '').strip() or defaults['call_script']
-    context = {
-        'agency_name': (agency.get('agency_name') or '').strip(),
-        'contact_name': (agency.get('contact_name') or '').strip(),
-        'contact_name_or_team': (agency.get('contact_name') or '').strip() or 'team',
-        'counties': (agency.get('counties') or '').strip() or 'your target counties',
-        'sender_name': 'Montana Blotter Team',
-        'today_iso': datetime.utcnow().strftime('%Y-%m-%d'),
-    }
-    return {
-        'subject_template': subject_template,
-        'email_template': email_template,
-        'script_template': script_template,
-        'subject_preview': _render_bail_template(subject_template, context),
-        'email_preview': _render_bail_template(email_template, context),
-        'script_preview': _render_bail_template(script_template, context),
-    }
-
-
-def _default_bail_test_email():
-    username_value = (getattr(current_user, 'username', '') or '').strip().lower()
-    if username_value and '@' in username_value:
-        return username_value
-    notify_recipients = _bail_lead_notify_recipients()
-    if notify_recipients:
-        return notify_recipients[0]
-    smtp_user = (getattr(config, 'SMTP_USER', '') or '').strip().lower()
-    if smtp_user and '@' in smtp_user:
-        return smtp_user
-    return ''
-
-
-def _exclusive_county_tier_monthly_cents(county_name=''):
-    county_key = (county_name or '').strip().lower()
-    premium_counties = {'yellowstone', 'missoula', 'gallatin'}
-    metro_counties = {'cascade', 'flathead', 'lewis and clark', 'lewis & clark'}
-    if county_key in premium_counties:
-        return 35000
-    if county_key in metro_counties:
-        return 25000
-    return 15000
-
-
-def _bail_ad_price_cents(package_id, billing_cycle, county_targets=None):
-    package = _bail_ad_package_lookup().get(_normalize_bail_ad_package_id(package_id))
-    if not package:
-        return None
-
-    monthly_cents = int(package.get('price_monthly_cents') or 0)
-    if package.get('pricing_model') == 'county_tiered':
-        primary_county = ''
-        if isinstance(county_targets, (list, tuple)) and county_targets:
-            primary_county = county_targets[0]
-        elif isinstance(county_targets, str):
-            parsed = _parse_county_targets(county_targets)
-            primary_county = parsed[0] if parsed else ''
-        monthly_cents = _exclusive_county_tier_monthly_cents(primary_county)
-
-    if billing_cycle == 'annual':
-        annual_cents = int(package.get('price_annual_cents') or 0)
-        if package.get('pricing_model') == 'county_tiered':
-            annual_cents = monthly_cents * 12
-        return annual_cents or monthly_cents * 12
-    return monthly_cents
-
-
-def _bail_ad_addon_total_cents(addon_ids, billing_cycle):
-    lookup = _bail_ad_addon_lookup()
-    total = 0
-    for addon_id in addon_ids or []:
-        addon = lookup.get(addon_id)
-        if not addon:
-            continue
-        if billing_cycle == 'annual':
-            total += int(addon.get('price_annual_cents') or 0) or int(addon['price_monthly_cents']) * 10
-        else:
-            total += int(addon['price_monthly_cents'])
-    return total
-
-
-def _bail_ad_county_list(value):
-    raw = (value or '').replace('\n', ',').replace(';', ',')
-    out = []
-    seen = set()
-    for part in raw.split(','):
-        token = part.strip()
-        if not token:
-            continue
-        key = token.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(token[:64])
-    return out
-
-
-def _upsert_bail_ad_slot_assignments(conn, order_id, county_targets, slot_count):
-    if not order_id or slot_count <= 0:
-        return 0
-    targets = _parse_county_targets(county_targets)
-    if not targets:
-        return 0
-
-    created = 0
-    for county_name in targets[:slot_count]:
-        existing = conn.execute(
-            'SELECT id FROM bail_ad_slots WHERE order_id = ? AND county = ? LIMIT 1',
-            (order_id, county_name),
-        ).fetchone()
-        if existing:
-            conn.execute(
-                '''
-                UPDATE bail_ad_slots
-                SET status = 'active', starts_at = COALESCE(starts_at, datetime('now')), updated_at = datetime('now')
-                WHERE id = ?
-                ''',
-                (existing['id'],),
-            )
-            continue
-        conn.execute(
-            '''
-            INSERT INTO bail_ad_slots (order_id, county, slot_type, status, starts_at)
-            VALUES (?, ?, 'county_feature', 'active', datetime('now'))
-            ''',
-            (order_id, county_name),
-        )
-        created += 1
-    return created
-
-
-def _apply_stripe_bail_ad_event(conn, event):
-    _ensure_bail_ad_simulator_order_columns(conn)
-    event_type = (event.get('type') or '').strip()
-    data_object = (event.get('data') or {}).get('object') or {}
-    metadata = data_object.get('metadata') or {}
-    if (metadata.get('flow') or '').strip() != 'bail_ad':
-        return
-
-    if event_type not in {'checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.expired', 'checkout.session.async_payment_failed'}:
-        return
-
-    session_id = (data_object.get('id') or '').strip()
-    if not session_id:
-        return
-
-    package_id = _normalize_bail_ad_package_id(metadata.get('package_id'))
-    billing_cycle = (metadata.get('billing_cycle') or 'monthly').strip().lower()
-    if billing_cycle not in {'monthly', 'annual'}:
-        billing_cycle = 'monthly'
-    package = _bail_ad_package_lookup().get(package_id)
-    if not package:
-        return
-
-    mapped_status = {
-        'checkout.session.completed': 'active',
-        'checkout.session.async_payment_succeeded': 'active',
-        'checkout.session.expired': 'canceled',
-        'checkout.session.async_payment_failed': 'payment_failed',
-    }[event_type]
-
-    raw_county_targets = metadata.get('county_targets') or ''
-    if package.get('all_counties') and (raw_county_targets or '').strip().lower() in {'all', 'all_counties', 'statewide'}:
-        county_target_values = sorted({county['name'] for county in COUNTY_DATA.values()})
-    else:
-        county_target_values = _parse_county_targets(raw_county_targets)
-    amount_cents = int(data_object.get('amount_total') or 0)
-    if amount_cents <= 0:
-        amount_cents = _bail_ad_price_cents(package_id, billing_cycle, county_target_values) or 0
-    currency = (data_object.get('currency') or 'usd').lower()
-    business_name = (metadata.get('business_name') or '').strip()[:120]
-    contact_name = (metadata.get('contact_name') or '').strip()[:120]
-    email = (metadata.get('email') or '').strip().lower()[:160]
-    phone = (metadata.get('phone') or '').strip()[:40]
-    website_url = (metadata.get('website_url') or '').strip()[:300]
-    license_number = (metadata.get('license_number') or '').strip()[:80]
-    county_targets = ', '.join(county_target_values)
-    source = (metadata.get('source') or 'bail_ad_checkout').strip()[:80]
-    add_on_ids = ','.join(_parse_addon_ids((metadata.get('add_on_ids') or '').split(',')))
-    onboarding_token = (metadata.get('onboarding_token') or '').strip()[:64]
-    simulator_logo_path = _safe_bail_ad_simulator_image_url(metadata.get('simulator_logo_path') or '')
-    simulator_target_url = (metadata.get('simulator_target_url') or '').strip()[:300]
-    simulator_share_url = (metadata.get('simulator_share_url') or '').strip()[:500]
-    simulator_view = (metadata.get('simulator_view') or '').strip().lower()[:24]
-    if simulator_view not in {'banner', 'sidebar'}:
-        simulator_view = ''
-    provider_subscription_id = data_object.get('subscription')
-    provider_customer_id = data_object.get('customer')
-
-    existing = conn.execute(
-        '''
-        SELECT id, onboarding_token
-        FROM bail_ad_orders
-        WHERE provider_session_id = ?
-        LIMIT 1
-        ''',
-        (session_id,),
-    ).fetchone()
-    if existing and not onboarding_token:
-        onboarding_token = existing['onboarding_token'] or ''
-    if not onboarding_token:
-        onboarding_token = secrets.token_urlsafe(24)
-
-    conn.execute(
-        '''
-        INSERT INTO bail_ad_orders (
-            business_name, contact_name, email, phone, website_url, license_number,
-            county_targets, package_id, billing_cycle, amount_cents, currency, source,
-            add_on_ids, status, provider, provider_session_id, provider_subscription_id, provider_customer_id,
-            onboarding_token, paid_at, simulator_logo_path, simulator_target_url, simulator_share_url, simulator_view
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'stripe', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(provider_session_id) DO UPDATE SET
-            business_name = excluded.business_name,
-            contact_name = excluded.contact_name,
-            email = excluded.email,
-            phone = excluded.phone,
-            website_url = excluded.website_url,
-            license_number = excluded.license_number,
-            county_targets = excluded.county_targets,
-            package_id = excluded.package_id,
-            billing_cycle = excluded.billing_cycle,
-            amount_cents = CASE WHEN excluded.amount_cents > 0 THEN excluded.amount_cents ELSE bail_ad_orders.amount_cents END,
-            currency = excluded.currency,
-            source = excluded.source,
-            add_on_ids = excluded.add_on_ids,
-            status = excluded.status,
-            provider_subscription_id = COALESCE(excluded.provider_subscription_id, bail_ad_orders.provider_subscription_id),
-            provider_customer_id = COALESCE(excluded.provider_customer_id, bail_ad_orders.provider_customer_id),
-            onboarding_token = CASE WHEN excluded.onboarding_token != '' THEN excluded.onboarding_token ELSE bail_ad_orders.onboarding_token END,
-            paid_at = CASE WHEN excluded.paid_at IS NOT NULL THEN excluded.paid_at ELSE bail_ad_orders.paid_at END,
-            simulator_logo_path = CASE WHEN excluded.simulator_logo_path != '' THEN excluded.simulator_logo_path ELSE bail_ad_orders.simulator_logo_path END,
-            simulator_target_url = CASE WHEN excluded.simulator_target_url != '' THEN excluded.simulator_target_url ELSE bail_ad_orders.simulator_target_url END,
-            simulator_share_url = CASE WHEN excluded.simulator_share_url != '' THEN excluded.simulator_share_url ELSE bail_ad_orders.simulator_share_url END,
-            simulator_view = CASE WHEN excluded.simulator_view != '' THEN excluded.simulator_view ELSE bail_ad_orders.simulator_view END,
-            updated_at = datetime('now')
-        ''',
-        (
-            business_name,
-            contact_name,
-            email,
-            phone,
-            website_url,
-            license_number,
-            county_targets,
-            package_id,
-            billing_cycle,
-            amount_cents,
-            currency,
-            source,
-            add_on_ids,
-            mapped_status,
-            session_id,
-            provider_subscription_id,
-            provider_customer_id,
-            onboarding_token,
-            datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') if mapped_status == 'active' else None,
-            simulator_logo_path,
-            simulator_target_url,
-            simulator_share_url,
-            simulator_view,
-        ),
-    )
-
-    order_row = conn.execute(
-        'SELECT id FROM bail_ad_orders WHERE provider_session_id = ? LIMIT 1',
-        (session_id,),
-    ).fetchone()
-    if mapped_status == 'active' and order_row:
-        _upsert_bail_ad_slot_assignments(
-            conn,
-            order_row['id'],
-            county_targets,
-            int(package.get('county_slots') or 0),
-        )
-
-
-def _donation_launch_snapshot():
     snapshot = {
         'schema_ready': True,
         'donations_enabled': _donations_enabled(),
@@ -4337,6 +2521,27 @@ def _apply_subscription_stripe_event(conn, event):
                 ''',
                 (subscription_id,),
             )
+    elif event_type == 'invoice.payment_failed':
+        subscription_id = (data_object.get('subscription') or '').strip()
+        if subscription_id:
+            conn.execute(
+                '''
+                UPDATE public_users
+                SET subscription_status = 'past_due'
+                WHERE stripe_subscription_id = ?
+                ''',
+                (subscription_id,),
+            )
+            try:
+                from services.monetization.dunning import notify_payment_failed
+                notify_payment_failed(
+                    conn,
+                    subscription_id,
+                    data_object,
+                    event_id=(event.get('id') or ''),
+                )
+            except Exception as exc:
+                print(f"⚠️ dunning payment-failed notice failed for {subscription_id}: {exc}")
     elif event_type in {'customer.subscription.deleted', 'customer.subscription.updated'}:
         subscription_id = (data_object.get('id') or '').strip()
         status = (data_object.get('status') or '').strip().lower()
@@ -4351,7 +2556,30 @@ def _apply_subscription_stripe_event(conn, event):
                     ''',
                     (status, subscription_id),
                 )
+            elif status in {'past_due', 'unpaid', 'paused'}:
+                # Non-terminal: Stripe is still retrying. Keep access and keep
+                # stripe_subscription_id so a later invoice.paid can restore the
+                # row; blanking it here orphaned subscribers permanently.
+                conn.execute(
+                    '''
+                    UPDATE public_users
+                    SET subscription_status = ?
+                    WHERE stripe_subscription_id = ?
+                    ''',
+                    (status, subscription_id),
+                )
             else:
+                if event_type == 'customer.subscription.deleted':
+                    try:
+                        from services.monetization.dunning import notify_access_ended
+                        notify_access_ended(
+                            conn,
+                            subscription_id,
+                            plan=plan,
+                            event_id=(event.get('id') or ''),
+                        )
+                    except Exception as exc:
+                        print(f"⚠️ dunning access-ended notice failed for {subscription_id}: {exc}")
                 conn.execute(
                     '''
                     UPDATE public_users
@@ -4598,6 +2826,7 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
         return
     if (metadata.get('flow') or '').strip() == 'lawyer_ad':
         return
+
     if (metadata.get('flow') or '').strip() == 'sponsored_listing':
         from blueprints.sponsored_listings import apply_stripe_sponsored_event
         apply_stripe_sponsored_event(conn, event)
@@ -4634,7 +2863,7 @@ def _apply_stripe_event(conn, event, event_source='/webhooks/stripe', event_ip_h
 
     # Fallback: route subscription/invoice lifecycle events when those events lack flow
     # metadata (subscription objects don't carry checkout metadata).
-    if event_type in {'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid'}:
+    if event_type in {'customer.subscription.updated', 'customer.subscription.deleted', 'invoice.paid', 'invoice.payment_failed'}:
         _sub_id = (data_object.get('subscription') or data_object.get('id') or '').strip()
         if _sub_id:
             try:
@@ -6145,7 +4374,7 @@ def _homepage_recent_records(
     limit=10,
 ):
     record_date_sql = _record_roundup_date_sql('records.date')
-    # Pick the newest clean post per blotter via a correlated subquery, then
+    # Pick the newest clean post per blotter once with a grouped query, then
     # LEFT JOIN records to it. Bare JOIN on blotter_id would let a single
     # blotter (e.g. one Missoula public-report post covering ~97 records)
     # monopolize the ticker; the per-record query then surfaces 6 records
@@ -6169,13 +4398,14 @@ def _homepage_recent_records(
         FROM records
         LEFT JOIN (
             SELECT p.id, p.blotter_id, p.title, p.summary, p.agency_name, p.city,
-                   p.case_status, p.audit_status
+                   p.agency_type, p.case_status, p.audit_status
             FROM posts p
-            WHERE p.id = (
-                SELECT MAX(p2.id) FROM posts p2
-                WHERE p2.blotter_id = p.blotter_id
-                  AND COALESCE(p2.audit_status, 'pending') = 'clean'
-            )
+            JOIN (
+                SELECT blotter_id, MAX(id) AS id
+                FROM posts
+                WHERE COALESCE(audit_status, 'pending') = 'clean'
+                GROUP BY blotter_id
+            ) newest_clean ON newest_clean.id = p.id
         ) latest_post ON latest_post.blotter_id = records.blotter_id
         WHERE COALESCE(latest_post.audit_status, 'pending') = 'clean'
     """
@@ -7246,44 +5476,44 @@ def inject_public_nav():
     public_primary_nav_items = [
         {'id': 'home', 'href': home_href, 'label': 'Home'},
         {'id': 'arrests', 'href': '/arrests', 'label': 'Arrests'},
-        {'id': 'data_center', 'href': '/datacenter', 'label': 'Data Center'},
-        {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
-        {'id': 'county-coverage', 'href': '/county-coverage', 'label': 'Coverage'},
         {'id': 'courts', 'href': '/courts', 'label': 'Courts'},
-        {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
-        {'id': 'learn', 'href': '/learn', 'label': 'Know Your Rights'},
-        {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons'},
+        {'id': 'counties', 'href': '/counties', 'label': 'Counties'},
+        {'id': 'sex_offender_updates', 'href': '/sex-offender-updates', 'label': 'Sexual & Violent Registry'},
     ]
     public_more_nav_groups = [
         {
-            'title': 'Look up records',
+            'title': 'Find records',
             'items': [
-                {'id': 'meetings', 'href': _public_meetings_href(), 'label': 'Public Meetings'},
                 {'id': 'jail_bookings', 'href': '/jail-bookings', 'label': 'Jail Bookings'},
-                {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds'},
+                {'id': 'wanted', 'href': '/wanted', 'label': 'Active Warrants'},
                 {'id': 'case_journeys', 'href': '/case-journeys', 'label': 'Case Tracking'},
+                {'id': 'meetings', 'href': _public_meetings_href(), 'label': 'Public Meetings'},
             ],
         },
         {
-            'title': 'Maps & trends',
+            'title': 'Maps & data',
             'items': [
                 {'id': 'crime_atlas', 'href': '/crime-atlas', 'label': 'Crime Map'},
                 {'id': 'crime_data', 'href': '/crime-data', 'label': 'Crime Data'},
+                {'id': 'data_center', 'href': '/datacenter', 'label': 'Data Center'},
+                {'id': 'county-coverage', 'href': '/county-coverage', 'label': 'Coverage'},
                 {'id': 'leaderboard', 'href': '/leaderboard', 'label': 'Leaderboard'},
             ],
         },
         {
-            'title': 'Safety alerts',
+            'title': 'Safety & services',
             'items': [
+                {'id': 'missing_persons', 'href': '/missing-persons', 'label': 'Missing Persons'},
                 {'id': 'code_violations', 'href': '/code-violations', 'label': 'Code Violations'},
                 {'id': 'license_sanctions', 'href': '/license-sanctions', 'label': 'License Sanctions'},
-                {'id': 'sex_offender_updates', 'href': '/sex-offender-updates', 'label': 'Offender Alerts'},
-                {'id': 'wanted', 'href': '/wanted', 'label': 'Active Warrants'},
+                {'id': 'bail_bonds', 'href': '/bail-bonds', 'label': 'Bail Bonds'},
             ],
         },
         {
             'title': 'News & help',
             'items': [
+                {'id': 'blog', 'href': '/blog', 'label': 'Blog'},
+                {'id': 'learn', 'href': '/learn', 'label': 'Know Your Rights'},
                 {'id': 'support', 'href': '/support', 'label': 'Help & Support'},
             ],
         },
@@ -7341,7 +5571,7 @@ def inject_public_nav():
         {'href': '/recovery-centers', 'label': 'Recovery Centers'},
         {'href': '/code-violations', 'label': 'Code Violations'},
         {'href': '/license-sanctions', 'label': 'License Sanctions'},
-        {'href': '/sex-offender-updates', 'label': 'Violent / Sexual Offender Updates'},
+        {'href': '/sex-offender-updates', 'label': 'Sexual & Violent Registry'},
         {'href': '/subscribe', 'label': 'Subscribe'},
         {'href': '/newsletter', 'label': 'Daily Digest'},
         {'href': '#modal-standards', 'label': 'Standards'},
@@ -8844,6 +7074,7 @@ def _homepage_sponsors_context(conn):
             })
     except Exception:
         pass
+
     return homepage_sponsors
 
 @app.route('/')
@@ -10029,7 +8260,7 @@ def missing_person_detail(slug):
 def wanted_index():
     has_access = bool(user_has_warrant_access())
     if not has_access:
-        return redirect(url_for('payments.wanted_subscribe', next=request.path))
+        return redirect(url_for('bail_bond_ads.wanted_subscribe', next=request.path))
     conn = get_db()
     try:
         offset = max(int(request.args.get('offset') or 0), 0)
@@ -10048,7 +8279,7 @@ def wanted_index():
     )
     conn.close()
     if not has_access and offset > 0:
-        return redirect(url_for('payments.wanted_subscribe', next=request.path))
+        return redirect(url_for('bail_bond_ads.wanted_subscribe', next=request.path))
     return render_template(
         'wanted_index.html',
         active_nav='wanted',
@@ -10092,7 +8323,7 @@ def wanted_detail(slug):
 @app.route('/wanted/counties')
 def wanted_counties():
     if not user_has_warrant_access():
-        return redirect(url_for('payments.wanted_subscribe', next=request.path))
+        return redirect(url_for('bail_bond_ads.wanted_subscribe', next=request.path))
     from services.ingestion.warrants.source_registry import COUNTY_SOURCES
     conn = get_db()
     counts = {
@@ -10129,7 +8360,7 @@ def wanted_counties():
 @app.route('/wanted/county/<slug>')
 def wanted_county(slug):
     if not user_has_warrant_access():
-        return redirect(url_for('payments.wanted_subscribe', next=request.path))
+        return redirect(url_for('bail_bond_ads.wanted_subscribe', next=request.path))
     has_access = True
     conn = get_db()
     context = warrant_county_context(conn, slug, has_access=has_access)
@@ -10229,7 +8460,7 @@ def wanted_notify_when_cleared():
     or 'resolved' status, an email is queued.
     """
     if not user_has_warrant_access():
-        return redirect(url_for('payments.wanted_subscribe', next=request.path))
+        return redirect(url_for('bail_bond_ads.wanted_subscribe', next=request.path))
     if request.method == 'POST':
         person_name = (request.form.get('person_name') or '').strip()[:120]
         dob = (request.form.get('dob') or '').strip()[:20]
@@ -10917,6 +9148,7 @@ def sex_offender_updates():
                            rows=rows, counties=counties, change_types=change_types,
                            county_filter=county_filter, type_filter=type_filter,
                            page=page, pages=pages, total=total,
+                           active_nav='sex_offender_updates',
                            current_year=datetime.now().year)
 
 
@@ -10937,6 +9169,7 @@ def sex_offender_county(county_slug):
     conn.close()
     return render_template('sex_offender_county.html',
                            county=county.title(), offenders=offenders, cities=cities,
+                           active_nav='sex_offender_updates',
                            current_year=datetime.now().year)
 
 
@@ -11695,6 +9928,11 @@ def name_watch_cancel():
         unsubscribed_email=email,
         current_year=datetime.now().year,
     )
+
+
+def _bail_ad_public_placements(conn, county=''):
+    """Return public bail-ad placements; fail closed when ad helpers are unavailable."""
+    return {'banner': None, 'sidebar': None, 'county_sponsor': None}
 
 
 @app.route('/post/<slug>')
@@ -15250,7 +13488,7 @@ _WARRANT_COUNTIES = [
 @app.route('/warrants')
 def warrants_hub():
     if not user_has_warrant_access():
-        return redirect(url_for('payments.wanted_subscribe', next=request.path))
+        return redirect(url_for('bail_bond_ads.wanted_subscribe', next=request.path))
     counties = [COUNTY_DATA[s] for s in _WARRANT_COUNTIES if s in COUNTY_DATA]
     return render_template(
         'warrants_hub.html',
@@ -15264,7 +13502,7 @@ def warrants_hub():
 @app.route('/warrants/<slug>')
 def warrant_county(slug):
     if not user_has_warrant_access():
-        return redirect(url_for('payments.wanted_subscribe', next=request.path))
+        return redirect(url_for('bail_bond_ads.wanted_subscribe', next=request.path))
     county = COUNTY_DATA.get(slug)
     if not county:
         return render_template('404.html'), 404
@@ -16325,8 +14563,7 @@ register_lea_panel(app)
 register_lea_portal(app)
 register_lea_connect(app)
 app.register_blueprint(recovery_ads_bp)
-app.register_blueprint(attorney_ads_bp)
-app.register_blueprint(attorney_checkout_bp)
+app.register_blueprint(bail_bond_ads_bp)
 app.register_blueprint(lawyer_ads_bp)
 from blueprints.sponsored_listings import sponsored_bp
 app.register_blueprint(sponsored_bp)
@@ -16581,6 +14818,109 @@ def admin_analytics():
     )
     conn.close()
     return render_template('admin_analytics_hub.html', analytics=context)
+
+
+@app.route('/admin/site-stats')
+@login_required
+def admin_site_stats():
+    """Site stats panel — top searches, current viewers, subscribers, visitor stats."""
+    conn = get_db()
+    pv_conn = connect_page_views()
+
+    # --- Top searched names (from case_status_searches) ---
+    top_names = conn.execute('''
+        SELECT query_text AS name, COUNT(*) AS search_count
+        FROM case_status_searches
+        WHERE query_text != ''
+        GROUP BY lower(query_text)
+        ORDER BY search_count DESC
+        LIMIT 20
+    ''').fetchall()
+
+    # --- Top searched items (all search types) ---
+    top_searches = conn.execute('''
+        SELECT query_text, COUNT(*) AS search_count
+        FROM case_status_searches
+        WHERE query_text != ''
+        GROUP BY lower(query_text)
+        ORDER BY search_count DESC
+        LIMIT 30
+    ''').fetchall()
+
+    # --- Current viewers (last 5 minutes) ---
+    current_viewers = pv_conn.execute('''
+        SELECT COUNT(DISTINCT ip_hash) AS active_now
+        FROM page_views
+        WHERE created_at >= datetime('now', '-5 minutes')
+    ''').fetchone()['active_now']
+
+    # --- Subscriber stats ---
+    subscriber_stats = conn.execute('''
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) AS active,
+            SUM(CASE WHEN active = 0 THEN 1 ELSE 0 END) AS inactive,
+            SUM(CASE WHEN subscriber_plan = 'free' THEN 1 ELSE 0 END) AS free_plan,
+            SUM(CASE WHEN subscriber_plan != 'free' THEN 1 ELSE 0 END) AS paid_plan
+        FROM subscribers
+    ''').fetchone()
+
+    recent_subscribers = conn.execute('''
+        SELECT email, counties, subscriber_plan, created_at
+        FROM subscribers
+        ORDER BY created_at DESC
+        LIMIT 10
+    ''').fetchall()
+
+    # --- Site visitor stats (last 30 days) ---
+    visitor_stats = pv_conn.execute('''
+        SELECT
+            COUNT(*) AS total_views,
+            COUNT(DISTINCT ip_hash) AS unique_visitors
+        FROM page_views
+        WHERE created_at >= datetime('now', '-30 days')
+    ''').fetchone()
+
+    daily_views = pv_conn.execute('''
+        SELECT date(created_at) AS day, COUNT(*) AS views
+        FROM page_views
+        WHERE created_at >= datetime('now', '-30 days')
+        GROUP BY day
+        ORDER BY day
+    ''').fetchall()
+
+    top_pages = pv_conn.execute('''
+        SELECT path, COUNT(*) AS views
+        FROM page_views
+        WHERE created_at >= datetime('now', '-30 days')
+        GROUP BY path
+        ORDER BY views DESC
+        LIMIT 15
+    ''').fetchall()
+
+    top_referrers = pv_conn.execute('''
+        SELECT referrer, COUNT(*) AS views
+        FROM page_views
+        WHERE created_at >= datetime('now', '-30 days')
+          AND referrer IS NOT NULL AND referrer != ''
+        GROUP BY referrer
+        ORDER BY views DESC
+        LIMIT 10
+    ''').fetchall()
+
+    conn.close()
+    pv_conn.close()
+
+    return render_template('admin_site_stats.html',
+                         top_names=top_names,
+                         top_searches=top_searches,
+                         current_viewers=current_viewers,
+                         subscriber_stats=subscriber_stats,
+                         recent_subscribers=recent_subscribers,
+                         visitor_stats=visitor_stats,
+                         daily_views=daily_views,
+                         top_pages=top_pages,
+                         top_referrers=top_referrers)
 
 
 # ==========================================

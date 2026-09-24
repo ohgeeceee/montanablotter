@@ -256,7 +256,7 @@ article.mb-newspaper {
   flex-wrap: wrap;
   justify-content: center;
   align-items: stretch;
-  gap: 0;
+  gap: 6px 10px;
   padding: 10px 0;
   border-bottom: 2px solid rgba(20, 14, 4, 0.85);
   font-family: "IBM Plex Mono", monospace;
@@ -264,6 +264,19 @@ article.mb-newspaper {
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+}
+.mb-np-nav__group {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid rgba(20, 14, 4, 0.25);
+}
+.mb-np-nav__label {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  color: #96261f;
+  background: rgba(150, 38, 31, 0.08);
+  border-right: 1px solid rgba(20, 14, 4, 0.25);
 }
 .mb-np-nav a {
   display: inline-block;
@@ -273,14 +286,15 @@ article.mb-newspaper {
   border-right: 1px solid rgba(20, 14, 4, 0.25);
   transition: color 0.15s ease, background-color 0.15s ease;
 }
-.mb-np-nav a:first-child { border-left: 1px solid rgba(20, 14, 4, 0.25); }
+.mb-np-nav a:last-child { border-right: 0; }
 .mb-np-nav a:hover,
 .mb-np-nav a:focus-visible {
   color: #96261f;
   background: rgba(150, 38, 31, 0.08);
 }
 @media (max-width: 720px) {
-  .mb-np-nav { font-size: 10px; gap: 0; }
+  .mb-np-nav { font-size: 10px; gap: 6px; justify-content: flex-start; }
+  .mb-np-nav__group { max-width: 100%; overflow-x: auto; }
   .mb-np-nav a { padding: 4px 10px; }
 }
 

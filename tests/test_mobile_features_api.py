@@ -136,8 +136,31 @@ class MobileFeaturesApiTests(unittest.TestCase):
         self.assertEqual(payload["matches"][0]["person"]["name"], "John Doe")
         self.assertEqual(payload["matches"][0]["court_cases"][0]["case_number"], "CR-2024-1234")
 
-    def test_warrants_endpoint(self) -> None:
+    def test_warrants_endpoint_requires_warrant_access(self) -> None:
         client = app_module.app.test_client()
+        response = client.get("/api/v1/warrants")
+        self.assertEqual(response.status_code, 401)
+        payload = response.get_json()
+        self.assertEqual(payload["error"], "warrant_access_required")
+
+    def test_warrants_endpoint_with_warrant_access(self) -> None:
+        conn = app_module.get_db()
+        try:
+            cur = conn.execute(
+                """
+                INSERT INTO public_users (email, password_hash, display_name, is_subscribed, subscriber_plan, subscription_status)
+                VALUES (?, ?, ?, 1, 'warrant_access', 'active')
+                """,
+                ("warrant@example.com", "hash", "Warrant User"),
+            )
+            uid = cur.lastrowid
+            conn.commit()
+        finally:
+            conn.close()
+
+        client = app_module.app.test_client()
+        with client.session_transaction() as session_:
+            session_["public_user_id"] = uid
         response = client.get("/api/v1/warrants")
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()

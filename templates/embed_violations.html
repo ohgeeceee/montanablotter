@@ -10,6 +10,7 @@
         .mb-brand { color: #D4892A; }
     </style>
 {% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-newspaper.css">{% endif %}
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-page-flip.css">{% endif %}
 </head>
 <body class="bg-white{% if request.args.get('newspaper') != '0' %} mb-newspaper-body{% endif %}">
 {% if request.args.get('newspaper') != '0' %}<div class="mb-newspaper-stage"><div class="mb-newspaper-stack"><article class="mb-newspaper mb-newspaper--dark-inset">{% endif %}
@@ -55,5 +56,8 @@
         </div>
     </div>
 {% if request.args.get('newspaper') != '0' %}</article></div></div>{% endif %}
+{% if request.args.get('newspaper') != '0' %}
+<script src="/static/mb-page-flip.js" defer></script>
+{% endif %}
 </body>
 </html>

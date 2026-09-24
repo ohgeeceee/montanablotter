@@ -12,6 +12,9 @@ import init_db
 
 class DonateCheckoutTestCase(unittest.TestCase):
     def setUp(self):
+        donations_enabled = patch.object(config, 'DONATIONS_ENABLED', True)
+        donations_enabled.start()
+        self.addCleanup(donations_enabled.stop)
         fd, self.db_path = tempfile.mkstemp(prefix='mb-donate-checkout-', suffix='.db')
         os.close(fd)
         self.previous_db_path = config.DB_PATH

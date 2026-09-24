@@ -82,6 +82,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
 }
 </style>
 {% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-newspaper.css">{% endif %}
+{% if request.args.get('newspaper') != '0' %}<link rel="stylesheet" href="/static/mb-page-flip.css">{% endif %}
 </head>
 <body{% if request.args.get('newspaper') != '0' %} class="mb-newspaper-body"{% endif %}>
 {% if request.args.get('newspaper') != '0' %}<div class="mb-newspaper-stage"><div class="mb-newspaper-stack"><article class="mb-newspaper mb-newspaper--dark-inset">{% endif %}
@@ -470,6 +471,9 @@ document.getElementById('panelClose').addEventListener('click', () => {
 
 initMap().catch(console.error);
 </script>
+{% if request.args.get('newspaper') != '0' %}
+<script src="/static/mb-page-flip.js" defer></script>
+{% endif %}
 {% if request.args.get('newspaper') != '0' %}</article></div></div>{% endif %}
 </body>
 </html>

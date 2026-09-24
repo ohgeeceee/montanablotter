@@ -113,6 +113,37 @@ body.admin-shell {
   margin: 4px 16px;
 }
 
+.admin-nav-filter {
+  display: block;
+  padding: 8px 16px 10px;
+}
+
+.admin-nav-filter__label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--adm-text-muted);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.admin-nav-filter input {
+  width: 100%;
+  border: 1px solid var(--adm-border-strong);
+  border-radius: 5px;
+  background: var(--adm-bg);
+  color: var(--adm-text);
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 7px 9px;
+}
+
+.admin-nav-filter input:focus {
+  border-color: var(--adm-amber);
+  outline: 2px solid var(--adm-amber-soft);
+}
+
 /* Nav groups */
 
 .admin-nav-group {

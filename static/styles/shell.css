@@ -166,11 +166,14 @@
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  min-width: 240px;
-  max-width: 320px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--u-space-5);
+  min-width: min(560px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
   background-color: var(--u-elevated);
   border: 1px solid var(--u-border);
-  padding: var(--u-space-4) 0;
+  padding: var(--u-space-4);
   opacity: 0;
   transform: translateY(-4px);
   pointer-events: none;
@@ -188,10 +191,11 @@
 }
 
 .mb-more-dropdown__group {
-  padding: 0 var(--u-space-4) var(--u-space-4);
+  min-width: 0;
+  padding: 0 0 var(--u-space-4);
 }
 
-.mb-more-dropdown__group:last-child {
+.mb-more-dropdown__group:nth-last-child(-n+2) {
   padding-bottom: 0;
 }
 
@@ -233,6 +237,21 @@
   border-left-color: var(--u-accent);
   background-color: var(--u-surface);
   font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .mb-more-dropdown {
+    grid-template-columns: 1fr;
+    min-width: min(300px, calc(100vw - 2rem));
+  }
+
+  .mb-more-dropdown__group:nth-last-child(-n+2) {
+    padding-bottom: var(--u-space-4);
+  }
+
+  .mb-more-dropdown__group:last-child {
+    padding-bottom: 0;
+  }
 }
 
 /* Actions cluster */

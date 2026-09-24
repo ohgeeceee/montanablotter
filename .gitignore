@@ -66,3 +66,11 @@ backups/manual-imports/
 # Scratch space and generated audit artifacts.
 tmp/
 workspace/
+
+# Pre-migration DB snapshots (local safety copies, never commit)
+backups/*.db.pre-*
+# Scratch roster capture artifacts (generated; see scripts/hill_county_roster_pdf.py)
+hill_county_*
+hill_roster_*
+# Local QA screenshots
+screenshots/

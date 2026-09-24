@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
   {% if request.args.get('admin_newspaper') != '0' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='mb-newspaper.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='mb-page-flip.css') }}">
+  <script src="{{ url_for('static', filename='mb-page-flip.js') }}" defer></script>
   {% endif %}
 {% endblock %}
 
@@ -146,9 +148,12 @@
     <div class="admin-sidebar-divider"></div>
 
     {# ── Group: Audience ── #}
-    <details class="admin-nav-group" {% if admin_path.startswith('/admin/audience') %}open{% endif %}>
+    <details class="admin-nav-group" {% if admin_path.startswith('/admin/audience') or admin_path.startswith('/admin/site-stats') %}open{% endif %}>
       <summary class="admin-nav-group-label">Audience <span class="admin-nav-group-chevron">⌄</span></summary>
       <div class="admin-nav-group-items">
+      <a href="/admin/site-stats" class="admin-nav-link {% if admin_path.startswith('/admin/site-stats') %}active{% endif %}">
+        <span class="admin-nav-icon">📊</span> Site Stats
+      </a>
       <a href="/admin/audience/subscribers" class="admin-nav-link {% if admin_path.startswith('/admin/audience/subscribers') %}active{% endif %}">
         <span class="admin-nav-icon">☉</span> Subscribers
       </a>

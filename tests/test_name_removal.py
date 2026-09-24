@@ -231,9 +231,8 @@ class NameRemovalCheckoutTestCase(unittest.TestCase):
         fake_session.id = 'cs_test_abc'
         fake_session.url = 'https://checkout.stripe.com/c/pay/cs_test_abc'
 
-        with patch.object(self.app_module, 'config') as cfg:
-            cfg.NAME_SUPPRESS_PRICE_ID = 'price_test_name'
-            cfg.STRIPE_SECRET_KEY = 'sk_test'
+        with patch.multiple(config, NAME_SUPPRESS_PRICE_ID='price_test_name',
+                            STRIPE_SECRET_KEY='sk_test'):
             with patch('stripe.checkout.Session.create', return_value=fake_session) as create_mock:
                 resp = self.client.post(
                     '/remove-my-name',

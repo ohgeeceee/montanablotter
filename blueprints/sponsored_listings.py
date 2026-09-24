@@ -1,10 +1,10 @@
 """
-Sponsored Listings — paid bail bond / attorney placement on county jail booking pages.
+Sponsored Listings — paid bail bond / recovery placement on county jail booking pages.
 
 Business model:
 - Bail bond agencies pay $99/mo or $999/yr per county for a sponsored position
   on the sidebar of booking detail pages and the jail bookings page for their county.
-- Criminal defense attorneys pay $79/mo or $799/yr for the same placement.
+- Recovery centers pay $49/mo or $499/yr for the same placement.
 - Ads appear in a "Sponsored" sidebar section, filtered by county.
 """
 
@@ -39,13 +39,6 @@ _PRICING = {
         'annual_cents': 99900,
         'monthly_label': '$99/mo',
         'annual_label': '$999/yr',
-    },
-    'attorney': {
-        'label': 'Criminal Defense Attorney',
-        'monthly_cents': 7900,
-        'annual_cents': 79900,
-        'monthly_label': '$79/mo',
-        'annual_label': '$799/yr',
     },
     'recovery': {
         'label': 'Recovery Center',

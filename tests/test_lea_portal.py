@@ -125,4 +125,4 @@ class TestLEAPortal(unittest.TestCase):
     def test_admin_redirect(self) -> None:
         response = self.client.get('/leaportal/admin')
         self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/lea-management', response.headers.get('Location', ''))
+        self.assertIn('/admin/system/lea', response.headers.get('Location', ''))

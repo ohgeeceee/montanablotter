@@ -330,9 +330,13 @@ class AdUnlockBlueprintTestCase(unittest.TestCase):
 
         # Inject the template context vars the public_page_base.html nav
         # expects (normally provided by the app-level context processor).
+        # csrf_token is registered as a Jinja global in the real app; the
+        # bare test app needs a stand-in because ad_watch.html echoes it
+        # into the claim form.
         @self.app.context_processor
         def _inject_nav():
             return {
+                'csrf_token': lambda: 'test-csrf-token',
                 'public_action_labels': {
                     'subscribe': 'Subscribe',
                     'subscribe_full': 'Subscribe to Warrant Access',

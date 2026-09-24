@@ -63,6 +63,8 @@
 <div class="public-route-layout">
     <main class="public-main-stack">
 
+        {% include "includes/resources_dir_nav.html" %}
+
         {% set has_any = by_county and by_county.values()|map('length')|sum > 0 or statewide_entries %}
         {% if has_any %}
             <article class="public-detail-frame" style="background: linear-gradient(180deg, #fffdf0 0%, #fff 60%); border-left: 4px solid #c9a227;">

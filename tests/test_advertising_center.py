@@ -1,5 +1,14 @@
 """Isolated fixtures for sales records, authorization, and honest media-kit metrics."""
 import os
+
+# The AdvertisingRouteTests class imports the Flask app at class setup. Pin
+# disposable /tmp DB paths BEFORE any project module import so `import app`
+# (and the modules it pulls in) can never resolve DB_PATH to the production
+# database. The .env loader in config.py does not override pre-set env vars.
+os.environ.setdefault('MB_DB_PATH', '/tmp/mb-advertising-center-test.db')
+os.environ.setdefault('MB_PAGE_VIEWS_DB_PATH', '/tmp/mb-advertising-center-pageviews.db')
+os.environ.setdefault('MB_TURSO_ENABLED', 'false')
+
 import secrets
 import sqlite3
 import tempfile
@@ -105,9 +114,32 @@ class AdvertisingRouteTests(unittest.TestCase):
         if not os.environ.get('MB_DB_PATH', '').startswith('/tmp/'):
             raise RuntimeError('Run with MB_DB_PATH and MB_PAGE_VIEWS_DB_PATH in /tmp, MB_TURSO_ENABLED=false.')
         import app
+        import config
         cls.app_module = app
         cls.app = app.app
+        cls.previous_db_path = config.DB_PATH
+        cls.previous_init_db_path = init_db.DB_PATH
+        cls.previous_testing = cls.app.config.get('TESTING', False)
         cls.app.config.update(TESTING=True)
+        # Belt-and-braces: even if an env file resolved a different DB_PATH,
+        # keep every config surface pointed at a throwaway database.
+        fd, cls.db_path = tempfile.mkstemp(prefix='mb-advertising-center-', suffix='.db')
+        os.close(fd)
+        config.DB_PATH = cls.db_path
+        init_db.DB_PATH = cls.db_path
+        cls.app_module.config.DB_PATH = cls.db_path
+        init_db.init_database()
+        init_db.migrate()
+
+    @classmethod
+    def tearDownClass(cls):
+        import config
+        config.DB_PATH = cls.previous_db_path
+        init_db.DB_PATH = cls.previous_init_db_path
+        cls.app_module.config.DB_PATH = cls.previous_db_path
+        cls.app.config['TESTING'] = cls.previous_testing
+        if os.path.exists(cls.db_path):
+            os.unlink(cls.db_path)
 
     def setUp(self):
         import config
