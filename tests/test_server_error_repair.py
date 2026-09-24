@@ -11,9 +11,18 @@ Root causes guarded here:
 import unittest
 
 import app as app_module
+import config
+import init_db
 
 
 class TestServerErrorRepair(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Ensure the active DB (possibly a fresh/empty temp file under CI env)
+        # has the full schema before the smoke matrix hits table-backed pages.
+        init_db.init_database()
+        init_db.migrate()
+
     def setUp(self):
         app_module.app.config['TESTING'] = True
         self.client = app_module.app.test_client()

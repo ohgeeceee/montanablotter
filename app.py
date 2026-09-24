@@ -54,6 +54,8 @@ from blueprints.lea_panel import register_lea_panel
 from blueprints.lea_portal import register_lea_portal
 from blueprints.lea_connect import register_lea_connect
 from blueprints.recovery_ads import recovery_ads_bp
+from blueprints.attorney_ads import attorney_ads_bp
+from blueprints.attorney_checkout import attorney_checkout_bp
 from blueprints.lawyer_ads import lawyer_ads_bp
 from blueprints.bail_bond_ads import bail_bond_ads_bp
 from blueprints.bail_bond_ads import (
@@ -1152,7 +1154,8 @@ def enforce_billing_csrf():
             return redirect(request.referrer), 400
         if request.path.startswith('/lawyer-control-panel/'):
             return redirect(url_for('lawyer_ads.lawyers_directory')), 400
-        return redirect('/'), 400
+        # Default: send the buyer back to the listing package page.
+        return redirect(url_for('lawyer_ads.advertise_lawyers')), 400
 
 
 @app.before_request
@@ -1519,6 +1522,25 @@ def _admin_financial_pulse() -> dict:
             cycle = (row['billing_cycle'] or 'monthly').lower()
             pkg = law_pkg.get(row['package_id']) or {}
             monthly = int(row['amount_cents'] or 0) or (pkg.get('price_monthly_cents') or 0)
+            annual = pkg.get('price_annual_cents') or 0
+            if cycle == 'annual':
+                mrr_cents += annual // 12
+            else:
+                mrr_cents += monthly
+                total_rev_cents += monthly
+
+        att_pkg = {}
+        try:
+            from blueprints import attorney_checkout as _att_mod
+            att_pkg = _att_mod._attorney_package_lookup()
+        except Exception:
+            att_pkg = {}
+        for row in _safe(
+            "SELECT package_id, billing_cycle FROM attorney_checkout_orders WHERE status = 'active'"
+        ):
+            cycle = (row['billing_cycle'] or 'monthly').lower()
+            pkg = att_pkg.get(row['package_id']) or {}
+            monthly = pkg.get('price_monthly_cents') or 0
             annual = pkg.get('price_annual_cents') or 0
             if cycle == 'annual':
                 mrr_cents += annual // 12
@@ -14563,6 +14585,8 @@ register_lea_panel(app)
 register_lea_portal(app)
 register_lea_connect(app)
 app.register_blueprint(recovery_ads_bp)
+app.register_blueprint(attorney_ads_bp)
+app.register_blueprint(attorney_checkout_bp)
 app.register_blueprint(bail_bond_ads_bp)
 app.register_blueprint(lawyer_ads_bp)
 from blueprints.sponsored_listings import sponsored_bp

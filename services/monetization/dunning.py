@@ -175,6 +175,7 @@ def _record_event(conn: sqlite3.Connection, user_id: int, event_id: str,
                VALUES (?, ?, ?, ?)''',
             (int(user_id), event_id, event_type, json.dumps(payload)[:20000]),
         )
+        conn.commit()
     except sqlite3.Error:
         logger.exception('dunning: could not record %s for user %s', event_type, user_id)
 

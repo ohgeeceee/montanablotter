@@ -147,8 +147,7 @@ def advertising_link_source():
 @admin_bp.route('/revenue/advertising/<int:prospect_id>/proposal')
 @require_role(*READ_ROLES)
 def advertising_proposal(prospect_id):
-    from blueprints.bail_bond_ads import _bail_ad_packages
-    _PACKAGES = [p for p in _bail_ad_packages() if p.get('type')]
+    from blueprints.lawyer_ads import _PACKAGES
     with closing(get_db()) as conn:
         row = conn.execute('SELECT business_name,counties,category FROM advertising_prospects WHERE id=?', (prospect_id,)).fetchone()
     if not row:
@@ -212,8 +211,7 @@ def county_advertising_inquiry(slug):
 @media_kit_bp.route('/advertise/media-kit')
 @media_kit_bp.route('/advertise/media-kit/<slug>')
 def county_media_kit(slug='cascade', form_error='', form_values=None, response_status=200):
-    from blueprints.bail_bond_ads import _bail_ad_packages
-    _PACKAGES = [p for p in _bail_ad_packages() if p.get('type')]
+    from blueprints.lawyer_ads import _PACKAGES, _county_active_capacity, _LAWYER_COUNTY_CAPS
 
     counties = {county_slug(c): c for c in config.MONTANA_COUNTIES}
     if slug not in counties:
@@ -227,16 +225,18 @@ def county_media_kit(slug='cascade', form_error='', form_values=None, response_s
         else:
             try:
                 with closing(get_db()) as conn, closing(connect_page_views()) as pv_conn:
+                    # Bound the query even on old, large analytics databases.
                     started = time.monotonic()
                     pv_conn.set_progress_handler(lambda: int(time.monotonic() - started > 3), 10000)
                     facts = media_facts(conn, pv_conn, counties[slug])
-                _facts_cache[slug] = (time.monotonic(), facts, False)
+                    capacity = _county_active_capacity(conn, counties[slug])
+                _facts_cache[slug] = (time.monotonic(), facts, capacity)
             except sqlite3.Error:
                 log.exception('County media-kit data unavailable for %s', slug)
                 unavailable = True
-    return render_template('advertising_media_kit.html', facts=facts,
+    return render_template('advertising_media_kit.html', facts=facts, capacity=capacity,
                            unavailable=unavailable, county=counties[slug], county_options=counties,
-                           packages=_PACKAGES,
+                           packages=_PACKAGES, caps=_LAWYER_COUNTY_CAPS,
                            page_title=f'{counties[slug]} County advertising media kit',
                            meta_description='County advertising options and clearly labeled first-party measurement.',
                            canonical_url=f'https://montanablotter.com/advertise/media-kit/{slug}',

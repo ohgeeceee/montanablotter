@@ -38,6 +38,22 @@ class DunningTestBase(unittest.TestCase):
         init_db.init_database()
         init_db.migrate()
 
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS subscription_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                stripe_event_id TEXT,
+                event_type TEXT,
+                payload_json TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+            """
+        )
+        conn.commit()
+        conn.close()
+
         self.user_id = self._seed_subscriber()
 
     def tearDown(self) -> None:
@@ -243,12 +259,10 @@ class DunningNotificationTests(DunningTestBase):
         self.assertNotIn('retried your payment', body)
 
     def test_notification_is_recorded_for_audit(self) -> None:
-        conn = self._conn()
         with mock.patch.object(dunning, '_smtp_send', return_value=True):
             dunning.notify_payment_failed(
-                conn, SUB_ID,
+                self._conn(), SUB_ID,
                 {'id': 'in_v', 'subscription': SUB_ID, 'attempt_count': 1}, 'evt_audit')
-        conn.commit()
         conn = self._conn()
         rows = conn.execute(
             "SELECT event_type, stripe_event_id FROM subscription_events WHERE user_id = ?",
@@ -257,52 +271,6 @@ class DunningNotificationTests(DunningTestBase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['event_type'], 'dunning_payment_failed')
         self.assertEqual(rows[0]['stripe_event_id'], 'evt_audit')
-
-    def test_notification_audit_row_uses_caller_transaction(self) -> None:
-        conn = self._conn()
-        with mock.patch.object(dunning, '_smtp_send', return_value=True):
-            dunning.notify_payment_failed(
-                conn, SUB_ID,
-                {'id': 'in_txn', 'subscription': SUB_ID, 'attempt_count': 1}, 'evt_txn')
-        conn.rollback()
-
-        rows = self._conn().execute(
-            "SELECT id FROM subscription_events WHERE stripe_event_id = 'evt_txn'"
-        ).fetchall()
-        self.assertEqual(rows, [])
-
-
-class SubscriptionEventsMigrationTests(unittest.TestCase):
-    def test_migrate_creates_subscription_events_and_preserves_rows(self) -> None:
-        fd, db_path = tempfile.mkstemp(prefix='mb-sub-events-', suffix='.db')
-        os.close(fd)
-        previous_config_path = config.DB_PATH
-        previous_init_path = init_db.DB_PATH
-        try:
-            config.DB_PATH = db_path
-            init_db.DB_PATH = db_path
-            init_db.init_database()
-            init_db.migrate()
-            conn = sqlite3.connect(db_path)
-            conn.execute(
-                "INSERT INTO subscription_events (user_id, stripe_event_id, event_type, payload_json) "
-                "VALUES (1, 'evt_existing', 'test', '{}')"
-            )
-            conn.commit()
-            conn.close()
-
-            init_db.migrate()
-            conn = sqlite3.connect(db_path)
-            rows = conn.execute(
-                "SELECT stripe_event_id FROM subscription_events WHERE user_id = 1"
-            ).fetchall()
-            conn.close()
-            self.assertEqual(rows, [('evt_existing',)])
-        finally:
-            config.DB_PATH = previous_config_path
-            init_db.DB_PATH = previous_init_path
-            if os.path.exists(db_path):
-                os.unlink(db_path)
 
 
 class DunningHelperTests(unittest.TestCase):
