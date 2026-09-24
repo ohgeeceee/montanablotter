@@ -225,7 +225,9 @@ def get_user_plan() -> str:
             # matrix see a recognized plan.
             plan = normalize_plan(row['subscriber_plan'])
             status = (row['subscription_status'] or '').strip().lower()
-            if plan in PLAN_HIERARCHY and status in ('active', 'trialing'):
+            # Keep the promised grace period while Stripe retries a payment.
+            # Unpaid/paused/canceled subscriptions do not retain paid access.
+            if plan in PLAN_HIERARCHY and status in ('active', 'trialing', 'past_due'):
                 return plan
     return 'free'
 

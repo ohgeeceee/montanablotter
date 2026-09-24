@@ -84,6 +84,7 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("jail_booking_ingest_chouteau", LOGS / "jail_booking_ingest.log", 26, "daily"),
     MonitoredJob("jail_booking_ingest_glacier", LOGS / "jail_booking_ingest.log", 2, "every 15 minutes"),
     MonitoredJob("jail_booking_ingest_statewide_daily", LOGS / "jail_booking_ingest.log", 26, "daily"),
+    MonitoredJob("lawyer_arrest_alerts_watcher", LOGS / "lawyer_arrest_alerts.log", 2, "every 15 minutes"),
     MonitoredJob("warrant_ingest", LOGS / "warrant_ingest.log", 8, "every 6 hours"),
     MonitoredJob("prune_page_views", LOGS / "prune_page_views.log", 26, "daily"),
     # Installed August 31, after the July slot; first scheduled run is October 1.

@@ -274,6 +274,11 @@ def well_known_jobs() -> dict[str, dict]:
             "max_age_hours": 26,
             "cadence": "daily",
         },
+        "lawyer_arrest_alerts_watcher": {
+            "log_path": f"{REPO_ROOT}/logs/lawyer_arrest_alerts.log",
+            "max_age_hours": 2,
+            "cadence": "every 15 minutes",
+        },
         "warrant_ingest": {
             "log_path": f"{REPO_ROOT}/logs/warrant_ingest.log",
             "max_age_hours": 8,
