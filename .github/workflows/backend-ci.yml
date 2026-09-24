@@ -34,8 +34,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest-forked
 
       - name: Run backend test suite
         run: python -m pytest tests/ --forked --tb=short -q
         env:
           MB_REQUIRE_SIGNIN: "false"
+          # config.py is a secret-free, env-overridable defaults module and is
+          # tracked in git; CI must still pin disposable DB paths so a stray
+          # .env or changed default can never point tests at production files.
+          MB_DB_PATH: /tmp/mb-ci-test.db
+          MB_PAGE_VIEWS_DB_PATH: /tmp/mb-ci-pageviews.db
+          MB_TURSO_ENABLED: "false"
