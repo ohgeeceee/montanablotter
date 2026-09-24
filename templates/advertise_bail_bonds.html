@@ -355,7 +355,7 @@
                 <h2 class="text-2xl font-black text-slate-900 mt-1">Choose your placement</h2>
                 <p class="text-sm text-slate-600 mt-1">County sponsorships, sticky sidebar, top banner, or the full Gold Bond Bundle. Monthly or annual. Cancel any time.</p>
             </div>
-            <a href="{{ url_for('payments.advertise_bail_bonds_checkout') }}" class="text-xs font-black uppercase tracking-[0.12em] text-blue-700 underline">Go to checkout →</a>
+            <a href="{{ url_for('bail_bond_ads.advertise_bail_bonds_checkout') }}" class="text-xs font-black uppercase tracking-[0.12em] text-blue-700 underline">Go to checkout →</a>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
@@ -372,7 +372,7 @@
                 <ul class="adbl-tier__features">
                     {% for f in pkg.features %}<li>{{ f }}</li>{% endfor %}
                 </ul>
-                <a href="{{ url_for('payments.advertise_bail_bonds_checkout', package=pkg.id) }}"
+                <a href="{{ url_for('bail_bond_ads.advertise_bail_bonds_checkout', package=pkg.id) }}"
                    class="adbl-tier__cta {% if pkg.highlight %}adbl-tier__cta--featured{% else %}adbl-tier__cta--primary{% endif %}">
                     {{ pkg.cta or 'Select Package' }}
                 </a>
@@ -602,7 +602,7 @@
                     <p class="text-sm text-slate-600">
                         JavaScript is required to use the live ad preview simulator. You can still
                         explore placements above and
-                        <a class="font-semibold text-blue-700 underline" href="{{ url_for('payments.advertise_bail_bonds_checkout') }}">continue to secure checkout</a>.
+                        <a class="font-semibold text-blue-700 underline" href="{{ url_for('bail_bond_ads.advertise_bail_bonds_checkout') }}">continue to secure checkout</a>.
                     </p>
                 </div>
                 </noscript>
@@ -785,7 +785,7 @@
         <p class="text-sm text-slate-600 mt-2 max-w-2xl mx-auto">Submit the inquiry form, sign the contract, and your agency is live on /bail-bonds. State license number required.</p>
         <div class="mt-4 flex flex-wrap items-center justify-center gap-3">
             <a href="#pricing" class="inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 text-xs font-black uppercase tracking-[0.14em]">See placements</a>
-            <a href="{{ url_for('payments.advertise_bail_bonds_checkout') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em]">Go to checkout</a>
+            <a href="{{ url_for('bail_bond_ads.advertise_bail_bonds_checkout') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 px-5 py-3 text-xs font-black uppercase tracking-[0.14em]">Go to checkout</a>
         </div>
     </div>
 </div>

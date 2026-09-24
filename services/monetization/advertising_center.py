@@ -9,13 +9,11 @@ import config
 
 STAGES = {'new': 'New lead', 'contacted': 'Contacted', 'proposal_sent': 'Proposal sent',
           'active': 'Active customer', 'lost': 'Lost', 'paused': 'Paused'}
-CATEGORIES = {'general': 'Local business', 'lawyer': 'Lawyer', 'bail': 'Bail bonds',
+CATEGORIES = {'general': 'Local business', 'bail': 'Bail bonds',
               'recovery': 'Recovery', 'mixed': 'Multiple products'}
 # Whitelisted identifiers only. Source rows are never updated by this module.
 SOURCES = {
-    'lawyer_outreach_prospects': ('Lawyer outreach', 'firm_name', 'contact_email', 'county', 'lawyer', '/admin/revenue/lawyer-outreach/prospect/{id}'),
     'advertise_sales_leads': ('Sales inquiry', 'firm_or_agency', 'email', 'county', 'general', ''),
-    'lawyer_ad_orders': ('Lawyer order', 'firm_name', 'email', 'counties_served', 'lawyer', '/admin/revenue/lawyer-ads/{id}/edit'),
     'bail_ad_orders': ('Bail order', 'business_name', 'email', 'county_targets', 'bail', '/admin/revenue/bail-ads'),
     'bail_ad_inquiries': ('Bail inquiry', 'business_name', 'email', 'counties_served', 'bail', '/admin/revenue/bail-ads'),
     'bail_agency_outreach': ('Bail outreach', 'agency_name', 'email', 'counties', 'bail', '/admin/revenue/bail-ads'),
@@ -169,7 +167,7 @@ def validate_inquiry(form, county):
         raise ValueError('Choose a valid Montana county.')
     result['county'] = county
     result['product'] = form.get('product', 'general')
-    if result['product'] not in {'general','lawyer','bail','recovery'}:
+    if result['product'] not in {'general','bail','recovery'}:
         raise ValueError('Choose a valid advertising interest.')
     if form.get('contact_ok') != 'yes':
         raise ValueError('Please confirm that we may contact you about this request.')
@@ -216,7 +214,7 @@ def build_proposal(prospect, county, package_id, billing_cycle, packages):
     if pkg:
         cents = pkg['price_annual_cents'] if billing_cycle == 'annual' else pkg['price_monthly_cents']
         frequency = 'year, billed annually' if billing_cycle == 'annual' else 'month, billed monthly'
-        lines += [f'Placement: Lawyer directory — {pkg["name"]}',
+        lines += [f'Placement: {pkg["type"]}',
                   f'Published price: ${cents / 100:,.2f} per {frequency}',
                   pkg['short_description'],
                   'County inventory and eligibility must be confirmed at checkout.', '']

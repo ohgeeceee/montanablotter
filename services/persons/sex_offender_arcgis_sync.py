@@ -148,11 +148,23 @@ def run_sync(*, dry_run: bool = False, full_sync: bool = False, batch_size: int 
             total_active = conn.execute(
                 "SELECT COUNT(*) FROM sex_offenders WHERE status='active'"
             ).fetchone()[0]
+            active_state = {
+                str(r['registry_id']): {
+                    'address_street': r['address_street'],
+                    'address_city': r['address_city'],
+                    'address_county': r['address_county'],
+                    'status': r['status'],
+                    'risk_level': r['risk_level'],
+                }
+                for r in conn.execute(
+                    "SELECT registry_id, address_street, address_city, address_county, status, risk_level FROM sex_offenders WHERE status='active'"
+                ).fetchall()
+            }
             conn.execute(
                 """
                 INSERT INTO sex_offender_snapshots
-                (snapshot_date, total_count, new_count, removed_count, changed_count, scrape_duration_seconds, notes)
-                VALUES (datetime('now'), ?, ?, ?, ?, ?, ?)
+                (snapshot_date, total_count, new_count, removed_count, changed_count, scrape_duration_seconds, notes, active_state_json)
+                VALUES (datetime('now'), ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     total_active,
@@ -161,6 +173,7 @@ def run_sync(*, dry_run: bool = False, full_sync: bool = False, batch_size: int 
                     updated_count,
                     int(time.time() - started),
                     f"arcgis feed sync; rows_seen={rows_seen}; unique_ids={len(seen_ids)}; full_sync={'yes' if full_sync else 'no'}",
+                    json.dumps(active_state, ensure_ascii=True),
                 ),
             )
             conn.commit()

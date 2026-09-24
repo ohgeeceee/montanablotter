@@ -1,0 +1,51 @@
+{% extends "public_page_base.html" %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Careers</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <span class="public-eyebrow">Great Falls, Montana</span>
+                <h1 class="public-title public-title--medium">Careers</h1>
+                <p class="public-copy">
+                    Montana Blotter is a small civic-tech operation building public-records
+                    infrastructure for all 56 Montana counties — scrapers, parsers, a
+                    publication pipeline, and the privacy safeguards that come with real
+                    people's records. Remote-friendly, Montana-first.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="public-section">
+    <div class="public-section__frame">
+        <article class="public-card">
+            <div class="public-card__body">
+                <p class="public-card__eyebrow">Open Positions</p>
+                <p class="public-copy">
+                    No formal openings posted right now. We work in small loops and hire
+                    when a project needs another pair of hands — if the work below sounds
+                    like you, send a short pitch and something you have built.
+                </p>
+                <ul class="public-copy" style="margin:0.75rem 0 0.75rem 1.25rem;">
+                    <li>Python data pipelines: scraping, PDF/OCR parsing, dedup at source scale.</li>
+                    <li>Front-end for dense public records: accessible, fast, newspaper-grade typography.</li>
+                    <li>Civic/records research: Montana court structure, sheriff-office operations, public-records law.</li>
+                </ul>
+                <p class="public-copy" style="margin-top:1rem;">
+                    Reach us through the <a href="/support">support desk</a> with
+                    &ldquo;Careers&rdquo; in the subject line.
+                </p>
+            </div>
+        </article>
+    </div>
+</section>
+{% endblock %}

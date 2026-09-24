@@ -1,0 +1,185 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Site Stats | Admin Panel{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6 space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.18em] font-black text-emerald-600">Reporting</p>
+            <h1 class="text-3xl font-black text-slate-900 mt-2">Site Stats</h1>
+            <p class="text-sm text-slate-500 mt-1">Searches, viewers, subscribers, and visitor statistics.</p>
+        </div>
+        <span class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">
+            {{ current_viewers }} online now
+        </span>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Total Views (30d)</p>
+            <p class="text-3xl font-black text-slate-900 mt-2">{{ visitor_stats['total_views'] if visitor_stats else 0 }}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Unique Visitors (30d)</p>
+            <p class="text-3xl font-black text-slate-900 mt-2">{{ visitor_stats['unique_visitors'] if visitor_stats else 0 }}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Subscribers</p>
+            <p class="text-3xl font-black text-slate-900 mt-2">{{ subscriber_stats['total'] if subscriber_stats else 0 }}</p>
+            <p class="text-sm text-slate-400 mt-1">{{ subscriber_stats['active'] if subscriber_stats else 0 }} active</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+            <p class="text-[10px] uppercase tracking-[0.14em] font-black text-slate-500">Plan Mix</p>
+            <p class="text-3xl font-black text-slate-900 mt-2">{{ subscriber_stats['paid_plan'] if subscriber_stats else 0 }}</p>
+            <p class="text-sm text-slate-400 mt-1">paid / {{ subscriber_stats['free_plan'] if subscriber_stats else 0 }} free</p>
+        </div>
+    </div>
+
+    <!-- Daily views chart -->
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-lg font-black text-slate-900">Daily Views — Last 30 Days</h2>
+        </div>
+        <div class="p-5">
+            {% if daily_views %}
+            <canvas id="dailyChart" height="60"></canvas>
+            {% else %}
+            <p class="text-sm text-slate-500">No page view data for the last 30 days.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Search tables -->
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Top Searched Names</h2>
+            </div>
+            <div class="divide-y divide-slate-50">
+                {% for row in top_names %}
+                <div class="px-5 py-3 flex items-center justify-between gap-4">
+                    <span class="text-sm font-mono text-slate-700 truncate">{{ row['name'] }}</span>
+                    <span class="text-sm font-black text-slate-900 shrink-0">{{ row['search_count'] }}</span>
+                </div>
+                {% else %}
+                <p class="px-5 py-4 text-sm text-slate-500">No search data yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Top Searched Items</h2>
+            </div>
+            <div class="divide-y divide-slate-50">
+                {% for row in top_searches %}
+                <div class="px-5 py-3 flex items-center justify-between gap-4">
+                    <span class="text-sm font-mono text-slate-700 truncate">{{ row['query_text'] }}</span>
+                    <span class="text-sm font-black text-slate-900 shrink-0">{{ row['search_count'] }}</span>
+                </div>
+                {% else %}
+                <p class="px-5 py-4 text-sm text-slate-500">No search data yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscribers -->
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <h2 class="text-lg font-black text-slate-900">Recent Subscribers</h2>
+            <a href="/admin/audience/subscribers" class="text-sm font-bold text-emerald-600 hover:text-emerald-700">View all &rarr;</a>
+        </div>
+        <div class="divide-y divide-slate-50">
+            {% for row in recent_subscribers %}
+            <div class="px-5 py-3 flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                    <p class="text-sm font-mono text-slate-700 truncate">{{ row['email'] }}</p>
+                    <p class="text-xs text-slate-400">{{ row['counties'] or 'All counties' }}</p>
+                </div>
+                <div class="text-right shrink-0">
+                    <span class="inline-block rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{{ row['subscriber_plan'] }}</span>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ row['created_at'][:10] if row['created_at'] else '' }}</p>
+                </div>
+            </div>
+            {% else %}
+            <p class="px-5 py-4 text-sm text-slate-500">No subscribers yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Traffic tables -->
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Top Pages (30d)</h2>
+            </div>
+            <div class="divide-y divide-slate-50">
+                {% for row in top_pages %}
+                <div class="px-5 py-3 flex items-center justify-between gap-4">
+                    <span class="text-sm font-mono text-slate-700 truncate">{{ row['path'] }}</span>
+                    <span class="text-sm font-black text-slate-900 shrink-0">{{ row['views'] }}</span>
+                </div>
+                {% else %}
+                <p class="px-5 py-4 text-sm text-slate-500">No page view data for the last 30 days.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                <h2 class="text-lg font-black text-slate-900">Top Referrers (30d)</h2>
+            </div>
+            <div class="divide-y divide-slate-50">
+                {% for row in top_referrers %}
+                <div class="px-5 py-3 flex items-center justify-between gap-4">
+                    <span class="text-sm text-slate-700 truncate">{{ row['referrer'] }}</span>
+                    <span class="text-sm font-black text-slate-900 shrink-0">{{ row['views'] }}</span>
+                </div>
+                {% else %}
+                <p class="px-5 py-4 text-sm text-slate-500">No referrer data for the last 30 days.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const dailyLabels = {{ daily_views | map(attribute='day') | list | tojson }};
+const dailyCounts = {{ daily_views | map(attribute='views') | list | tojson }};
+
+if (dailyLabels && dailyLabels.length > 0) {
+    new Chart(document.getElementById('dailyChart'), {
+        type: 'line',
+        data: {
+            labels: dailyLabels,
+            datasets: [{
+                label: 'Views',
+                data: dailyCounts,
+                borderColor: '#059669',
+                backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

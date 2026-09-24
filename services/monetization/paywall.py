@@ -69,6 +69,7 @@ FEATURES = {
     'saved_searches':      1,     # plus: 10 saved searches
     'saved_searches_unlimited': 2, # pro: unlimited
     'daily_digest':        1,     # plus: daily digest email
+    'jail_roster_digest':  1,     # plus: up to 5 counties; pro: statewide
 
     # Case tracking
     'case_tracking':       1,     # plus: track 5 cases
@@ -89,8 +90,6 @@ FEATURES = {
     'county_analytics':    1,     # plus: per-county trends
     'statewide_analytics': 2,     # pro: statewide comparisons
     # Directory & Listings
-    'lawyer_listing':        1,     # plus: lawyer directory listing
-    'lawyer_listing_unlimited': 2,  # pro: unlimited lawyer listings
     'recovery_listing':      1,     # plus: recovery center listing
     'recovery_listing_unlimited': 2, # pro: unlimited recovery listings
     'directory_featured':    1,     # plus: featured directory placement
@@ -101,7 +100,6 @@ FEATURES = {
     'leaderboard_ad_unlimited': 2,  # pro: unlimited leaderboard ads
 
     # Analytics & Reporting
-    'lawyer_performance':    1,     # plus: lawyer ad performance stats
     'recovery_performance':  1,     # plus: recovery ad performance stats
     'ad_revenue_report':     2,     # pro: detailed ad revenue reports
 
@@ -111,7 +109,6 @@ FEATURES = {
     'referral_bounties':     2,     # pro: referral bounties for new users
 
     # Exports & API
-    'lawyer_api_access':     2,     # pro: lawyer ad API access
     'recovery_api_access':   2,     # pro: recovery ad API access
 }
 

@@ -117,7 +117,6 @@
                         <td class="px-5 py-3 font-medium text-slate-900">{{ row.email }}</td>
                         <td class="px-4 py-3 text-slate-700">{{ row.county }}</td>
                         <td class="px-4 py-3">
-                            {% set types = row.alert_types | tojson | fromjson if row.alert_types else ['all'] %}
                             {% for t in (row.alert_types | replace('[','') | replace(']','') | replace('"','') | replace("'", '') ).split(',') %}
                             <span class="inline-block text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 mr-1">{{ t.strip() }}</span>
                             {% endfor %}

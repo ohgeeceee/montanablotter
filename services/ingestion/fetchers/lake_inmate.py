@@ -8,13 +8,20 @@ The Lake County roster is a ReportLab-generated PDF with these columns:
     Last, First Middle Name | Jacket # | Age | Race | Sex | Days |
     Booking Date | Arr Agency | Charges / Hold Reasons
 
-The charges column is on the far right (x ≥ ~469pt).  When a charge entry
-is long, it wraps to the next visual row — which means the wrapped text can
-appear directly below the *next* inmate's booking row in the raw word stream.
-To handle this correctly the parser separates words into a left "booking"
-stream (x < CHARGE_COL_X) and a right "charge" stream (x ≥ CHARGE_COL_X),
-then assigns each charge fragment to the record whose booking header is at
-least CHARGE_ASSIGN_MARGIN points above it.
+The charges column is on the far right (x ≥ ~469pt).  ReportLab vertically
+centers each inmate's multi-line charge block against their booking row, so
+the *last* line of a block is baseline-aligned with the header row and any
+earlier lines sit *above* it — potentially above the previous inmate's
+header.  Assigning fragments to "the last header above them" therefore
+shifts wrapped first-lines onto the previous inmate (this mis-attribution
+was reported for Lake bookings on 2026-09-21).
+
+Correct rule: the parser separates words into a left "booking" stream
+(x < CHARGE_COL_X) and a right "charge" stream (x ≥ CHARGE_COL_X), then
+assigns each charge fragment to the *first* booking header whose bottom
+edge reaches down to the fragment's vertical position (baseline-anchored).
+Fragments below the last header on a page (page-tail wrapped lines) are
+assigned to that last header.
 """
 
 from __future__ import annotations
@@ -38,11 +45,12 @@ ROSTER_URL = "https://www.lakemt.gov/DocumentCenter/View/816/Jail_Roster-?bidId=
 # Words with x0 >= this threshold are in the charges column.
 CHARGE_COL_X: float = 460.0
 
-# A charge fragment at vertical position Y is assigned to the last booking
-# row whose top <= Y - CHARGE_ASSIGN_MARGIN.  This ensures wrapped charge
-# lines that appear just below the *next* person's header (typically ~2-6pt
-# gap) still belong to the previous record.
-CHARGE_ASSIGN_MARGIN: float = 8.0
+# Charge blocks are vertically centered on their header row, so a block's
+# last line shares the header's baseline and earlier lines sit above it.
+# A fragment at vertical position Y belongs to the first booking row whose
+# bottom edge reaches Y - _BASELINE_TOL (small tolerance for glyph ascent
+# differences between the two columns).
+_BASELINE_TOL: float = 2.5
 
 # Row-merging tolerance for pdfplumber word extraction.
 _WORD_Y_TOL: float = 3.0
@@ -163,12 +171,10 @@ def _parse_page(page) -> tuple[list[tuple[float, dict]], list[tuple[float, str]]
     for row_top in sorted(rows):
         row_words = sorted(rows[row_top], key=lambda w: w["x0"])
 
-        left_text = " ".join(
-            w["text"] for w in row_words if w["x0"] < CHARGE_COL_X
-        ).strip()
-        right_text = " ".join(
-            w["text"] for w in row_words if w["x0"] >= CHARGE_COL_X
-        ).strip()
+        left_words = [w for w in row_words if w["x0"] < CHARGE_COL_X]
+        right_words = [w for w in row_words if w["x0"] >= CHARGE_COL_X]
+        left_text = " ".join(w["text"] for w in left_words).strip()
+        right_text = " ".join(w["text"] for w in right_words).strip()
 
         # Skip page-level header/footer rows entirely (both columns).
         # "Roster" anchors the title row whose date portion falls in the right
@@ -185,7 +191,10 @@ def _parse_page(page) -> tuple[list[tuple[float, dict]], list[tuple[float, str]]
         if left_text:
             parsed = _parse_booking_row(left_text)
             if parsed:
-                booking_rows.append((row_top, parsed))
+                left_bottom = max(
+                    (w["bottom"] for w in left_words), default=row_top
+                )
+                booking_rows.append((row_top, left_bottom, parsed))
 
         if right_text:
             charge_fragments.append((row_top, right_text))
@@ -194,42 +203,83 @@ def _parse_page(page) -> tuple[list[tuple[float, dict]], list[tuple[float, str]]
 
 
 def _assign_charges(
-    booking_rows: list[tuple[float, dict]],
+    booking_rows: list[tuple[float, float, dict]],
     charge_fragments: list[tuple[float, str]],
-) -> dict[int, list[str]]:
+    carry_in: list[str] | None = None,
+) -> tuple[dict[int, list[str]], list[str]]:
     """
     Assign each charge fragment to the correct booking record.
 
-    Rule: fragment at vertical position Y belongs to the last booking row
-    whose top <= Y - CHARGE_ASSIGN_MARGIN.  This margin (8pt ≈ one line
-    height) absorbs the common case where PDF charge-text wrapping places
-    a continuation line just below the *next* inmate's header row.
+    Rule: fragment at vertical position Y belongs to the *first* booking row
+    whose bottom edge reaches down to it (bottom >= Y - _BASELINE_TOL).
+    Fragments below the last header's bottom edge on the page are page-tail
+    lines: ReportLab split the last inmate's charge block across the page
+    break, so they are returned as ``carry_out`` for the next page's first
+    header (or dropped on the final page).  ``carry_in`` holds the previous
+    page's tail fragments and is attached to this page's first header.
+
+    Rationale: ReportLab vertically centers each inmate's multi-line charge
+    block against their booking row, so the block's *last* line shares the
+    header's baseline and earlier lines sit *above* it.  The previous rule
+    ("last header above the fragment") shifted first-lines of wrapped blocks
+    onto the *previous* inmate, mis-attributing charges (reported 2026-09-21).
     """
-    booking_tops = [top for top, _ in booking_rows]
     charges_by_idx: dict[int, list[str]] = {i: [] for i in range(len(booking_rows))}
+    carry_out: list[str] = []
+
+    if carry_in and booking_rows:
+        charges_by_idx[0].extend(carry_in)
+
+    # Target of the most recent statute-initial fragment: 'row' -> index,
+    # 'carry' -> page-tail list.  Wrapped continuation lines follow their
+    # parent line's target even if they drift across the anchor boundary
+    # (e.g. "in Subsection 45-9-102(1) or (2)" wrapping under the previous
+    # inmate's "45-9-102[Fel] - Criminal Possession" line).
+    prev: tuple[str, int] | None = ("row", 0) if (carry_in and booking_rows) else None
 
     for frag_top, frag_text in charge_fragments:
-        threshold = frag_top - CHARGE_ASSIGN_MARGIN
+        statute_like = bool(_STATUTE_START_RE.match(frag_text))
+        if not statute_like and prev is not None:
+            if prev[0] == "row":
+                charges_by_idx[prev[1]].append(frag_text)
+            else:
+                carry_out.append(frag_text)
+            continue
         target_idx = None
-        for i, btop in enumerate(booking_tops):
-            if btop <= threshold:
+        for i, (_btop, bbottom, _fields) in enumerate(booking_rows):
+            if bbottom >= frag_top - _BASELINE_TOL:
                 target_idx = i
-        if target_idx is not None:
+                break
+        if target_idx is None:
+            # Page-tail fragment.  If it continues a wrapped charge line
+            # (does not start with a statute code) it belongs to the last
+            # header on this page; if it starts a NEW charge block it belongs
+            # to the first header on the next page (ReportLab split the
+            # block across the page break).
+            if booking_rows and not statute_like:
+                charges_by_idx[len(booking_rows) - 1].append(frag_text)
+                prev = ("row", len(booking_rows) - 1)
+            else:
+                carry_out.append(frag_text)
+                prev = ("carry", -1)
+        else:
             charges_by_idx[target_idx].append(frag_text)
+            prev = ("row", target_idx)
 
-    return charges_by_idx
+    return charges_by_idx, carry_out
 
 
 def _parse_pdf_bytes(pdf_bytes: bytes, source_url: str) -> list[JailBookingRecord]:
     records: list[JailBookingRecord] = []
     seen_ids: set[str] = set()
+    carry: list[str] = []
 
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         for page in pdf.pages:
             booking_rows, charge_fragments = _parse_page(page)
-            charges_by_idx = _assign_charges(booking_rows, charge_fragments)
+            charges_by_idx, carry = _assign_charges(booking_rows, charge_fragments, carry_in=carry)
 
-            for i, (_, fields) in enumerate(booking_rows):
+            for i, (_, _bbottom, fields) in enumerate(booking_rows):
                 charge_parts = charges_by_idx.get(i, [])
                 charges_summary = (
                     _join_charge_parts(charge_parts)

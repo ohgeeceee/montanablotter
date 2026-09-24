@@ -1,4 +1,4 @@
-{% extends "admin.html" %}
+{% extends "admin_legacy_adapter.html" %}
 
 {% block title %}Compose Email Campaign | Montana Blotter Admin{% endblock %}
 
@@ -27,6 +27,7 @@
       <option value="lawyers"        {% if audience == 'lawyers' %}selected{% endif %}>Attorneys & Law Firms ({{ audience_counts.get('lawyers', 0) }})</option>
       <option value="bail_bondsmen"  {% if audience == 'bail_bondsmen' %}selected{% endif %}>Bail Bondsmen ({{ audience_counts.get('bail_bondsmen', 0) }})</option>
       <option value="clients"        {% if audience == 'clients' %}selected{% endif %}>Subscribers & Users ({{ audience_counts.get('clients', 0) }})</option>
+      <option value="jail_roster_leads" {% if audience == 'jail_roster_leads' %}selected{% endif %}>Jail Roster Upgrade Leads ({{ audience_counts.get('jail_roster_leads', 0) }})</option>
       <option value="courts"         {% if audience == 'courts' %}selected{% endif %}>Courts & Judiciary ({{ audience_counts.get('courts', 0) }})</option>
       <option value="police"         {% if audience == 'police' %}selected{% endif %}>Police & Sheriff ({{ audience_counts.get('police', 0) }})</option>
     </select>
@@ -43,7 +44,7 @@
             class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none">
       <option value="">— Custom / blank —</option>
       {% for t in templates %}
-      <option value="{{ t.id }}">{{ t.name }} ({{ t.audience }})</option>
+      <option value="{{ t.id }}" {% if selected_template and t.id == selected_template.id %}selected{% endif %}>{{ t.name }} ({{ t.audience }})</option>
       {% endfor %}
     </select>
     {% if selected_template %}
@@ -104,11 +105,12 @@
       </label>
       <textarea name="html_body" id="html_body" rows="12"
                 class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none font-mono"
-                placeholder="<html><body><p>HTML version of your email...</p></body></html>">{{ selected_template.html_body if selected_template else '' }}</textarea>
+                placeholder="<html><body><p>HTML version of your email...</p></body></html>">{{ (selected_template.html_body or '') if selected_template else '' }}</textarea>
       <p class="text-[10px] text-slate-500 mt-1">If left blank, the plain-text body above is sent. HTML lets you add links, formatting, and branding.</p>
     </div>
 
     {# Extra emails #}
+    {% if audience != 'jail_roster_leads' %}
     <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
       <label for="extra_emails" class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">
         Extra recipients <span class="text-slate-500 font-normal">(optional)</span>
@@ -118,6 +120,7 @@
              placeholder="additional@email.com, another@example.com">
       <p class="text-[10px] text-slate-500 mt-1">Comma-separated. These are added on top of the audience recipients.</p>
     </div>
+    {% endif %}
 
     {# Recipient preview #}
     <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
@@ -144,6 +147,7 @@
         Save Draft
       </button>
       <button type="submit" name="action" value="send"
+              onclick="return confirm('Send this campaign to every eligible recipient now?')"
               class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition shadow-lg shadow-blue-600/20">
         Send Now
       </button>

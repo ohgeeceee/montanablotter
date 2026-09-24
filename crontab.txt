@@ -30,18 +30,6 @@ BASH_ENV=/root/montanablotter/.env
 # changes for existing links. Every 15 min. Logs to logs/disposition_watcher.log.
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/disposition_watcher.py >> /root/montanablotter/logs/disposition_watcher.log 2>&1
 
-# Lawyer arrest alerts — email paid lawyer_ad_orders advertisers when a new
-# post matches their county + practice area, and notify claimed cases once a
-# disposition posts. Every 15 min. Logs to logs/lawyer_arrest_alerts.log.
-*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/lawyer_arrest_alerts_watcher.py >> /root/montanablotter/logs/lawyer_arrest_alerts.log 2>&1
-
-# Lawyer outreach cadence — re-imports target_list.csv and queues Day 1 / Day 3
-# / Day 5 / Day 10 emails into lawyer_outreach_emails. The cron NEVER sends;
-# /admin/lawyer-outreach is the only SMTP path. Daily at 03:30 UTC, offset
-# from the 03:00 backup and the 05:30 daily_blog_worker. Logs to
-# logs/lawyer_outreach_cadence.log.
-30 3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name lawyer_outreach_cadence --log /root/montanablotter/logs/lawyer_outreach_cadence.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.lawyer_outreach.cadence
-
 # Ad integration health check — assert Monetag loader + meta are present and
 # that no AdSense references have crept back. Every 15 min, offset by 7 min.
 7-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/check_ads_health.py >> /root/montanablotter/logs/ad_health.log 2>&1
@@ -107,6 +95,10 @@ BASH_ENV=/root/montanablotter/.env
 # 7:00am MT = 13:00 UTC. Sends county-filtered digest of overnight records.
 0 13 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name morning_briefing --log /root/montanablotter/logs/morning_briefing.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.morning_briefing
 
+# Paid jail-roster digest — new bookings since each subscriber's last successful run.
+# 7:15am MT = 13:15 UTC. Plus: up to 5 counties; Pro: statewide.
+15 13 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_roster_digest --log /root/montanablotter/logs/jail_roster_digest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.publishing.jail_roster_digest
+
 # DB backup — daily at 03:00. Off-peak.
 0 3 * * * /usr/bin/nice -n 19 /bin/bash /root/montanablotter/scripts/ops/backup_db.sh
 
@@ -156,7 +148,7 @@ BASH_ENV=/root/montanablotter/.env
 # Downloads the roster PDF from Cascade County's SharePoint
 # document library and emails it as an attachment to
 # records@montanablotter.com.
-5 6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/cascade_roster_email.py >> /root/montanablotter/logs/cascade_roster_email.log 2>&1
+5 6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_cascade --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county cascade
 
 # Hill County (Havre) jail roster — poll every 15 minutes.
 # HCSO sends the daily roster as a DOCX attachment to the IONOS inbox
@@ -250,7 +242,9 @@ BASH_ENV=/root/montanablotter/.env
 # shared SQLite writer lock rather than skipping when another ingest is active.
 37 4,16 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name sex_offender_sync --shared-lock blotter_db_writer --wait-for-lock 900 --timeout 1800 --log /root/montanablotter/logs/sex_offender_sync.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.persons.sex_offender_arcgis_sync --full-sync
 
-# Alert when the official source is unavailable, under-sized, or stale.
+# Montana SVOR registry sync — delta computation for change tracking/alerts.
+# Runs 3 min after sex_offender_sync so the snapshot is already written.
+40 4,16 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name sex_offender_delta --timeout 300 --log /root/montanablotter/logs/sex_offender_delta.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.persons.sex_offender_delta
 12 */6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name sex_offender_source_alerts --timeout 180 --log /root/montanablotter/logs/sex_offender_source_alerts.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/sex_offender_source_alerts.py --max-stale-hours 30 --min-active 500 --min-counties 40
 
 # --- Funniest blotters humor scorer (added 2026-08-30) ---
@@ -259,3 +253,8 @@ BASH_ENV=/root/montanablotter/.env
 # rows. Hourly at :25, offset from the :15/:30 email + image jobs. Writes only
 # the indexed humor_score column, so it shares the blotter_db_writer lock.
 25 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name score_humor --shared-lock blotter_db_writer --wait-for-lock 300 --timeout 600 --log /root/montanablotter/logs/score_humor.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/score_humor.py
+
+# Hill County (Havre) jail roster PDF — generate daily at 07:00 MT (13:00 UTC)
+# and email to admin for posting to Facebook. Staggered 15 min after the
+# 06:45 daily blog worker so the DB has fresh booking data.
+0 13 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/hill_roster_email.py >> /root/montanablotter/logs/hill_roster_email.log 2>&1

@@ -244,8 +244,8 @@ def well_known_jobs() -> dict[str, dict]:
             "max_age_hours": 8,
             "cadence": "every 4 hours",
         },
-        "cascade_roster_email": {
-            "log_path": f"{REPO_ROOT}/logs/cascade_roster_email.log",
+        "jail_booking_ingest_cascade": {
+            "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
             "max_age_hours": 26,
             "cadence": "daily",
         },
@@ -291,7 +291,7 @@ def well_known_jobs() -> dict[str, dict]:
         },
         "seasonal_roundup": {
             "log_path": f"{REPO_ROOT}/logs/seasonal_roundup.log",
-            "max_age_hours": 2160,
+            "max_age_hours": 2256,
             "cadence": "seasonal",
         },
         "odc_discipline_monthly": {
@@ -368,11 +368,6 @@ def well_known_jobs() -> dict[str, dict]:
             "log_path": f"{REPO_ROOT}/logs/sex_offender_source_alerts.log",
             "max_age_hours": 8,
             "cadence": "every 6 hours",
-        },
-        "lawyer_outreach_cadence": {
-            "log_path": f"{REPO_ROOT}/logs/lawyer_outreach_cadence.log",
-            "max_age_hours": 26,
-            "cadence": "daily",
         },
     }
 

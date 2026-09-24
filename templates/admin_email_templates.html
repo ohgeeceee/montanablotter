@@ -1,4 +1,4 @@
-{% extends "admin.html" %}
+{% extends "admin_legacy_adapter.html" %}
 
 {% block title %}Template Library | Montana Blotter Admin{% endblock %}
 
@@ -72,16 +72,12 @@
             <td class="px-4 py-3 text-slate-400 text-right">{{ t.body_length or 0 }} chars</td>
             <td class="px-4 py-3 text-slate-500 text-right">{{ t.updated_at }}</td>
             <td class="px-4 py-3 text-center">
-              <form method="POST" action="{{ url_for('admin.admin_email_templates') }}" class="inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="template_id" value="{{ t.id }}">
-                <input type="hidden" name="action" value="edit">
-                <button type="submit" class="text-blue-400 hover:text-blue-300 mx-1" title="Edit">
+              <a href="{{ url_for('admin.admin_email_templates_edit', template_id=t.id) }}"
+                 class="text-blue-400 hover:text-blue-300 mx-1 inline-block" title="Edit">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 16H9v-2.828l8.586-8.586z"/>
                   </svg>
-                </button>
-              </form>
+              </a>
               <form method="POST" action="{{ url_for('admin.admin_email_template_delete', template_id=t.id) }}"
                     onsubmit="return confirm('Delete template \"{0}\"?'.replace('{0}','{{ t.name }}'))"
                     class="inline">

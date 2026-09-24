@@ -1,0 +1,14 @@
+{# Compatibility shell for older admin email and listing pages.
+
+   These pages still define admin_page_title/admin_content. Keeping this
+   adapter gives them the same single navigation and visual shell as every
+   admin_base.html page without rendering the old duplicate dashboard.
+#}
+{% extends "admin_base.html" %}
+
+{% block content %}
+<main class="admin-main">
+  {% block admin_page_title %}{% endblock %}
+  {% block admin_content %}{% endblock %}
+</main>
+{% endblock %}

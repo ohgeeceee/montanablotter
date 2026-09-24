@@ -12,9 +12,6 @@
       <a href="/admin/operations" class="admin-sidebar__link {% if admin_path in ('/admin/operations', '/admin/operations/') %}admin-sidebar__link--active{% endif %}">
         <i class="fas fa-home"></i><span>Command Hub</span>
       </a>
-      <a href="/admin/operations" class="admin-sidebar__link {% if admin_path.startswith('/admin/operations') and not admin_path.startswith('/admin/operations/') %}admin-sidebar__link--active{% endif %}">
-        <i class="fas fa-chart-line"></i><span>Blotter Ops</span>
-      </a>
       <a href="/admin/operations/live" class="admin-sidebar__link {% if admin_path.startswith('/admin/operations/live') or admin_path.startswith('/admin/system/agents') %}admin-sidebar__link--active{% endif %}">
         <i class="fas fa-terminal"></i><span>Command Center</span>
       </a>

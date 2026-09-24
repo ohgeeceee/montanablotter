@@ -136,6 +136,7 @@ class AdvertisingRouteTests(unittest.TestCase):
         import config
         config.DB_PATH = cls.previous_db_path
         init_db.DB_PATH = cls.previous_init_db_path
+        cls.app_module.config.DB_PATH = cls.previous_db_path
         cls.app.config['TESTING'] = cls.previous_testing
         if os.path.exists(cls.db_path):
             os.unlink(cls.db_path)

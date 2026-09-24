@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 
-from services.monetization.paywall import preview_allowed
+from services.monetization.paywall import preview_allowed, user_has_access
 from services.monetization.name_suppression import redact_person_name, redact_text
 
 import config as config
@@ -14,6 +14,14 @@ detention_bp = Blueprint('detention', __name__)
 _get_db = None
 _booking_context_loader = None
 _roster_directory_loader = None
+
+
+JAIL_BOOKING_STATUS_LABELS = {
+    'current': 'Current',
+    'released': 'Released',
+    'transferred': 'Transferred',
+    'archived': 'Archived',
+}
 
 
 def register_detention_blueprint(
@@ -255,6 +263,180 @@ def _slugify_name(name: str) -> str:
     slug = re.sub(r"[^\w\s-]", "", slug)
     slug = re.sub(r"[\s_-]+", "-", slug)
     return slug.strip("-") or 'unknown'
+
+
+def _display_dt(value):
+    """Minimal display datetime for the search results."""
+    if not value:
+        return 'Unknown'
+    from app import _display_jail_booking_datetime
+    return _display_jail_booking_datetime(value)
+
+
+def _jail_roster_search_context(*, q='', county_filter='', status_filter='current', limit=100):
+    """Build the context for the jail roster search page. Returns dict with
+    ``rows`` (decorated), ``total_matches``, and ``preview_limit``.
+
+    Preview limit caps how many results anonymous/Free users see before the
+    paywall upsell kicks in. This is a display cap — the query still counts the
+    full match set so the template can say "Showing 3 of 47 results"."""
+    PREVIEW_LIMIT = 3  # anonymous/Free preview rows before upsell
+
+    conn = _get_db()
+    try:
+        where = ['1 = 1']
+        params = []
+
+        if county_filter:
+            where.append('jb.county_slug = ?')
+            params.append(county_filter)
+
+        status_filter = (status_filter or 'current').strip().lower()
+        if status_filter == 'current':
+            where.append('COALESCE(jb.is_current, 1) = 1')
+        elif status_filter == 'recent':
+            where.append("datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) >= datetime('now', '-24 hours')")
+        elif status_filter == 'released':
+            where.append("(COALESCE(jb.is_current, 1) = 0 OR jb.booking_status = 'released')")
+        # 'all' adds no status filter
+
+        if q:
+            like = f'%{q}%'
+            where.append(
+                '('
+                'jb.person_name LIKE ? OR '
+                'COALESCE(jb.charges_summary, \'\') LIKE ? OR '
+                'COALESCE(jb.booking_number, \'\') LIKE ? OR '
+                'COALESCE(jb.arresting_agency, \'\') LIKE ? OR '
+                'COALESCE(jb.county_name, \'\') LIKE ?'
+                ')'
+            )
+            params.extend([like, like, like, like, like])
+
+        total_row = conn.execute(
+            f'SELECT COUNT(*) AS c FROM jail_bookings jb WHERE {" AND ".join(where)}',
+            params,
+        ).fetchone()
+        total_matches = int(total_row['c']) if total_row else 0
+
+        rows = conn.execute(
+            f'''
+            SELECT
+                jb.*,
+                s.roster_url AS roster_url,
+                s.phone AS source_phone,
+                s.last_success_at,
+                s.is_featured
+            FROM jail_bookings jb
+            LEFT JOIN jail_booking_sources s ON s.id = jb.source_id
+            WHERE {' AND '.join(where)}
+            ORDER BY datetime(COALESCE(jb.booking_at, jb.first_seen_at, jb.created_at)) DESC, jb.id DESC LIMIT ?
+            ''',
+            params + [limit],
+        ).fetchall()
+
+        # Apply paid privacy suppression and decorate each row
+        decorated = []
+        for row in rows:
+            item = dict(row)
+            # Reuse the same redaction as the existing booking detail route
+            county = item.get('county_name') or item.get('county_slug')
+            if item.get('person_name'):
+                item['person_name'] = redact_person_name(item['person_name'], county)
+            if item.get('charges_summary'):
+                item['charges_summary'] = redact_text(item['charges_summary'], county)
+
+            # Build display labels mirroring _decorate_jail_booking_row
+            booking_val = item.get('booking_at') or item.get('first_seen_at') or item.get('created_at')
+            item['booking_at_label'] = _display_dt(booking_val)
+            item['last_seen_label'] = _display_dt(item.get('last_seen_at') or item.get('updated_at') or item.get('created_at'))
+            booking_status = (item.get('booking_status') or 'current').strip().lower()
+            item['booking_status'] = booking_status if booking_status in ('current', 'released', 'transferred', 'archived') else 'current'
+            item['booking_status_label'] = JAIL_BOOKING_STATUS_LABELS.get(item['booking_status'], 'Current')
+            item['charges_summary'] = (item.get('charges_summary') or '').strip()
+            decorated.append(item)
+
+        return {
+            'rows': decorated,
+            'total_matches': total_matches,
+            'preview_limit': PREVIEW_LIMIT,
+        }
+    finally:
+        conn.close()
+
+
+@detention_bp.route('/jail-roster-search')
+def jail_roster_search():
+    """Dedicated jail roster search page with full-text search across all
+    Montana county rosters. Anonymous visitors see limited preview results
+    with a paywall upsell; subscribers see the full result set."""
+    q = (request.args.get('q') or '').strip()[:120]
+    county = (request.args.get('county') or '').strip().lower()
+    status = (request.args.get('status') or 'current').strip().lower()[:20]
+
+    context = _jail_roster_search_context(
+        q=q,
+        county_filter=county,
+        status_filter=status,
+    )
+
+    # Paywall gating: subscribers get everything; anonymous/Free users get
+    # a limited preview and see upsell CTAs when there are more results
+    # than the preview limit.
+    paywall_allowed, paywall_counts = preview_allowed(resource_type='jail_roster_search')
+    user_is_subscriber = user_has_access('plus')
+    paywall_blocked = not user_is_subscriber and context['total_matches'] > context['preview_limit']
+
+    context.update({
+        'page_title': f'Jail Roster Search: {q or "Montana"}' if q else 'Jail Roster Search',
+        'meta_description': (
+            'Search current and recent jail bookings across Montana. '
+            'Find who is in custody by name, charge, agency, or county.'
+        ),
+        'canonical_url': f'{config.BASE_URL}/jail-roster-search?q={q}' if q else f'{config.BASE_URL}/jail-roster-search',
+        'og_title': 'Jail Roster Search | Montana Blotter',
+        'og_description': 'Search Montana jail rosters by name, charge, booking number, or county.',
+        'active_nav': 'jail_bookings',
+        'paywall_allowed': paywall_allowed,
+        'paywall_counts': paywall_counts,
+        'paywall_blocked': paywall_blocked,
+        'preview_limit': context['preview_limit'],
+        'showing_count': min(context['total_matches'], context['preview_limit']) if paywall_blocked else context['total_matches'],
+        'user_is_subscribed': user_is_subscriber,
+    })
+    return render_template('jail_roster_search.html', **context)
+
+
+@detention_bp.route('/api/jail-roster-search')
+def api_jail_roster_search():
+    """JSON endpoint for jail roster search. Same paywall gating as the HTML page."""
+    q = (request.args.get('q') or '').strip()[:120]
+    county = (request.args.get('county') or '').strip().lower()
+    status = (request.args.get('status') or 'current').strip().lower()[:20]
+
+    paywall_allowed, paywall_counts = preview_allowed(resource_type='jail_roster_search')
+    if not paywall_allowed:
+        return jsonify({
+            'ok': False,
+            'error': 'preview_limit_reached',
+            'detail': 'You have reached your free search preview limit. Subscribe for unlimited jail roster search.',
+            'subscribe_url': '/pricing',
+            'preview_counts': paywall_counts,
+        }), 403
+
+    context = _jail_roster_search_context(
+        q=q,
+        county_filter=county,
+        status_filter=status,
+    )
+    return jsonify({
+        'ok': True,
+        'query': q,
+        'county_filter': county or None,
+        'status_filter': status,
+        'total_matches': context['total_matches'],
+        'results': context['rows'],
+    })
 
 
 @detention_bp.route('/booking/<int:booking_id>')

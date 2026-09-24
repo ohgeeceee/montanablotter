@@ -1,0 +1,250 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = page_title|default("Jail Roster Search") %}
+{% set meta_description = meta_description|default("Search current and recent jail bookings across Montana. Find who is in custody by name, charge, agency, or county.") %}
+{% set canonical_url = canonical_url|default("https://montanablotter.com/jail-roster-search") %}
+{% set og_title = og_title|default("Jail Roster Search | Montana Blotter") %}
+{% set og_description = og_description|default("Search Montana jail rosters by name, charge, booking number, or county.") %}
+{% set active_nav = "jail_bookings" %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Montana Blotter Jail Roster Search",
+  "url": "https://montanablotter.com/jail-roster-search",
+  "description": "Search current and recent jail bookings across Montana."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://montanablotter.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Jail Bookings", "item": "https://montanablotter.com/jail-bookings"},
+    {"@type": "ListItem", "position": 3, "name": "Jail Roster Search", "item": "https://montanablotter.com/jail-roster-search"}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block hero %}
+<section class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-12 text-white sm:px-6">
+  <div class="mx-auto max-w-6xl">
+    <div class="max-w-3xl">
+      <div class="inline-flex items-center rounded-full bg-orange-500/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-orange-300">
+        Statewide Roster Search
+      </div>
+      <h1 class="mt-4 text-4xl font-black tracking-tight">Search Montana jail rosters</h1>
+      <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
+        Find current and recent bookings by name, charge, booking number, or county.
+        Subscribers get unlimited search and full result details.
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-8 px-4 py-10">
+
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="roster-search-heading">
+    <div class="mb-4">
+      <h2 id="roster-search-heading" class="mt-2 text-2xl font-black text-slate-900">Search the roster</h2>
+    </div>
+    <form method="get" action="/jail-roster-search" class="grid gap-4 lg:grid-cols-[1.6fr_0.7fr_0.6fr_auto]">
+      <div>
+        <label for="roster-search-q" class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Name, charge, or booking #</label>
+        <input id="roster-search-q" type="search" name="q" value="{{ q }}" placeholder="e.g. Smith, DUI, 2024-00123" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+      </div>
+      <div>
+        <label for="roster-search-county" class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">County</label>
+        <select id="roster-search-county" name="county" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+          <option value="">All counties</option>
+          <option value="cascade" {% if county_filter == 'cascade' %}selected{% endif %}>Cascade (Great Falls)</option>
+          <option value="yellowstone" {% if county_filter == 'yellowstone' %}selected{% endif %}>Yellowstone (Billings)</option>
+          <option value="missoula" {% if county_filter == 'missoula' %}selected{% endif %}>Missoula</option>
+          <option value="gallatin" {% if county_filter == 'gallatin' %}selected{% endif %}>Gallatin (Bozeman)</option>
+          <option value="flathead" {% if county_filter == 'flathead' %}selected{% endif %}>Flathead (Kalispell)</option>
+          <option value="lewis-and-clark" {% if county_filter == 'lewis-and-clark' %}selected{% endif %}>Lewis and Clark (Helena)</option>
+          <option value="hill" {% if county_filter == 'hill' %}selected{% endif %}>Hill (Havre)</option>
+          <option value="sanders" {% if county_filter == 'sanders' %}selected{% endif %}>Sanders (Thompson Falls)</option>
+          <option value="jefferson" {% if county_filter == 'jefferson' %}selected{% endif %}>Jefferson (Boulder)</option>
+          <option value="rosebud" {% if county_filter == 'rosebud' %}selected{% endif %}>Rosebud (Forsyth)</option>
+          <option value="lincoln" {% if county_filter == 'lincoln' %}selected{% endif %}>Lincoln (Libby)</option>
+          <option value="lake" {% if county_filter == 'lake' %}selected{% endif %}>Lake (Polson)</option>
+          <option value="park" {% if county_filter == 'park' %}selected{% endif %}>Park (Livingston)</option>
+          <option value="big-horn" {% if county_filter == 'big-horn' %}selected{% endif %}>Big Horn (Hardin)</option>
+        </select>
+      </div>
+      <div>
+        <label for="roster-search-status" class="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Status</label>
+        <select id="roster-search-status" name="status" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-800">
+          <option value="current" {% if status_filter == 'current' %}selected{% endif %}>Currently held</option>
+          <option value="recent" {% if status_filter == 'recent' %}selected{% endif %}>Added in 24 hours</option>
+          <option value="released" {% if status_filter == 'released' %}selected{% endif %}>Released</option>
+          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All records</option>
+        </select>
+      </div>
+      <div class="flex items-end gap-2">
+        <button type="submit" class="inline-flex flex-1 items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800">Search</button>
+      </div>
+    </form>
+  </section>
+
+  <div class="grid gap-6 lg:grid-cols-[1.45fr_0.55fr]">
+    <section class="space-y-4" aria-label="Jail roster search results">
+
+      {% if q or county_filter or status_filter != 'current' %}
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-slate-600">
+            {% if total_matches == 0 %}
+              No results found.
+            {% elif paywall_blocked %}
+              Showing <span class="font-bold text-slate-900">{{ showing_count }}</span> of <span class="font-bold text-orange-600">{{ total_matches }}</span> matching records.
+            else %}
+              <span class="font-bold text-slate-900">{{ total_matches }}</span> result{{ 's' if total_matches != 1 else '' }} found.
+            {% endif %}
+          </p>
+          {% if user_is_subscribed %}
+            <span class="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-700">
+              <i class="fas fa-check mr-1"></i> Full access
+            </span>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% for row in rows %}
+        {% if paywall_blocked and loop.index > preview_limit %}
+          {# Remaining rows get blurred and blocked by the overlay below #}
+        {% endif %}
+        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm{% if paywall_blocked and loop.index > preview_limit %} roster-search-blurred{% endif %}">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <a href="/jail-bookings/{{ row.county_slug }}?status=current" class="inline-flex rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-white hover:bg-orange-600">{{ row.county_name }}</a>
+                <span class="inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] {% if row.booking_status == 'current' %}bg-emerald-100 text-emerald-700{% else %}bg-slate-100 text-slate-600{% endif %}">{{ row.booking_status_label }}</span>
+              </div>
+              <h3 class="mt-4 text-2xl font-black text-slate-900">{{ row.person_name }}</h3>
+              <p class="mt-2 text-sm text-slate-600">{{ row.facility_name }}</p>
+            </div>
+            <div class="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:min-w-[205px]">
+              <p><span class="font-black text-slate-900">Booked:</span> {{ row.booking_at_label }}</p>
+              <p class="mt-2"><span class="font-black text-slate-900">Last seen:</span> {{ row.last_seen_label }}</p>
+            </div>
+          </div>
+          <div class="mt-5 border-t border-slate-100 pt-5">
+            <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Charge summary</p>
+            <p class="mt-2 text-sm leading-7 text-slate-700">{{ row.charges_summary or 'No charge summary is available yet.' }}</p>
+            <div class="mt-5 flex flex-wrap gap-3">
+              <a href="/booking/{{ row.id }}" class="inline-flex items-center justify-center rounded-xl bg-orange-600 px-4 py-3 text-sm font-black text-white hover:bg-orange-700">More booking information</a>
+              {% if row.roster_url %}<a href="{{ row.roster_url }}" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Official source</a>{% endif %}
+            </div>
+          </div>
+        </article>
+      {% else %}
+        <div class="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+          <h3 class="text-xl font-black text-slate-900">
+            {% if q %}No bookings matched "{{ q }}".{% else %}Start by searching above.{% endif %}
+          </h3>
+          <p class="mt-3 text-sm leading-7 text-slate-600">
+            {% if q %}
+              Try a different name or charge, clear the county filter, or check the spelling.
+            {% else %}
+              Search by person name, charge type, booking number, or select a county from the dropdown.
+            {% endif %}
+          </p>
+        </div>
+      {% endfor %}
+
+      {% if paywall_blocked %}
+        <div class="rounded-2xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
+          <div class="flex items-start gap-4">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xl">
+              <i class="fas fa-lock text-orange-600"></i>
+            </div>
+            <div class="flex-1">
+              <h3 class="text-lg font-black text-orange-900">{{ total_matches - preview_limit }} more result{{ 's' if total_matches - preview_limit != 1 else '' }} hidden</h3>
+              <p class="mt-1 text-sm leading-6 text-orange-800">
+                You've reached your free preview limit. Subscribe to unlock all <strong>{{ total_matches }}</strong> matching records — full name, charge, and booking details.
+              </p>
+              <div class="mt-4 flex flex-wrap gap-3">
+                <a href="/pricing" class="inline-flex items-center justify-center rounded-xl bg-orange-600 px-5 py-3 text-sm font-black text-white hover:bg-orange-700">
+                  <i class="fas fa-crown mr-2"></i> Subscribe for full access
+                </a>
+                <a href="/register" class="inline-flex items-center justify-center rounded-xl border border-orange-300 px-5 py-3 text-sm font-semibold text-orange-700 hover:bg-orange-100">Create free account</a>
+              </div>
+              {% if paywall_counts %}
+              <p class="mt-3 text-xs text-orange-700">{{ paywall_counts.day }}/3 daily previews used</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </section>
+
+    <aside class="space-y-5">
+      {% if not user_is_subscribed %}
+      <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-amber-700">Unlock full search</p>
+        <h3 class="mt-2 text-lg font-black text-slate-900">Subscribe for unlimited roster search</h3>
+        <ul class="mt-3 space-y-2 text-sm text-amber-900">
+          <li class="flex gap-2"><i class="fas fa-check text-amber-600 mt-0.5"></i> Unlimited search across all counties</li>
+          <li class="flex gap-2"><i class="fas fa-check text-amber-600 mt-0.5"></i> Full booking details & charge data</li>
+          <li class="flex gap-2"><i class="fas fa-check text-amber-600 mt-0.5"></i> Daily roster digest email</li>
+          <li class="flex gap-2"><i class="fas fa-check text-amber-600 mt-0.5"></i> Ad-free browsing</li>
+        </ul>
+        <a href="/pricing" class="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white hover:bg-amber-700">View subscription plans</a>
+        <p class="mt-2 text-xs text-amber-700">Plans from $5.99/month. Cancel anytime.</p>
+      </div>
+      {% endif %}
+
+      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Tips</p>
+        <ul class="mt-3 space-y-3 text-sm leading-6 text-slate-600">
+          <li>Search by last name only — "Smith" matches "John Smith".</li>
+          <li>Use partial charges — "DUI" matches "DUI 2nd offense".</li>
+          <li>Filter by county to narrow results to one jurisdiction.</li>
+        </ul>
+      </div>
+
+      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Related</p>
+        <div class="mt-4 space-y-2">
+          <a href="/jail-bookings" class="block rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-900 hover:border-orange-400 hover:bg-orange-50">
+            <i class="fas fa-map-marked-alt mr-2 text-orange-600"></i> Browse by county map
+          </a>
+          <a href="/wanted" class="block rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-900 hover:border-orange-400 hover:bg-orange-50">
+            <i class="fas fa-user-shield mr-2 text-orange-600"></i> Active warrants
+          </a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<style>
+.roster-search-blurred {
+  filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.55;
+  position: relative;
+}
+</style>
+
+{% if paywall_blocked %}
+<style>
+.roster-search-blurred::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.6) 100%);
+  pointer-events: none;
+  border-radius: 1rem;
+}
+</style>
+{% endif %}
+{% endblock %}

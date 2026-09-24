@@ -29,6 +29,37 @@ _RESET_RATE_LIMIT_MINUTES = 60
 _RESET_RATE_LIMIT_COUNT = 3
 
 
+def _jail_digest_counties(conn) -> list[str]:
+    """Return counties that currently have a configured or ingested jail feed."""
+    rows = conn.execute(
+        '''
+        SELECT county_name
+        FROM (
+            SELECT DISTINCT county_name FROM jail_booking_sources
+            WHERE county_name IS NOT NULL AND trim(county_name) != ''
+            UNION
+            SELECT DISTINCT county_name FROM jail_bookings
+            WHERE county_name IS NOT NULL AND trim(county_name) != ''
+        )
+        ORDER BY county_name
+        '''
+    ).fetchall()
+    return [row['county_name'] for row in rows]
+
+
+def _paid_jail_digest_plan(user_row) -> str:
+    """Return plus/pro while a reader subscription retains paid access."""
+    from services.monetization.paywall import normalize_plan
+
+    if not user_row or not bool(user_row['is_subscribed']):
+        return ''
+    plan = normalize_plan(user_row['subscriber_plan'])
+    status = (user_row['subscription_status'] or '').strip().lower()
+    if plan in {'plus', 'pro'} and status in {'active', 'trialing', 'past_due'}:
+        return plan
+    return ''
+
+
 def _hash_reset_token(token: str) -> str:
     """Return a SHA-256 hex digest of the raw reset token."""
     return hashlib.sha256(token.encode('utf-8')).hexdigest()
@@ -752,7 +783,32 @@ def public_account():
     conn = get_db()
     m._sync_public_user_subscription_from_donations(conn, public_user.id, public_user.email)
     refreshed_user = m._load_public_user(public_user.id, conn=conn)
-    counties = m._all_subscription_counties(conn)
+    from init_db import ensure_jail_roster_digest_schema
+
+    ensure_jail_roster_digest_schema(conn)
+    jail_digest_counties = _jail_digest_counties(conn)
+    counties = sorted(set(m._all_subscription_counties(conn)) | set(jail_digest_counties))
+    jail_digest_row = conn.execute(
+        '''SELECT enabled, counties, last_checked_at, last_sent_at
+           FROM jail_roster_digest_subscriptions WHERE public_user_id = ?''',
+        (public_user.id,),
+    ).fetchone()
+    paid_jail_digest_plan = _paid_jail_digest_plan(
+        conn.execute(
+            '''SELECT is_subscribed, subscriber_plan, subscription_status
+               FROM public_users WHERE id = ?''',
+            (public_user.id,),
+        ).fetchone()
+    )
+    jail_digest = dict(jail_digest_row) if jail_digest_row else {
+        'enabled': 0,
+        'counties': '',
+        'last_checked_at': None,
+        'last_sent_at': None,
+    }
+    jail_digest['county_list'] = [
+        item.strip() for item in (jail_digest.get('counties') or '').split(',') if item.strip()
+    ]
     conn.commit()
     conn.close()
     g.public_user = refreshed_user
@@ -764,6 +820,9 @@ def public_account():
         account_user=refreshed_user,
         counties=counties,
         has_warrant_access=has_warrant_access,
+        jail_digest=jail_digest,
+        jail_digest_counties=jail_digest_counties,
+        jail_digest_plan=paid_jail_digest_plan,
         page_title='Account',
         meta_description='Review your Montana Blotter account and subscriber access status.',
         canonical_url=f'{m.BASE_URL}/account',
@@ -827,6 +886,72 @@ def public_account_update_counties():
     m._set_public_user_session(public_user.id)
     flash('Digest counties updated.', 'success')
     return redirect('/account#digest')
+
+
+@auth_bp.route('/account/update-jail-roster-digest', methods=['POST'])
+def public_account_update_jail_roster_digest():
+    """Save the paid daily jail-roster email preference."""
+    m = _app()
+    public_user = m._get_public_user()
+    if not public_user:
+        return redirect(url_for('.public_login', next='/account'))
+
+    from init_db import ensure_jail_roster_digest_schema
+
+    enabled = (request.form.get('enabled') or '') == '1'
+    scope = (request.form.get('scope') or 'selected').strip().lower()
+    selected = []
+    for county in request.form.getlist('jail_counties'):
+        value = (county or '').strip()
+        if value and value not in selected:
+            selected.append(value)
+
+    conn = get_db()
+    ensure_jail_roster_digest_schema(conn)
+    user_row = conn.execute(
+        '''SELECT is_subscribed, subscriber_plan, subscription_status
+           FROM public_users WHERE id = ? AND COALESCE(is_active, 1) = 1''',
+        (public_user.id,),
+    ).fetchone()
+    plan = _paid_jail_digest_plan(user_row)
+
+    if enabled and not plan:
+        conn.close()
+        flash('Daily jail-roster emails require a paid Plus or Pro subscription.', 'error')
+        return redirect('/pricing')
+
+    valid_counties = set(_jail_digest_counties(conn))
+    if any(county not in valid_counties for county in selected):
+        conn.close()
+        flash('One or more jail-roster county values were invalid.', 'error')
+        return redirect('/account#jail-roster-digest')
+
+    if plan == 'plus' and enabled and not selected:
+        conn.close()
+        flash('Plus subscribers must select at least one county.', 'error')
+        return redirect('/account#jail-roster-digest')
+    if plan == 'plus' and len(selected) > 5:
+        conn.close()
+        flash('Plus includes daily jail-roster emails for up to five counties.', 'error')
+        return redirect('/account#jail-roster-digest')
+
+    statewide = plan == 'pro' and scope == 'statewide'
+    counties_value = '' if statewide else ','.join(selected)
+    conn.execute(
+        '''
+        INSERT INTO jail_roster_digest_subscriptions (public_user_id, enabled, counties)
+        VALUES (?, ?, ?)
+        ON CONFLICT(public_user_id) DO UPDATE SET
+            enabled = excluded.enabled,
+            counties = excluded.counties,
+            updated_at = datetime('now')
+        ''',
+        (public_user.id, int(enabled), counties_value),
+    )
+    conn.commit()
+    conn.close()
+    flash('Daily jail-roster email settings updated.', 'success')
+    return redirect('/account#jail-roster-digest')
 
 
 @auth_bp.route('/account/update-password', methods=['POST'])

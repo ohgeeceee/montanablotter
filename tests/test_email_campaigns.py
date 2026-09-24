@@ -20,6 +20,7 @@ from blueprints.admin.email_campaigns import (
     _smtp_settings,
     _send_email as send_one,
 )
+from services.marketing.jail_roster_promotion import build_html_body
 
 
 class TestEmailCampaignsSchema(unittest.TestCase):
@@ -46,6 +47,12 @@ class TestEmailCampaignsSchema(unittest.TestCase):
         ).fetchone()
         self.assertIsNotNone(row, "email_campaigns table should exist")
 
+    def test_email_campaign_deliveries_table_exists(self):
+        row = self.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='email_campaign_deliveries'"
+        ).fetchone()
+        self.assertIsNotNone(row, "email_campaign_deliveries table should exist")
+
     def test_email_templates_has_expected_columns(self):
         cols = {r['name'] for r in self.conn.execute("PRAGMA table_info(email_templates)").fetchall()}
         expected = {'id', 'name', 'audience', 'subject', 'body', 'notes', 'created_at', 'updated_at'}
@@ -65,7 +72,13 @@ class TestEmailCampaignsSchema(unittest.TestCase):
     def test_seed_default_templates(self):
         _seed_default_templates(self.conn)
         count = self.conn.execute("SELECT COUNT(*) FROM email_templates").fetchone()[0]
-        self.assertEqual(count, 6, "Should seed 6 default templates")
+        self.assertEqual(count, 7, "Should seed 7 default templates")
+        jail = self.conn.execute(
+            "SELECT audience, subject, body FROM email_templates WHERE name = ?",
+            ('Daily Jail Roster - Subscriber Upgrade',),
+        ).fetchone()
+        self.assertEqual(jail['audience'], 'jail_roster_leads')
+        self.assertIn('$7.99/month', jail['body'])
 
     def test_seed_is_idempotent(self):
         _seed_default_templates(self.conn)
@@ -121,6 +134,7 @@ class TestRecipientCounting(unittest.TestCase):
                 agency_name TEXT,
                 counties TEXT,
                 subscriber_plan TEXT,
+                token TEXT DEFAULT 'test-token',
                 active INTEGER DEFAULT 1
             )
         """)
@@ -130,6 +144,8 @@ class TestRecipientCounting(unittest.TestCase):
                 email TEXT,
                 display_name TEXT,
                 subscriber_plan TEXT,
+                subscription_status TEXT DEFAULT '',
+                is_subscribed INTEGER DEFAULT 0,
                 is_active INTEGER DEFAULT 1
             )
         """)
@@ -155,6 +171,16 @@ class TestRecipientCounting(unittest.TestCase):
                 ("client2@test.com", "", "", "pro",),
             ],
         )
+        self.conn.execute(
+            """UPDATE public_users
+               SET is_subscribed = 1, subscription_status = 'active'
+               WHERE email = 'user2@test.com'"""
+        )
+        self.conn.execute(
+            """INSERT INTO public_users
+               (email, display_name, subscriber_plan, subscription_status, is_subscribed, is_active)
+               VALUES ('client2@test.com', 'Paid Client', 'professional', 'active', 1, 1)"""
+        )
         self.conn.executemany(
             "INSERT INTO public_users (email, display_name, subscriber_plan, is_active) VALUES (?, ?, ?, 1)",
             [
@@ -162,6 +188,7 @@ class TestRecipientCounting(unittest.TestCase):
                 ("user2@test.com", "Bob Viewer", "pro",),
             ],
         )
+        _ensure_template_schema(self.conn)
         self.conn.executemany(
             "INSERT INTO emailed_agencies (agency_name, email_address) VALUES (?, ?)",
             [
@@ -184,7 +211,40 @@ class TestRecipientCounting(unittest.TestCase):
 
     def test_clients_count(self):
         n = _count_recipients(self.conn, 'clients')
-        self.assertEqual(n, 8, "Should find 2 subscribers (clients) + 2 public_users + 4 audience-specific subscribers (their emails are UNION'd) = 8")
+        self.assertEqual(n, 8, "Should deduplicate a public user who also has a subscriber row")
+
+    def test_jail_roster_leads_require_opt_in_and_exclude_paid_users(self):
+        n = _count_recipients(self.conn, 'jail_roster_leads')
+        self.assertEqual(n, 5)
+        emails = _collect_recipient_emails(self.conn, 'jail_roster_leads')
+        self.assertNotIn('client2@test.com', emails)
+        self.assertNotIn('user1@test.com', emails)
+        self.assertNotIn('user2@test.com', emails)
+
+    def test_jail_roster_leads_ignore_manual_extra_recipients(self):
+        emails = _collect_recipient_emails(
+            self.conn,
+            'jail_roster_leads',
+            'not-opted-in@example.com',
+        )
+        self.assertNotIn('not-opted-in@example.com', emails)
+
+    def test_jail_roster_leads_have_30_day_send_cooldown(self):
+        campaign_id = self.conn.execute(
+            """INSERT INTO email_campaigns
+               (campaign_name, audience, subject, body, status)
+               VALUES ('Promo', 'jail_roster_leads', 'Subject', 'Body', 'sent')"""
+        ).lastrowid
+        self.conn.execute(
+            """INSERT INTO email_campaign_deliveries
+               (campaign_id, recipient_email, status, sent_at)
+               VALUES (?, 'client1@test.com', 'sent', datetime('now'))""",
+            (campaign_id,),
+        )
+        self.conn.commit()
+        emails = _collect_recipient_emails(self.conn, 'jail_roster_leads')
+        self.assertNotIn('client1@test.com', emails)
+        self.assertEqual(len(emails), 4)
 
     def test_courts_count(self):
         n = _count_recipients(self.conn, 'courts')
@@ -249,6 +309,20 @@ class TestSMTPSettings(unittest.TestCase):
             ok, err = send_one('test@example.com', 'Subject', 'Body')
             self.assertFalse(ok)
             self.assertEqual(err, 'smtp_not_configured')
+
+
+class TestJailRosterPromotion(unittest.TestCase):
+    def test_html_contains_offer_and_escaped_personalization(self):
+        html = build_html_body(
+            '<Alex>',
+            'https://montanablotter.com/pricing?source=jail_roster_email',
+            'https://montanablotter.com/unsubscribe?token=abc',
+        )
+        self.assertIn('$7.99/month', html)
+        self.assertIn('$26/month', html)
+        self.assertIn('&lt;Alex&gt;', html)
+        self.assertNotIn('Hi <Alex>', html)
+        self.assertIn('token=abc', html)
 
 
 if __name__ == '__main__':

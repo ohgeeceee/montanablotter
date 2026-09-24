@@ -135,6 +135,72 @@
             </form>
         </section>
 
+        <section id="jail-roster-digest" class="public-card p-6">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p class="public-card__eyebrow">Daily Jail Roster</p>
+                    <h2 class="mt-2 text-2xl font-black text-slate-900">New Montana bookings by email</h2>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                        Get one morning email containing jail bookings first added since your previous digest.
+                        Plus covers up to five counties; Pro includes statewide delivery as available rosters arrive.
+                    </p>
+                </div>
+                {% if jail_digest.enabled %}
+                <span class="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Enabled</span>
+                {% endif %}
+            </div>
+
+            {% if jail_digest_plan %}
+            <form method="post" action="/account/update-jail-roster-digest" class="mt-5">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800">
+                    <input type="checkbox" name="enabled" value="1" {% if jail_digest.enabled %}checked{% endif %}
+                           class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                    Email me new jail bookings each morning
+                </label>
+
+                {% if jail_digest_plan == 'pro' %}
+                <div class="mt-4 flex flex-wrap gap-3 text-sm">
+                    <label class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2">
+                        <input type="radio" name="scope" value="statewide" {% if not jail_digest.county_list %}checked{% endif %}>
+                        All available Montana counties
+                    </label>
+                    <label class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2">
+                        <input type="radio" name="scope" value="selected" {% if jail_digest.county_list %}checked{% endif %}>
+                        Selected counties
+                    </label>
+                </div>
+                {% else %}
+                <input type="hidden" name="scope" value="selected">
+                <p class="mt-4 text-sm font-bold text-slate-700">Choose up to five counties</p>
+                {% endif %}
+
+                <div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {% for county in jail_digest_counties %}
+                    <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" name="jail_counties" value="{{ county }}"
+                               {% if county in jail_digest.county_list %}checked{% endif %}
+                               class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                        <span>{{ county }}</span>
+                    </label>
+                    {% else %}
+                    <p class="text-sm text-slate-500">County roster feeds are being configured.</p>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="public-btn public-btn--primary mt-5">Save Jail Roster Emails</button>
+                {% if jail_digest.last_sent_at %}
+                <p class="mt-3 text-xs text-slate-500">Last delivered: {{ jail_digest.last_sent_at }}</p>
+                {% endif %}
+            </form>
+            {% else %}
+            <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p class="text-sm font-bold text-amber-900">Available with Blotter Plus or Pro.</p>
+                <p class="mt-1 text-sm text-amber-800">Choose Plus for up to five counties or Pro for statewide jail-roster delivery.</p>
+                <a href="/pricing" class="public-btn public-btn--primary mt-4 inline-flex">View Subscriber Plans</a>
+            </div>
+            {% endif %}
+        </section>
+
         <section id="password-settings" class="public-card p-6">
             <p class="public-card__eyebrow">Change Password</p>
             <form method="post" action="/account/update-password" class="mt-4 space-y-4 max-w-md">

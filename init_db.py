@@ -287,6 +287,90 @@ def ensure_public_engagement_schema(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             pass
 
+
+def ensure_jail_roster_digest_schema(conn: sqlite3.Connection) -> None:
+    """Store paid jail-roster email preferences and delivery checkpoints."""
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS jail_roster_digest_subscriptions (
+            public_user_id INTEGER PRIMARY KEY,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            counties TEXT NOT NULL DEFAULT '',
+            last_checked_at TEXT,
+            last_sent_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (public_user_id) REFERENCES public_users(id) ON DELETE CASCADE
+        )
+        '''
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_jail_roster_digest_enabled '
+        'ON jail_roster_digest_subscriptions(enabled, updated_at)'
+    )
+
+
+def ensure_email_campaign_schema(conn: sqlite3.Connection) -> None:
+    """Create campaign templates, aggregate sends, and per-recipient delivery logs."""
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS email_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            audience TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            html_body TEXT,
+            notes TEXT DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    template_columns = {row[1] for row in conn.execute('PRAGMA table_info(email_templates)').fetchall()}
+    if 'html_body' not in template_columns:
+        conn.execute('ALTER TABLE email_templates ADD COLUMN html_body TEXT')
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS email_campaigns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_name TEXT NOT NULL,
+            template_id INTEGER,
+            audience TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            html_body TEXT,
+            status TEXT NOT NULL DEFAULT 'draft',
+            sent_at TEXT,
+            sent_by TEXT,
+            total_recipients INTEGER NOT NULL DEFAULT 0,
+            success_count INTEGER NOT NULL DEFAULT 0,
+            failure_count INTEGER NOT NULL DEFAULT 0,
+            failure_emails TEXT DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS email_campaign_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id INTEGER NOT NULL,
+            recipient_email TEXT NOT NULL,
+            status TEXT NOT NULL,
+            error_message TEXT DEFAULT '',
+            sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (campaign_id) REFERENCES email_campaigns(id) ON DELETE CASCADE,
+            UNIQUE (campaign_id, recipient_email)
+        )
+        '''
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_email_campaign_deliveries_recipient '
+        'ON email_campaign_deliveries(recipient_email, sent_at)'
+    )
+
 def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute(
@@ -503,6 +587,8 @@ def init_database():
     ensure_source_material_schema(conn)
     ensure_public_meeting_schema(conn)
     ensure_public_engagement_schema(conn)
+    ensure_jail_roster_digest_schema(conn)
+    ensure_email_campaign_schema(conn)
     ensure_missing_person_schema(conn)
     ensure_jail_booking_schema(conn)
     ensure_warrant_schema(conn)
@@ -680,15 +766,9 @@ def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
 
 
 def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
-    """Create lawyer_ad_orders + lawyer_ad_listings + lawyer_consumer_leads tables.
-
-    Mirror of the recovery_ad_* schema. Lawyers are a separate paid directory
-    (lead-gen marketplace) from /attorneys, which stays free opt-in.
-
-    Packages (Bronze / Silver / Gold) determine placement, branding, and lead
-    routing. Stripe subscription webhooks drive status transitions.
-    """
-    conn.execute('''
+    """Compatibility schema for paid lawyer directory placements."""
+    conn.execute(
+        '''
         CREATE TABLE IF NOT EXISTS lawyer_ad_orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             firm_name TEXT NOT NULL,
@@ -697,9 +777,9 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
             phone TEXT,
             website TEXT,
             bar_number TEXT,
-            counties_served TEXT NOT NULL,
+            counties_served TEXT NOT NULL DEFAULT '',
             practice_areas TEXT,
-            package_id TEXT NOT NULL,
+            package_id TEXT NOT NULL DEFAULT '',
             billing_cycle TEXT NOT NULL DEFAULT 'monthly',
             amount_cents INTEGER NOT NULL DEFAULT 0,
             currency TEXT NOT NULL DEFAULT 'usd',
@@ -715,8 +795,10 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
-    ''')
-    conn.execute('''
+        '''
+    )
+    conn.execute(
+        '''
         CREATE TABLE IF NOT EXISTS lawyer_ad_listings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id INTEGER UNIQUE NOT NULL REFERENCES lawyer_ad_orders(id),
@@ -738,8 +820,10 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
             is_active INTEGER NOT NULL DEFAULT 1,
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
-    ''')
-    conn.execute('''
+        '''
+    )
+    conn.execute(
+        '''
         CREATE TABLE IF NOT EXISTS lawyer_consumer_leads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             full_name TEXT NOT NULL,
@@ -754,94 +838,7 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
             routed_order_ids TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
-    ''')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS lawyer_consumer_lead_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            lead_id INTEGER REFERENCES lawyer_consumer_leads(id) ON DELETE SET NULL,
-            event_type TEXT NOT NULL,
-            county TEXT,
-            source TEXT,
-            order_id INTEGER,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-    ''')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS lawyer_lead_deliveries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            lead_id INTEGER NOT NULL REFERENCES lawyer_consumer_leads(id) ON DELETE CASCADE,
-            order_id INTEGER NOT NULL REFERENCES lawyer_ad_orders(id) ON DELETE CASCADE,
-            channel TEXT NOT NULL,
-            destination TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            provider_message_id TEXT,
-            error TEXT,
-            sent_at TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE(lead_id, order_id, channel, destination)
-        )
-    ''')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS lawyer_listing_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            order_id INTEGER NOT NULL REFERENCES lawyer_ad_orders(id) ON DELETE CASCADE,
-            listing_id INTEGER REFERENCES lawyer_ad_listings(id) ON DELETE SET NULL,
-            event_type TEXT NOT NULL,
-            ip_hash TEXT,
-            user_agent_hash TEXT,
-            county TEXT,
-            session_hash TEXT,
-            source TEXT,
-            occurred_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-    ''')
-    # Drop the older full unique index from before this schema learned about
-    # partial uniqueness. Safe to run on every migration.
-    try:
-        conn.execute('DROP INDEX IF EXISTS idx_lawyer_listing_event_dedupe')
-    except sqlite3.OperationalError:
-        pass
-    # Deduped impressions: at most one per (order, IP, county, day). Partial
-    # index keeps clicks/calls/leads from being blocked by the same uniqueness
-    # rule — those are explicit user actions and must count every time.
-    conn.execute('''
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_lawyer_listing_event_dedupe
-        ON lawyer_listing_events(order_id, ip_hash, county, date(occurred_at))
-        WHERE event_type = 'impression'
-    ''')
-    for col, definition in [
-        ('consent_at', 'TEXT'),
-        ('consent_ip_hash', 'TEXT'),
-        ('consent_text_version', "TEXT NOT NULL DEFAULT 'lawyer-lead-v1'"),
-    ]:
-        try:
-            conn.execute(f'ALTER TABLE lawyer_consumer_leads ADD COLUMN {col} {definition}')
-        except sqlite3.OperationalError as exc:
-            if 'duplicate column' not in str(exc).lower():
-                raise
-    conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_deliveries_lead ON lawyer_lead_deliveries(lead_id)'
-    )
-    conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_deliveries_status ON lawyer_lead_deliveries(status, created_at)'
-    )
-    conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_events_created ON lawyer_consumer_lead_events(created_at)'
-    )
-    conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_events_order ON lawyer_consumer_lead_events(order_id, created_at)'
-    )
-    conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_orders_status ON lawyer_ad_orders(status)'
-    )
-    conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_orders_package ON lawyer_ad_orders(package_id)'
-    )
-    conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_listings_active ON lawyer_ad_listings(is_active)'
-    )
-    conn.execute(
-        'CREATE INDEX IF NOT EXISTS idx_lawyer_leads_county ON lawyer_consumer_leads(county, created_at)'
+        '''
     )
     conn.commit()
 
@@ -891,6 +888,8 @@ def ensure_lawyer_arrest_alert_schema(conn: sqlite3.Connection) -> None:
         'CREATE INDEX IF NOT EXISTS idx_posts_lawyer_alert_dispatched ON posts(lawyer_alert_dispatched_at)'
     )
     conn.commit()
+
+
 
 
 def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
@@ -968,6 +967,8 @@ def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
         'CREATE INDEX IF NOT EXISTS idx_asc_status ON attorney_sponsored_claims(status, created_at DESC)'
     )
     conn.commit()
+
+
 
 
 def ensure_attorney_checkout_schema(conn):
@@ -1085,6 +1086,80 @@ def ensure_attorney_checkout_schema(conn):
     )
     conn.execute(
         'CREATE INDEX IF NOT EXISTS idx_acl_status ON attorney_checkout_listings(status, is_featured DESC, listing_position)'
+    )
+    conn.commit()
+
+
+
+
+def ensure_lawyer_outreach_schema(conn: sqlite3.Connection) -> None:
+    """Per-firm lawyer advertising outreach workflow."""
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS lawyer_outreach_prospects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firm_name TEXT NOT NULL,
+            county TEXT NOT NULL,
+            city TEXT,
+            website TEXT,
+            contact_name TEXT,
+            contact_email TEXT,
+            practice_areas TEXT,
+            notes TEXT,
+            stage TEXT NOT NULL DEFAULT 'day_1',
+            last_action_at TEXT,
+            next_action_at TEXT,
+            status TEXT NOT NULL DEFAULT 'queued',
+            source TEXT NOT NULL DEFAULT 'target_list.csv',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(firm_name, county)
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_lop_stage
+        ON lawyer_outreach_prospects(stage, status)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_lop_next_action
+        ON lawyer_outreach_prospects(next_action_at)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS lawyer_outreach_emails (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prospect_id INTEGER NOT NULL REFERENCES lawyer_outreach_prospects(id),
+            stage TEXT NOT NULL,
+            attempt INTEGER NOT NULL DEFAULT 1,
+            to_addr TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            campaign_dedupe_key TEXT UNIQUE,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            reviewed_at TEXT,
+            sent_at TEXT,
+            skipped_at TEXT,
+            error TEXT
+        )
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_loe_status
+        ON lawyer_outreach_emails(status, created_at DESC)
+        '''
+    )
+    conn.execute(
+        '''
+        CREATE INDEX IF NOT EXISTS idx_loe_prospect
+        ON lawyer_outreach_emails(prospect_id, stage)
+        '''
     )
     conn.commit()
 
@@ -1252,93 +1327,6 @@ def ensure_outreach_drafts_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def ensure_lawyer_outreach_schema(conn: sqlite3.Connection) -> None:
-    """Per-firm lawyer advertising outreach workflow.
-
-    Mirrors the existing outreach_drafts pattern (operator review queue, never
-    auto-send) but adds a per-firm stage tracker on top:
-
-      lawyer_outreach_prospects  one row per target_list.csv firm, tracks the
-                                  Day 1 / Day 3 / Day 5 / Day 10 cadence and
-                                  terminal won/lost state.
-      lawyer_outreach_emails      queued message bodies per prospect + stage.
-                                  Status moves pending -> sent / skipped via
-                                  the admin blueprint, never via cron.
-
-    The dedupe key on emails is (prospect_id, stage, attempt) — re-running the
-    worker for the same week won't double-queue the Day 1 email for the same
-    prospect.
-    """
-    conn.execute(
-        '''
-        CREATE TABLE IF NOT EXISTS lawyer_outreach_prospects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            firm_name TEXT NOT NULL,
-            county TEXT NOT NULL,
-            city TEXT,
-            website TEXT,
-            contact_name TEXT,
-            contact_email TEXT,
-            practice_areas TEXT,
-            notes TEXT,
-            stage TEXT NOT NULL DEFAULT 'day_1',
-            last_action_at TEXT,
-            next_action_at TEXT,
-            status TEXT NOT NULL DEFAULT 'queued',
-            source TEXT NOT NULL DEFAULT 'target_list.csv',
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE(firm_name, county)
-        )
-        '''
-    )
-    conn.execute(
-        '''
-        CREATE INDEX IF NOT EXISTS idx_lop_stage
-        ON lawyer_outreach_prospects(stage, status)
-        '''
-    )
-    conn.execute(
-        '''
-        CREATE INDEX IF NOT EXISTS idx_lop_next_action
-        ON lawyer_outreach_prospects(next_action_at)
-        '''
-    )
-    conn.execute(
-        '''
-        CREATE TABLE IF NOT EXISTS lawyer_outreach_emails (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            prospect_id INTEGER NOT NULL REFERENCES lawyer_outreach_prospects(id),
-            stage TEXT NOT NULL,
-            attempt INTEGER NOT NULL DEFAULT 1,
-            to_addr TEXT NOT NULL,
-            subject TEXT NOT NULL,
-            body TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            campaign_dedupe_key TEXT UNIQUE,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            reviewed_at TEXT,
-            sent_at TEXT,
-            skipped_at TEXT,
-            error TEXT
-        )
-        '''
-    )
-    conn.execute(
-        '''
-        CREATE INDEX IF NOT EXISTS idx_loe_status
-        ON lawyer_outreach_emails(status, created_at DESC)
-        '''
-    )
-    conn.execute(
-        '''
-        CREATE INDEX IF NOT EXISTS idx_loe_prospect
-        ON lawyer_outreach_emails(prospect_id, stage)
-        '''
-    )
-    conn.commit()
-
-
 def ensure_advertise_sales_lead_schema(conn):
     """Sales-call leads from /advertise/* landing pages.
 
@@ -1407,6 +1395,29 @@ def ensure_advertising_center_schema(conn):
     conn.commit()
 
 
+def ensure_subscription_events_schema(conn):
+    """Audit Stripe subscription lifecycle and dunning notices."""
+    conn.execute(
+        '''CREATE TABLE IF NOT EXISTS subscription_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            stripe_event_id TEXT,
+            event_type TEXT,
+            payload_json TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )'''
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_subscription_events_user_created '
+        'ON subscription_events(user_id, created_at DESC)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_subscription_events_stripe_event '
+        'ON subscription_events(stripe_event_id)'
+    )
+    conn.commit()
+
+
 def migrate():
     """Safely apply schema changes to an existing DB without data loss"""
     conn = sqlite3.connect(DB_PATH)
@@ -1417,6 +1428,7 @@ def migrate():
     ensure_source_material_schema(conn)
     ensure_public_meeting_schema(conn)
     ensure_advertising_center_schema(conn)
+    ensure_subscription_events_schema(conn)
 
     # Add lat/lon to meeting_locations for map display
     for col, definition in [('lat', 'REAL'), ('lon', 'REAL')]:
@@ -1466,17 +1478,17 @@ def migrate():
     conn.commit()
 
     ensure_public_engagement_schema(conn)
+    ensure_jail_roster_digest_schema(conn)
+    ensure_email_campaign_schema(conn)
     ensure_jail_booking_schema(conn)
     ensure_warrant_schema(conn)
     ensure_bondsman_command_center_schema(conn)
     ensure_court_tracker_schema(conn)
     ensure_recovery_ad_schema(conn)
-    ensure_lawyer_ad_schema(conn)
-    ensure_attorney_ad_schema(conn)
-    ensure_attorney_checkout_schema(conn)
     ensure_treatment_center_schema(conn)
     ensure_outreach_drafts_schema(conn)
     ensure_lawyer_outreach_schema(conn)
+    ensure_attorney_ad_schema(conn)
     ensure_for_the_record_drafts_schema(conn)
     ensure_agent_mission_control_schema(conn)
     ensure_api_auth_schema(conn)
@@ -2337,6 +2349,7 @@ def migrate():
 
     ensure_lawyer_arrest_alert_schema(conn)
 
+
     ensure_case_journey_schema(conn)
     created_journeys = seed_case_journeys(conn)
     if created_journeys:
@@ -3185,6 +3198,7 @@ def ensure_sex_offender_schema(conn: sqlite3.Connection) -> None:
             changed_count INTEGER NOT NULL DEFAULT 0,
             scrape_duration_seconds INTEGER,
             notes TEXT DEFAULT '',
+            active_state_json TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         )
     ''')
@@ -3292,6 +3306,7 @@ def ensure_sex_offender_schema(conn: sqlite3.Connection) -> None:
         ('changed_count', 'INTEGER NOT NULL DEFAULT 0'),
         ('scrape_duration_seconds', 'INTEGER'),
         ('notes', "TEXT DEFAULT ''"),
+        ('active_state_json', 'TEXT'),
         ('created_at', "TEXT DEFAULT (datetime('now'))"),
     ]:
         try:
