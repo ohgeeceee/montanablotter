@@ -766,9 +766,15 @@ def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
 
 
 def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
-    """Compatibility schema for paid lawyer directory placements."""
-    conn.execute(
-        '''
+    """Create lawyer_ad_orders + lawyer_ad_listings + lawyer_consumer_leads tables.
+
+    Mirror of the recovery_ad_* schema. Lawyers are a separate paid directory
+    (lead-gen marketplace) from /attorneys, which stays free opt-in.
+
+    Packages (Bronze / Silver / Gold) determine placement, branding, and lead
+    routing. Stripe subscription webhooks drive status transitions.
+    """
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS lawyer_ad_orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             firm_name TEXT NOT NULL,
@@ -777,9 +783,9 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
             phone TEXT,
             website TEXT,
             bar_number TEXT,
-            counties_served TEXT NOT NULL DEFAULT '',
+            counties_served TEXT NOT NULL,
             practice_areas TEXT,
-            package_id TEXT NOT NULL DEFAULT '',
+            package_id TEXT NOT NULL,
             billing_cycle TEXT NOT NULL DEFAULT 'monthly',
             amount_cents INTEGER NOT NULL DEFAULT 0,
             currency TEXT NOT NULL DEFAULT 'usd',
@@ -795,10 +801,8 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
-        '''
-    )
-    conn.execute(
-        '''
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS lawyer_ad_listings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id INTEGER UNIQUE NOT NULL REFERENCES lawyer_ad_orders(id),
@@ -820,10 +824,8 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
             is_active INTEGER NOT NULL DEFAULT 1,
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
-        '''
-    )
-    conn.execute(
-        '''
+    ''')
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS lawyer_consumer_leads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             full_name TEXT NOT NULL,
@@ -838,7 +840,94 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
             routed_order_ids TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
-        '''
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_consumer_lead_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER REFERENCES lawyer_consumer_leads(id) ON DELETE SET NULL,
+            event_type TEXT NOT NULL,
+            county TEXT,
+            source TEXT,
+            order_id INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_lead_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER NOT NULL REFERENCES lawyer_consumer_leads(id) ON DELETE CASCADE,
+            order_id INTEGER NOT NULL REFERENCES lawyer_ad_orders(id) ON DELETE CASCADE,
+            channel TEXT NOT NULL,
+            destination TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            provider_message_id TEXT,
+            error TEXT,
+            sent_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(lead_id, order_id, channel, destination)
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS lawyer_listing_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL REFERENCES lawyer_ad_orders(id) ON DELETE CASCADE,
+            listing_id INTEGER REFERENCES lawyer_ad_listings(id) ON DELETE SET NULL,
+            event_type TEXT NOT NULL,
+            ip_hash TEXT,
+            user_agent_hash TEXT,
+            county TEXT,
+            session_hash TEXT,
+            source TEXT,
+            occurred_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    ''')
+    # Drop the older full unique index from before this schema learned about
+    # partial uniqueness. Safe to run on every migration.
+    try:
+        conn.execute('DROP INDEX IF EXISTS idx_lawyer_listing_event_dedupe')
+    except sqlite3.OperationalError:
+        pass
+    # Deduped impressions: at most one per (order, IP, county, day). Partial
+    # index keeps clicks/calls/leads from being blocked by the same uniqueness
+    # rule — those are explicit user actions and must count every time.
+    conn.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_lawyer_listing_event_dedupe
+        ON lawyer_listing_events(order_id, ip_hash, county, date(occurred_at))
+        WHERE event_type = 'impression'
+    ''')
+    for col, definition in [
+        ('consent_at', 'TEXT'),
+        ('consent_ip_hash', 'TEXT'),
+        ('consent_text_version', "TEXT NOT NULL DEFAULT 'lawyer-lead-v1'"),
+    ]:
+        try:
+            conn.execute(f'ALTER TABLE lawyer_consumer_leads ADD COLUMN {col} {definition}')
+        except sqlite3.OperationalError as exc:
+            if 'duplicate column' not in str(exc).lower():
+                raise
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_deliveries_lead ON lawyer_lead_deliveries(lead_id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_deliveries_status ON lawyer_lead_deliveries(status, created_at)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_events_created ON lawyer_consumer_lead_events(created_at)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_lead_events_order ON lawyer_consumer_lead_events(order_id, created_at)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_orders_status ON lawyer_ad_orders(status)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_orders_package ON lawyer_ad_orders(package_id)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_ad_listings_active ON lawyer_ad_listings(is_active)'
+    )
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_lawyer_leads_county ON lawyer_consumer_leads(county, created_at)'
     )
     conn.commit()
 

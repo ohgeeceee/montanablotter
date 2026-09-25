@@ -88,6 +88,7 @@ def _send_email(
 # ---------------------------------------------------------------------------
 
 AUDIENCE_LABELS = {
+    'lawyers':       'Attorneys & Law Firms',
     'bail_bondsmen': 'Bail Bondsmen & Bail Agencies',
     'clients':       'Subscribers & Registered Users',
     'jail_roster_leads': 'Jail Roster Upgrade Leads',
@@ -96,6 +97,7 @@ AUDIENCE_LABELS = {
 }
 
 AUDIENCE_DESCRIPTIONS = {
+    'lawyers':       'Subscribers whose agency_name contains law, attorney, legal, firm, or counsel.',
     'bail_bondsmen': 'Subscribers whose agency_name contains bail, bond, surety, or bailiff.',
     'clients':       'All active subscribers plus registered public_users with valid email addresses.',
     'jail_roster_leads': 'Active email subscribers who are not current Plus or Pro customers and have not received this promotion in 30 days.',
@@ -147,6 +149,17 @@ def _jail_roster_lead_rows(conn, limit: int | None = None):
 
 def _count_recipients(conn, audience: str) -> int:
     """Return the number of distinct email addresses for a given audience segment."""
+    if audience == 'lawyers':
+        return conn.execute(
+            """SELECT COUNT(DISTINCT email) FROM subscribers
+               WHERE active = 1
+                 AND agency_name IS NOT NULL
+                 AND (
+                     agency_name LIKE '%law%' OR agency_name LIKE '%attorney%'
+                     OR agency_name LIKE '%legal%' OR agency_name LIKE '%firm%'
+                     OR agency_name LIKE '%counsel%' OR agency_name LIKE '%esquire%'
+                 )"""
+        ).fetchone()[0]
     if audience == 'bail_bondsmen':
         return conn.execute(
             """SELECT COUNT(DISTINCT email) FROM subscribers
@@ -195,6 +208,20 @@ def _count_recipients(conn, audience: str) -> int:
 
 def _sample_recipients(conn, audience: str, limit: int = 5) -> list[dict]:
     """Return a small sample of email addresses for preview."""
+    if audience == 'lawyers':
+        rows = conn.execute(
+            """SELECT DISTINCT email, agency_name FROM subscribers
+               WHERE active = 1
+                 AND agency_name IS NOT NULL
+                 AND (
+                     agency_name LIKE '%law%' OR agency_name LIKE '%attorney%'
+                     OR agency_name LIKE '%legal%' OR agency_name LIKE '%firm%'
+                     OR agency_name LIKE '%counsel%' OR agency_name LIKE '%esquire%'
+                 )
+               ORDER BY agency_name LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        return [{'email': r['email'], 'name': r['agency_name'] or ''} for r in rows]
     if audience == 'bail_bondsmen':
         rows = conn.execute(
             """SELECT DISTINCT email, agency_name FROM subscribers
@@ -258,7 +285,21 @@ def _collect_recipient_emails(conn, audience: str, extra_emails: str = '') -> li
     """Return the full list of recipient emails for a campaign send."""
     emails: set[str] = set()
 
-    if audience == 'bail_bondsmen':
+    if audience == 'lawyers':
+        rows = conn.execute(
+            """SELECT DISTINCT email FROM subscribers
+               WHERE active = 1
+                 AND agency_name IS NOT NULL
+                 AND (
+                     agency_name LIKE '%law%' OR agency_name LIKE '%attorney%'
+                     OR agency_name LIKE '%legal%' OR agency_name LIKE '%firm%'
+                     OR agency_name LIKE '%counsel%' OR agency_name LIKE '%esquire%'
+                 )"""
+        ).fetchall()
+        for r in rows:
+            if r['email']:
+                emails.add(r['email'].strip().lower())
+    elif audience == 'bail_bondsmen':
         rows = conn.execute(
             """SELECT DISTINCT email FROM subscribers
                WHERE active = 1
@@ -330,6 +371,32 @@ def _collect_recipient_emails(conn, audience: str, extra_emails: str = '') -> li
 # ---------------------------------------------------------------------------
 
 DEFAULT_TEMPLATES = [
+    {
+        'name': 'Lawyer Outreach - Premium Subscription Pitch',
+        'audience': 'lawyers',
+        'subject': 'Montana court records, arrests, and case data - direct access for your firm',
+        'body': """Dear [Name],
+
+Montana Blotter tracks public safety, court, and arrest records across all 56 Montana counties - updated daily. Thousands of attorneys, bail bondsmen, and legal professionals already rely on it to stay ahead of cases in their markets.
+
+I'd like to offer your firm direct access to our Pro tier:
+
+  - 12 months of searchable history
+  - Statewide alerts across unlimited counties
+  - Daily case and arrest email digests by county
+  - Name, case number, charge, and keyword monitoring
+  - Watchlists with status-change notifications
+  - CSV and PDF exports for case files
+
+The Pro plan runs $19.99/month or $199/year - and you can start with a free 7-day trial.
+
+Would you like me to set up a trial for your firm? Reply to this email and I'll get you set up today.
+
+[Your Name]
+Montana Blotter - Public Records, Made Useful
+https://montanablotter.com""",
+        'notes': 'Leads with specific Montana coverage and the Pro feature set. Short, professional, and action-oriented.',
+    },
     {
         'name': JAIL_ROSTER_CAMPAIGN_NAME,
         'audience': 'jail_roster_leads',
