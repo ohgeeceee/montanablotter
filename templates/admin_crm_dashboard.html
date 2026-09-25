@@ -1,0 +1,171 @@
+{% extends 'admin_base.html' %}
+{% block title %}CRM · Montana Blotter Admin{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto p-6 space-y-6">
+  <div class="flex items-end justify-between">
+    <h1 class="text-2xl font-bold">CRM</h1>
+    <a class="text-sm underline" href="{{ url_for('admin.crm_find_leads') }}">Find Leads (import / prospect) →</a>
+  </div>
+
+  {# ---- Tab bar ---- #}
+  <nav class="flex gap-1 border-b border-neutral-300">
+    {% for key, label in [('leads', 'Prospecting & Lead Feed'),
+                          ('clients', 'Client Roster & Portals'),
+                          ('billing', 'Invoicing & Billing')] %}
+      <a href="{{ url_for('admin.crm_dashboard', tab=key) }}"
+         class="px-4 py-2 text-sm font-medium {% if tab == key %}bg-white border border-b-0 border-neutral-300 rounded-t font-bold{% else %}text-neutral-500 hover:text-neutral-900{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  {# ================= Tab 1: Prospecting & Lead Feed ================= #}
+  {% if tab == 'leads' %}
+  <form method="get" class="flex gap-3 items-end bg-white border border-neutral-200 p-4">
+    <input type="hidden" name="tab" value="leads">
+    <label class="text-xs uppercase text-neutral-500">Stage
+      <select name="stage" class="block border border-neutral-300 p-2 mt-1">
+        <option value="">all stages</option>
+        {% for s in stages %}<option value="{{ s }}" {% if s == stage %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select></label>
+    <label class="text-xs uppercase text-neutral-500">County
+      <input name="county" value="{{ county }}" class="block border border-neutral-300 p-2 mt-1" placeholder="Cascade"></label>
+    <button class="bg-neutral-900 text-white px-4 py-2 text-sm" type="submit">Filter</button>
+    <span class="text-sm text-neutral-500 ml-auto">{{ leads|length }} leads (max 200)</span>
+  </form>
+
+  <table class="w-full text-sm bg-white border border-neutral-200">
+    <thead class="bg-neutral-50 text-left">
+      <tr><th class="p-2">Business</th><th class="p-2">Vertical</th><th class="p-2">Counties</th>
+          <th class="p-2">Stage</th><th class="p-2">Contact</th><th class="p-2">Updated</th><th class="p-2"></th></tr>
+    </thead>
+    <tbody>
+    {% for l in leads %}
+      <tr class="border-t border-neutral-100">
+        <td class="p-2 font-medium"><a class="underline" href="{{ url_for('admin.advertising_prospect', prospect_id=l['id']) }}">{{ l['business_name'] }}</a></td>
+        <td class="p-2">{{ l['target_vertical'] or l['category'] }}</td>
+        <td class="p-2 text-neutral-600">{{ (l['counties'] or '')|truncate(40) }}</td>
+        <td class="p-2"><span class="px-2 py-0.5 text-xs bg-neutral-100 rounded">{{ l['stage'] }}</span></td>
+        <td class="p-2 text-xs">{{ l['email'] or '' }}<br>{{ l['phone'] or '' }}</td>
+        <td class="p-2 text-xs text-neutral-500">{{ (l['updated_at'] or '')[:10] }}</td>
+        <td class="p-2 whitespace-nowrap">
+          <form method="post" action="{{ url_for('admin.crm_outreach_draft', lead_id=l['id']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="text-xs border border-neutral-400 px-2 py-1 hover:bg-neutral-100"
+                    title="Generates a downloadable draft and logs it. Nothing is auto-sent.">✉ Outreach draft</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="p-6 text-center text-neutral-500">No leads match. Use <a class="underline" href="{{ url_for('admin.crm_find_leads') }}">Find Leads</a> to import a registry export.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {# ================= Tab 2: Client Roster & Portals ================= #}
+  {% if tab == 'clients' %}
+  <form method="get" class="flex gap-3 items-end bg-white border border-neutral-200 p-4">
+    <input type="hidden" name="tab" value="clients">
+    <label class="text-xs uppercase text-neutral-500">Search
+      <input name="q" value="{{ search }}" class="block border border-neutral-300 p-2 mt-1" placeholder="business name"></label>
+    <label class="text-xs uppercase text-neutral-500">Status
+      <select name="status" class="block border border-neutral-300 p-2 mt-1">
+        <option value="">all</option>
+        {% for s in ['invited','active','suspended','closed'] %}
+          <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select></label>
+    <button class="bg-neutral-900 text-white px-4 py-2 text-sm" type="submit">Filter</button>
+  </form>
+
+  <table class="w-full text-sm bg-white border border-neutral-200">
+    <thead class="bg-neutral-50 text-left">
+      <tr><th class="p-2">Client</th><th class="p-2">Tier</th><th class="p-2">Status</th>
+          <th class="p-2">Portal link</th><th class="p-2">Features</th></tr>
+    </thead>
+    <tbody>
+    {% for p in portals %}
+      <tr class="border-t border-neutral-100 align-top">
+        <td class="p-2"><a class="underline" href="{{ url_for('admin.advertising_prospect', prospect_id=p['lead_id']) }}">{{ p['business_name'] }}</a>
+            <div class="text-xs text-neutral-500">{{ p['stage'] }}</div></td>
+        <td class="p-2">{{ tiers[p['tier']] }}</td>
+        <td class="p-2"><span class="px-2 py-0.5 text-xs rounded {% if p['portal_status'] == 'active' %}bg-green-100 text-green-800{% else %}bg-neutral-100{% endif %}">{{ p['portal_status'] }}</span></td>
+        <td class="p-2 text-xs">
+          <a class="underline break-all" href="{{ url_for('client_portal.view', token_or_slug=(p['slug'] or p['access_token'])) }}" target="_blank">
+            /portal/{{ p['slug'] or (p['access_token'][:10] ~ '…') }}</a></td>
+        <td class="p-2">
+          <form method="post" action="{{ url_for('admin.crm_set_features', portal_id=p['id']) }}" class="flex flex-wrap gap-x-3 gap-y-1">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for f in features %}
+              <label class="text-xs inline-flex items-center gap-1">
+                <input type="checkbox" name="features" value="{{ f }}"
+                       {% if f in (p['features'] or '').split(',') %}checked{% endif %}> {{ f }}</label>
+            {% endfor %}
+            <button class="text-xs border border-neutral-400 px-2 py-0.5 hover:bg-neutral-100">Save</button>
+          </form></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="p-6 text-center text-neutral-500">No portals yet — open one from a lead's page ("Open client portal").</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {# ================= Tab 3: Invoicing & Billing ================= #}
+  {% if tab == 'billing' %}
+  <div class="grid grid-cols-3 gap-4">
+    <div class="bg-white border border-neutral-200 p-5 text-center">
+      <div class="text-3xl font-bold">${{ '%.2f' % (mrr.mrr_cents / 100) }}</div>
+      <div class="text-xs uppercase text-neutral-500 mt-1">Active MRR (pro-rated)</div></div>
+    <div class="bg-white border border-neutral-200 p-5 text-center">
+      <div class="text-3xl font-bold">{{ mrr.active_subscriptions }}</div>
+      <div class="text-xs uppercase text-neutral-500 mt-1">Active subscriptions</div></div>
+    <div class="bg-white border border-neutral-200 p-5">
+      <div class="text-xs uppercase text-neutral-500 mb-2">By status</div>
+      {% for s, n in mrr.by_status.items() %}<div class="text-sm flex justify-between"><span>{{ s }}</span><b>{{ n }}</b></div>{% endfor %}
+    </div>
+  </div>
+
+  <h2 class="text-lg font-bold">Subscriptions</h2>
+  <table class="w-full text-sm bg-white border border-neutral-200">
+    <thead class="bg-neutral-50 text-left"><tr><th class="p-2">Vertical</th><th class="p-2">Order</th><th class="p-2">Amount</th><th class="p-2">Cycle</th><th class="p-2">Status</th><th class="p-2">Synced</th></tr></thead>
+    <tbody>{% for s in subscriptions %}
+      <tr class="border-t border-neutral-100"><td class="p-2">{{ s['vertical'] }}</td>
+        <td class="p-2"><a class="underline" href="{{ url_for('admin.advertising_prospect', prospect_id=s['lead_id']) if s['lead_id'] else '#' }}">#{{ s['order_id'] }}</a></td>
+        <td class="p-2">${{ '%.2f' % (s['amount_cents'] / 100) }}</td><td class="p-2">{{ s['billing_cycle'] }}</td>
+        <td class="p-2 {% if s['status'] in ('active','paid') %}text-green-700{% else %}text-amber-700{% endif %}">{{ s['status'] }}</td>
+        <td class="p-2 text-xs text-neutral-500">{{ (s['last_synced_at'] or '')[:10] }}</td></tr>
+    {% else %}<tr><td colspan="6" class="p-4 text-neutral-500">No subscriptions synced.</td></tr>{% endfor %}</tbody>
+  </table>
+
+  <h2 class="text-lg font-bold">Invoices</h2>
+  <table class="w-full text-sm bg-white border border-neutral-200">
+    <thead class="bg-neutral-50 text-left"><tr><th class="p-2">#</th><th class="p-2">Period</th><th class="p-2">Amount</th><th class="p-2">Status</th><th class="p-2">Paid</th></tr></thead>
+    <tbody>{% for i in invoices %}
+      <tr class="border-t border-neutral-100"><td class="p-2">{{ i['invoice_number'] or i['provider_invoice_id'] }}</td>
+        <td class="p-2 text-xs">{{ (i['period_start'] or '')[:10] }} → {{ (i['period_end'] or '')[:10] }}</td>
+        <td class="p-2">${{ '%.2f' % (i['amount_cents'] / 100) }}</td>
+        <td class="p-2 {% if i['status'] == 'paid' %}text-green-700{% else %}text-amber-700{% endif %}">{{ i['status'] }}</td>
+        <td class="p-2 text-xs">{{ (i['paid_at'] or '—')[:10] }}</td></tr>
+    {% else %}<tr><td colspan="5" class="p-4 text-neutral-500">No invoices (lawyer vertical only; bail is subscription-only).</td></tr>{% endfor %}</tbody>
+  </table>
+
+  {% if session.get('role') in ('super_admin', 'revenue') %}
+  <details class="bg-white border border-neutral-200 p-4">
+    <summary class="font-medium text-sm cursor-pointer">Manual invoice (one-off charge against a Stripe-linked order)</summary>
+    <form method="post" action="{{ url_for('admin.crm_manual_invoice') }}" class="flex gap-3 items-end mt-3 text-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Order table
+        <select name="order_table" class="block border border-neutral-300 p-2 mt-1">
+          <option>lawyer_ad_orders</option><option>bail_ad_orders</option></select></label>
+      <label>Order ID <input name="order_id" required class="block border border-neutral-300 p-2 mt-1 w-24"></label>
+      <label>Amount (cents) <input name="amount_cents" type="number" min="100" required class="block border border-neutral-300 p-2 mt-1 w-28"></label>
+      <label>Days due <input name="days_due" type="number" min="1" max="60" value="15" class="block border border-neutral-300 p-2 mt-1 w-20"></label>
+      <button class="bg-neutral-900 text-white px-4 py-2" type="submit">Create in Stripe</button>
+    </form>
+    <p class="text-xs text-neutral-500 mt-2">Creates a real Stripe invoice for the customer linked to that order. Audited.</p>
+  </details>
+  {% endif %}
+  {% endif %}
+
+  {% with msgs = get_flashed_messages() %}{% for m in msgs %}<div class="bg-white border-l-4 border-blue-600 border p-3 text-sm">{{ m }}</div>{% endfor %}{% endwith %}
+</div>
+{% endblock %}

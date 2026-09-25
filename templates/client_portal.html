@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ portal.business_name }} · Montana Blotter client portal</title>
+<style>
+  :root { --ink:#1a1a1a; --mut:#6b6b6b; --line:#e5e5e5; --accent:#1d4ed8; }
+  * { box-sizing:border-box } body{font:15px/1.55 Georgia,serif;color:var(--ink);margin:0;background:#fafafa}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px}
+  header{border-bottom:3px double var(--ink);padding-bottom:12px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:baseline}
+  h1{font-size:22px;margin:0} .tier{font:600 12px/1 system-ui;border:1px solid var(--ink);padding:6px 10px;text-transform:uppercase;letter-spacing:.05em}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);border-bottom:1px solid var(--line);padding-bottom:6px;margin:28px 0 12px}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:#fff}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)} th{font-size:12px;color:var(--mut);text-transform:uppercase}
+  .paid{color:#15803d} .due{color:#b45309} .card{background:#fff;border:1px solid var(--line);padding:16px;margin-bottom:12px}
+  textarea,input[type=text],input[type=url],input[type=tel]{width:100%;border:1px solid var(--line);padding:10px;font:inherit}
+  button{background:var(--accent);color:#fff;border:0;padding:10px 18px;font:600 14px system-ui;cursor:pointer}
+  button.ghost{background:#fff;color:var(--ink);border:1px solid var(--ink)}
+  .meta{color:var(--mut);font-size:13px} .msg p{margin:4px 0}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .metric{background:#fff;border:1px solid var(--line);text-align:center;padding:14px 6px}
+  .metric b{display:block;font-size:24px;font-family:system-ui}
+  .metric span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+  label{display:block;margin:10px 0 2px;font-size:13px;color:var(--mut)}
+  @media (max-width:620px){ .metrics{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:flex;align-items:center;gap:14px">
+      {% if portal.logo_url %}<img src="{{ portal.logo_url }}" alt="" style="max-height:52px;max-width:120px;object-fit:contain">{% endif %}
+      <div><h1>{{ portal.business_name }}</h1>
+        <div class="meta">Montana Blotter advertising client · {{ portal.counties or 'statewide' }}</div></div>
+    </div>
+    <span class="tier">{{ tier_label }}</span>
+  </header>
+
+  {% with msgs = get_flashed_messages() %}
+    {% for m in msgs %}<div class="card" style="border-left:4px solid var(--accent)">{{ m }}</div>{% endfor %}
+  {% endwith %}
+
+  {# ---- 1. Profile & Directory Listing Editor ---- #}
+  {% if enabled('listing_editor') %}
+  <h2>Your listing</h2>
+  <div class="card">
+    <form method="post" enctype="multipart/form-data"
+          action="{{ url_for('client_portal.save_listing', token_or_slug=token_or_slug) }}">
+      <label>Bio — shown on your public directory card (≤1500 characters)
+        <textarea name="bio" rows="5" maxlength="1500">{{ portal.bio or '' }}</textarea></label>
+      <label>Display phone
+        <input type="tel" name="display_phone" maxlength="30" value="{{ portal.display_phone or '' }}"></label>
+      <label>Direct line (goes straight to you)
+        <input type="tel" name="direct_line" maxlength="30" value="{{ portal.direct_line or '' }}"></label>
+      <label>Direct link (https://… — landing page for ad clicks)
+        <input type="url" name="direct_link" maxlength="300" value="{{ portal.direct_link or '' }}"></label>
+      <label>Logo (JPG / PNG / WebP, ≤2 MB)
+        <input type="file" name="logo" accept="image/jpeg,image/png,image/webp"></label>
+      <p style="margin-top:14px"><button type="submit">Save listing</button>
+        <span class="meta" style="margin-left:10px">Live on the public pages within minutes. Never changes your billing.</span></p>
+    </form>
+  </div>
+  {% endif %}
+
+  {# ---- 2. Ad Performance Metrics ---- #}
+  {% if enabled('metrics') %}
+  <h2>Ad performance · last {{ metrics.days }} days</h2>
+  <div class="metrics">
+    <div class="metric"><b>{{ metrics.totals.impressions }}</b><span>Impressions</span></div>
+    <div class="metric"><b>{{ metrics.totals.clicks }}</b><span>Clicks</span></div>
+    <div class="metric"><b>{{ metrics.totals.calls }}</b><span>Calls / texts</span></div>
+    <div class="metric"><b>{{ metrics.totals.leads }}</b><span>Leads</span></div>
+  </div>
+  {% if metrics.counties %}
+  <table style="margin-top:12px">
+    <tr><th>County</th><th>Impressions</th><th>Clicks</th><th>Calls</th><th>Leads</th></tr>
+    {% for c in metrics.counties %}
+    <tr><td>{{ c.county }}</td><td>{{ c.impressions }}</td><td>{{ c.clicks }}</td>
+        <td>{{ c.calls }}</td><td>{{ c.leads }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="meta" style="margin-top:10px">No county-level traffic yet — it will appear here as your ad runs.</p>{% endif %}
+  {% endif %}
+
+  {# ---- 3. Lead Receipt ---- #}
+  {% if enabled('lead_receipt') %}
+  <h2>Leads from your placement</h2>
+  {% if leads %}
+  <table>
+    <tr><th>Date</th><th>Name</th><th>Contact</th><th>County</th><th>Detail</th></tr>
+    {% for l in leads %}
+    <tr><td class="meta">{{ (l['created_at'] or '')[:10] }}</td>
+        <td>{{ l['person'] or '—' }}</td>
+        <td>{{ l['phone'] or '' }}{% if l['phone'] and l['email'] %}<br>{% endif %}{{ l['email'] or '' }}</td>
+        <td>{{ l['county'] or '—' }}</td>
+        <td class="meta">{{ l['detail'] or '' }} {% if l['notes'] %}· {{ l['notes'][:120] }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="meta">No consumer leads routed to you yet. When someone clicks your ad's call/lead button, they land here.</p>{% endif %}
+  {% endif %}
+
+  {# ---- 4. Billing & Invoices ---- #}
+  {% if enabled('billing') %}
+  <h2>Billing</h2>
+  <div class="card">
+    <form method="post" action="{{ url_for('client_portal.stripe_billing_portal', token_or_slug=token_or_slug) }}">
+      <p style="margin:0"><button type="submit" class="ghost">Open Stripe billing portal ↗</button>
+        <span class="meta" style="margin-left:10px">card changes, cancel, PDF invoices — handled by Stripe.</span></p>
+    </form>
+  </div>
+  {% if subscriptions %}
+  <table><tr><th>Product</th><th>Amount</th><th>Cycle</th><th>Status</th><th>Renews / synced</th></tr>
+    {% for s in subscriptions %}
+    <tr><td>{{ s['vertical']|title }} ads</td>
+        <td>${{ '%.2f' % (s['amount_cents'] / 100) }}</td>
+        <td>{{ s['billing_cycle'] }}</td>
+        <td class="{{ 'paid' if s['status'] in ('active','paid') else 'due' }}">{{ s['status'] }}</td>
+        <td class="meta">{{ (s['last_synced_at'] or '')[:10] }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% if invoices %}
+  <h2 style="margin-top:20px">Invoices</h2>
+  <table><tr><th>Number</th><th>Period</th><th>Amount</th><th>Status</th><th>Paid</th></tr>
+    {% for i in invoices %}
+    <tr><td>{{ i['invoice_number'] }}</td>
+        <td>{{ (i['period_start'] or '')[:10] }}–{{ (i['period_end'] or '')[:10] }}</td>
+        <td>${{ '%.2f' % (i['amount_cents'] / 100) }}</td>
+        <td class="{{ 'paid' if i['status'] == 'paid' else 'due' }}">{{ i['status'] }}</td>
+        <td class="meta">{{ (i['paid_at'] or '—')[:10] }}</td></tr>
+    {% endfor %}
+  </table>
+  {% elif not subscriptions %}
+  <p class="meta">Setup in progress — billing details appear here once your Stripe subscription is active.</p>
+  {% endif %}
+  {% endif %}
+
+  {# ---- Messages / change request ---- #}
+  <h2>Messages &amp; change requests</h2>
+  {% for m in thread %}
+    <div class="card msg">
+      <div class="meta">{{ 'You' if m['direction'] == 'inbound' else 'Montana Blotter' }} · {{ m['sent_at'][:16] }}</div>
+      <strong>{{ m['subject'] }}</strong>
+      <p>{{ m['body'][:800] }}</p>
+    </div>
+  {% else %}<p class="meta">No messages yet.</p>{% endfor %}
+  <form method="post" action="{{ url_for('client_portal.request_change', token_or_slug=token_or_slug) }}" style="margin-top:10px">
+    <textarea name="message" maxlength="4000" required
+      placeholder="New banner artwork, county coverage change, billing question…"></textarea>
+    <p><button type="submit">Send to the revenue team</button></p>
+  </form>
+
+  <p class="meta" style="margin-top:36px">This private link replaces your password — don't share it.
+    montanablotter.com</p>
+</div>
+</body>
+</html>

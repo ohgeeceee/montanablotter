@@ -93,5 +93,6 @@ def register_admin_blueprint(app):
     from blueprints.admin import case_watch  # noqa: F401
     from blueprints.admin import lea_management  # noqa: F401
     from blueprints.admin import name_removals  # noqa: F401
+    from blueprints.admin import crm_pipeline  # noqa: F401
     app.register_blueprint(admin_bp)
     app.register_blueprint(advertising_center.media_kit_bp)

@@ -35,6 +35,7 @@ from werkzeug.utils import secure_filename
 import config
 from db import get_db
 from init_db import ensure_lawyer_ad_schema, ensure_advertise_sales_lead_schema
+from services.crm import crm_service
 
 lawyer_ads_bp = Blueprint('lawyer_ads', __name__)
 
@@ -548,6 +549,7 @@ def lawyers_directory():
     ).fetchall()
 
     listings = [dict(r) for r in rows]
+    crm_service.apply_directory_overrides(conn, listings, 'lawyer')
 
     # Group by county for county sections
     by_county = {}
@@ -618,6 +620,9 @@ def lawyers_directory_county(county_slug):
     conn.close()
 
     listings = [dict(r) for r in rows]
+    ov_conn = get_db()
+    crm_service.apply_directory_overrides(ov_conn, listings, 'lawyer')
+    ov_conn.close()
     target_county = None
     for lst in listings:
         for c in _parse_counties(lst.get('counties_served')):

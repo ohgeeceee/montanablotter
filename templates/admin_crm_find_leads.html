@@ -1,0 +1,59 @@
+{% extends 'admin_base.html' %}
+{% block title %}Find Leads · Montana Blotter Admin{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto p-6 space-y-6">
+  <div>
+    <h1 class="text-2xl font-bold">Find Leads</h1>
+    <p class="text-sm text-neutral-500 mt-1">Import licensed-business rows from state registries
+      (DLI licensee export, Secretary of State, State Bar) into the Advertising Center pipeline.
+      Dedupe keys: license&nbsp;number → business name → email. Nothing is emailed from here.</p>
+  </div>
+
+  {% for key, desc in providers %}
+    <p class="text-xs text-neutral-500"><b>{{ key }}</b> — {{ desc }}</p>
+  {% endfor %}
+
+  {% if error %}<div class="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">{{ error }}</div>{% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="space-y-4 bg-white border border-neutral-200 rounded p-5">
+    <div class="flex gap-4 items-end">
+      <label class="text-sm">Vertical
+        <select name="vertical" class="block mt-1 border rounded p-2">
+          {% for k, v in verticals.items() %}
+            <option value="{{ k }}">{{ v.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="text-sm">Export file (CSV / JSON / saved HTML table)
+        <input type="file" name="file" accept=".csv,.json,.html,.txt" class="block mt-1">
+      </label>
+    </div>
+    <label class="text-sm block">…or paste rows
+      <textarea name="paste" rows="6" class="block w-full mt-1 border rounded p-2 font-mono text-xs"
+        placeholder="Business Name,City,Phone,License #&#10;Big Sky PI,Bozeman,406-555-0123,PI-44"></textarea>
+    </label>
+    <div class="flex gap-3">
+      <button name="commit" value="0" class="px-4 py-2 bg-neutral-800 text-white rounded text-sm">Preview dedupe</button>
+      <button name="commit" value="1" class="px-4 py-2 bg-blue-700 text-white rounded text-sm"
+        onclick="return confirm('Commit rows to the prospect pipeline?')">Commit to pipeline</button>
+    </div>
+  </form>
+
+  {% if preview %}
+  <div class="bg-white border border-neutral-200 rounded p-5 text-sm">
+    <h2 class="font-bold mb-2">{{ 'Committed' if preview.committed else 'Dry-run' }}:
+      {{ preview.n }} rows parsed</h2>
+    <ul class="list-disc pl-5">
+      <li>New leads: <b>{{ preview.counts.inserted }}</b></li>
+      <li>Existing enriched (blank fields only): <b>{{ preview.counts.updated }}</b></li>
+      <li>Unchanged: <b>{{ preview.counts.unchanged }}</b></li>
+      <li>Skipped (non-Montana / invalid): <b>{{ preview.counts.skipped }}</b></li>
+    </ul>
+    {% if not preview.committed %}<p class="text-neutral-500 mt-2">Nothing was written — nothing in this preview changed the database.</p>{% endif %}
+  </div>
+  {% endif %}
+
+  <p class="text-xs text-neutral-500">Google Places runs from the CLI (needs an API key):
+    <code class="bg-neutral-100 px-1 rounded">python3 -m services.crm.prospecting --vertical bail --county Cascade --dry-run</code></p>
+</div>
+{% endblock %}

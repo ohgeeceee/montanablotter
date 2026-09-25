@@ -1,0 +1,53 @@
+{% extends 'admin_base.html' %}
+{% block title %}Clients &amp; Portals · Montana Blotter Admin{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto p-6 space-y-6">
+  <h1 class="text-2xl font-bold">Clients &amp; Portals</h1>
+
+  <table class="w-full text-sm bg-white border border-neutral-200">
+    <thead class="bg-neutral-50 text-left">
+      <tr>
+        <th class="p-2">Client</th><th class="p-2">Vertical</th><th class="p-2">Counties</th>
+        <th class="p-2">Tier</th><th class="p-2">Portal</th><th class="p-2">Stage</th><th class="p-2">Updated</th><th class="p-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in portals %}
+      <tr class="border-t border-neutral-100">
+        <td class="p-2 font-medium">{{ p.business_name }}</td>
+        <td class="p-2">{{ p.category }}</td>
+        <td class="p-2">{{ p.counties }}</td>
+        <td class="p-2">{{ tiers.get(p.tier, p.tier) }}</td>
+        <td class="p-2"><span class="px-2 py-0.5 rounded text-xs
+          {{ 'bg-green-100 text-green-800' if p.portal_status == 'active'
+             else 'bg-amber-100 text-amber-800' if p.portal_status == 'invited'
+             else 'bg-neutral-200' }}">{{ p.portal_status }}</span></td>
+        <td class="p-2">{{ p.stage }}</td>
+        <td class="p-2 text-neutral-500">{{ p.updated_at[:10] }}</td>
+        <td class="p-2 space-x-2 whitespace-nowrap">
+          <a class="text-blue-700" href="{{ url_for('admin.crm_lead_billing', lead_id=p.lead_id) }}">billing</a>
+          <a class="text-blue-700" href="{{ url_for('client_portal.view', token_or_slug=p.access_token) }}" target="_blank">portal ↗</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="p-4 text-neutral-500">No portals yet — open one from a converted lead in the
+        <a class="text-blue-700" href="{{ url_for('admin.advertising_center') }}">Advertising Center</a>.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2 class="text-lg font-bold">Subscription rollup</h2>
+  <table class="w-full text-sm bg-white border border-neutral-200 max-w-xl">
+    <thead class="bg-neutral-50 text-left"><tr><th class="p-2">Vertical</th><th class="p-2">Status</th><th class="p-2">#</th><th class="p-2">Book $/cycle</th></tr></thead>
+    <tbody>
+      {% for b in billing %}
+      <tr class="border-t border-neutral-100">
+        <td class="p-2">{{ b['vertical'] }}</td><td class="p-2">{{ b['status'] }}</td>
+        <td class="p-2">{{ b['n'] }}</td><td class="p-2">${{ '%.2f' % ((b['cents'] or 0) / 100) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="text-xs text-neutral-500">Read-only rollup of lawyer/bail Stripe-backed orders — the provider records remain the source of truth.</p>
+</div>
+{% endblock %}

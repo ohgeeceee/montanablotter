@@ -3115,6 +3115,12 @@ def migrate():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_sd_county_active ON sponsored_digests(county, is_active)')
     cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_sd_one_active_per_county ON sponsored_digests(county) WHERE is_active = 1')
 
+    # CRM pipeline tables + billing rollup views. Must run late: the
+    # crm_subscriptions/crm_invoices views bind against bail/lawyer order
+    # tables created earlier in this same migrate() pass.
+    from scripts.crm_migration import ensure_crm_schema
+    ensure_crm_schema(conn)
+
     conn.commit()
     conn.close()
     print("✅ Migration complete")

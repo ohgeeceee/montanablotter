@@ -15,10 +15,12 @@ from urllib.parse import urlparse
 
 import stripe
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from flask_login import current_user
 from werkzeug.utils import secure_filename
 
 import config
 from db import get_db
+from services.crm import crm_service
 from init_db import ensure_advertise_sales_lead_schema
 
 from blueprints.payments import _checkout_redirect_url  # noqa: E402  shared Stripe-session helper
@@ -701,6 +703,7 @@ def _active_bail_ad_listings(conn):
             'target_url': row['target_url'] or row['simulator_target_url'] or row['website_url'] or '',
             'logo_path': row['logo_path'] or row['simulator_logo_path'] or '',
         })
+    crm_service.apply_directory_overrides(conn, listings, 'bail')
     return listings
 
 

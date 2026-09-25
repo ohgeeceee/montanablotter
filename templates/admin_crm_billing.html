@@ -1,0 +1,51 @@
+{% extends 'admin_base.html' %}
+{% block title %}Lead billing · Montana Blotter Admin{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto p-6 space-y-6">
+  <h1 class="text-xl font-bold">Billing for lead #{{ lead_id }}</h1>
+
+  <section>
+    <h2 class="font-bold text-sm uppercase text-neutral-500 mb-2">Subscriptions</h2>
+    <table class="w-full text-sm bg-white border border-neutral-200">
+      <thead class="bg-neutral-50 text-left"><tr>
+        <th class="p-2">Vertical</th><th class="p-2">Client</th><th class="p-2">Stripe customer</th>
+        <th class="p-2">Amount</th><th class="p-2">Cycle</th><th class="p-2">Status</th></tr></thead>
+      <tbody>
+      {% for s in subs %}
+        <tr class="border-t border-neutral-100">
+          <td class="p-2">{{ s['vertical'] }}</td><td class="p-2">{{ s['client_name'] }}</td>
+          <td class="p-2 font-mono text-xs">{{ s['stripe_customer_id'][:14] }}…</td>
+          <td class="p-2">${{ '%.2f' % (s['amount_cents'] / 100) }} {{ s['currency'] }}</td>
+          <td class="p-2">{{ s['billing_cycle'] }}</td><td class="p-2">{{ s['status'] }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="p-3 text-neutral-500">No active subscription — not yet converted, or one-time order.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2 class="font-bold text-sm uppercase text-neutral-500 mb-2">Invoices</h2>
+    <table class="w-full text-sm bg-white border border-neutral-200">
+      <thead class="bg-neutral-50 text-left"><tr>
+        <th class="p-2">Invoice</th><th class="p-2">Period</th><th class="p-2">Amount</th>
+        <th class="p-2">Status</th><th class="p-2">Issued</th><th class="p-2">Paid</th></tr></thead>
+      <tbody>
+      {% for i in invoices %}
+        <tr class="border-t border-neutral-100">
+          <td class="p-2 font-mono text-xs">{{ i['invoice_number'] }}</td>
+          <td class="p-2">{{ i['period_start'][:10] }} → {{ i['period_end'][:10] }}</td>
+          <td class="p-2">${{ '%.2f' % (i['amount_cents'] / 100) }}</td>
+          <td class="p-2">{{ i['status'] }}</td>
+          <td class="p-2">{{ (i['issued_at'] or '')[:10] }}</td>
+          <td class="p-2">{{ (i['paid_at'] or '')[:10] or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="p-3 text-neutral-500">No invoices logged.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

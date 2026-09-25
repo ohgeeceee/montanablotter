@@ -14589,6 +14589,8 @@ app.register_blueprint(attorney_ads_bp)
 app.register_blueprint(attorney_checkout_bp)
 app.register_blueprint(bail_bond_ads_bp)
 app.register_blueprint(lawyer_ads_bp)
+from blueprints.client_portal import client_portal_bp
+app.register_blueprint(client_portal_bp)
 from blueprints.sponsored_listings import sponsored_bp
 app.register_blueprint(sponsored_bp)
 from blueprints.api_keys import api_keys_bp
