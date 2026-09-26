@@ -1,0 +1,107 @@
+{% extends "admin_base.html" %}
+{% block title %}Bail Outreach — Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+  <h1>Bail Agency Outreach</h1>
+  <p style="color:#64748b;font-size:.9rem;margin-bottom:1.5rem;">
+    Cadence for Montana bail bond agencies in <code>bail_agency_outreach</code>.
+    The cron queues drafts only — <strong>this page is the only SMTP path</strong>.
+    Buying page for reference: <a href="/advertise/bail-bonds">/advertise/bail-bonds</a>.
+  </p>
+
+  <div style="display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap;">
+    {% for label, val, bg, fg in [
+        ('Total', stats.total, '#f8fafc', '#0f172a'),
+        ('Fresh', stats.fresh, '#eff6ff', '#1d4ed8'),
+        ('Draft queued', stats.queued, '#fefce8', '#a16207'),
+        ('Contacted', stats.contacted, '#f0fdf4', '#047857'),
+        ('Won', stats.won, '#ecfdf5', '#059669'),
+        ('Stalled', stats.stalled, '#f1f5f9', '#475569')] %}
+    <div style="background:{{ bg }};border-radius:6px;padding:1rem 1.5rem;text-align:center;min-width:100px;">
+      <div style="font-size:1.6rem;font-weight:700;color:{{ fg }};">{{ val or 0 }}</div>
+      <div style="color:{{ fg }};font-size:.85rem;">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <form method="post" action="{{ url_for('.admin_bail_outreach_run_worker') }}" style="margin-bottom:2rem;">
+    <button type="submit" class="btn btn-primary">Run cadence now</button>
+    <span style="color:#64748b;font-size:.85rem;margin-left:.5rem;">
+      Queues Day-1 emails / phone tasks for fresh agencies and Day-5/Day-10 follow-ups for contacted ones. Nothing is sent automatically.
+    </span>
+  </form>
+
+  <h2>Pending &amp; recent drafts</h2>
+  {% if drafts %}
+  <table class="admin-table" style="width:100%;border-collapse:collapse;">
+    <thead><tr>
+      <th style="text-align:left;">Agency</th><th>To</th><th>Subject</th>
+      <th>Status</th><th>Created</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+    {% for d in drafts %}
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td>{{ d.agency_name }}</td>
+        <td>{{ d.email_address or '— (phone task)' }}</td>
+        <td>{{ d.subject }}
+          <details style="margin-top:.25rem;"><summary style="cursor:pointer;color:#2563eb;font-size:.8rem;">view body</summary>
+            <pre style="background:#f8fafc;padding:.75rem;border-radius:4px;white-space:pre-wrap;font-size:.8rem;max-width:640px;">{{ d.body }}</pre>
+          </details>
+        </td>
+        <td>{{ d.status }}</td>
+        <td>{{ (d.created_at or '')[:16] }}</td>
+        <td style="white-space:nowrap;">
+          {% if d.status == 'pending' %}
+            {% if d.email_address %}
+            <form method="post" action="{{ url_for('.admin_bail_outreach_draft_send', draft_id=d.id) }}" style="display:inline;"
+                  onsubmit="return confirm('Send this email to {{ d.email_address }}?');">
+              <button type="submit" class="btn btn-sm btn-primary">Send</button>
+            </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('.admin_bail_outreach_draft_skip', draft_id=d.id) }}" style="display:inline;">
+              <button type="submit" class="btn btn-sm">Skip</button>
+            </form>
+          {% else %}
+            <span style="color:#94a3b8;">{{ d.sent_at[:16] if d.sent_at else '—' }}</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#64748b;">No bail drafts yet — hit "Run cadence now".</p>
+  {% endif %}
+
+  <h2 style="margin-top:2rem;">Agencies</h2>
+  <table class="admin-table" style="width:100%;border-collapse:collapse;">
+    <thead><tr>
+      <th style="text-align:left;">Agency</th><th>Counties</th><th>Contact</th>
+      <th>Status</th><th>Last contacted</th><th>Set status</th>
+    </tr></thead>
+    <tbody>
+    {% for a in agencies %}
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td><strong>{{ a.agency_name }}</strong>
+          {% if a.notes %}<div style="color:#64748b;font-size:.78rem;max-width:380px;">{{ a.notes }}</div>{% endif %}</td>
+        <td>{{ a.counties or '—' }}</td>
+        <td>{{ a.email or '' }}{% if a.phone %}<br>{{ a.phone }}{% endif %}</td>
+        <td><code>{{ a.outreach_status }}</code></td>
+        <td>{{ (a.last_contacted_at or '—')[:16] }}</td>
+        <td>
+          <form method="post" action="{{ url_for('.admin_bail_outreach_agency_status', agency_id=a.id) }}" style="display:flex;gap:.4rem;align-items:center;">
+            <select name="outreach_status" style="font-size:.8rem;">
+              {% for s in allowed_statuses %}
+              <option value="{{ s }}" {% if s == a.outreach_status %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm">Set</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

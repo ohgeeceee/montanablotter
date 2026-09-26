@@ -30,6 +30,19 @@ BASH_ENV=/root/montanablotter/.env
 # changes for existing links. Every 15 min. Logs to logs/disposition_watcher.log.
 */15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/disposition_watcher.py >> /root/montanablotter/logs/disposition_watcher.log 2>&1
 
+# Lawyer arrest alerts — email paid lawyer_ad_orders advertisers when a new
+# post matches their county + practice area, and notify claimed cases once a
+# disposition posts. Every 15 min. Logs to logs/lawyer_arrest_alerts.log.
+*/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/lawyer_arrest_alerts_watcher.py >> /root/montanablotter/logs/lawyer_arrest_alerts.log 2>&1
+
+# Lawyer outreach cadence — re-imports target_list.csv and queues Day 1 / Day 3
+# / Day 5 / Day 10 emails into lawyer_outreach_emails. The cron NEVER sends;
+# /admin/lawyer-outreach is the only SMTP path. Daily at 03:30 UTC, offset
+# from the 03:00 backup and the 05:30 daily_blog_worker. Logs to
+# logs/lawyer_outreach_cadence.log.
+30 3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name lawyer_outreach_cadence --log /root/montanablotter/logs/lawyer_outreach_cadence.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.lawyer_outreach.cadence
+35 3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bail_outreach_cadence --log /root/montanablotter/logs/bail_outreach_cadence.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.bail_outreach.cadence
+
 # Ad integration health check — assert Monetag loader + meta are present and
 # that no AdSense references have crept back. Every 15 min, offset by 7 min.
 7-59/15 * * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/check_ads_health.py >> /root/montanablotter/logs/ad_health.log 2>&1
