@@ -37,6 +37,11 @@ from services.lawyer_outreach.importer import import_prospects_from_csv
 LOG_PATH = '/root/montanablotter/logs/lawyer_outreach_cadence.log'
 log = logging.getLogger('lawyer_outreach.cadence')
 
+# Single reply address for all outreach templates. Replies from prospects
+# must land in one mailbox; change here (or via env) and the queue updates.
+REPLY_TO = os.environ.get('LAWYER_OUTREACH_REPLY_TO',
+                          'montanablotter@gmail.com')
+
 
 # ----------------------------------------------------------------- templates --
 
@@ -68,7 +73,7 @@ def _day_1_body(firm_name: str, county: str, contact_name: str,
         f"showing the exact metrics the firm will receive each month. Reply "
         f"\"SEND REPORT\" and I'll get it to you today.\n\n"
         f"— Jon\n"
-        f"Montana Blotter · support@montanablotter.com\n\n"
+        f"Montana Blotter · {REPLY_TO}\n\n"
         f"P.S. — {county} currently has {gold_open} of {gold_total} Gold slots "
         f"open. The Gold slot goes to whichever firm commits first."
     )
@@ -96,7 +101,7 @@ def _day_5_body(firm_name: str, county: str, contact_name: str) -> str:
         f"The report is real data, not estimates. We will not promise case "
         f"volume or ROI before we have cohort data. After 90 days we can talk "
         f"about the conversion numbers we are actually seeing.\n\n"
-        f"— Jon\nMontana Blotter · support@montanablotter.com"
+        f"— Jon\nMontana Blotter · {REPLY_TO}"
     )
 
 
@@ -126,7 +131,7 @@ def _day_10_body(firm_name: str, county: str, contact_name: str,
         f"Closing the loop on the {county} listing.\n\n"
         f"{body_mid}\n\n"
         f"Reply \"GO\" and I'll send the checkout link.\n\n"
-        f"— Jon\nMontana Blotter · support@montanablotter.com"
+        f"— Jon\nMontana Blotter · {REPLY_TO}"
     )
 
 
