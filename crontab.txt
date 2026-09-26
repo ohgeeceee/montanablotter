@@ -40,8 +40,8 @@ BASH_ENV=/root/montanablotter/.env
 # /admin/lawyer-outreach is the only SMTP path. Daily at 03:30 UTC, offset
 # from the 03:00 backup and the 05:30 daily_blog_worker. Logs to
 # logs/lawyer_outreach_cadence.log.
-30 3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name lawyer_outreach_cadence --log /root/montanablotter/logs/lawyer_outreach_cadence.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.lawyer_outreach.cadence
-35 3 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bail_outreach_cadence --log /root/montanablotter/logs/bail_outreach_cadence.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.bail_outreach.cadence
+20 5 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name lawyer_outreach_cadence --log /root/montanablotter/logs/lawyer_outreach_cadence.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.lawyer_outreach.cadence
+25 5 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name bail_outreach_cadence --log /root/montanablotter/logs/bail_outreach_cadence.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.bail_outreach.cadence
 
 # Ad integration health check — assert Monetag loader + meta are present and
 # that no AdSense references have crept back. Every 15 min, offset by 7 min.
