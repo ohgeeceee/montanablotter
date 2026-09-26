@@ -214,7 +214,7 @@ def run_cadence(conn: sqlite3.Connection, *,
                   outreach_status, last_contacted_at
            FROM bail_agency_outreach
            WHERE outreach_status NOT IN
-                 ('closed_won', 'lost', 'unqualified', 'stalled')"""
+                 ('closed_won', 'lost', 'unqualified', 'stalled', 'replied', 'bounced')"""
     ).fetchall()
 
     for a in agencies:

@@ -12,7 +12,7 @@ Cadence (per docs/criminal_defense_attorney_outreach_sequence.md):
   day_10  close                         "Final check-in — ..."
 
 Stage rules:
-  - If status in ('won', 'lost', 'unqualified'), skip.
+  - If status in ('won', 'lost', 'unqualified', 'replied', 'bounced'), skip.
   - If no contact_email, skip — operator must research first.
   - If a row in lawyer_outreach_emails already exists for (prospect, stage),
     skip the queue insert (UNIQUE dedupe key handles this).
@@ -204,7 +204,7 @@ def _advance_due_stages(conn: sqlite3.Connection, counts: dict[str, int]) -> Non
             '''
             SELECT p.id
             FROM lawyer_outreach_prospects p
-            WHERE p.stage = ? AND p.status NOT IN ('won', 'lost', 'unqualified')
+            WHERE p.stage = ? AND p.status NOT IN ('won', 'lost', 'unqualified', 'replied', 'bounced')
               AND p.last_action_at IS NOT NULL
               AND p.last_action_at <= datetime('now', ?)
               AND EXISTS (
@@ -245,7 +245,7 @@ def run_cadence(
     counties_in_play = [
         r['county'] for r in conn.execute(
             "SELECT DISTINCT county FROM lawyer_outreach_prospects "
-            "WHERE status NOT IN ('won', 'lost', 'unqualified') AND county IS NOT NULL"
+            "WHERE status NOT IN ('won', 'lost', 'unqualified', 'replied', 'bounced') AND county IS NOT NULL"
         ).fetchall()
     ]
     gold_slots = _gold_slot_counts(conn, counties_in_play)
@@ -255,7 +255,7 @@ def run_cadence(
         SELECT id, firm_name, county, contact_email, contact_name,
                stage, status, last_action_at, next_action_at
         FROM lawyer_outreach_prospects
-        WHERE status NOT IN ('won', 'lost', 'unqualified')
+        WHERE status NOT IN ('won', 'lost', 'unqualified', 'replied', 'bounced')
         '''
     ).fetchall()
 

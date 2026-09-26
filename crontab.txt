@@ -271,3 +271,9 @@ BASH_ENV=/root/montanablotter/.env
 # and email to admin for posting to Facebook. Staggered 15 min after the
 # 06:45 daily blog worker so the DB has fresh booking data.
 0 13 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/ops/hill_roster_email.py >> /root/montanablotter/logs/hill_roster_email.log 2>&1
+
+# Outreach reply/bounce checker — scans the montanablotter@gmail.com mailbox
+# (INBOX + Processed) for replies and NDRs from lawyer/bail outreach
+# prospects. Marks replied/bounced (terminal for both cadences), logs to
+# outreach_replies, and emails the deal inbox. Every 6h.
+0 */6 * * * cd /root/montanablotter && ./venv/bin/python3 services/outreach/reply_check.py >> logs/outreach_reply_check.log 2>&1
