@@ -12,7 +12,7 @@ def _require_admin():
 @admin_geocode_bp.route('/admin/geocode/status')
 def admin_geocode_status():
     if not _require_admin():
-        return redirect(url_for('auth.admin_login'))
+        return redirect(url_for('admin.admin_login'))
     import sqlite3, os
     db_path = os.getenv('MB_DB_PATH', '/root/montanablotter/blotter.db')
     conn = sqlite3.connect(db_path)
