@@ -13849,6 +13849,24 @@ def editorial_standards():
     return render_template('standards.html', current_year=datetime.now().year)
 
 
+@app.route('/sponsors')
+def sponsors_page():
+    conn = get_db()
+    homepage_sponsors = _homepage_sponsors_context(conn)
+    conn.close()
+    return render_template(
+        'sponsors.html',
+        homepage_sponsors=homepage_sponsors,
+        active_nav='sponsors',
+        current_year=datetime.now().year,
+        page_title='Sponsors',
+        meta_description="Businesses and law firms supporting Montana Blotter's public-records reporting, and how to reach Montanans through our sponsorship programs.",
+        canonical_url=f'{BASE_URL}/sponsors',
+        og_title='Sponsors | Montana Blotter',
+        og_description="Montana Blotter sponsors and sponsorship programs.",
+    )
+
+
 @app.route('/corrections')
 def corrections_policy():
     conn = get_db()

@@ -1,0 +1,123 @@
+{% extends "public_page_base.html" %}
+
+{% set page_title = "Sponsors" %}
+{% set meta_description = "Businesses and law firms supporting Montana Blotter's public-records reporting, and how to reach Montanans through our sponsorship programs." %}
+{% set canonical_url = "https://montanablotter.com/sponsors" %}
+{% set og_title = "Sponsors | Montana Blotter" %}
+{% set og_description = meta_description %}
+
+{% block body_class %}sponsors-page{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Sponsors",
+  "url": "https://montanablotter.com/sponsors",
+  "description": "Montana Blotter sponsors and sponsorship programs."
+}
+</script>
+{% endblock %}
+
+{% block breadcrumb %}
+<span class="mx-2">/</span>
+<span>Sponsors</span>
+{% endblock %}
+
+{% block hero %}
+<section class="public-hero">
+    <div class="public-hero__frame">
+        <div class="public-hero__grid">
+            <div>
+                <p class="public-eyebrow">Sponsors</p>
+                <h1 class="public-title public-title--medium">Sponsors</h1>
+                <p class="public-copy">
+                    Sponsorships keep Montana Blotter's public-records coverage free to read. The businesses below currently support the site; sponsorship is clearly labeled and never influences what we publish.
+                </p>
+            </div>
+            <aside class="public-card">
+                <div class="public-card__body">
+                    <p class="public-card__eyebrow">Independent Reporting</p>
+                    <h2 class="public-card__title">Sponsors do not edit, approve, or suppress records.</h2>
+                    <p class="public-card__text">
+                        Editorial decisions follow our <a class="public-policy-inline-link" href="/standards">sourcing standards</a>. Sponsor placements are paid, labeled advertising only.
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="public-route-layout">
+    <main class="public-main-stack">
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill public-pill--accent">Current sponsors</span>
+                </div>
+                <h2 class="public-detail-title">Businesses supporting this edition.</h2>
+            </div>
+            <div class="public-detail-frame__body">
+                {% if homepage_sponsors %}
+                <div class="public-policy-stack">
+                    {% for sponsor in homepage_sponsors %}
+                    <section class="public-policy-section">
+                        <h2 class="public-policy-heading">
+                            <a class="public-policy-inline-link" href="{{ sponsor.target_url or sponsor.website_url or sponsor.phone_href or '#sponsor-' ~ loop.index }}">{{ sponsor.name }}</a>
+                        </h2>
+                        <p class="public-policy-copy">
+                            {{ sponsor.headline }}
+                            {% if sponsor.body %}<br>{{ sponsor.body }}{% endif %}
+                        </p>
+                        <p class="public-policy-copy">
+                            {% if sponsor.counties %}Serving: {{ sponsor.counties | join(', ') }} County area records.
+                            {% endif %}
+                            {% if sponsor.phone %} Phone: <a class="public-policy-inline-link" href="{{ sponsor.phone_href }}">{{ sponsor.phone }}</a>.{% endif %}
+                        </p>
+                    </section>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="public-policy-copy">
+                    No sponsorships are active right now. Sponsor placements appear here and on the blotter pages as soon as they go live.
+                </p>
+                {% endif %}
+            </div>
+        </article>
+
+        <article class="public-detail-frame">
+            <div class="public-detail-frame__header">
+                <div class="public-eyebrow-row">
+                    <span class="public-pill">Sponsorship programs</span>
+                </div>
+                <h2 class="public-detail-title">Reach Montanans who are actively looking.</h2>
+            </div>
+            <div class="public-detail-frame__body">
+                <div class="public-policy-stack">
+                    <section class="public-policy-section">
+                        <h2 class="public-policy-heading">Bail bond agencies</h2>
+                        <p class="public-policy-copy">
+                            County-targeted placements near jail-booking and warrant coverage. See the <a class="public-policy-inline-link" href="/advertise/bail-bonds">bail bond advertising program</a>.
+                        </p>
+                    </section>
+                    <section class="public-policy-section">
+                        <h2 class="public-policy-heading">Montana lawyers and firms</h2>
+                        <p class="public-policy-copy">
+                            Practice-area and county directories plus sponsored case-record features. See the <a class="public-policy-inline-link" href="/advertise/lawyers">lawyer advertising program</a> or the <a class="public-policy-inline-link" href="/advertise/attorney-sponsorship">attorney sponsorship page</a>.
+                        </p>
+                    </section>
+                    <section class="public-policy-section">
+                        <h2 class="public-policy-heading">Sponsored county digests</h2>
+                        <p class="public-policy-copy">
+                            Sponsor a county email digest delivered alongside the daily briefing. Details on the <a class="public-policy-inline-link" href="/sponsored-digest">sponsored digest page</a>.
+                        </p>
+                    </section>
+                </div>
+            </div>
+        </article>
+    </main>
+</div>
+{% endblock %}

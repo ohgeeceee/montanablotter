@@ -282,7 +282,7 @@
       </p>
       <div style="display: flex; flex-wrap: wrap; gap: var(--space-3);">
         {% for sponsor in homepage_sponsors %}
-          <a href="{{ sponsor.href or '/sponsors' }}" style="font-size: var(--text-caption); color: var(--text-link); font-weight: var(--weight-semibold);">{{ sponsor.name or sponsor.label }}</a>
+          <a href="{{ sponsor.target_url or sponsor.website_url or sponsor.phone_href or '/sponsors' }}" {% if sponsor.target_url and sponsor.target_url.startswith('http') %}target="_blank" rel="sponsored noopener"{% endif %} style="font-size: var(--text-caption); color: var(--text-link); font-weight: var(--weight-semibold);">{{ sponsor.name or sponsor.label }}</a>
         {% endfor %}
       </div>
     </article>
