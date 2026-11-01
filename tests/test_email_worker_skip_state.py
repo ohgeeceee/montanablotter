@@ -54,7 +54,7 @@ def _pdf_email(filename: str = "test.pdf", message_id: str = "<seed@test>") -> E
     m = EmailMessage()
     m["Subject"] = "Test blotter"
     m["From"] = "seed@example.com"
-    m["To"] = "records@montanablotter.com"
+    m["To"] = "records@mtblotter.com"
     m["Message-ID"] = message_id
     m["Date"] = "Wed, 09 Jun 2026 16:00:00 +0000"
     m.set_content("body")

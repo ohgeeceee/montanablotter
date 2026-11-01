@@ -208,8 +208,8 @@ def _send_digest_email(sub: dict, digest_text: str, date_str: str):
 {digest_text}
 
 ---
-Montana Blotter — montanablotter.com
-Manage your subscription: https://montanablotter.com/watchdog/dashboard/{sub['token']}
+Montana Blotter — mtblotter.com
+Manage your subscription: https://mtblotter.com/watchdog/dashboard/{sub['token']}
 """
     msg = MIMEText(body)
     msg["Subject"] = subject

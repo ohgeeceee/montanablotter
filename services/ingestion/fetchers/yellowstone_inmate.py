@@ -223,7 +223,7 @@ def discover_roster_url(sheriff_url: str = SHERIFF_URL) -> str | None:
         sheriff_url,
         timeout=30,
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
     )
@@ -265,7 +265,7 @@ def fetch_bookings(
     session = requests.Session()
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Referer": roster_url,
         }

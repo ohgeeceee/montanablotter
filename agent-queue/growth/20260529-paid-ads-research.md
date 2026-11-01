@@ -10,7 +10,7 @@ related_files: []
 
 # Weekly Paid Advertising Research
 
-Research paid advertising options for driving qualified Montana traffic to montanablotter.com.
+Research paid advertising options for driving qualified Montana traffic to mtblotter.com.
 
 Research (web search, no spend):
 - **Google Ads**: What does a local news/crime blotter campaign look like? What keywords, match types, and landing pages work for local news? Estimate CPC for Montana local intent keywords.

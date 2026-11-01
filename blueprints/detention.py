@@ -531,7 +531,7 @@ def booking_detail(booking_id):
             facility=facility,
             meta_description=meta_desc,
             page_title=page_title,
-            canonical_url=f"https://montanablotter.com/booking/{booking_id}",
+            canonical_url=f"https://mtblotter.com/booking/{booking_id}",
             paywall_blocked=paywall_blocked,
             paywall_counts=paywall_counts,
             sponsored_ads=sponsored_ads,

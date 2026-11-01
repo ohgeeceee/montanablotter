@@ -140,7 +140,7 @@ def _generate_weekly_stats(conn: sqlite3.Connection) -> dict[str, Any] | None:
         + ("\n".join(f"• {c}" for c in top_types) or "• N/A") + "\n\n"
         + f"{dui_count} DUI-related incidents.\n\n"
         + "Data pulled from public police blotters statewide.\n"
-        + "Read more at montanablotter.com\n\n"
+        + "Read more at mtblotter.com\n\n"
         + "#Montana #PublicSafety #CrimeStats #Transparency"
     )
 
@@ -149,7 +149,7 @@ def _generate_weekly_stats(conn: sqlite3.Connection) -> dict[str, Any] | None:
 
     return {
         "message": message,
-        "link_url": "https://montanablotter.com",
+        "link_url": "https://mtblotter.com",
     }
 
 
@@ -183,14 +183,14 @@ def _generate_daily_stats(conn: sqlite3.Connection) -> dict[str, Any] | None:
         f"{total:,} incidents in the last 24 hours.\n\n"
         f"Most active counties:\n"
         + ("\n".join(f"• {c}" for c in top_counties) or "• N/A") + "\n\n"
-        + "See the full picture at montanablotter.com\n\n"
+        + "See the full picture at mtblotter.com\n\n"
         + "#Montana #DailyBlotter #PublicSafety"
     )
 
     if len(message) > 5000:
         message = message[:4997].rstrip() + "..."
 
-    return {"message": message, "link_url": "https://montanablotter.com"}
+    return {"message": message, "link_url": "https://mtblotter.com"}
 
 
 def _mode_preview(conn: sqlite3.Connection) -> dict[str, Any]:

@@ -70,7 +70,7 @@ except ImportError:  # pragma: no cover - optional during partial deploys
 
 logger = logging.getLogger(__name__)
 
-USER_AGENT = "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)"
+USER_AGENT = "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)"
 
 _MUNICIPAL_INFO_MARKERS = (
     "please contact the court",

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Health check for the public site ad configuration on montanablotter.com.
+Health check for the public site ad configuration on mtblotter.com.
 
 Verifies the live homepage:
   1. Responds with HTTP 200

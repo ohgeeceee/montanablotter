@@ -19,7 +19,7 @@
 
 > **Not legal advice.** This chapter summarizes published Montana law in the Montana Code Annotated (MCA). Statutes change. Verify every citation against the current text at [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/) and consult a licensed Montana attorney for your specific situation.
 
-> **Editorial standards.** Every claim links to a primary Montana Code section on [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/). We do not invent scenarios or dispositions. If a citation has drifted from the current statute, email records@montanablotter.com — subject line **Course Citation Update**.
+> **Editorial standards.** Every claim links to a primary Montana Code section on [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/). We do not invent scenarios or dispositions. If a citation has drifted from the current statute, email records@mtblotter.com — subject line **Course Citation Update**.
 
 ---
 
@@ -155,7 +155,7 @@ The Montana Judicial Branch publishes a public docket at [courts.mt.gov](https:/
 
 The docket shows each filing in the case: complaint, motions, orders, dispositions. It is the authoritative record of what has been filed.
 
-A separate resource: the Montana Blotter [Case Tracking](https://montanablotter.com/case-journeys) page tracks public case milestones in a narrative format for the newsroom and the public. It is not a substitute for the official docket.
+A separate resource: the Montana Blotter [Case Tracking](https://mtblotter.com/case-journeys) page tracks public case milestones in a narrative format for the newsroom and the public. It is not a substitute for the official docket.
 
 ---
 

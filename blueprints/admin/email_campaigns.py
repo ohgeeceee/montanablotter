@@ -394,7 +394,7 @@ Would you like me to set up a trial for your firm? Reply to this email and I'll 
 
 [Your Name]
 Montana Blotter - Public Records, Made Useful
-https://montanablotter.com""",
+https://mtblotter.com""",
         'notes': 'Leads with specific Montana coverage and the Pro feature set. Short, professional, and action-oriented.',
     },
     {
@@ -431,7 +431,7 @@ I can set up a 7-day trial so you can see the coverage in your counties before y
 
 [Your Name]
 Montana Blotter
-https://montanablotter.com""",
+https://mtblotter.com""",
         'notes': "Speaks directly to the bail bondsman's workflow - early leads, jail monitoring, repeat offenders. Clear ROI.",
     },
     {
@@ -463,7 +463,7 @@ Go Pro ($19.99/month or $199/year) for:
   - CSV and PDF exports
   - Priority support
 
-Explore the site: https://montanablotter.com
+Explore the site: https://mtblotter.com
 
 Questions? Just reply - I'm here to help.
 
@@ -491,7 +491,7 @@ If you're on Free and want more, Blotter Plus adds 12 months of history, up to 5
 
 If you want the full picture - statewide alerts, full archive, CSV exports, and case tracking - Pro is $19.99/month.
 
-Log in anytime: https://montanablotter.com/login
+Log in anytime: https://mtblotter.com/login
 
 -[Your Name]
 Montana Blotter""",
@@ -523,7 +523,7 @@ If it's easier, I'm happy to hop on a brief call. Either way, thank you for your
 
 [Your Name]
 Montana Blotter
-https://montanablotter.com
+https://mtblotter.com
 [Your Email]""",
         'notes': 'Respectful, specific, and low-pressure. Positions MB as a public-access partner, not a records harasser. Asks for a point of contact and data-access info.',
     },
@@ -540,7 +540,7 @@ I'm reaching out to [Agency Name] because we want to make sure our coverage of y
   - We publish your public blotter and booking data with clear attribution to [Agency Name]
   - We'd like a point of contact for public-records questions so errors can be corrected quickly
   - If your agency publishes blotter PDFs, CSV exports, or a public portal, we can pull from that directly - reducing manual work on both sides
-  - We can set up a daily digest feed to records@montanablotter.com if that's easier than a portal
+  - We can set up a daily digest feed to records@mtblotter.com if that's easier than a portal
 
 Our goal is straightforward: make your public safety data easier for Montana residents to find, while keeping your agency in control of how it's presented.
 
@@ -550,7 +550,7 @@ Thank you for your time and for the work you do in [County].
 
 [Your Name]
 Montana Blotter
-https://montanablotter.com
+https://mtblotter.com
 [Your Email]""",
         'notes': 'Operational tone. Focuses on data accuracy, attribution, and a low-friction feed path (PDF/CSV/portal to records@). Positions MB as helpful, not extractive.',
     },

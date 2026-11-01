@@ -312,8 +312,8 @@ def create_checkout():
                 'county_slug': county_slug,
                 'token': token,
             },
-            success_url=f"{_app().config.get('BASE_URL', 'https://montanablotter.com')}/sponsored/success?session_id={{CHECKOUT_SESSION_ID}}&token={token}",
-            cancel_url=f"{_app().config.get('BASE_URL', 'https://montanablotter.com')}/sponsored/checkout?type={business_type}&county={county_slug}",
+            success_url=f"{_app().config.get('BASE_URL', 'https://mtblotter.com')}/sponsored/success?session_id={{CHECKOUT_SESSION_ID}}&token={token}",
+            cancel_url=f"{_app().config.get('BASE_URL', 'https://mtblotter.com')}/sponsored/checkout?type={business_type}&county={county_slug}",
         )
 
         conn = get_db()

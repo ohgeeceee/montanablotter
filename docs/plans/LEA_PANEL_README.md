@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project adds a **free, zero-friction web panel and REST API** for Montana's 56 law enforcement agencies (sheriff offices, police departments, detention centers) to publish police blotters and jail rosters directly to montanablotter.com.
+This project adds a **free, zero-friction web panel and REST API** for Montana's 56 law enforcement agencies (sheriff offices, police departments, detention centers) to publish police blotters and jail rosters directly to mtblotter.com.
 
 **Goal:** Transform Montana Blotter from a scraper-dependent aggregator into a **direct publishing platform** where agencies push their own data in real-time, with automatic normalization and public distribution.
 

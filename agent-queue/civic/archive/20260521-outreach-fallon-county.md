@@ -41,7 +41,7 @@ Thank you for your time, and thank you for making these records available to the
 Sincerely,
 Jon
 Montana Blotter
-https://montanablotter.com
+https://mtblotter.com
 
 ## Follow-up (7–10 days later)
 

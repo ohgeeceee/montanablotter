@@ -1,5 +1,5 @@
 /* =========================================================================
-   mb-page-flip.js — newspaper page-turn behavior for montanablotter.com
+   mb-page-flip.js — newspaper page-turn behavior for mtblotter.com
    Activation: only when
      1. the newspaper broadsheet treatment is on (body has .mb-newspaper-body)
      2. the visitor is on a screen large enough that a 3D page turn feels

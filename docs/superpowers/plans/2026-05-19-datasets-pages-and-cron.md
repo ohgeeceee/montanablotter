@@ -554,7 +554,7 @@ DATASETS = {
 }
 
 
-def register_datasets_blueprint(app, get_db, base_url: str = "https://montanablotter.com") -> None:
+def register_datasets_blueprint(app, get_db, base_url: str = "https://mtblotter.com") -> None:
     datasets_bp = Blueprint("datasets", __name__, template_folder="templates")
 
     def _load_metrics(dataset_slug: str) -> Optional[Dict[str, Any]]:
@@ -994,7 +994,7 @@ If `templates/includes/mobile_tab_bar.html` is the primary public nav on mobile,
 
 - [ ] **Step 2: Verify canonical URLs on `/datasets` + dataset pages**
 
-Manual check (local): open `/datasets` and `/datasets/jail-bookings` and ensure the `<link rel="canonical">` reflects `https://montanablotter.com/...`.
+Manual check (local): open `/datasets` and `/datasets/jail-bookings` and ensure the `<link rel="canonical">` reflects `https://mtblotter.com/...`.
 
 - [ ] **Step 3: Commit**
 

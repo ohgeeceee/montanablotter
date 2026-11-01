@@ -22,7 +22,7 @@ if [ $# -lt 1 ]; then
   echo ""
   echo "Examples:"
   echo "  ./upload.sh root@123.45.67.89"
-  echo "  ./upload.sh ubuntu@montanablotter.com"
+  echo "  ./upload.sh ubuntu@mtblotter.com"
   echo ""
   exit 1
 fi

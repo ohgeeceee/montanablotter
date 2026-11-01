@@ -52,7 +52,7 @@ cd /root/montanablotter
   --meeting-title "Billings City Council Regular Meeting" \
   --body-name "Billings City Council" \
   --location-name "Billings" \
-  --source-url "https://agendas.montanablotter.com/meetings/billings-city-council-2026-03-14" \
+  --source-url "https://agendas.mtblotter.com/meetings/billings-city-council-2026-03-14" \
   --document-url "https://www.billingsmt.gov/AgendaCenter/ViewFile/Agenda/_03142026-1234"
 ```
 

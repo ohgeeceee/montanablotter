@@ -31,7 +31,7 @@ class TestLEAAdminConsole(unittest.TestCase):
         pw_hash = hash_password("adminpass")
         c.execute(
             "INSERT INTO users (username, password, email, role, is_active) VALUES (?, ?, ?, ?, ?)",
-            ("admin", pw_hash, "admin@montanablotter.com", "super_admin", 1)
+            ("admin", pw_hash, "admin@mtblotter.com", "super_admin", 1)
         )
         admin_id = c.lastrowid
 

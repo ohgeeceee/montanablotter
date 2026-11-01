@@ -145,7 +145,7 @@ View on MontanaBlotter.com
 <li><strong>Type:</strong> {record['incident_type'] or 'N/A'}</li>
 <li><strong>Details:</strong> {record.get('details') or 'N/A'}</li>
 </ul>
-<p><a href="https://montanablotter.com/record/{record['id']}">View on MontanaBlotter.com</a></p>
+<p><a href="https://mtblotter.com/record/{record['id']}">View on MontanaBlotter.com</a></p>
 """.strip()
     return subject, body_html, body_text
 

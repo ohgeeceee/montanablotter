@@ -239,7 +239,7 @@ def county_media_kit(slug='cascade', form_error='', form_values=None, response_s
                            packages=_PACKAGES, caps=_LAWYER_COUNTY_CAPS,
                            page_title=f'{counties[slug]} County advertising media kit',
                            meta_description='County advertising options and clearly labeled first-party measurement.',
-                           canonical_url=f'https://montanablotter.com/advertise/media-kit/{slug}',
+                           canonical_url=f'https://mtblotter.com/advertise/media-kit/{slug}',
                            inquiry_submitted=session.pop('media_kit_submitted', None) == slug,
                            form_error=form_error, form_values=form_values or {},
                            county_slug_value=slug), response_status, {'Cache-Control': 'private, no-store'}

@@ -64,7 +64,7 @@ def dispatch_watchdog_spending_alerts(limit: int = 100) -> dict[str, int]:
     for row in rows:
         try:
             subject = "Watchdog spending alert"
-            body = f"{row['message']}\n\nGenerated at: {row['created_at']}\n\nDashboard: https://montanablotter.com/watchdog"
+            body = f"{row['message']}\n\nGenerated at: {row['created_at']}\n\nDashboard: https://mtblotter.com/watchdog"
             _send_email(row["email"], subject, body)
             conn.execute(
                 "UPDATE watchdog_spending_alert_events SET sent_at = datetime('now') WHERE id = ?",

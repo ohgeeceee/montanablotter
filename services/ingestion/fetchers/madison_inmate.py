@@ -119,7 +119,7 @@ def fetch_madison_bookings(source_url: str | None = None) -> list[JailBookingRec
     """Fetch Madison County current inmate roster."""
     session = requests.Session()
     session.headers.update({
-        "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+        "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
         "Accept": "application/json, text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     })
     payload = _fetch_zuercher_criteria(session)

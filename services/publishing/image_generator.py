@@ -76,7 +76,7 @@ def _text_graphic(title: str, county: str, post_date: str) -> str:
     draw.rectangle([(0, 940), (1080, 1080)], fill=_DARK_STRIP)
     draw.text((50, 960), (county.title() if county else "Montana"), font=font_sub, fill=_GOLD)
     draw.text((50, 1000), post_date, font=font_sub, fill=_WHITE)
-    draw.text((700, 1000), "montanablotter.com", font=font_sub, fill=_WHITE)
+    draw.text((700, 1000), "mtblotter.com", font=font_sub, fill=_WHITE)
 
     img.save(out_path, "JPEG", quality=92)
     return out_path
@@ -164,6 +164,6 @@ def generate(title: str, county: str, post_date: str, excerpt: str = "") -> dict
     if not path:
         path = _text_graphic(title, county, post_date)
 
-    base_url = (getattr(config, "BASE_URL", "") or "https://montanablotter.com").rstrip("/")
+    base_url = (getattr(config, "BASE_URL", "") or "https://mtblotter.com").rstrip("/")
     url = f"{base_url}/static/social/{os.path.basename(path)}"
     return {"path": path, "url": url, "type": img_type}

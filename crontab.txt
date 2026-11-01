@@ -12,7 +12,7 @@ BASH_ENV=/root/montanablotter/.env
 # Web server healthcheck — lightweight liveness probe.
 */3 * * * * /root/montanablotter/scripts/ops/healthcheck_restart.sh
 
-# Email queue scan — polls IONOS inbox (records@montanablotter.com) every 15 min
+# Email queue scan — polls IONOS inbox (records@mtblotter.com) every 15 min
 # and routes Havre PD daily jail roster DOCX attachments to the jail_bookings
 # pipeline via services/ingestion/fetchers/havre_inmate.py. Logs to mail.log.
 # Shared-lock wait matches the 900s child timeout: historical successful scans
@@ -160,12 +160,12 @@ BASH_ENV=/root/montanablotter/.env
 # Cascade County jail roster — daily at 06:05.
 # Downloads the roster PDF from Cascade County's SharePoint
 # document library and emails it as an attachment to
-# records@montanablotter.com.
+# records@mtblotter.com.
 5 6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_cascade --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county cascade
 
 # Hill County (Havre) jail roster — poll every 15 minutes.
 # HCSO sends the daily roster as a DOCX attachment to the IONOS inbox
-# (records@montanablotter.com). The email_worker picks these up, but
+# (records@mtblotter.com). The email_worker picks these up, but
 # the dedicated poll catches anything the queue misses and provides a
 # fresh dedup window every 15 min.
 */15 * * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name jail_booking_ingest_hill --log /root/montanablotter/logs/jail_booking_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/services/ingestion/jail_bookings.py --county hill

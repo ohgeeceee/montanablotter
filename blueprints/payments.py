@@ -79,7 +79,7 @@ def supporter_checkout():
         return jsonify({'error': 'Supporter plan not available.'}), 503
 
     stripe.api_key = config.STRIPE_SECRET_KEY
-    base_url = 'https://montanablotter.com'
+    base_url = 'https://mtblotter.com'
 
     session = stripe.checkout.Session.create(
         mode='subscription',
@@ -336,7 +336,7 @@ def donate_success():
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
 
     if session_id:

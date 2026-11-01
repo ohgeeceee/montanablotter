@@ -25,7 +25,7 @@ except ImportError:  # pragma: no cover - optional at runtime
     anthropic = None
 
 ADMIN_EMAIL = "ohjoncurrie@gmail.com"
-BASE_URL = "https://montanablotter.com"
+BASE_URL = "https://mtblotter.com"
 
 
 def _slugify(value):
@@ -259,7 +259,7 @@ def build_html(posts, date_str, unsubscribe_url=None, open_tracking_url=None):
         html += '<hr style="border:1px solid #e2e8f0;">'
     html += f"""
     <p style="color:#94a3b8;font-size:12px;margin-top:24px;">
-        <a href="{BASE_URL}" style="color:#3b82f6;">montanablotter.com</a>
+        <a href="{BASE_URL}" style="color:#3b82f6;">mtblotter.com</a>
     """
     if unsubscribe_url:
         html += f' &mdash; <a href="{unsubscribe_url}" style="color:#94a3b8;">Unsubscribe</a>'

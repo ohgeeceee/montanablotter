@@ -2,7 +2,7 @@
 
 {% set page_title = page_title or (person_name ~ ' — Jail Booking') %}
 {% set meta_description = meta_description or (person_name ~ ' jail booking record. View charges, bond info, and facility details.') %}
-{% set canonical_url = canonical_url or ('https://montanablotter.com/booking/' ~ booking.id) %}
+{% set canonical_url = canonical_url or ('https://mtblotter.com/booking/' ~ booking.id) %}
 {% set og_title = page_title %}
 {% set og_description = meta_description %}
 {% set og_type = "profile" %}
@@ -48,19 +48,19 @@
       "@type": "ListItem",
       "position": 1,
       "name": "Montana Blotter",
-      "item": "https://montanablotter.com/"
+      "item": "https://mtblotter.com/"
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": "Jail Bookings",
-      "item": "https://montanablotter.com/jail-bookings"
+      "item": "https://mtblotter.com/jail-bookings"
     },
     {
       "@type": "ListItem",
       "position": 3,
       "name": {{ (county ~ ' County') | tojson }},
-      "item": {{ ("https://montanablotter.com/jail-bookings/" ~ booking.county_slug) | tojson }}
+      "item": {{ ("https://mtblotter.com/jail-bookings/" ~ booking.county_slug) | tojson }}
     },
     {
       "@type": "ListItem",

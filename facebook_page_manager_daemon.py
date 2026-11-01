@@ -47,40 +47,40 @@ GRAPH_API_VERSION = "v22.0"
 
 COMMENT_TEMPLATES = {
     "general": [
-        "We covered this on montanablotter.com — public records shouldn't be this hard to find.",
+        "We covered this on mtblotter.com — public records shouldn't be this hard to find.",
         "This is exactly why we built Montana Blotter. Transparency matters.",
-        "The full report is up at montanablotter.com. We read the blotters so you don't have to.",
-        "Public safety data belongs to the public. We make it readable at montanablotter.com.",
-        "Another one for the archives. See the full breakdown at montanablotter.com.",
+        "The full report is up at mtblotter.com. We read the blotters so you don't have to.",
+        "Public safety data belongs to the public. We make it readable at mtblotter.com.",
+        "Another one for the archives. See the full breakdown at mtblotter.com.",
     ],
     "drug": [
-        "Same story, different county. We track every drug arrest across Montana at montanablotter.com.",
-        "The blotters tell the real story. montanablotter.com has the full picture.",
-        "Law enforcement works hard. We work hard to make their reports public. montanablotter.com",
+        "Same story, different county. We track every drug arrest across Montana at mtblotter.com.",
+        "The blotters tell the real story. mtblotter.com has the full picture.",
+        "Law enforcement works hard. We work hard to make their reports public. mtblotter.com",
     ],
     "dui": [
-        "Another DUI. Another record we pulled from the blotter. montanablotter.com",
-        "Montana roads deserve better. We track every impaired driving arrest at montanablotter.com.",
+        "Another DUI. Another record we pulled from the blotter. mtblotter.com",
+        "Montana roads deserve better. We track every impaired driving arrest at mtblotter.com.",
     ],
     "theft": [
-        "Small towns, big crime. The blotters don't lie. montanablotter.com",
-        "Property crime stats are buried in PDFs. We dig them out. montanablotter.com",
+        "Small towns, big crime. The blotters don't lie. mtblotter.com",
+        "Property crime stats are buried in PDFs. We dig them out. mtblotter.com",
     ],
     "assault": [
-        "Violence doesn't stay in the dark when the blotter goes public. montanablotter.com",
-        "The records are public. The stories matter. montanablotter.com",
+        "Violence doesn't stay in the dark when the blotter goes public. mtblotter.com",
+        "The records are public. The stories matter. mtblotter.com",
     ],
     "warrant": [
-        "Warrants served, records logged, public informed. montanablotter.com",
-        "Another warrant off the backlog. We track them all at montanablotter.com.",
+        "Warrants served, records logged, public informed. mtblotter.com",
+        "Another warrant off the backlog. We track them all at mtblotter.com.",
     ],
     "missing": [
-        "Every missing person deserves attention. We amplify the blotter alerts at montanablotter.com.",
-        "The blotter mentioned it first. We make sure it's seen. montanablotter.com",
+        "Every missing person deserves attention. We amplify the blotter alerts at mtblotter.com.",
+        "The blotter mentioned it first. We make sure it's seen. mtblotter.com",
     ],
     "fire": [
-        "Fire season in Montana. We track every dispatch call at montanablotter.com.",
-        "When the pager goes off, the blotter gets the call. We get the blotter. montanablotter.com",
+        "Fire season in Montana. We track every dispatch call at mtblotter.com.",
+        "When the pager goes off, the blotter gets the call. We get the blotter. mtblotter.com",
     ],
 }
 

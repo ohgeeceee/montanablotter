@@ -84,7 +84,7 @@ def _absolute_url(href: str) -> str:
 
 
 def _fetch_html(url: str, timeout: int = 30) -> str:
-    req = Request(url, headers={'User-Agent': 'MontanaBlotter/1.0 (+https://montanablotter.com)'})
+    req = Request(url, headers={'User-Agent': 'MontanaBlotter/1.0 (+https://mtblotter.com)'})
     with urlopen(req, timeout=timeout) as resp:
         raw = resp.read()
     for enc in ('utf-8', 'latin-1'):

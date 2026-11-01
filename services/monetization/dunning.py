@@ -35,7 +35,7 @@ PLAN_LABELS = {
 
 
 def base_url() -> str:
-    return (getattr(config, 'BASE_URL', '') or 'https://montanablotter.com').rstrip('/')
+    return (getattr(config, 'BASE_URL', '') or 'https://mtblotter.com').rstrip('/')
 
 
 def billing_url() -> str:

@@ -141,9 +141,9 @@ def generate(
     """
     try:
         import config
-        base_url = (getattr(config, "BASE_URL", "") or "https://montanablotter.com").rstrip("/")
+        base_url = (getattr(config, "BASE_URL", "") or "https://mtblotter.com").rstrip("/")
     except Exception:
-        base_url = "https://montanablotter.com"
+        base_url = "https://mtblotter.com"
 
     lines = []
 

@@ -2,7 +2,7 @@
 
 {% set page_title = page_title|default("Montana Jail Bookings") %}
 {% set meta_description = meta_description|default("Use the Montana county map to find current jail bookings, recent additions, and official county roster information.") %}
-{% set canonical_url = canonical_url|default("https://montanablotter.com/jail-bookings") %}
+{% set canonical_url = canonical_url|default("https://mtblotter.com/jail-bookings") %}
 {% set og_title = og_title|default("Montana Jail Bookings | Montana Blotter") %}
 {% set og_description = og_description|default("One statewide hub for Montana jail bookings, organized by county.") %}
 {% set active_nav = "jail_bookings" %}
@@ -33,7 +33,7 @@
     "name": {{ selected_source.facility_name|tojson }}{% if selected_source.roster_url %},
     "url": {{ selected_source.roster_url|tojson }}{% endif %}
   },
-  "provider": {"@type": "NewsMediaOrganization", "name": "Montana Blotter", "url": "https://montanablotter.com"}{% if selected_source.last_success_at %},
+  "provider": {"@type": "NewsMediaOrganization", "name": "Montana Blotter", "url": "https://mtblotter.com"}{% if selected_source.last_success_at %},
   "dateModified": {{ selected_source.last_success_at|tojson }}{% endif %}
 }
 </script>
@@ -43,8 +43,8 @@
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://montanablotter.com/"},
-    {"@type": "ListItem", "position": 2, "name": "Jail Bookings", "item": "https://montanablotter.com/jail-bookings"}{% if selected_source %},
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://mtblotter.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Jail Bookings", "item": "https://mtblotter.com/jail-bookings"}{% if selected_source %},
     {"@type": "ListItem", "position": 3, "name": {{ (selected_source.county_name ~ " County")|tojson }}, "item": {{ canonical_url|tojson }}}{% endif %}
   ]
 }

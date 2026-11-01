@@ -76,7 +76,7 @@ def _make_session() -> requests.Session:
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     session.headers.update({
-        "User-Agent": "MontanaBlotter/1.0 (public records aggregation; contact@montanablotter.com)",
+        "User-Agent": "MontanaBlotter/1.0 (public records aggregation; contact@mtblotter.com)",
     })
     return session
 

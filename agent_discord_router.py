@@ -36,7 +36,7 @@ DEFAULT_TIMEOUT = 10          # seconds for a single HTTP call
 MAX_RETRIES = 4               # ~ initial + 3 retries with backoff
 MAX_CONTENT_CHARS = 1900      # Discord limit is 2000; keep headroom
 DISCORD_API_BASE = "https://discord.com/api/v10"
-USER_AGENT = "MontanaBlotter-DiscordBot (https://montanablotter.com, 2.0)"
+USER_AGENT = "MontanaBlotter-DiscordBot (https://mtblotter.com, 2.0)"
 
 
 def _load_env_file(path: str) -> None:

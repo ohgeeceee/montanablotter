@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import requests
 
 UA = {'User-Agent': 'Mozilla/5.0 (compatible; MontanaBlotterProspecting/1.0; '
-                    'admin contact: montanablotter.com)'}
+                    'admin contact: mtblotter.com)'}
 TIMEOUT = 30
 
 

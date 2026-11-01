@@ -36,7 +36,7 @@ export is already produced for any internal or public purpose, please provide
 the public-facing copy or a link. If published on a web page, the public URL
 is sufficient.
 
-I operate Montana Blotter (montanablotter.com), a free public-records
+I operate Montana Blotter (mtblotter.com), a free public-records
 aggregator for all 56 Montana counties. This request is for non-commercial
 public transparency; no fee is expected for inspection.
 

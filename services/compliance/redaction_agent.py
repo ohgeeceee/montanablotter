@@ -2,7 +2,7 @@
 """
 services/compliance/redaction_agent.py
 =======================================
-Public records compliance agent for montanablotter.com.
+Public records compliance agent for mtblotter.com.
 
 Applies redactions per Montana Code Annotated Title 44, Chapter 5:
   1. Juvenile names → "Juvenile Suspect / Victim / Witness"
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 # they do not grow with conversation history.
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = """You are a public records compliance officer for montanablotter.com.
+_SYSTEM_PROMPT = """You are a public records compliance officer for mtblotter.com.
 Examine the incoming JSON blotter record and apply all necessary redactions under
 Montana Code Annotated Title 44, Chapter 5.
 

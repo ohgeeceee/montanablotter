@@ -10,7 +10,7 @@ related_files: []
 
 # Weekly Content Gap Analysis
 
-Find high-volume Montana search queries that montanablotter.com doesn't cover well.
+Find high-volume Montana search queries that mtblotter.com doesn't cover well.
 
 Search for what Montanans ask Google about crime, arrests, courts, and public records.
 Think: "[county] sheriff", "[city] police news", "Montana parole search", "Montana warrant search",

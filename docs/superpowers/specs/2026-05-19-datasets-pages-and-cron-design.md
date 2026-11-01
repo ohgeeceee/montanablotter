@@ -1,7 +1,7 @@
 # Datasets Pages + Daily Cron (Design)
 
 Date: 2026-05-19  
-Project: MontanaBlotter (`montanablotter.com`)  
+Project: MontanaBlotter (`mtblotter.com`)  
 Scope: Montana-only datasets directory + per-dataset pages + record explorer links + daily system cron refresh.
 
 ## Goals

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Provisioning script for LaKeisha Clark as a paid (non-admin) warrant-access
-user on the montanablotter.com production database.
+user on the mtblotter.com production database.
 
 Generates a temporary password, writes it to a per-run credential file under
 `/root/montanablotter`, then atomically updates the user's `public_users` row

@@ -285,7 +285,7 @@ def render_markdown(
 ---
 
 *Data compiled from public booking records. All individuals are presumed innocent until convicted.*
-*[View full records → montanablotter.com](https://montanablotter.com)*
+*[View full records → mtblotter.com](https://mtblotter.com)*
 """
     return title, body
 

@@ -5,12 +5,12 @@ Status: Approved by user (audit mode: fix everything found; structure: parallel 
 
 ## Goal
 
-Full health audit of montanablotter.com — live site/SEO, ingestion pipeline, code/tests/security — followed by prioritized fix batches deployed to production.
+Full health audit of mtblotter.com — live site/SEO, ingestion pipeline, code/tests/security — followed by prioritized fix batches deployed to production.
 
 ## Audit lanes (parallel, read-only)
 
 ### Lane 1 — Live site & SEO
-- Crawl key public routes on `https://montanablotter.com`: `/`, `/counties`, `/arrests`, `/courts`, `/jail-bookings`, `/missing-persons`, `/datacenter`, `/blog`, `/status`, a sample of `/county/<slug>` pages, and a sample of record-detail pages discovered from `/arrests`.
+- Crawl key public routes on `https://mtblotter.com`: `/`, `/counties`, `/arrests`, `/courts`, `/jail-bookings`, `/missing-persons`, `/datacenter`, `/blog`, `/status`, a sample of `/county/<slug>` pages, and a sample of record-detail pages discovered from `/arrests`.
 - Per page: HTTP status, `<title>`, meta description, OG tags, canonical, H1, JSON-LD structured data, sampled internal-link validity, response time.
 - Also: `robots.txt`, `sitemap.xml`, static asset cache headers, RSS.app ticker presence on homepage.
 

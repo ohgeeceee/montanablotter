@@ -75,14 +75,14 @@ def _set_shared_admin_cookies(response, username: str, role: str) -> None:
     if ops_secret:
         payload = _make_ops_session_payload(username, role)
         token = _sign_jwt(payload, ops_secret)
-        response.set_cookie(OPS_SESSION_COOKIE, token, domain='montanablotter.com', **_shared_cookie_flags())
+        response.set_cookie(OPS_SESSION_COOKIE, token, domain='mtblotter.com', **_shared_cookie_flags())
     if studio_token:
-        response.set_cookie(STUDIO_ACCESS_COOKIE, studio_token, domain='montanablotter.com', **_shared_cookie_flags())
+        response.set_cookie(STUDIO_ACCESS_COOKIE, studio_token, domain='mtblotter.com', **_shared_cookie_flags())
 
 
 def _clear_shared_admin_cookies(response) -> None:
     for name in (OPS_SESSION_COOKIE, STUDIO_ACCESS_COOKIE):
-        response.set_cookie(name, '', domain='montanablotter.com', max_age=0, path='/', httponly=True, samesite='Strict')
+        response.set_cookie(name, '', domain='mtblotter.com', max_age=0, path='/', httponly=True, samesite='Strict')
         response.set_cookie(name, '', max_age=0, path='/', httponly=True, samesite='Strict')
 
 

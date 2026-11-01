@@ -118,7 +118,7 @@ def run() -> None:
         slug = post["slug"] or ""
         today_str = date.today().isoformat()
 
-        base_url = (getattr(config, "BASE_URL", "") or "https://montanablotter.com").rstrip("/")
+        base_url = (getattr(config, "BASE_URL", "") or "https://mtblotter.com").rstrip("/")
         post_url = f"{base_url}/blog/{slug}"
 
         LOGGER.info("Generating image for blog_post_id=%d title=%r", blog_post_id, title)

@@ -6,7 +6,7 @@ This file is the primary orientation document for AI coding agents working in th
 
 ## Project Overview
 
-Montana Blotter (`montanablotter.com`, alias `fertherecerd.com`) is an open-source public-records aggregation platform for Montana. It ingests, normalizes, and publishes police blotters, jail bookings, court records, missing-persons alerts, warrants, public meetings, and related government transparency data from all 56 Montana counties.
+Montana Blotter (`mtblotter.com`, alias `fertherecerd.com`) is an open-source public-records aggregation platform for Montana. It ingests, normalizes, and publishes police blotters, jail bookings, court records, missing-persons alerts, warrants, public meetings, and related government transparency data from all 56 Montana counties.
 
 The production deployment runs on a single VPS at `/root/montanablotter`. The repository is a Python Flask monolith with a large ecosystem of background workers, scrapers, AI-assisted content pipelines, a React Native mobile app, and a family of related services (`blotter-host`, `claw3d-office`) that share authentication and operational infrastructure.
 
@@ -372,18 +372,18 @@ for col, col_type in [('new_column', 'TEXT'), ...]:
 
 ## VPS Operations Dashboard
 
-The VPS is the single operations dashboard for `montanablotter.com` and `blotter.host`.
+The VPS is the single operations dashboard for `mtblotter.com` and `blotter.host`.
 
 ### Entry points
 
 | URL | Surface |
 |-----|---------|
-| `https://www.montanablotter.com/admin/` | Unified hub (post-login landing) |
-| `https://www.montanablotter.com/admin/dashboard` | Legacy Montana Blotter ops dashboard |
-| `https://www.montanablotter.com/admin/fleet/` | Blotter Host multi-tenant control panel |
-| `https://www.montanablotter.com/admin/office/3d` | 3D ClawHub (Claw3D Office) |
-| `https://www.montanablotter.com/hermes/` | Hermes agent workspace |
-| `https://www.montanablotter.com/admin/3dhub/status` | 3D print fleet status |
+| `https://www.mtblotter.com/admin/` | Unified hub (post-login landing) |
+| `https://www.mtblotter.com/admin/dashboard` | Legacy Montana Blotter ops dashboard |
+| `https://www.mtblotter.com/admin/fleet/` | Blotter Host multi-tenant control panel |
+| `https://www.mtblotter.com/admin/office/3d` | 3D ClawHub (Claw3D Office) |
+| `https://www.mtblotter.com/hermes/` | Hermes agent workspace |
+| `https://www.mtblotter.com/admin/3dhub/status` | 3D print fleet status |
 
 ### Shared authentication
 

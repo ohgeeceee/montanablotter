@@ -29,8 +29,8 @@ class PublicMeetingsTests(unittest.TestCase):
 
         config.DB_PATH = self.db_path
         init_db.DB_PATH = self.db_path
-        config.AGENDAS_HOST = 'agendas.montanablotter.com'
-        config.AGENDAS_BASE_URL = 'https://agendas.montanablotter.com'
+        config.AGENDAS_HOST = 'agendas.mtblotter.com'
+        config.AGENDAS_BASE_URL = 'https://agendas.mtblotter.com'
         app_module.config.DB_PATH = self.db_path
         app_module.config.AGENDAS_HOST = config.AGENDAS_HOST
         app_module.config.AGENDAS_BASE_URL = config.AGENDAS_BASE_URL
@@ -236,7 +236,7 @@ class PublicMeetingsTests(unittest.TestCase):
         self.assertIn('Public Meetings', html)
         self.assertIn('Regular Session', html)
         self.assertIn('Agenda PDF', html)
-        self.assertIn('https://montanablotter.com/meetings', html)
+        self.assertIn('https://mtblotter.com/meetings', html)
 
     def test_meetings_route_excludes_past_rows_marked_upcoming(self) -> None:
         self._seed_meetings()
@@ -270,7 +270,7 @@ class PublicMeetingsTests(unittest.TestCase):
     def test_agendas_host_uses_dashboard_on_root(self) -> None:
         self._seed_meetings()
         client = app_module.app.test_client()
-        response = client.get('/', headers={'Host': 'agendas.montanablotter.com'})
+        response = client.get('/', headers={'Host': 'agendas.mtblotter.com'})
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)

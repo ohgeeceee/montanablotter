@@ -18,7 +18,7 @@
 
 > **Not legal advice.** This chapter summarizes published Montana law in the Montana Code Annotated (MCA). Statutes change. Verify every citation against the current text at [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/) and consult a licensed Montana attorney for your specific situation.
 
-> **Editorial standards.** Every claim links to a primary Montana Code section on [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/). We do not invent scenarios or dispositions. If a citation has drifted from the current statute, email records@montanablotter.com — subject line **Course Citation Update**.
+> **Editorial standards.** Every claim links to a primary Montana Code section on [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/). We do not invent scenarios or dispositions. If a citation has drifted from the current statute, email records@mtblotter.com — subject line **Course Citation Update**.
 
 ---
 

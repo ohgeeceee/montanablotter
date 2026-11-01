@@ -2,7 +2,7 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
 
-**Goal:** Provide all Montana sheriff offices, police departments, and county detention facilities with a zero-cost, frictionless web panel to manage and publish daily police blotters and jail rosters, which automatically feed into montanablotter.com.
+**Goal:** Provide all Montana sheriff offices, police departments, and county detention facilities with a zero-cost, frictionless web panel to manage and publish daily police blotters and jail rosters, which automatically feed into mtblotter.com.
 
 **Architecture:** Additive layer on the existing Flask monolith. New multi-tenant database tables (`lea_agencies`, `lea_users`, `lea_invitations`), new blueprints (`blueprints/lea_panel.py`), new REST API endpoints (`/api/v1/lea/*`), new admin dashboard (`templates/admin/lea_management.html`), and new public ingestion workers that poll the agency panel for new records.
 
@@ -442,7 +442,7 @@ Submit a single incident for publication.
   "draft_id": 12345,
   "status": "draft",
   "message": "Incident saved to drafts. Await publication.",
-  "review_url": "https://montanablotter.com/panel/cascade/blotter/12345"
+  "review_url": "https://mtblotter.com/panel/cascade/blotter/12345"
 }
 ```
 
@@ -475,7 +475,7 @@ incident_date,incident_time,cad_number,primary_offense_mca,incident_location_blo
   "status": "processing",
   "records_queued": 42,
   "message": "Batch received. Processing will complete in ~5 minutes.",
-  "status_url": "https://montanablotter.com/api/v1/lea/blotter/batch/batch_98765/status"
+  "status_url": "https://mtblotter.com/api/v1/lea/blotter/batch/batch_98765/status"
 }
 ```
 
@@ -548,7 +548,7 @@ Sync incremental jail roster updates (WebHook-friendly).
   "status": "queued",
   "records_received": 2,
   "estimated_process_time_seconds": 60,
-  "status_url": "https://montanablotter.com/api/v1/lea/roster/sync/sync_54321/status"
+  "status_url": "https://mtblotter.com/api/v1/lea/roster/sync/sync_54321/status"
 }
 ```
 

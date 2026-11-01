@@ -2636,7 +2636,7 @@ def _bail_ad_contract_context(onboarding_token: str | None = None):
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     safe_token = (onboarding_token or '').strip()[:128]
     contract_url = configured_url
@@ -4252,7 +4252,7 @@ def _apply_disposition_api_stripe_event(conn, event):
                     f'<pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem;border-radius:6px;">{plaintext}</pre>'
                     f'<p>Pass it as <code>Authorization: Bearer &lt;token&gt;</code>. '
                     f'You get 500 lookups/day and full watchlist access. Cancel anytime from your billing receipt.</p>'
-                    f'<p>Docs: <a href="https://montanablotter.com/disposition-api">/disposition-api</a></p>'
+                    f'<p>Docs: <a href="https://mtblotter.com/disposition-api">/disposition-api</a></p>'
                 ),
             )
             conn.execute(
@@ -5227,8 +5227,8 @@ RESOURCE_GUIDES = {
 def _source_channel_meta(post):
     source_key = post['source_type'] or post['blotter_source_type'] or 'pdf'
     labels = {
-        'imap_pdf': ('Email PDF', 'Delivered to support@montanablotter.com as a PDF attachment.'),
-        'imap_text': ('Email Body', 'Delivered to support@montanablotter.com as text in the email body.'),
+        'imap_pdf': ('Email PDF', 'Delivered to support@mtblotter.com as a PDF attachment.'),
+        'imap_text': ('Email Body', 'Delivered to support@mtblotter.com as text in the email body.'),
         'local_pdf': ('Manual Upload', 'Uploaded manually through the Montana Blotter admin panel.'),
         'crimemapping': ('CrimeMapping', 'Imported from a public CrimeMapping incident feed.'),
         'pdf': ('Imported PDF', 'Imported from a PDF batch in the blotter pipeline.'),
@@ -8440,11 +8440,11 @@ def public_status_page():
         'status': payload,
         'page_title': 'System Status',
         'meta_description': 'Live operational status for Montana Blotter: site, ingestion, and email.',
-        'canonical_url': 'https://montanablotter.com/status',
+        'canonical_url': 'https://mtblotter.com/status',
         'og_title': 'System Status — Montana Blotter',
         'og_description': 'Live operational status for Montana Blotter.',
         'og_type': 'website',
-        'og_image': 'https://montanablotter.com/static/icons/og-default.png',
+        'og_image': 'https://mtblotter.com/static/icons/og-default.png',
         'twitter_card': 'summary_large_image',
     })
     return render_template('public_status.html', **ctx), 200
@@ -8455,7 +8455,7 @@ def api_status():
     """Combined status: local health + UptimeRobot uptime ratio.
 
     Public, unauthenticated, cached 30s at the edge. Powers the
-    footer status badge on montanablotter.com and any 3rd-party
+    footer status badge on mtblotter.com and any 3rd-party
     status widget. Same shape as garageroute's /api/status so a
     single dashboard can poll both.
     """
@@ -11470,8 +11470,8 @@ def public_post_detail(post_id):
     county_page = COUNTY_DATA.get(county_slug) if county_slug else None
 
     # SEO: canonical URL and OG image for post detail
-    post_canonical = f"https://montanablotter.com/post/{post_id}"
-    post_og_image = "https://montanablotter.com/static/icons/og-default.png"
+    post_canonical = f"https://mtblotter.com/post/{post_id}"
+    post_og_image = "https://mtblotter.com/static/icons/og-default.png"
 
     return render_template(
         'post_detail.html',
@@ -11704,7 +11704,7 @@ def bail_bonds_alerts_landing():
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     return render_template(
         'bail_bonds_alerts_landing.html',
@@ -13286,7 +13286,7 @@ def county_page(slug):
 
     # Build pagination rel links for SEO
     pagination_rels = []
-    base_canonical = f"https://montanablotter.com/county/{slug}"
+    base_canonical = f"https://mtblotter.com/county/{slug}"
     if page > 1:
         pagination_rels.append({"rel": "prev", "href": f"{base_canonical}?page={page - 1}"})
     if page < total_pages:
@@ -13444,7 +13444,7 @@ def county_day_page(slug, date):
         f"Police blotter, arrests, and incident reports for {county['name']} County, Montana on {pretty_date}. "
         f"Free public records search from Montana Blotter."
     )
-    canonical_url = f"https://montanablotter.com/county/{slug}/{iso_date}/"
+    canonical_url = f"https://mtblotter.com/county/{slug}/{iso_date}/"
 
     bail_ad_placements = []
     try:
@@ -13619,7 +13619,7 @@ def charge_index():
         topic_stats=topic_stats,
         page_title='Montana Police Blotter by Charge Type',
         meta_description='Browse Montana arrest records, police blotters, and incident reports by charge type: DUI, theft, assault, drug offenses, and more.',
-        canonical_url='https://montanablotter.com/charge/',
+        canonical_url='https://mtblotter.com/charge/',
         current_year=datetime.now().year,
     )
 
@@ -13675,16 +13675,16 @@ def charge_topic(slug):
 
     page_title = f"{topic['long_label']} in Montana — Police Blotter Records"
     canonical_url = (
-        f"https://montanablotter.com/charge/{slug}/"
+        f"https://mtblotter.com/charge/{slug}/"
         + (f"?county={county_filter}" if county_filter else "")
     )
     pagination_rels = []
     if page > 1:
         prev_qs = f"page={page - 1}" + (f"&county={county_filter}" if county_filter else "")
-        pagination_rels.append({"rel": "prev", "href": f"https://montanablotter.com/charge/{slug}/?{prev_qs}"})
+        pagination_rels.append({"rel": "prev", "href": f"https://mtblotter.com/charge/{slug}/?{prev_qs}"})
     if page < total_pages:
         next_qs = f"page={page + 1}" + (f"&county={county_filter}" if county_filter else "")
-        pagination_rels.append({"rel": "next", "href": f"https://montanablotter.com/charge/{slug}/?{next_qs}"})
+        pagination_rels.append({"rel": "next", "href": f"https://mtblotter.com/charge/{slug}/?{next_qs}"})
 
     return render_template(
         'charge_topic.html',
@@ -14569,8 +14569,8 @@ def city_page(slug):
         page=page,
         total_pages=total_pages,
         current_year=datetime.now().year,
-        canonical_url=f"https://montanablotter.com/city/{slug}",
-        og_image="https://montanablotter.com/static/icons/og-default.png",
+        canonical_url=f"https://mtblotter.com/city/{slug}",
+        og_image="https://mtblotter.com/static/icons/og-default.png",
     )
 
 
@@ -14685,7 +14685,7 @@ def pattern_page(pattern_slug, county_slug=None):
         active_nav='patterns',
         **context,
         current_year=datetime.now().year,
-        og_image="https://montanablotter.com/static/icons/og-default.png",
+        og_image="https://mtblotter.com/static/icons/og-default.png",
     )
 
 
@@ -14824,8 +14824,8 @@ def warrants_hub():
         'warrants_hub.html',
         counties=counties,
         current_year=datetime.now().year,
-        canonical_url="https://montanablotter.com/warrants",
-        og_image="https://montanablotter.com/static/icons/og-default.png",
+        canonical_url="https://mtblotter.com/warrants",
+        og_image="https://mtblotter.com/static/icons/og-default.png",
     )
 
 
@@ -14842,8 +14842,8 @@ def warrant_county(slug):
         county=county,
         all_counties=all_counties,
         current_year=datetime.now().year,
-        canonical_url=f"https://montanablotter.com/warrants/{slug}",
-        og_image="https://montanablotter.com/static/icons/og-default.png",
+        canonical_url=f"https://mtblotter.com/warrants/{slug}",
+        og_image="https://mtblotter.com/static/icons/og-default.png",
     )
 
 
@@ -14857,8 +14857,8 @@ def montana_laws():
     ).fetchall()
     conn.close()
     return render_template('laws.html', explainers=explainers, current_year=datetime.now().year,
-                           canonical_url="https://montanablotter.com/laws",
-                           og_image="https://montanablotter.com/static/icons/og-default.png")
+                           canonical_url="https://mtblotter.com/laws",
+                           og_image="https://mtblotter.com/static/icons/og-default.png")
 
 
 def _md_to_html_lines(body: str) -> list[str]:
@@ -14910,8 +14910,8 @@ def charge_explainer(slug):
         body_lines=body_lines,
         recent_records=recent,
         current_year=datetime.now().year,
-        canonical_url=f"https://montanablotter.com/laws/charge/{slug}",
-        og_image="https://montanablotter.com/static/icons/og-default.png",
+        canonical_url=f"https://mtblotter.com/laws/charge/{slug}",
+        og_image="https://mtblotter.com/static/icons/og-default.png",
     )
 
 
@@ -14920,7 +14920,7 @@ def support_hub():
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     return render_template(
         'support.html',
@@ -15558,7 +15558,7 @@ def embed_blotter_js():
     if(s&&s.parentNode)s.parentNode.insertBefore(host,s);
     else document.body.appendChild(host);
   }}
-  host.innerHTML='<div class="mt-blotter-embed__head"><strong>'+cfg.title+'</strong> &middot; <a href="https://montanablotter.com/county/'+encodeURIComponent(cfg.county)+'">more &rarr;</a></div><div class="mt-blotter-embed__list" data-state="loading">Loading&hellip;</div><div class="mt-blotter-embed__foot"><a href="https://montanablotter.com">Montana Blotter</a></div>';
+  host.innerHTML='<div class="mt-blotter-embed__head"><strong>'+cfg.title+'</strong> &middot; <a href="https://mtblotter.com/county/'+encodeURIComponent(cfg.county)+'">more &rarr;</a></div><div class="mt-blotter-embed__list" data-state="loading">Loading&hellip;</div><div class="mt-blotter-embed__foot"><a href="https://mtblotter.com">Montana Blotter</a></div>';
   fetch(api).then(function(r){{return r.json()}}).then(function(d){{
     var list=host.querySelector('.mt-blotter-embed__list');
     if(!d.records||!d.records.length){{list.innerHTML='<em>No recent records.</em>';list.removeAttribute('data-state');return;}}
@@ -15619,7 +15619,7 @@ def api_embed_blotter():
         'county': county or None,
         'count': len(rows),
         'records': [dict(r) for r in rows],
-        'source': 'montanablotter.com',
+        'source': 'mtblotter.com',
         'attribution': 'Montana Blotter public records',
     }
     resp = jsonify(out)
@@ -15834,7 +15834,7 @@ def admin_facebook_callback():
             'auto_enqueue_enabled': True,
             'auto_publish_enabled': True,
             'max_per_run': 3,
-            'base_url': 'https://montanablotter.com',
+            'base_url': 'https://mtblotter.com',
         })
         flash(f'Connected to Facebook page "{page_name}" (ID: {page_id}). Ready to publish!')
     finally:
@@ -16510,7 +16510,7 @@ def disposition_api_checkout():
 
     return jsonify({
         'error': 'payments_not_configured',
-        'message': 'Disposition API billing is not yet active. Email support@montanablotter.com for early access.',
+        'message': 'Disposition API billing is not yet active. Email support@mtblotter.com for early access.',
     }), 503
 
 
@@ -16833,7 +16833,7 @@ def submit_a_tip():
             from services.publishing.morning_briefing import send_email
             admin_email = (
                 config.ADMIN_ALERT_EMAILS[0] if getattr(config, 'ADMIN_ALERT_EMAILS', None)
-                else (getattr(config, 'EMAIL_USER', '') or 'support@montanablotter.com')
+                else (getattr(config, 'EMAIL_USER', '') or 'support@mtblotter.com')
             )
             send_email(
                 admin_email,

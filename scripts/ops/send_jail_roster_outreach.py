@@ -15,7 +15,7 @@ import config
 
 DRAFT_DIR = ROOT / "agent-queue" / "ops" / "jail-roster-outreach"
 LOG_PATH = ROOT / "logs" / "jail_roster_outreach.log"
-REPLY_TO = "records@montanablotter.com"
+REPLY_TO = "records@mtblotter.com"
 
 
 def parse_draft(path: Path) -> tuple[dict[str, str], str]:

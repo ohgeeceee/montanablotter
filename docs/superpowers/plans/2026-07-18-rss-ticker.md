@@ -115,7 +115,7 @@ Expected: `systemctl status montanablotter` shows `active (running)`.
 
 Run:
 ```bash
-curl -s https://montanablotter.com/ | grep -o 'rss.app/embed/v1/ticker/t9giebudER6tUys4'
+curl -s https://mtblotter.com/ | grep -o 'rss.app/embed/v1/ticker/t9giebudER6tUys4'
 ```
 
 Expected: the curl output contains the embed URL.

@@ -28,9 +28,9 @@ MUTED = "#5c6d78"
 
 TOWN = "Great Falls, Montana"
 PHONE = "406-290-3337"
-EMAIL1 = "records@montanablotter.com"
-EMAIL2 = "support@montanablotter.com"
-URL = "https://montanablotter.com"
+EMAIL1 = "records@mtblotter.com"
+EMAIL2 = "support@mtblotter.com"
+URL = "https://mtblotter.com"
 RETURN_ADDR_LINE1 = "Montana Blotter"
 RETURN_ADDR_LINE2 = "Great Falls, Montana"
 TODAY = date.today().strftime("%B %d, %Y")

@@ -749,7 +749,7 @@ Read the current `/standards`, `/corrections`, and `/laws` templates to extract 
   <div style="padding:20px 24px 24px; font-family:'Spectral',Georgia,serif; font-size:0.875rem; line-height:1.7; color:#C8BFB0; max-height:65vh; overflow-y:auto;">
     {% include "includes/corrections_content.html" ignore missing %}
     {% if not "includes/corrections_content.html" %}
-    <p>To request a correction, email <a href="mailto:corrections@montanablotter.com" style="color:#D4892A;">corrections@montanablotter.com</a> with the URL and description of the error. We aim to respond within 48 hours.</p>
+    <p>To request a correction, email <a href="mailto:corrections@mtblotter.com" style="color:#D4892A;">corrections@mtblotter.com</a> with the URL and description of the error. We aim to respond within 48 hours.</p>
     {% endif %}
   </div>
 </dialog>

@@ -89,7 +89,7 @@ FORMAT your post exactly like this:
 - A one-sentence intro paragraph (e.g. "Montana's week in review...")
 - 10 numbered entries, each with: a bold short headline (5-8 words), county in parentheses, \
 and 2-3 sentences of context. Keep each entry under 60 words.
-- A one-sentence closing directing readers to montanablotter.com/arrests for the full feed.
+- A one-sentence closing directing readers to mtblotter.com/arrests for the full feed.
 
 Tone: clear, factual, slightly wry when the situation warrants it. \
 Do not editorialize about guilt or innocence.
@@ -143,7 +143,7 @@ def _plain_fallback(incidents: list[dict], bookings: list[dict], week_label: str
         f"This week's Montana blotter — {week_label}\n\n"
         f"Busiest counties by bookings: {busiest_str or 'N/A'}.\n\n"
         "Top charges this week:\n" + "\n".join(lines) + "\n\n"
-        "See montanablotter.com/arrests for the full live feed."
+        "See mtblotter.com/arrests for the full live feed."
     )
 
 

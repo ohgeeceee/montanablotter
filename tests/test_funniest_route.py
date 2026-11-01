@@ -104,7 +104,7 @@ class FunniestFeedTests(unittest.TestCase):
     def test_json_ld_present(self):
         html = self.client.get("/funniest").get_data(as_text=True)
         self.assertIn("CollectionPage", html)
-        self.assertIn("https://montanablotter.com/funniest", html)
+        self.assertIn("https://mtblotter.com/funniest", html)
 
     def test_copy_link_button_renders(self):
         html = self.client.get("/funniest").get_data(as_text=True)

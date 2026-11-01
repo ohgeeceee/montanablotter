@@ -107,9 +107,9 @@ def generate_agency_brief_html(county: str, days: int = 7) -> str:
     week_label = (datetime.utcnow() - timedelta(days=days)).strftime('%B %-d, %Y')
     week_end   = datetime.utcnow().strftime('%B %-d, %Y')
     slug = county.lower().replace(' ', '-').replace("'", '')
-    county_url = f'https://montanablotter.com/county/{slug}'
-    atlas_url  = 'https://montanablotter.com/crime-atlas'
-    unsub_url  = f'https://montanablotter.com/agency-brief/unsubscribe?county={slug}'
+    county_url = f'https://mtblotter.com/county/{slug}'
+    atlas_url  = 'https://mtblotter.com/crime-atlas'
+    unsub_url  = f'https://mtblotter.com/agency-brief/unsubscribe?county={slug}'
 
     change_str, change_color = _pct_change_str(stats['this_week'], stats['last_week'])
 
@@ -247,8 +247,8 @@ def send_weekly_briefs() -> dict:
             html_body  = generate_agency_brief_html(county)
             plain_body = (
                 f"{county} County — Weekly Crime Brief\n"
-                f"View full report: https://montanablotter.com/county/{county.lower().replace(' ','-')}\n"
-                f"Montana Crime Atlas: https://montanablotter.com/crime-atlas"
+                f"View full report: https://mtblotter.com/county/{county.lower().replace(' ','-')}\n"
+                f"Montana Crime Atlas: https://mtblotter.com/crime-atlas"
             )
             subject = (
                 f"{county} County — Weekly Crime Brief | "

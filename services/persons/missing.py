@@ -18,7 +18,7 @@ from services.publishing.morning_briefing import send_email as send_digest_email
 STATUS_MISSING = 'missing'
 STATUS_LOCATED = 'located'
 VALID_STATUSES = {STATUS_MISSING, STATUS_LOCATED}
-BASE_URL = getattr(config, 'BASE_URL', 'https://montanablotter.com').rstrip('/')
+BASE_URL = getattr(config, 'BASE_URL', 'https://mtblotter.com').rstrip('/')
 OFFICIAL_SOURCE_NAME = 'Montana Department of Justice Missing Persons Database'
 # Base URL points at the app root, NOT /search/, so urljoin() resolves the
 # relative `./images/...` and `./MissingPersonDetails.php?id=...` paths

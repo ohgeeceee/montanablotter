@@ -87,7 +87,7 @@ def _send_arrest_alert_email(order: sqlite3.Row, post: sqlite3.Row, claim_token:
     title = escape(str(post['title'] or 'New arrest'))
     county = escape(str(post['county'] or ''))
     summary = escape(str(post['summary'] or ''))
-    base_url = (getattr(config, 'BASE_URL', '') or 'https://montanablotter.com').rstrip('/')
+    base_url = (getattr(config, 'BASE_URL', '') or 'https://mtblotter.com').rstrip('/')
     post_url = f'{base_url}/post/{post["id"]}'
     claim_url = f'{base_url}/lawyers/claim/{claim_token}'
 
@@ -95,7 +95,7 @@ def _send_arrest_alert_email(order: sqlite3.Row, post: sqlite3.Row, claim_token:
     msg['Subject'] = f'New {county} arrest matching your practice area'
     msg['From'] = f'Montana Blotter <{user}>'
     msg['To'] = destination
-    msg['Reply-To'] = 'support@montanablotter.com'
+    msg['Reply-To'] = 'support@mtblotter.com'
     plain = (
         f'A new arrest was just published in {post["county"]} matching your listing.\n\n'
         f'{post["title"]}\n{post["summary"]}\n\n'
@@ -244,7 +244,7 @@ def check_claimed_outcomes(conn: sqlite3.Connection) -> dict:
           AND cc.disposition IS NOT NULL AND cc.disposition != ''
         '''
     ).fetchall()
-    base_url = (getattr(config, 'BASE_URL', '') or 'https://montanablotter.com').rstrip('/')
+    base_url = (getattr(config, 'BASE_URL', '') or 'https://mtblotter.com').rstrip('/')
     for row in rows:
         stats['checked'] += 1
         post_url = f'{base_url}/post/{row["post_id"]}'

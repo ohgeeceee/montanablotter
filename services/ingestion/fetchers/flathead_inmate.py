@@ -74,7 +74,7 @@ def _fetch_html(url: str, *, timeout: int = 45) -> str:
         url,
         timeout=timeout,
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
     )

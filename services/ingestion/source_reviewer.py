@@ -42,7 +42,7 @@ except ImportError:
 
 DB_PATH = config.DB_PATH
 LOG_PATH = "/root/montanablotter/logs/source_reviewer.log"
-UA = "Mozilla/5.0 (compatible; MontanaBlotter-Reviewer/1.0; +https://montanablotter.com)"
+UA = "Mozilla/5.0 (compatible; MontanaBlotter-Reviewer/1.0; +https://mtblotter.com)"
 MODEL = "claude-sonnet-4-6"
 MAX_SAMPLE_CHARS = 6000
 MAX_PER_RUN = 20

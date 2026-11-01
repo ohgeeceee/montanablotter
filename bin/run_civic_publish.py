@@ -704,7 +704,7 @@ def process_approved(
 
         if result["target_table"] == "blog_posts":
             rowid = insert_blog_post(conn, item, slug)
-            published_url = f"https://montanablotter.com/blog/{urllib.parse.quote(slug)}"
+            published_url = f"https://mtblotter.com/blog/{urllib.parse.quote(slug)}"
         else:
             blotter_id = int(item.frontmatter.get("blotter_id", 0) or 0)
             if blotter_id <= 0:
@@ -714,7 +714,7 @@ def process_approved(
                 log.warning("publish_missing_blotter_id", extra=result)
                 return result
             rowid = insert_post(conn, item, blotter_id)
-            published_url = f"https://montanablotter.com/posts/{rowid}"
+            published_url = f"https://mtblotter.com/posts/{rowid}"
         conn.commit()
         result["rowid"] = rowid
         result["slug"] = slug

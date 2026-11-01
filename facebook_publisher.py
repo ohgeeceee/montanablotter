@@ -16,7 +16,7 @@ DB_PATH = config.DB_PATH
 DB_TIMEOUT_SECONDS = float(getattr(config, "DB_TIMEOUT_SECONDS", 30))
 DB_BUSY_TIMEOUT_MS = int(getattr(config, "DB_BUSY_TIMEOUT_MS", 30000))
 
-DEFAULT_BASE_URL = (os.getenv("BASE_URL") or getattr(config, "BASE_URL", "") or "https://montanablotter.com").rstrip("/")
+DEFAULT_BASE_URL = (os.getenv("BASE_URL") or getattr(config, "BASE_URL", "") or "https://mtblotter.com").rstrip("/")
 GRAPH_API_VERSION = getattr(config, "FACEBOOK_GRAPH_API_VERSION", "v22.0")
 
 

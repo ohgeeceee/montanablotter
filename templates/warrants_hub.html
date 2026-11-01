@@ -2,8 +2,8 @@
 
 {% set page_title = "Warrant Search" %}
 {% set meta_description = "How to search for active arrest and bench warrants in Montana. Step-by-step guide for all 56 counties, with direct links to county warrant lists." %}
-{% set canonical_url = canonical_url or "https://montanablotter.com/warrants" %}
-{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
+{% set canonical_url = canonical_url or "https://mtblotter.com/warrants" %}
+{% set og_image = og_image or "https://mtblotter.com/static/icons/og-default.png" %}
 {% set og_title = "Warrant Search | Montana Blotter" %}
 {% set og_description = meta_description %}
 {% set active_nav = "warrants" %}
@@ -29,7 +29,7 @@
     {
       "@type": "ListItem",
       "position": {{ loop.index }},
-      "url": {{ ("https://montanablotter.com/warrants/" ~ county.slug) | tojson }},
+      "url": {{ ("https://mtblotter.com/warrants/" ~ county.slug) | tojson }},
       "name": {{ (county.name ~ " County warrants") | tojson }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}

@@ -67,10 +67,10 @@ STEP 7: UPDATE NGINX CONFIGURATION
 Your nginx config should point to the Flask app.
 If using gunicorn:
 
-# /etc/nginx/sites-available/montanablotter.com
+# /etc/nginx/sites-available/mtblotter.com
 server {
     listen 80;
-    server_name montanablotter.com www.montanablotter.com;
+    server_name mtblotter.com www.mtblotter.com;
     
     location / {
         proxy_pass http://127.0.0.1:5000;

@@ -1,7 +1,7 @@
 # Montana Public Data Center Design
 
 Date: 2026-06-05  
-Project: MontanaBlotter (`montanablotter.com`)  
+Project: MontanaBlotter (`mtblotter.com`)  
 Scope: a hybrid public data center built on top of existing Montana Blotter ingestion, records, and admin workflows.
 
 ## Goals

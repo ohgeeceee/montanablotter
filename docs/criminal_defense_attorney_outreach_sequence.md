@@ -65,7 +65,7 @@ exact metrics the firm will receive each month. Reply "SEND REPORT" and
 I'll get it to you today.
 
 — Jon
-Montana Blotter · advertising@montanablotter.com
+Montana Blotter · advertising@mtblotter.com
 
 P.S. — [County] currently has [N] active listings and [N] of [Cap] Gold
 slots open. The Gold slot goes to whichever firm commits first.
@@ -206,7 +206,7 @@ county unless you have one of:
 1. A Search Console export showing average position ≤ 3 for the target
    query in that county, for the last 90 days.
 2. A live Google search screenshot for the target query showing
-   montanablotter.com in the top organic slot, taken within the last
+   mtblotter.com in the top organic slot, taken within the last
    30 days.
 
 If neither is available, talk about the traffic data above as
@@ -217,7 +217,7 @@ ranking position.
 **How to get the data:**
 
 - Search Console CSV: open `/admin/seo/console`, upload the queries CSV
-  for `montanablotter.com` filtered to the last 90 days, then look up
+  for `mtblotter.com` filtered to the last 90 days, then look up
   position for query strings like `[county name] jail roster`,
   `[county name] arrests today`, `[county name] blotter`.
 - Live SERP: open an incognito Google search session and screenshot the

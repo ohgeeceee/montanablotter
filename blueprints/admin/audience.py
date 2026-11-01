@@ -548,7 +548,7 @@ def _build_sponsor_announcement_html(draft, unsubscribe_url=None):
     if unsubscribe_url:
         html += (
             f'<p style="margin:14px 0 0;color:#94a3b8;font-size:12px;">'
-            f'<a href="{escape(BASE_URL)}" style="color:#3b82f6;text-decoration:none;">montanablotter.com</a>'
+            f'<a href="{escape(BASE_URL)}" style="color:#3b82f6;text-decoration:none;">mtblotter.com</a>'
             f' &mdash; <a href="{escape(unsubscribe_url)}" style="color:#94a3b8;">Unsubscribe</a>'
             f'</p>'
         )

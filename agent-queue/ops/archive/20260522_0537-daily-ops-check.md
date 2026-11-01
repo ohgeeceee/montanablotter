@@ -12,7 +12,7 @@ related_files: []
 
 ## Required actions
 
-1. Probe montanablotter.com — verify HTTP 200, response time <2s.
+1. Probe mtblotter.com — verify HTTP 200, response time <2s.
 2. Check all systemd units:
    `systemctl is-active montanablotter nginx fb-page-manager blog-dup-checker`
 3. Disk usage: `df -h / /root` — alert if >80%.

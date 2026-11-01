@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-The **Montana LEA Panel** is a 7-phase, 2-3 week implementation to build a free SaaS platform where Montana's 56 law enforcement agencies can self-publish police blotters and jail rosters directly to montanablotter.com.
+The **Montana LEA Panel** is a 7-phase, 2-3 week implementation to build a free SaaS platform where Montana's 56 law enforcement agencies can self-publish police blotters and jail rosters directly to mtblotter.com.
 
 **Key Goals:**
 - ✅ Reduce publication lag from 3–7 days (scraping) to <10 minutes (direct agency submission)
@@ -304,7 +304,7 @@ cd /root/montanablotter
 
 **Team Size:** 7 agents (1 per phase)  
 **Duration:** 2–3 weeks (running 3 phases in parallel)  
-**Infrastructure:** Existing montanablotter.com VPS (no additional cost)  
+**Infrastructure:** Existing mtblotter.com VPS (no additional cost)  
 **Dependencies:** bcrypt, PyJWT, email-validator (all open-source, pip-installable)  
 **Go-Live Cost:** ~$0 (no new services, existing setup scales to this workload)  
 

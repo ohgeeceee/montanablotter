@@ -511,4 +511,4 @@ Expected: `Active: active (running)`
 
 - [ ] **Step 4: Check banner on the live site**
 
-Visit `https://montanablotter.com` and confirm the banner shows current text (either crisis-specific or evergreen). The label should now read "Public Safety Alert".
+Visit `https://mtblotter.com` and confirm the banner shows current text (either crisis-specific or evergreen). The label should now read "Public Safety Alert".

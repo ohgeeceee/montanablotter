@@ -9,7 +9,7 @@ from collections.abc import Iterator
 
 import requests
 
-DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)"
+DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)"
 
 
 def _resolve_via_public_dns(hostname: str) -> str | None:

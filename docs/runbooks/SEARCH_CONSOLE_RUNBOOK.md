@@ -4,17 +4,17 @@ Use this after deploys to turn indexing into a measurable workflow instead of gu
 
 ## 1. Verify the property
 
-Use a Google Search Console `Domain property` for `montanablotter.com`.
+Use a Google Search Console `Domain property` for `mtblotter.com`.
 
 If DNS verification is not practical, use a `URL prefix` property for:
 
-- `https://montanablotter.com/`
+- `https://mtblotter.com/`
 
 ## 2. Submit the sitemap
 
 Submit:
 
-- `https://montanablotter.com/sitemap.xml`
+- `https://mtblotter.com/sitemap.xml`
 
 The sitemap index is generated in [`app.py`](/root/montanablotter/app.py#L3243) and includes static, location, post, pattern, and blog sitemap segments.
 
@@ -22,13 +22,13 @@ The sitemap index is generated in [`app.py`](/root/montanablotter/app.py#L3243) 
 
 Request indexing for the pages most likely to become search-entry pages:
 
-- `https://montanablotter.com/`
-- `https://montanablotter.com/counties`
-- `https://montanablotter.com/cities`
-- `https://montanablotter.com/jail-rosters`
-- `https://montanablotter.com/warrants`
-- `https://montanablotter.com/patterns`
-- `https://montanablotter.com/blog`
+- `https://mtblotter.com/`
+- `https://mtblotter.com/counties`
+- `https://mtblotter.com/cities`
+- `https://mtblotter.com/jail-rosters`
+- `https://mtblotter.com/warrants`
+- `https://mtblotter.com/patterns`
+- `https://mtblotter.com/blog`
 
 Then inspect the strongest county and city pages:
 

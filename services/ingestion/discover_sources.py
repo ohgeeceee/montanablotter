@@ -97,7 +97,7 @@ SHERIFF_SITES = [
 
 def _fetch_html(url: str, timeout: int = 15) -> str:
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter-SourceBot/1.0; +https://montanablotter.com)",
+        "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter-SourceBot/1.0; +https://mtblotter.com)",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     }
     try:

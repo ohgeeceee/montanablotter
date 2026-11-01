@@ -18,7 +18,7 @@ What to do when a Montana law enforcement officer — sheriff's deputy, city pol
 
 > **Not legal advice.** This chapter summarizes published Montana law in the Montana Code Annotated (MCA). Statutes change. Verify every citation against the current text at [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/) and consult a licensed Montana attorney for your specific situation.
 
-> **Editorial standards.** Every claim links to a primary Montana Code section on [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/). We do not invent scenarios or dispositions. If a citation has drifted from the current statute, email records@montanablotter.com — subject line **Course Citation Update**.
+> **Editorial standards.** Every claim links to a primary Montana Code section on [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/). We do not invent scenarios or dispositions. If a citation has drifted from the current statute, email records@mtblotter.com — subject line **Course Citation Update**.
 
 ---
 
@@ -111,7 +111,7 @@ These are not legal standards; they are field-tested mistakes that defense attor
 ## What you can do tonight
 
 - [ ] Save this sentence to your phone's lock screen: **"Am I being detained, or am I free to go?"**
-- [ ] Save **records@montanablotter.com** for citation corrections.
+- [ ] Save **records@mtblotter.com** for citation corrections.
 - [ ] Read the underlying statute. The MCA is free: [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/).
 - [ ] Find out who your county sheriff is and what their public-meeting schedule is — Chapter 5 walks through why this matters.
 

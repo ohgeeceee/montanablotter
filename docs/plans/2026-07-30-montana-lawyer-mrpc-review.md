@@ -166,7 +166,7 @@ person.
       These fields are required at checkout
       (`advertise_lawyers_checkout` POST handler).
 - [ ] **[auto-pass]** Lead emails to advertisers show Montana Blotter
-      as the sender with a reply-to of `advertising@montanablotter.com`.
+      as the sender with a reply-to of `advertising@mtblotter.com`.
       The advertiser's firm name appears in the subject and body so
       the consumer knows who is being given their information.
       Verified in `blueprints/lawyer_ads.py::_send_lawyer_lead_email`.
@@ -193,7 +193,7 @@ apply to written communications.)
       recipient's firm. The `From:` line on every email
       (`_send_lawyer_lead_email` and `_send_arrest_alert_email`) is
       "Montana Blotter <{SMTP_USER}>" with a `Reply-To` of
-      `advertising@montanablotter.com`.
+      `advertising@mtblotter.com`.
 - [ ] **[auto-pass]** No display of misleading geographic claims. The
       county-targeting system is based on what the firm submits
       (`counties_served` text field at checkout); Montana Blotter
@@ -210,7 +210,7 @@ apply to written communications.)
       "Forward to someone in legal trouble" features. No code path
       supports these.
 - [ ] **[needs reviewer]** Confirm the cold email sender (SMTP_USER
-      and `Reply-To: advertising@montanablotter.com`) resolves to a
+      and `Reply-To: advertising@mtblotter.com`) resolves to a
       real inbox, that the inbox has a physical mailing address
       footer, and that an unsubscribe link is added. CAN-SPAM
       compliance for B2B email is less strict than B2C, but

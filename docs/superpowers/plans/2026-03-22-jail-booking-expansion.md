@@ -440,7 +440,7 @@ def fetch_gallatin_bookings(source_url: str) -> list[JailBookingRecord]:
     session = requests.Session()
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "application/json,text/plain,*/*",
             "Referer": f"{api_base}/#/inmates",
         }

@@ -14,7 +14,7 @@ That matches the existing app and deployment shape in this repo.
 
 ### Recommended deployment shape
 
-Use a dedicated Nginx `server_name` for `agendas.montanablotter.com`, but let it point to the same Gunicorn socket at first.
+Use a dedicated Nginx `server_name` for `agendas.mtblotter.com`, but let it point to the same Gunicorn socket at first.
 
 That gives you:
 
@@ -27,7 +27,7 @@ That gives you:
 ```nginx
 server {
     listen 80;
-    server_name agendas.montanablotter.com;
+    server_name agendas.mtblotter.com;
 
     location / {
         proxy_set_header Host $host;
@@ -48,7 +48,7 @@ from flask import abort, render_template, request
 
 def is_agendas_host() -> bool:
     host = request.host.split(":", 1)[0].lower()
-    return host == "agendas.montanablotter.com"
+    return host == "agendas.mtblotter.com"
 
 
 @app.route("/")
@@ -69,7 +69,7 @@ This is cleaner if you are ready to formalize the subdomain in code.
 
 ```python
 app = Flask(__name__, subdomain_matching=True)
-app.config["SERVER_NAME"] = "montanablotter.com"
+app.config["SERVER_NAME"] = "mtblotter.com"
 
 agendas_bp = Blueprint("agendas", __name__, subdomain="agendas")
 
@@ -565,7 +565,7 @@ To keep things consistent with the existing product:
 For this repo, the cleanest first implementation is:
 
 1. keep the Flask monolith
-2. use a dedicated `agendas.montanablotter.com` host in Nginx
+2. use a dedicated `agendas.mtblotter.com` host in Nginx
 3. build host-aware Flask routes or a subdomain blueprint
 4. add the meeting schema beside your existing blotter schema
 5. use a config-driven Python scraper with per-CMS parser families

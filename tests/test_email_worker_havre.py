@@ -65,7 +65,7 @@ class HavreEmailWorkerTests(unittest.TestCase):
         msg = EmailMessage()
         msg["Subject"] = "Havre Daily Jail Roster"
         msg["From"] = '"Havre Police Department" <records@havremt.gov>'
-        msg["To"] = "records@montanablotter.com"
+        msg["To"] = "records@mtblotter.com"
         msg.set_content("Attached is the daily roster.")
         msg.add_attachment(
             _build_minimal_docx_bytes(),
@@ -79,7 +79,7 @@ class HavreEmailWorkerTests(unittest.TestCase):
         msg = EmailMessage()
         msg["Subject"] = "Hill County Detention Center Jail Roster"
         msg["From"] = '"My Email" <me@example.com>'
-        msg["To"] = "records@montanablotter.com"
+        msg["To"] = "records@mtblotter.com"
         msg.set_content("Forwarded daily roster from the county.")
         msg.add_attachment(
             _build_minimal_docx_bytes(),
@@ -93,7 +93,7 @@ class HavreEmailWorkerTests(unittest.TestCase):
         msg = EmailMessage()
         msg["Subject"] = "Havre Daily Jail Roster"
         msg["From"] = '"Havre Police Department" <records@havremt.gov>'
-        msg["To"] = "records@montanablotter.com"
+        msg["To"] = "records@mtblotter.com"
         msg.set_content("Attached are the daily roster files.")
         msg.add_attachment(
             _build_minimal_docx_bytes(),
@@ -207,7 +207,7 @@ class HavreEmailWorkerTests(unittest.TestCase):
         self.worker.accounts = [
             _ImapAccount(
                 label="havre",
-                user="records@montanablotter.com",
+                user="records@mtblotter.com",
                 password="secret",
                 server="imap.example.test",
                 port=993,
@@ -307,13 +307,13 @@ class HavreEmailWorkerTests(unittest.TestCase):
         msg = EmailMessage()
         msg["Subject"] = "Quarterly Newsletter"
         msg["From"] = '"Marketing" <marketing@example.com>'
-        msg["To"] = "records@montanablotter.com"
+        msg["To"] = "records@mtblotter.com"
         msg.set_content("Hello, here's our spring newsletter.")
         fake_mail = FakeMail(msg.as_bytes())
         self.worker.accounts = [
             _ImapAccount(
                 label="ionos",
-                user="records@montanablotter.com",
+                user="records@mtblotter.com",
                 password="secret",
                 server="imap.example.test",
                 port=993,
@@ -350,7 +350,7 @@ class HavreEmailWorkerTests(unittest.TestCase):
             m = EmailMessage()
             m["Subject"] = "JAILROSTER"
             m["From"] = "reichl <reichl@hillso.org>"
-            m["To"] = "records@montanablotter.com"
+            m["To"] = "records@mtblotter.com"
             m.set_content("attached")
             m.add_attachment(
                 _build_minimal_docx_bytes(),

@@ -149,7 +149,7 @@ URLs configured in `SITES_JSON`. The bot requires:
 
 ```env
 DISCORD_BOT_TOKEN=...
-SITES_JSON={"main": "https://montanablotter.com", "agendas": "https://agendas.montanablotter.com"}
+SITES_JSON={"main": "https://mtblotter.com", "agendas": "https://agendas.mtblotter.com"}
 ```
 
 To enable it, populate `/etc/discord-healthcheck.env` and:

@@ -559,7 +559,7 @@ git commit -m "feat: bail agency portal blueprint with auth routes"
     </button>
   </form>
   <p class="text-center text-xs text-gray-400 mt-4">
-    Issues? Contact <a href="mailto:support@montanablotter.com" class="underline">support</a>.
+    Issues? Contact <a href="mailto:support@mtblotter.com" class="underline">support</a>.
   </p>
 </div>
 {% endblock %}
@@ -805,7 +805,7 @@ python -m pytest tests/test_bail_agency_portal.py -k "profile or creative or sub
     Your public agency page:
     <a href="{{ url_for('bail_bonds_agency_page', slug=agency.slug) }}"
        class="underline text-blue-500" target="_blank">
-      montanablotter.com/bail-bonds/agencies/{{ agency.slug }}
+      mtblotter.com/bail-bonds/agencies/{{ agency.slug }}
     </a>
   </p>
 </div>

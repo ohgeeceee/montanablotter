@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Download the Cascade County jail roster PDF from SharePoint and email it
-to records@montanablotter.com.
+to records@mtblotter.com.
 
 Runs as a standalone daily job independent of the main jail-bookings ingest
 pipeline.  The SharePoint link is scraped from the public Cascade County
@@ -44,7 +44,7 @@ logger = logging.getLogger("cascade_roster_email")
 # Fetch configuration
 # ---------------------------------------------------------------------------
 ROSTER_PAGE_URL = "https://www.cascadecountymt.gov/314/Inmate-Roster"
-RECIPIENT = "records@montanablotter.com"
+RECIPIENT = "records@mtblotter.com"
 SENDER = os.environ.get("MB_SMTP_USER", "montanablotter@gmail.com")
 SMTP_SERVER = os.environ.get("MB_SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("MB_SMTP_PORT", "587"))

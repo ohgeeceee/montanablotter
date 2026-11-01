@@ -11,7 +11,7 @@ configs/pending_cron_entries.txt, and registers the source in source_registry.
 
 Once registered, the normal pipeline (blotters -> records -> posts ->
 _publish_blotter_outputs) handles all publishing automatically:
-  - Web: montanablotter.com posts
+  - Web: mtblotter.com posts
   - Email: digest/subscriber alerts
   - Facebook: fb-page-manager.service auto-posts
 
@@ -49,7 +49,7 @@ BASE_DIR = Path(getattr(config, "BASE_DIR", "/root/montanablotter"))
 FETCHERS_DIR = BASE_DIR / "services" / "ingestion" / "fetchers"
 PENDING_CRON_PATH = BASE_DIR / "configs" / "pending_cron_entries.txt"
 LOG_PATH = str(BASE_DIR / "logs" / "source_onboarder.log")
-UA = "Mozilla/5.0 (compatible; MontanaBlotter-Onboarder/1.0; +https://montanablotter.com)"
+UA = "Mozilla/5.0 (compatible; MontanaBlotter-Onboarder/1.0; +https://mtblotter.com)"
 MODEL = "claude-sonnet-4-6"
 MAX_SAMPLE_CHARS = 8000
 

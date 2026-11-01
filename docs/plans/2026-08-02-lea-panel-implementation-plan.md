@@ -2,7 +2,7 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
 
-**Goal:** Build the LEA panel multi-tenant web application and ingestion workers so Montana law enforcement agencies can self-publish blotters and jail rosters to montanablotter.com.
+**Goal:** Build the LEA panel multi-tenant web application and ingestion workers so Montana law enforcement agencies can self-publish blotters and jail rosters to mtblotter.com.
 
 **Architecture:** Additive layer on the existing Flask monolith. New multi-tenant database tables, new blueprints, new REST API endpoints, new admin dashboard, and cron workers that feed published records into the public-facing tables.
 

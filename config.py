@@ -114,15 +114,15 @@ if not SECRET_KEY:
 DEBUG = _env_bool('MB_DEBUG', default=not IS_PRODUCTION)
 HOST = _env('MB_HOST', '0.0.0.0')
 PORT = _env_int('MB_PORT', 80)
-BASE_URL = _env('MB_BASE_URL', 'https://montanablotter.com')
+BASE_URL = _env('MB_BASE_URL', 'https://mtblotter.com')
 CLAW3D_OFFICE_URL = _env('MB_CLAW3D_OFFICE_URL', '/admin/office/office')
 _base_url = urlparse(BASE_URL)
 BASE_ORIGIN = (
     f"{_base_url.scheme}://{_base_url.netloc}"
     if _base_url.scheme and _base_url.netloc
-    else 'https://montanablotter.com'
+    else 'https://mtblotter.com'
 )
-_base_host = (urlparse(BASE_URL).hostname or 'montanablotter.com').strip().lower()
+_base_host = (urlparse(BASE_URL).hostname or 'mtblotter.com').strip().lower()
 
 # Global sign-in wall: require a free public account for every page except the
 # homepage and a small set of auth/payment/static exemptions.
@@ -198,7 +198,7 @@ GMAIL_IMAP_PASSWORD = _env('MB_GMAIL_IMAP_PASSWORD')
 GMAIL_IMAP_SERVER = _env('MB_GMAIL_IMAP_SERVER', 'imap.gmail.com')
 GMAIL_IMAP_PORT = _env_int('MB_GMAIL_IMAP_PORT', 993)
 
-# Forward-only IMAP inbox (e.g. advertising@montanablotter.com). If both user
+# Forward-only IMAP inbox (e.g. advertising@mtblotter.com). If both user
 # and password are set, email_worker.py polls this mailbox and re-sends every
 # inbound message to MB_EMAIL_FORWARD_TO via SMTP. It is intentionally excluded
 # from the blotter-ingest pipeline so it never feeds records into the DB.

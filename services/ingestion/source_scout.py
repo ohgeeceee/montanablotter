@@ -34,7 +34,7 @@ from services.agents.events_bus import publish_agent_event
 
 DB_PATH = config.DB_PATH
 LOG_PATH = "/root/montanablotter/logs/source_scout.log"
-UA = "Mozilla/5.0 (compatible; MontanaBlotter-Scout/2.0; +https://montanablotter.com)"
+UA = "Mozilla/5.0 (compatible; MontanaBlotter-Scout/2.0; +https://mtblotter.com)"
 
 logging.basicConfig(
     filename=LOG_PATH,

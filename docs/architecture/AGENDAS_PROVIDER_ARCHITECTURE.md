@@ -1,7 +1,7 @@
 # Agendas Provider Architecture
 
 This package adds a config-driven Playwright scraper architecture for
-`agendas.montanablotter.com`.
+`agendas.mtblotter.com`.
 
 Live Montana starter config:
 
@@ -90,7 +90,7 @@ This writes to:
 - `public_meetings`
 - `meeting_documents`
 
-The public dashboard is available at `/meetings` on the main site and `/` on `agendas.montanablotter.com`.
+The public dashboard is available at `/meetings` on the main site and `/` on `agendas.mtblotter.com`.
 
 ## Run
 

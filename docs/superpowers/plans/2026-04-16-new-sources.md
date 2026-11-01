@@ -185,7 +185,7 @@ def fetch_gallatin_bookings(source_url: str) -> list[JailBookingRecord]:
     session = requests.Session()
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "application/json,text/plain,*/*",
             "Referer": f"{api_base}/#/inmates",
         }
@@ -684,7 +684,7 @@ def _fetch_pdf_text(pdf_url: str) -> str:
     response = requests.get(
         pdf_url,
         timeout=60,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)"},
+        headers={"User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)"},
     )
     response.raise_for_status()
     with pdfplumber.open(io.BytesIO(response.content)) as pdf:
@@ -1071,7 +1071,7 @@ def _get_incidents() -> list[dict[str, Any]]:
             "f": "json",
         },
         timeout=45,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)"},
+        headers={"User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)"},
     )
     response.raise_for_status()
     features = response.json().get("features") or []

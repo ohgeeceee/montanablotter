@@ -19,7 +19,7 @@ from mt_jurisdictions import COUNTIES
 
 TIMEOUT = 8
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotterBot/1.0; +https://montanablotter.com)"
+    "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotterBot/1.0; +https://mtblotter.com)"
 }
 
 import concurrent.futures

@@ -2,7 +2,7 @@
 
 {% set page_title = "Blog" %}
 {% set meta_description = "Insights on Montana public safety, records access, and community reporting from Montana Blotter." %}
-{% set canonical_url = "https://montanablotter.com/blog" %}
+{% set canonical_url = "https://mtblotter.com/blog" %}
 {% set og_title = "Blog | Montana Blotter" %}
 {% set og_description = meta_description %}
 {% set og_type = "website" %}
@@ -30,7 +30,7 @@
     {
       "@type": "ListItem",
       "position": {{ loop.index }},
-      "url": {{ ("https://montanablotter.com/blog/" ~ post.slug) | tojson }},
+      "url": {{ ("https://mtblotter.com/blog/" ~ post.slug) | tojson }},
       "name": {{ post.title | tojson }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}

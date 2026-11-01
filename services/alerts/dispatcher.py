@@ -27,7 +27,7 @@ import config
 from services.blotter.analytics import CATEGORY_LABELS
 
 DB_PATH = config.DB_PATH
-BASE_URL = getattr(config, 'BASE_URL', 'https://montanablotter.com')
+BASE_URL = getattr(config, 'BASE_URL', 'https://mtblotter.com')
 ALERT_COOLDOWN_HOURS = 6
 logger = logging.getLogger(__name__)
 

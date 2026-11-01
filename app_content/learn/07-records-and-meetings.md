@@ -20,7 +20,7 @@
 
 > **Not legal advice.** This chapter summarizes published Montana law in the Montana Code Annotated (MCA). Statutes change. Verify every citation against the current text at [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/) and consult a licensed Montana attorney for your specific situation.
 
-> **Editorial standards.** Every claim links to a primary Montana Code section on [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/). We do not invent scenarios or dispositions. If a citation has drifted from the current statute, email records@montanablotter.com — subject line **Course Citation Update**. Where this chapter overlaps with the Montana Blotter editorial mission, the site's [Sourcing Standards](https://montanablotter.com/standards) and [Corrections Policy](https://montanablotter.com/corrections) control.
+> **Editorial standards.** Every claim links to a primary Montana Code section on [leg.mt.gov/bills/mca](https://leg.mt.gov/bills/mca/). We do not invent scenarios or dispositions. If a citation has drifted from the current statute, email records@mtblotter.com — subject line **Course Citation Update**. Where this chapter overlaps with the Montana Blotter editorial mission, the site's [Sourcing Standards](https://mtblotter.com/standards) and [Corrections Policy](https://mtblotter.com/corrections) control.
 
 ---
 
@@ -284,7 +284,7 @@ The Montana Freedom of Information Hotline, when active, can connect you with at
 
 ## Public meetings and the Montana Blotter
 
-Montana Blotter maintains a parallel site at [agendas.montanablotter.com](https://agendas.montanablotter.com/) that aggregates agendas, packets, and minutes for city councils, county commissions, school boards, and other public bodies across the state. The site exists because Montana's public-meeting law works best when the meetings are easy to find, the agendas are easy to read, and the minutes are easy to compare against the agenda.
+Montana Blotter maintains a parallel site at [agendas.mtblotter.com](https://agendas.mtblotter.com/) that aggregates agendas, packets, and minutes for city councils, county commissions, school boards, and other public bodies across the state. The site exists because Montana's public-meeting law works best when the meetings are easy to find, the agendas are easy to read, and the minutes are easy to compare against the agenda.
 
 How to use it:
 
@@ -300,7 +300,7 @@ How to use it:
 - [ ] Find the public-records contact at your county courthouse, your city hall, and your school district. The contact is typically the clerk or recorder.
 - [ ] Find the meeting schedule for your county commission, your city council, and your school board.
 - [ ] If you have never attended a public meeting, attend one. The first time is the hardest; after that it is a routine part of civic life.
-- [ ] Sign up for [agendas.montanablotter.com](https://agendas.montanablotter.com/) alerts in your county.
+- [ ] Sign up for [agendas.mtblotter.com](https://agendas.mtblotter.com/) alerts in your county.
 
 ## Where to verify
 
@@ -310,7 +310,7 @@ How to use it:
 - [MCA § 46-18-1101 — Expungement](https://leg.mt.gov/bills/mca/title_0460/chapter_0180/part_0110/section_0010/0460-0180-0110-0010.html)
 - [Montana Judicial Branch — Case Search](https://courts.mt.gov/)
 - [Montana Attorney General — Public Records](https://dojmt.gov/)
-- [Montana Blotter Agendas](https://agendas.montanablotter.com/)
+- [Montana Blotter Agendas](https://agendas.mtblotter.com/)
 
 ---
 

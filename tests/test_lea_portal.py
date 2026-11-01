@@ -66,7 +66,7 @@ class TestLEAPortal(unittest.TestCase):
         """Contact section renders."""
         response = self.client.get('/leaportal/')
         self.assertIn(b'Get in Touch', response.data)
-        self.assertIn(b'lea@montanablotter.com', response.data)
+        self.assertIn(b'lea@mtblotter.com', response.data)
 
     def test_register_interest_form(self) -> None:
         """POST to register saves to DB."""
@@ -115,7 +115,7 @@ class TestLEAPortal(unittest.TestCase):
         response = self.client.get('/leaportal/embed')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Embed Badge', response.data)
-        self.assertIn(b'montanablotter.com/leaportal', response.data)
+        self.assertIn(b'mtblotter.com/leaportal', response.data)
 
     def test_login_redirect(self) -> None:
         response = self.client.get('/leaportal/login')

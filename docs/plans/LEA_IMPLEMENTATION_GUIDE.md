@@ -2,7 +2,7 @@
 
 **Status:** ACTIVE (Phase 1 in progress as of 2026-08-02 08:35 UTC)
 
-**Target:** Go-live Q3 2026 with all 56 Montana law enforcement agencies able to publish police blotters and jail rosters directly to montanablotter.com.
+**Target:** Go-live Q3 2026 with all 56 Montana law enforcement agencies able to publish police blotters and jail rosters directly to mtblotter.com.
 
 ---
 

@@ -2298,7 +2298,7 @@ def _bail_ad_contract_context(onboarding_token: str | None = None):
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     safe_token = (onboarding_token or '').strip()[:128]
     contract_url = configured_url
@@ -4536,8 +4536,8 @@ RESOURCE_GUIDES = {
 def _source_channel_meta(post):
     source_key = post['source_type'] or post['blotter_source_type'] or 'pdf'
     labels = {
-        'imap_pdf': ('Email PDF', 'Delivered to records@montanablotter.com as a PDF attachment.'),
-        'imap_text': ('Email Body', 'Delivered to records@montanablotter.com as text in the email body.'),
+        'imap_pdf': ('Email PDF', 'Delivered to records@mtblotter.com as a PDF attachment.'),
+        'imap_text': ('Email Body', 'Delivered to records@mtblotter.com as text in the email body.'),
         'local_pdf': ('Manual Upload', 'Uploaded manually through the Montana Blotter admin panel.'),
         'crimemapping': ('CrimeMapping', 'Imported from a public CrimeMapping incident feed.'),
         'pdf': ('Imported PDF', 'Imported from a PDF batch in the blotter pipeline.'),
@@ -8703,7 +8703,7 @@ def bail_bonds_alerts_landing():
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     return render_template(
         'bail_bonds_alerts_landing.html',
@@ -11309,7 +11309,7 @@ def support_hub():
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     return render_template(
         'support.html',

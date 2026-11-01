@@ -347,7 +347,7 @@ def _check_web_service() -> dict[str, object]:
     started = datetime.now(timezone.utc)
     try:
         connection = http.client.HTTPConnection(WEB_HOST, WEB_PORT, timeout=10)
-        connection.request("HEAD", WEB_REQUEST_PATH, headers={"Host": "montanablotter.com"})
+        connection.request("HEAD", WEB_REQUEST_PATH, headers={"Host": "mtblotter.com"})
         response = connection.getresponse()
         status_code = response.status
         status_line = f"HTTP/{response.version / 10:.1f} {status_code} {response.reason}"

@@ -176,7 +176,7 @@ def build_weekly_html(
 """
         html += '<hr style="border:1px solid #e2e8f0;">'
 
-    html += f'<p style="color:#94a3b8;font-size:12px;margin-top:24px;"><a href="{BASE_URL}" style="color:#3b82f6;">montanablotter.com</a>'
+    html += f'<p style="color:#94a3b8;font-size:12px;margin-top:24px;"><a href="{BASE_URL}" style="color:#3b82f6;">mtblotter.com</a>'
     if unsubscribe_url:
         html += f' &mdash; <a href="{unsubscribe_url}" style="color:#94a3b8;">Unsubscribe</a>'
     html += "</p></div>"

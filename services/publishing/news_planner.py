@@ -174,7 +174,7 @@ def fetch_internal_story_packets(conn: sqlite3.Connection, *, limit: int = 5) ->
         packets.append(
             normalize_candidate_packet(
                 source_type="montanablotter",
-                source_url=f"https://montanablotter.com/posts/{int(row['id'])}",
+                source_url=f"https://mtblotter.com/posts/{int(row['id'])}",
                 headline_hint=row["title"] or "Montana Blotter report",
                 facts=facts,
             )

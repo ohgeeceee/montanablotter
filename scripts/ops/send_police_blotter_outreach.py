@@ -23,7 +23,7 @@ import config
 TEMPLATE = ROOT / "docs" / "templates" / "police_blotter_data_request.md"
 DRAFT_DIR = ROOT / "agent-queue" / "ops" / "police-blotter-outreach"
 LOG_PATH = ROOT / "logs" / "police_blotter_outreach.log"
-REPLY_TO = "records@montanablotter.com"
+REPLY_TO = "records@mtblotter.com"
 
 COUNTY_DIRECTORY = {
     "beaverhead": "Beaverhead County Sheriff", "big-horn": "Big Horn County Sheriff",

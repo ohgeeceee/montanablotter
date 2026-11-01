@@ -61,7 +61,7 @@ class AgentDiscordRouter:
             headers={
                 "Authorization": f"Bot {token}",
                 "Content-Type": "application/json",
-                "User-Agent": "DiscordBot (https://montanablotter.com, 1.0)",
+                "User-Agent": "DiscordBot (https://mtblotter.com, 1.0)",
             },
             method="POST",
         )

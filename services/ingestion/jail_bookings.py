@@ -790,7 +790,7 @@ def _fetch_html(url: str, *, timeout: int = 45) -> str:
         url,
         timeout=timeout,
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
     )
@@ -938,7 +938,7 @@ def fetch_broadwater_bookings(source_url: str) -> list[JailBookingRecord]:
     session = requests.Session()
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Referer": source_url,
         }
@@ -1003,7 +1003,7 @@ def fetch_zuercher_bookings(source_url: str, *, county_name: str = "") -> list[J
     session = requests.Session()
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "application/json,text/plain,*/*",
             "Referer": f"{api_base}/#/inmates",
         }
@@ -1254,7 +1254,7 @@ def fetch_sanders_bookings(source_url: str) -> list[JailBookingRecord]:
     session.verify = False  # Sanders County's current TLS certificate is expired.
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Referer": f"{base_url}/index.php",
         }
@@ -1373,7 +1373,7 @@ def _fetch_pdf_text(pdf_url: str) -> str:
         pdf_url,
         timeout=60,
         headers={
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
             "Accept": "application/pdf,*/*",
         },
     )

@@ -127,7 +127,7 @@ def request_change(token_or_slug):
             crm_service.log_email(
                 conn, ctx['lead_id'], 'inbound',
                 subject=f'Portal request ({ctx["tier"]})', body=body,
-                from_address=ctx['lead_email'] or '', to_address='revenue@montanablotter.com',
+                from_address=ctx['lead_email'] or '', to_address='revenue@mtblotter.com',
                 provider='client_portal')
             flash('Request received — the team will follow up by email.')
     return redirect(url_for('client_portal.view', token_or_slug=token_or_slug))
@@ -146,7 +146,7 @@ def stripe_billing_portal(token_or_slug):
         customer_id = crm_service.stripe_link(conn, ctx)
     if not customer_id:
         flash('No Stripe customer is linked to your account yet — '
-              'email revenue@montanablotter.com to manage billing.')
+              'email revenue@mtblotter.com to manage billing.')
         return redirect(url_for('client_portal.view', token_or_slug=token_or_slug))
     try:
         import stripe

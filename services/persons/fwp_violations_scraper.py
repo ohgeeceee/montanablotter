@@ -23,7 +23,7 @@ import config
 from db import connect_db
 
 FWP_NEWS_BASE = 'https://fwp.mt.gov/homepage/news'
-USER_AGENT = 'MontanaBlotter/1.0 (news@montanablotter.com)'
+USER_AGENT = 'MontanaBlotter/1.0 (news@mtblotter.com)'
 
 _ENFORCEMENT_KEYWORDS = (
     'citation', 'violat', 'poach', 'convict', 'sentence', 'plead', 'guilty',

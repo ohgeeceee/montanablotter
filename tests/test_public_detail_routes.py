@@ -256,7 +256,7 @@ class PublicDetailRouteTests(unittest.TestCase):
             html,
         )
         self.assertIn(
-            '<link rel="canonical" href="https://montanablotter.com/sex-offender-updates/cascade">',
+            '<link rel="canonical" href="https://mtblotter.com/sex-offender-updates/cascade">',
             html,
         )
         self.assertIn('Current violent and sexual offender registry information', html)
@@ -374,7 +374,7 @@ class PublicDetailRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Browse theft and burglary records in Yellowstone County', html)
         self.assertIn(
-            '<link rel="canonical" href="https://montanablotter.com/patterns/theft-and-burglary/yellowstone">',
+            '<link rel="canonical" href="https://mtblotter.com/patterns/theft-and-burglary/yellowstone">',
             html,
         )
 

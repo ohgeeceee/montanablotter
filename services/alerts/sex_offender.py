@@ -20,7 +20,7 @@ from typing import Any
 import config
 from db import connect_db
 
-BASE_URL = getattr(config, 'BASE_URL', 'https://montanablotter.com')
+BASE_URL = getattr(config, 'BASE_URL', 'https://mtblotter.com')
 
 
 def _send_alert_email(to_addr: str, subject: str, html_body: str) -> bool:

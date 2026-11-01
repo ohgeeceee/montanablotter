@@ -2,7 +2,7 @@
 
 ## What We're Building
 
-A **free, zero-friction web panel** for every Montana sheriff office, police department, and county detention center to manage and publish their daily police blotters and jail rosters. Everything they submit automatically appears on montanablotter.com with no manual intervention from our team.
+A **free, zero-friction web panel** for every Montana sheriff office, police department, and county detention center to manage and publish their daily police blotters and jail rosters. Everything they submit automatically appears on mtblotter.com with no manual intervention from our team.
 
 ---
 
@@ -34,7 +34,7 @@ A **multi-tenant SaaS platform** hosted on the Montana Blotter VPS:
 - **Agency Dashboard** (`/panel/<county>/`):
   - Officers enter or upload incidents in real-time.
   - Jail rosters sync automatically from county JMS systems via API.
-  - One-click publish to montanablotter.com.
+  - One-click publish to mtblotter.com.
 
 - **REST API** (`/api/v1/lea/...`):
   - Existing RMS/CAD systems can POST directly (no UI needed).
@@ -96,7 +96,7 @@ A **multi-tenant SaaS platform** hosted on the Montana Blotter VPS:
 │          │                                                          │
 │          ▼                                                          │
 │ ┌──────────────────────────────────────────────────────────────┐   │
-│ │ Montana Blotter Public (montanablotter.com)                  │   │
+│ │ Montana Blotter Public (mtblotter.com)                  │   │
 │ │                                                               │   │
 │ │ /jail-bookings                                              │   │
 │ │ /incidents / search                                          │   │

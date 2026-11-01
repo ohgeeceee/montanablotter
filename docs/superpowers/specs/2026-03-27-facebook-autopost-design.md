@@ -115,7 +115,7 @@ Runs Monday mornings. Queries all `upcoming` meetings for the current week (Mond
 🏛 Missoula
   • City Council — Mon Mar 30 at 7:00pm
 
-Full schedule: https://montanablotter.com/meetings
+Full schedule: https://mtblotter.com/meetings
 
 #Montana #MontanaBlotter #PublicMeetings #CityHall #Montana
 ```

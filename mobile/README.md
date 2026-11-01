@@ -32,7 +32,7 @@ cp .env.example .env
 
 Set `EXPO_PUBLIC_API_BASE_URL` in `.env`.
 
-- Production: `https://montanablotter.com`
+- Production: `https://mtblotter.com`
 - Local backend from Android emulator: `http://10.0.2.2:5000`
 - Local backend from iOS simulator: `http://127.0.0.1:5000`
 
@@ -76,7 +76,7 @@ npx eas login
 3. Configure the production API in `.env`:
 
 ```bash
-EXPO_PUBLIC_API_BASE_URL=https://montanablotter.com
+EXPO_PUBLIC_API_BASE_URL=https://mtblotter.com
 EXPO_PUBLIC_SENTRY_DSN=your-sentry-dsn
 EXPO_PUBLIC_SENTRY_ENVIRONMENT=production
 ```

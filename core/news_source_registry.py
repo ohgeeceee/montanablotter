@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 
 APPROVED_NEWS_SOURCES = [
-    {"source_type": "montanablotter", "domains": {"montanablotter.com", "www.montanablotter.com"}},
+    {"source_type": "montanablotter", "domains": {"mtblotter.com", "www.mtblotter.com"}},
     {
         "source_type": "montana_public_records",
         "domains": {

@@ -66,10 +66,10 @@ Generate a single branded 1200×630px PNG using a one-time Python/Pillow script.
 ### Template changes (`public_page_base.html`)
 Add inside `<head>`, after existing og tags:
 ```html
-<meta property="og:image" content="https://montanablotter.com/static/images/og-default.png">
+<meta property="og:image" content="https://mtblotter.com/static/images/og-default.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta name="twitter:image" content="https://montanablotter.com/static/images/og-default.png">
+<meta name="twitter:image" content="https://mtblotter.com/static/images/og-default.png">
 ```
 
 `twitter:card` is already present in the template (`content="{{ twitter_card or 'summary_large_image' }}"`) — do not add a second tag.
@@ -108,7 +108,7 @@ Add a `{% block jsonld %}{% endblock %}` slot to `public_page_base.html` just be
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://montanablotter.com/"},
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://mtblotter.com/"},
     {"@type": "ListItem", "position": 2, "name": "{{ page_title }}", "item": "{{ canonical_url }}"}
   ]
 }

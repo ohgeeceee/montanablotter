@@ -2,7 +2,7 @@
 
 ## What it does
 
-`email_blotter_ingest.py` polls your Gmail/IMAP inbox for unread emails with "Blotter" in the subject, downloads any image attachments, converts them into a single PDF, checks if that blotter was already uploaded (via `source_documents` hash deduplication), and ingests it into montanablotter.com via the existing `processor.py` pipeline.
+`email_blotter_ingest.py` polls your Gmail/IMAP inbox for unread emails with "Blotter" in the subject, downloads any image attachments, converts them into a single PDF, checks if that blotter was already uploaded (via `source_documents` hash deduplication), and ingests it into mtblotter.com via the existing `processor.py` pipeline.
 
 After processing, emails are marked as read and moved to the `Processed` IMAP folder.
 

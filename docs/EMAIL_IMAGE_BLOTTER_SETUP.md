@@ -10,7 +10,7 @@
    - Marks processed emails as read and moves them to `Processed` folder
 
 2. **Updated `.env`**
-   - Reverted to working IONOS credentials (`records@montanablotter.com`)
+   - Reverted to working IONOS credentials (`records@mtblotter.com`)
    - Gmail App Password was failing authentication (needs 2FA + fresh App Password)
 
 3. **Added cron job**

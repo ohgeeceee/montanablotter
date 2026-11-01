@@ -267,13 +267,13 @@ def _send_lawyer_lead_email(order: dict, lead: dict) -> tuple[bool, str]:
     county = escape(str(lead.get('county') or ''))
     case_type = escape(str(lead.get('case_type') or 'Not specified'))
     notes = escape(str(lead.get('notes') or 'Not provided'))
-    base_url = (getattr(config, 'BASE_URL', '') or 'https://montanablotter.com').rstrip('/')
+    base_url = (getattr(config, 'BASE_URL', '') or 'https://mtblotter.com').rstrip('/')
 
     msg = MIMEMultipart('alternative')
     msg['Subject'] = f'New Montana Blotter lead for {firm_name}'
     msg['From'] = f'Montana Blotter <{user}>'
     msg['To'] = destination
-    msg['Reply-To'] = 'support@montanablotter.com'
+    msg['Reply-To'] = 'support@mtblotter.com'
     plain = (
         f'New consumer inquiry routed to {order.get("firm_name") or "your firm"}.\n\n'
         f'Name: {lead.get("full_name") or ""}\n'
@@ -587,7 +587,7 @@ def lawyers_directory():
             'tap-to-text, and free intake form routing. Defense, DUI, family, '
             'and personal injury attorneys by county.'
         ),
-        canonical_url='https://montanablotter.com/lawyers',
+        canonical_url='https://mtblotter.com/lawyers',
         active_nav='lawyers',
         current_year=datetime.now().year,
     )
@@ -665,7 +665,7 @@ def lawyers_directory_county(county_slug):
             f'Licensed Montana attorneys serving {target_county} County. '
             'Tap-to-call and free intake form routing.'
         ),
-        canonical_url=f'https://montanablotter.com/lawyers/{_slug_county(target_county)}',
+        canonical_url=f'https://mtblotter.com/lawyers/{_slug_county(target_county)}',
         active_nav='lawyers',
         current_year=datetime.now().year,
     )

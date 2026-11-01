@@ -40,7 +40,7 @@ offices and police departments across the state, allowing citizens to search \
 and view recent law enforcement incidents in their area.
 
 We would greatly appreciate it if your office could provide regular blotter \
-updates (weekly or daily) via email to records@montanablotter.com in any format:
+updates (weekly or daily) via email to records@mtblotter.com in any format:
   - PDF documents with incident listings
   - CSV/Excel spreadsheets with structured data
   - Any other standard format your office uses
@@ -53,8 +53,8 @@ questions about this initiative.
 
 Best regards,
 Montana Blotter Project
-records@montanablotter.com
-https://montanablotter.com
+records@mtblotter.com
+https://mtblotter.com
 """
 
 # ── Bounce patterns ──────────────────────────────────────────────────────────

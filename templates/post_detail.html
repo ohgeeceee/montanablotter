@@ -3,12 +3,12 @@
 
 {% set page_title = post.seo_title if post.seo_title else (post.title or 'Daily Activity Report') %}
 {% set meta_description = post.meta_description or ((post.summary or '')[:155] if post.summary else 'Daily police activity report with source traceability and linked incident records.') %}
-{% set canonical_url = canonical_url or ("https://montanablotter.com/post/" ~ (post.seo_slug if post.seo_slug else post.id)) %}
+{% set canonical_url = canonical_url or ("https://mtblotter.com/post/" ~ (post.seo_slug if post.seo_slug else post.id)) %}
 {% set og_title = post.title or 'Daily Activity Report' %}
 {% set og_description = meta_description %}
 {% set og_type = "article" %}
 {% set twitter_card = "summary_large_image" %}
-{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
+{% set og_image = og_image or "https://mtblotter.com/static/icons/og-default.png" %}
 
 {% block body_class %}post-detail-page{% endblock %}
 
@@ -28,10 +28,10 @@
   "publisher": {
     "@type": "Organization",
     "name": "Montana Blotter",
-    "url": "https://montanablotter.com",
+    "url": "https://mtblotter.com",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://montanablotter.com/static/logo.png"
+      "url": "https://mtblotter.com/static/logo.png"
     }
   },
   "mainEntityOfPage": {
@@ -84,13 +84,13 @@
       "@type": "ListItem",
       "position": 1,
       "name": "Montana Blotter",
-      "item": "https://montanablotter.com/"
+      "item": "https://mtblotter.com/"
     }{% if county_slug %},
     {
       "@type": "ListItem",
       "position": 2,
       "name": {{ (post.county ~ " County") | tojson }},
-      "item": {{ ("https://montanablotter.com/county/" ~ county_slug) | tojson }}
+      "item": {{ ("https://mtblotter.com/county/" ~ county_slug) | tojson }}
     },
     {
       "@type": "ListItem",

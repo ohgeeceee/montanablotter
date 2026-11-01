@@ -33,7 +33,7 @@ def test_fetch_lewis_clark_warrants_parses_live_page():
     from services.ingestion.http_client import make_ingest_session, public_dns_fallback
 
     session = make_ingest_session(
-        user_agent="Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)"
+        user_agent="Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)"
     )
     with public_dns_fallback():
         records = fetch_lewis_clark_warrants(session)

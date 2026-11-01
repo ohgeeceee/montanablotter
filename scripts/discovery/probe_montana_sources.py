@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from scripts.discovery.mt_jurisdictions import COUNTIES
 
 session = requests.Session()
-session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; MontanaBlotterBot/1.0; +https://montanablotter.com)"})
+session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; MontanaBlotterBot/1.0; +https://mtblotter.com)"})
 
 REPORT_PATH = Path("/root/montanablotter/scripts/discovery/weekly_probe_report.json")
 

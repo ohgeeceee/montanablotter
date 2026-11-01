@@ -3,8 +3,8 @@
 
 {% set page_title = county.seo_title or (county.name ~ " County Arrests, Jail Roster, and Police Blotter") %}
 {% set meta_description = county.meta_description or ("Free access to " ~ county.name ~ " County arrest records, police blotter, jail roster, and public safety reports." ~ (" Serving " ~ county.seat ~ ", Montana." if county.seat else " County-level records and public safety resources for Montana readers.")) %}
-{% set canonical_url = canonical_url or ("https://montanablotter.com/county/" ~ county.slug) %}
-{% set og_image = "https://montanablotter.com/static/icons/og-default.png" %}
+{% set canonical_url = canonical_url or ("https://mtblotter.com/county/" ~ county.slug) %}
+{% set og_image = "https://mtblotter.com/static/icons/og-default.png" %}
 {% set og_title = county.og_title or page_title ~ " | Montana Blotter" %}
 {% set og_description = county.og_description or meta_description %}
 {% set active_nav = "counties" %}
@@ -16,11 +16,11 @@
   "@type": "WebPage",
   "name": "{{ county.name }} County Arrest Records & Police Blotter",
   "description": "Free {{ county.name }} County arrest records, jail roster, and police blotter{% if county.seat %} for {{ county.seat }}, Montana{% endif %}.",
-  "url": "https://montanablotter.com/county/{{ county.slug }}",
+  "url": "https://mtblotter.com/county/{{ county.slug }}",
   "publisher": {
     "@type": "Organization",
     "name": "Montana Blotter",
-    "url": "https://montanablotter.com"
+    "url": "https://mtblotter.com"
   }
 }
 </script>
@@ -33,13 +33,13 @@
       "@type": "ListItem",
       "position": 1,
       "name": "Montana Blotter",
-      "item": "https://montanablotter.com/"
+      "item": "https://mtblotter.com/"
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": "{{ county.name }} County",
-      "item": "https://montanablotter.com/county/{{ county.slug }}"
+      "item": "https://mtblotter.com/county/{{ county.slug }}"
     }
   ]
 }
@@ -87,7 +87,7 @@
     {
       "@type": "ListItem",
       "position": {{ loop.index }},
-      "url": "https://montanablotter.com/post/{{ post['id'] }}",
+      "url": "https://mtblotter.com/post/{{ post['id'] }}",
       "name": {{ (post['title'] or 'Daily Activity Report') | tojson }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
@@ -101,14 +101,14 @@
   "@type": "Dataset",
   "name": "{{ county.name }} County Public Records — Montana Blotter",
   "description": "Arrest records, police blotter reports, and incident logs for {{ county.name }} County, Montana. Updated regularly from official public records.",
-  "url": "https://montanablotter.com/county/{{ county.slug }}",
+  "url": "https://mtblotter.com/county/{{ county.slug }}",
   "keywords": ["{{ county.name }} County arrests", "{{ county.name }} police blotter", "Montana public records", "{{ county.name }} jail bookings"],
   "license": "https://creativecommons.org/licenses/by/4.0/",
   "isAccessibleForFree": true,
   "creator": {
     "@type": "Organization",
     "name": "Montana Blotter",
-    "url": "https://montanablotter.com"
+    "url": "https://mtblotter.com"
   },
   "spatialCoverage": {
     "@type": "AdministrativeArea",

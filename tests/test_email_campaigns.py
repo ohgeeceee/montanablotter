@@ -315,8 +315,8 @@ class TestJailRosterPromotion(unittest.TestCase):
     def test_html_contains_offer_and_escaped_personalization(self):
         html = build_html_body(
             '<Alex>',
-            'https://montanablotter.com/pricing?source=jail_roster_email',
-            'https://montanablotter.com/unsubscribe?token=abc',
+            'https://mtblotter.com/pricing?source=jail_roster_email',
+            'https://mtblotter.com/unsubscribe?token=abc',
         )
         self.assertIn('$7.99/month', html)
         self.assertIn('$26/month', html)

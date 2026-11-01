@@ -64,7 +64,7 @@ class NewsPlannerTests(unittest.TestCase):
             "headline_hint": "Missoula County deputies investigate overnight burglary",
             "location_label": "Missoula County",
             "occurred_at": "2026-04-25T01:00:00Z",
-            "source_url": "https://montanablotter.com/example",
+            "source_url": "https://mtblotter.com/example",
         }
 
         self.assertEqual(build_dedupe_key(packet), build_dedupe_key(packet))
@@ -74,7 +74,7 @@ class NewsPlannerTests(unittest.TestCase):
 
         packet = normalize_candidate_packet(
             source_type="montanablotter",
-            source_url="https://montanablotter.com/example",
+            source_url="https://mtblotter.com/example",
             headline_hint="Gallatin County deputies respond to burglary report",
             facts={"county": "Gallatin", "incident_type": "Burglary"},
         )
@@ -90,7 +90,7 @@ class NewsPlannerTests(unittest.TestCase):
         conn.row_factory = sqlite3.Row
         packet = {
             "source_type": "montanablotter",
-            "source_url": "https://montanablotter.com/example",
+            "source_url": "https://mtblotter.com/example",
             "headline_hint": "Helena police investigate reported assault",
             "facts_json": "{}",
             "location_label": "Helena",

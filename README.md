@@ -2,7 +2,7 @@
 
 A free, open-source platform for aggregating and publishing Montana's public police blotters, jail bookings, court records, and missing persons alerts from all 56 counties.
 
-**Live Site**: [montanablotter.com](https://montanablotter.com)  
+**Live Site**: [mtblotter.com](https://mtblotter.com)  
 **Alias**: fertherecerd.com
 
 ## 🎯 Project Overview
@@ -124,11 +124,11 @@ Edit environment variables (recommended via `.env`) to customize:
 ```bash
 # Core Application
 MB_SECRET_KEY=change-me-in-production
-MB_BASE_URL=https://montanablotter.com
+MB_BASE_URL=https://mtblotter.com
 MB_DEBUG=false
 
 # Email (IONOS)
-MB_EMAIL_USER=records@montanablotter.com
+MB_EMAIL_USER=records@mtblotter.com
 MB_EMAIL_PASSWORD=***
 MB_SMTP_PASSWORD=***
 

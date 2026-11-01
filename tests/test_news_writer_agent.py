@@ -56,7 +56,7 @@ class NewsWriterAgentTests(unittest.TestCase):
             """,
             (
                 "montanablotter",
-                "https://montanablotter.com/example",
+                "https://mtblotter.com/example",
                 "Billings police investigate robbery",
                 '{"county":"Yellowstone"}',
                 "writer-key",
@@ -123,7 +123,7 @@ class NewsWriterAgentTests(unittest.TestCase):
             """,
             (
                 "montanablotter",
-                "https://montanablotter.com/posts/999",
+                "https://mtblotter.com/posts/999",
                 "Helena police investigate overnight burglary",
                 '{"summary":"Investigators said the report came in shortly after midnight.","county":"Lewis and Clark","city":"Helena","agency_name":"Helena Police Department","incident_date":"2026-04-25"}',
                 "writer-body-key",
@@ -158,7 +158,7 @@ class NewsWriterAgentTests(unittest.TestCase):
             """,
             (
                 "montanablotter",
-                "https://montanablotter.com/posts/778",
+                "https://mtblotter.com/posts/778",
                 "Yellowstone deputies investigate overnight incidents",
                 json.dumps(
                     {

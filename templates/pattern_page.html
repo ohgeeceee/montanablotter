@@ -4,7 +4,7 @@
 {% set canonical_url = canonical_url %}
 {% set og_title = title ~ " | Montana Blotter" %}
 {% set og_description = meta_description %}
-{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
+{% set og_image = og_image or "https://mtblotter.com/static/icons/og-default.png" %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -25,19 +25,19 @@
       "@type": "ListItem",
       "position": 1,
       "name": "Montana Blotter",
-      "item": "https://montanablotter.com/"
+      "item": "https://mtblotter.com/"
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": "Patterns",
-      "item": "https://montanablotter.com/patterns"
+      "item": "https://mtblotter.com/patterns"
     },
     {
       "@type": "ListItem",
       "position": 3,
       "name": {{ pattern.label | tojson }},
-      "item": {{ ("https://montanablotter.com/patterns/" ~ pattern.slug) | tojson }}
+      "item": {{ ("https://mtblotter.com/patterns/" ~ pattern.slug) | tojson }}
     }{% if county %},
     {
       "@type": "ListItem",
@@ -262,7 +262,7 @@
                 <h2 class="text-sm font-black uppercase tracking-[0.18em] text-slate-500 mb-4">More {{ county.name }} Pattern Pages</h2>
                 <div class="space-y-2">
                     {% for item in pattern_links %}
-                    {% if item.href != canonical_url|replace('https://montanablotter.com', '') %}
+                    {% if item.href != canonical_url|replace('https://mtblotter.com', '') %}
                     <a href="{{ item.href }}" class="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100 transition">
                         {{ item.label }} <i class="fas fa-arrow-right text-blue-500"></i>
                     </a>

@@ -26,7 +26,7 @@ from typing import Any
 import config
 from db import connect_db
 
-BASE_URL = getattr(config, 'BASE_URL', 'https://montanablotter.com')
+BASE_URL = getattr(config, 'BASE_URL', 'https://mtblotter.com')
 COOLDOWN_HOURS = 24
 WATCH_TYPES = ('jail_booking', 'court_filing', 'license_sanction', 'code_violation', 'meeting_agenda')
 

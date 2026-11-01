@@ -2,7 +2,7 @@
 
 {% set page_title = "Arrest → Court Disposition API" %}
 {% set meta_description = "Token-gated REST API for matching Montana arrest records to court case outcomes. Look up any person by name or case number, with related jail bookings and disposition history. $19/month." %}
-{% set canonical_url = "https://montanablotter.com/disposition-api" %}
+{% set canonical_url = "https://mtblotter.com/disposition-api" %}
 {% set og_title = "Arrest → Court Disposition API" %}
 {% set og_description = meta_description %}
 
@@ -21,7 +21,7 @@
     "price": "19.00",
     "priceCurrency": "USD",
     "availability": "https://schema.org/InStock",
-    "url": "https://montanablotter.com/disposition-api"
+    "url": "https://mtblotter.com/disposition-api"
   }
 }
 </script>
@@ -52,7 +52,7 @@
                     <h2 class="public-card__title">curl + a token.</h2>
                     <p class="public-card__text">
                         <code>curl -H "Authorization: Bearer $TOKEN" \<br>
-                        "https://montanablotter.com/api/v1/disposition/lookup?name=Wood,+Danielle&county=Sanders"</code>
+                        "https://mtblotter.com/api/v1/disposition/lookup?name=Wood,+Danielle&county=Sanders"</code>
                     </p>
                 </div>
             </aside>
@@ -81,7 +81,7 @@
                     Match a person or case number to Montana court outcomes. Returns every criminal case (filed &amp; closed), the disposition &amp; sentence, plus any related jail bookings.
                 </p>
                 <pre style="background:#0f172a;color:#f1f5f9;padding:0.75rem 1rem;border-radius:6px;overflow-x:auto;font-size:0.85rem;"><code>curl -H "Authorization: Bearer $TOKEN" \
-  "https://montanablotter.com/api/v1/disposition/lookup?name=Wood,+Danielle&amp;county=Sanders&amp;include_bookings=1"</code></pre>
+  "https://mtblotter.com/api/v1/disposition/lookup?name=Wood,+Danielle&amp;county=Sanders&amp;include_bookings=1"</code></pre>
                 <p class="public-policy-copy" style="margin-top:0.5rem;">
                     Query params (GET) / JSON body (POST):
                 </p>
@@ -283,7 +283,7 @@
                 <p class="public-card__text" style="font-size:0.9rem;margin-top:0.5rem;">
                     Questions, enterprise pricing, or a custom feed?
                     <br>
-                    <a class="public-policy-inline-link" href="mailto:data@montanablotter.com?subject=Disposition%20API">data@montanablotter.com</a>
+                    <a class="public-policy-inline-link" href="mailto:data@mtblotter.com?subject=Disposition%20API">data@mtblotter.com</a>
                 </p>
             </div>
         </section>

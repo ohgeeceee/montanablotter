@@ -102,7 +102,7 @@ def _parse_payload(payload: dict | list) -> list[JailBookingRecord]:
 def fetch_carbon_bookings(source_url: str | None = None) -> list[JailBookingRecord]:
     session = requests.Session()
     session.headers.update({
-        "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+        "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
         "Accept": "application/json, text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     })
     criteria_url = _discover_criteria_url(session)

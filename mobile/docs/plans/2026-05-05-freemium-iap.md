@@ -14,7 +14,7 @@
 
 - **Package:** `montanablotter` v1.0.0, Expo SDK 49, React Native 0.72.10
 - **Navigation:** Bottom tabs (Feed, Jail Rosters, Laws, Blog) via `@react-navigation/bottom-tabs`
-- **API:** Reads from `https://montanablotter.com/api/*` — public, no auth
+- **API:** Reads from `https://mtblotter.com/api/*` — public, no auth
 - **State:** No global state management (useState/useEffect per screen)
 - **Storage:** No persistent storage yet
 - **No existing IAP, auth, or user accounts**

@@ -2,7 +2,7 @@
 
 {% set page_title = post.title %}
 {% set meta_description = post.excerpt or "Montana Blotter blog coverage on public safety, records access, and community reporting." %}
-{% set canonical_url = "https://montanablotter.com/blog/" ~ post.slug %}
+{% set canonical_url = "https://mtblotter.com/blog/" ~ post.slug %}
 {% set og_title = post.title ~ " | Montana Blotter" %}
 {% set og_description = meta_description %}
 {% set og_type = "article" %}
@@ -25,7 +25,7 @@
   "publisher": {
     "@type": "Organization",
     "name": "Montana Blotter",
-    "url": "https://montanablotter.com"
+    "url": "https://mtblotter.com"
   },
   "mainEntityOfPage": {{ canonical_url | tojson }}
 }
@@ -39,13 +39,13 @@
       "@type": "ListItem",
       "position": 1,
       "name": "Montana Blotter",
-      "item": "https://montanablotter.com/"
+      "item": "https://mtblotter.com/"
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": "Blog",
-      "item": "https://montanablotter.com/blog"
+      "item": "https://mtblotter.com/blog"
     },
     {
       "@type": "ListItem",
@@ -170,7 +170,7 @@
 
         <hr class="border-slate-200 mt-10 mb-6">
 
-        {% set share_url = 'https://montanablotter.com/blog/' ~ post.slug %}
+        {% set share_url = 'https://mtblotter.com/blog/' ~ post.slug %}
         {% set share_text = post.title ~ ' — Montana Blotter Blog' %}
         <div class="flex flex-wrap items-center gap-3">
             <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Share:</span>

@@ -277,7 +277,7 @@ def _generate_ops_tasks(conn: sqlite3.Connection | None) -> None:
         "",
         "## Required actions",
         "",
-        "1. Probe montanablotter.com — verify HTTP 200, response time <2s.",
+        "1. Probe mtblotter.com — verify HTTP 200, response time <2s.",
         "2. Check all systemd units:",
         "   `systemctl is-active montanablotter nginx fb-page-manager blog-dup-checker`",
         "3. Disk usage: `df -h / /root` — alert if >80%.",
@@ -714,7 +714,7 @@ _GROWTH_WEEKLY_TRACKS: dict[int, tuple[str, str, str]] = {
 Examples: "Cascade County arrests", "Missoula jail roster", "Montana court records [county]",
 "[city] police blotter", "Montana sex offender registry", "missing persons Montana".
 
-For each: check if montanablotter.com appears in top 10 results. Note position and any competing pages.
+For each: check if mtblotter.com appears in top 10 results. Note position and any competing pages.
 
 **Deliverables (all Green/Yellow tier):**
 1. List 5 keywords the site could rank for but currently doesn't — note search volume estimate.
@@ -725,7 +725,7 @@ For each: check if montanablotter.com appears in top 10 results. Note position a
     1: (  # Tuesday
         "social-drafts",
         "Weekly Social Media Drafts",
-        """Write 5 ready-to-post social media updates based on top recent content from montanablotter.com.
+        """Write 5 ready-to-post social media updates based on top recent content from mtblotter.com.
 
 Query `posts` and `blog_posts` tables for content published in the last 3 days.
 Pick posts with the highest public interest (unusual charges, large arrest sweeps, notable names if public figures).
@@ -741,7 +741,7 @@ Save all 5 drafts to `agent-queue/growth/YYYYMMDD-social-drafts.md` as a **Red-t
     2: (  # Wednesday
         "link-building",
         "Weekly Link Building Research",
-        """Identify Montana online communities and outlets that could link to or share montanablotter.com content.
+        """Identify Montana online communities and outlets that could link to or share mtblotter.com content.
 
 Research targets:
 - Montana subreddits: r/Montana, r/missoula, r/billings, r/greatfalls, r/bozeman
@@ -779,7 +779,7 @@ Save as Yellow-tier item.
     4: (  # Friday
         "paid-ads-research",
         "Weekly Paid Advertising Research",
-        """Research paid advertising options for driving qualified Montana traffic to montanablotter.com.
+        """Research paid advertising options for driving qualified Montana traffic to mtblotter.com.
 
 Research (web search, no spend):
 - **Google Ads**: What does a local news/crime blotter campaign look like? What keywords, match types, and landing pages work for local news? Estimate CPC for Montana local intent keywords.
@@ -801,7 +801,7 @@ Save as `agent-queue/growth/YYYYMMDD-paid-ads-brief.md` — Red tier, requires J
     5: (  # Saturday
         "content-gap-analysis",
         "Weekly Content Gap Analysis",
-        """Find high-volume Montana search queries that montanablotter.com doesn't cover well.
+        """Find high-volume Montana search queries that mtblotter.com doesn't cover well.
 
 Search for what Montanans ask Google about crime, arrests, courts, and public records.
 Think: "[county] sheriff", "[city] police news", "Montana parole search", "Montana warrant search",

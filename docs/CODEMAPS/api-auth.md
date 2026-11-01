@@ -69,7 +69,7 @@ Covers API routes, token systems, admin login/MFA brute-force throttling, config
 
 Implemented in `blueprints/admin/security.py`:
 
-- Cookies set for `.montanablotter.com` so Blotter Host and Claw3D Office share authentication.
+- Cookies set for `.mtblotter.com` so Blotter Host and Claw3D Office share authentication.
 - `_sign_jwt()` / `_b64url_encode/decode()` implement HS256 signed JWTs without external libraries.
 - Payload: `{ sub: username, role: role, iat, exp }`, 8 hours.
 - Cookie flags: `HttpOnly`, `SameSite=Strict`, `Secure` in production.

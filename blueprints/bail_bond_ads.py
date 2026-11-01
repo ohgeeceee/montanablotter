@@ -492,7 +492,7 @@ def _bail_ad_contract_context(onboarding_token: str | None = None):
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     safe_token = (onboarding_token or '').strip()[:128]
     contract_url = configured_url
@@ -2363,7 +2363,7 @@ def advertise_bail_checkout_success():
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
         or (getattr(config, 'EMAIL_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     if session_id:
         conn = get_db()

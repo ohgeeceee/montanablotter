@@ -70,7 +70,7 @@ class _AnchorCollector(HTMLParser):
         self._text_parts = []
 
 
-UA = "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)"
+UA = "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)"
 
 
 def _discover_pdf_url(session: requests.Session, base_url: str = BASE_URL) -> str | None:

@@ -3,7 +3,7 @@
 {% set record_title = record.incident_type or record.incident or 'Incident Record' %}
 {% set page_title = record_title %}
 {% set meta_description = "Public incident record for " ~ record.county ~ " County, Montana. View source context, related blotter report, and command log entries on Montana Blotter." %}
-{% set canonical_url = "https://montanablotter.com/record/" ~ record.id %}
+{% set canonical_url = "https://mtblotter.com/record/" ~ record.id %}
 {% set og_title = record_title ~ " | Montana Blotter" %}
 {% set og_description = meta_description %}
 
@@ -27,14 +27,14 @@
       "@type": "ListItem",
       "position": 1,
       "name": "Montana Blotter",
-      "item": "https://montanablotter.com/"
+      "item": "https://mtblotter.com/"
     }
     {% if county_slug %},
     {
       "@type": "ListItem",
       "position": 2,
       "name": {{ (record.county ~ " County") | tojson }},
-      "item": {{ ("https://montanablotter.com/county/" ~ county_slug) | tojson }}
+      "item": {{ ("https://mtblotter.com/county/" ~ county_slug) | tojson }}
     },
     {
       "@type": "ListItem",

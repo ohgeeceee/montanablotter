@@ -53,7 +53,7 @@ class NewsEditorAgentTests(unittest.TestCase):
         )
         conn.execute(
             "INSERT INTO story_candidates (source_type, source_url, headline_hint, facts_json, dedupe_key, status, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("montanablotter", "https://montanablotter.com/example", "Missoula deputies investigate burglary", "{}", "editor-key", "drafted", 10),
+            ("montanablotter", "https://mtblotter.com/example", "Missoula deputies investigate burglary", "{}", "editor-key", "drafted", 10),
         )
         conn.commit()
 
@@ -73,11 +73,11 @@ class NewsEditorAgentTests(unittest.TestCase):
         )
         conn.execute(
             "INSERT INTO story_candidates (source_type, source_url, headline_hint, facts_json, dedupe_key, status, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("montanablotter", "https://montanablotter.com/example", "Gallatin deputies investigate burglary", '{"county":"Gallatin"}', "editor-approve-key", "drafted", 10),
+            ("montanablotter", "https://mtblotter.com/example", "Gallatin deputies investigate burglary", '{"county":"Gallatin"}', "editor-approve-key", "drafted", 10),
         )
         conn.execute(
             "INSERT INTO blog_post_sources (blog_post_id, source_url, source_type, notes) VALUES (?, ?, ?, ?)",
-            (1, "https://montanablotter.com/example", "montanablotter", "source"),
+            (1, "https://mtblotter.com/example", "montanablotter", "source"),
         )
         conn.commit()
 
@@ -104,11 +104,11 @@ class NewsEditorAgentTests(unittest.TestCase):
         )
         conn.execute(
             "INSERT INTO story_candidates (source_type, source_url, headline_hint, facts_json, dedupe_key, status, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("montanablotter", "https://montanablotter.com/new", "New Helena report", "{}", "editor-cap-key", "drafted", 10),
+            ("montanablotter", "https://mtblotter.com/new", "New Helena report", "{}", "editor-cap-key", "drafted", 10),
         )
         conn.execute(
             "INSERT INTO blog_post_sources (blog_post_id, source_url, source_type, notes) VALUES (?, ?, ?, ?)",
-            (6, "https://montanablotter.com/new", "montanablotter", "source"),
+            (6, "https://mtblotter.com/new", "montanablotter", "source"),
         )
         conn.commit()
 
@@ -133,11 +133,11 @@ class NewsEditorAgentTests(unittest.TestCase):
         )
         conn.execute(
             "INSERT INTO story_candidates (source_type, source_url, headline_hint, facts_json, dedupe_key, status, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("montanablotter", "https://montanablotter.com/robbery", "Billings robbery report", "{}", "editor-dup-key", "drafted", 10),
+            ("montanablotter", "https://mtblotter.com/robbery", "Billings robbery report", "{}", "editor-dup-key", "drafted", 10),
         )
         conn.execute(
             "INSERT INTO blog_post_sources (blog_post_id, source_url, source_type, notes) VALUES (?, ?, ?, ?)",
-            (2, "https://montanablotter.com/robbery", "montanablotter", "source"),
+            (2, "https://mtblotter.com/robbery", "montanablotter", "source"),
         )
         conn.commit()
 
@@ -167,7 +167,7 @@ class NewsEditorAgentTests(unittest.TestCase):
             "INSERT INTO story_candidates (source_type, source_url, headline_hint, facts_json, dedupe_key, status, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 "montanablotter",
-                "https://montanablotter.com/posts/777",
+                "https://mtblotter.com/posts/777",
                 "Helena police investigate alleged assault",
                 '{"summary":"Police said a 14-year-old victim reported the assault."}',
                 "editor-sensitive-key",
@@ -177,7 +177,7 @@ class NewsEditorAgentTests(unittest.TestCase):
         )
         conn.execute(
             "INSERT INTO blog_post_sources (blog_post_id, source_url, source_type, notes) VALUES (?, ?, ?, ?)",
-            (1, "https://montanablotter.com/posts/777", "montanablotter", "source"),
+            (1, "https://mtblotter.com/posts/777", "montanablotter", "source"),
         )
         conn.commit()
 
@@ -207,7 +207,7 @@ class NewsEditorAgentTests(unittest.TestCase):
             "INSERT INTO story_candidates (source_type, source_url, headline_hint, facts_json, dedupe_key, status, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 "montanablotter",
-                "https://montanablotter.com/posts/778",
+                "https://mtblotter.com/posts/778",
                 "Yellowstone deputies investigate overnight incidents",
                 '{"summary":"Authorities released an incident summary."}',
                 "editor-history-key",
@@ -217,7 +217,7 @@ class NewsEditorAgentTests(unittest.TestCase):
         )
         conn.execute(
             "INSERT INTO blog_post_sources (blog_post_id, source_url, source_type, notes) VALUES (?, ?, ?, ?)",
-            (1, "https://montanablotter.com/posts/778", "montanablotter", "source"),
+            (1, "https://mtblotter.com/posts/778", "montanablotter", "source"),
         )
         conn.commit()
 

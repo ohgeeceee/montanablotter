@@ -133,7 +133,7 @@ tiktok('event', 'SUBMIT_CONTENT', {
 
 ## Step 3: UTM Parameters (For All Links)
 
-https://montanablotter.com/page?utm_source=tiktok&utm_medium=social&utm_campaign=truecrime&utm_content=videotitle&utm_term=targeting
+https://mtblotter.com/page?utm_source=tiktok&utm_medium=social&utm_campaign=truecrime&utm_content=videotitle&utm_term=targeting
 
 # =====================================================================================
 # 4. HASHTAG STRATEGY & RESEARCH
@@ -199,7 +199,7 @@ Thanks for joining our True Crime Montana community! You're now getting:
 
 Your first digest arrives at 7am MT tomorrow.
 
-🔗 montanablotter.com/digest
+🔗 mtblotter.com/digest
 
 Stay safe,
 The Montana Blotter Team
@@ -214,7 +214,7 @@ Here's what our data showed this week:
 • Most common charge types
 • Notable cases you should know
 
-Want more detail? montanablotter.com/weekly-digest
+Want more detail? mtblotter.com/weekly-digest
 
 🔗 [Read full reports]
 
@@ -232,7 +232,7 @@ We've compiled the most important safety information from our data into this fre
 • Understanding your rights in Montana
 • Warning signs to watch for
 
-Download here: montanablotter.com/guide
+Download here: mtblotter.com/guide
 
 🔗 [Get Your Free Guide]
 

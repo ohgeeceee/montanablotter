@@ -328,7 +328,7 @@ def recovery_center_click(order_id):
 def advertise_recovery():
     support_email = (
         (getattr(config, 'SMTP_USER', '') or '').strip()
-        or 'support@montanablotter.com'
+        or 'support@mtblotter.com'
     )
     return render_template(
         'advertise_recovery.html',

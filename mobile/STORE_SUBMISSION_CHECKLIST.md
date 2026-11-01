@@ -17,16 +17,16 @@ Use this before public release to the Apple App Store and Google Play.
 - `npm run ci:verify`
 - `npm run build:preview:all`
 - Test the preview builds on at least one real iPhone and one real Android device
-- Verify the app loads production data from `https://montanablotter.com`
+- Verify the app loads production data from `https://mtblotter.com`
 - Verify a release build includes `EXPO_PUBLIC_SENTRY_DSN`
 - Verify deep links and app launch do not regress after signing
 
 ## Store metadata
 
 - App name: `Montana Blotter`
-- Privacy policy URL: `https://montanablotter.com/privacy`
-- Support email: `support@montanablotter.com`
-- Support URL: `https://montanablotter.com/contact` if a public contact page exists, otherwise use the support email in store metadata
+- Privacy policy URL: `https://mtblotter.com/privacy`
+- Support email: `support@mtblotter.com`
+- Support URL: `https://mtblotter.com/contact` if a public contact page exists, otherwise use the support email in store metadata
 - Marketing description, keywords, and category prepared
 - Age rating and content declarations completed
 - Review notes prepared for any moderation-sensitive content

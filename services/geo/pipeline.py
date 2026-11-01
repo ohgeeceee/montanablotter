@@ -120,7 +120,7 @@ def _nominatim_geocode(street: str, city: str = "", state: str = "Montana") -> O
     """
     url = "https://nominatim.openstreetmap.org/search"
     params: dict = {"format": "json", "limit": 1, "countrycodes": "us"}
-    headers = {"User-Agent": "MontanaBlotter/1.0 (support@montanablotter.com)"}
+    headers = {"User-Agent": "MontanaBlotter/1.0 (support@mtblotter.com)"}
 
     if city:
         params.update({"street": street, "city": city, "state": state})

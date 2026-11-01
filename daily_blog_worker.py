@@ -828,7 +828,7 @@ def run_daily_blog(date_override: Optional[str] = None, dry_run: bool = False, f
 
         if status == "created":
             try:
-                base_url = (getattr(config, "BASE_URL", "") or "https://montanablotter.com").rstrip("/")
+                base_url = (getattr(config, "BASE_URL", "") or "https://mtblotter.com").rstrip("/")
                 push_result = push_broadcast(
                     conn=conn,
                     title=title[:80],

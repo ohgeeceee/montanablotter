@@ -3,8 +3,8 @@
 
 {% set page_title = city.seo_title or (city.name ~ " Police Blotter, Arrests, and Warrant Links") %}
 {% set meta_description = city.meta_description or ("Free " ~ city.name ~ ", Montana police blotter and daily activity reports from the " ~ city.pd_name ~ ". Public safety records, no account required.") %}
-{% set canonical_url = canonical_url or ("https://montanablotter.com/city/" ~ city.slug) %}
-{% set og_image = og_image or "https://montanablotter.com/static/icons/og-default.png" %}
+{% set canonical_url = canonical_url or ("https://mtblotter.com/city/" ~ city.slug) %}
+{% set og_image = og_image or "https://mtblotter.com/static/icons/og-default.png" %}
 {% set og_title = city.og_title or page_title ~ " | Montana Blotter" %}
 {% set og_description = city.og_description or meta_description %}
 {% set active_nav = "cities" %}
@@ -17,11 +17,11 @@
   "@type": "WebPage",
   "name": "{{ city.name }} Police Blotter & Daily Activity Reports",
   "description": "Free {{ city.name }}, Montana police blotter from the {{ city.pd_name }}. Public safety records updated daily.",
-  "url": "https://montanablotter.com/city/{{ city.slug }}",
+  "url": "https://mtblotter.com/city/{{ city.slug }}",
   "publisher": {
     "@type": "Organization",
     "name": "Montana Blotter",
-    "url": "https://montanablotter.com"
+    "url": "https://mtblotter.com"
   }
 }
 </script>
@@ -34,19 +34,19 @@
       "@type": "ListItem",
       "position": 1,
       "name": "Montana Blotter",
-      "item": "https://montanablotter.com/"
+      "item": "https://mtblotter.com/"
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": "{{ city.county }} County",
-      "item": "https://montanablotter.com/county/{{ city.county_slug }}"
+      "item": "https://mtblotter.com/county/{{ city.county_slug }}"
     },
     {
       "@type": "ListItem",
       "position": 3,
       "name": "{{ city.name }}",
-      "item": "https://montanablotter.com/city/{{ city.slug }}"
+      "item": "https://mtblotter.com/city/{{ city.slug }}"
     }
   ]
 }
@@ -94,7 +94,7 @@
     {
       "@type": "ListItem",
       "position": {{ loop.index }},
-      "url": "https://montanablotter.com/post/{{ post['id'] }}",
+      "url": "https://mtblotter.com/post/{{ post['id'] }}",
       "name": {{ (post['title'] or 'Daily Activity Report') | tojson }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}

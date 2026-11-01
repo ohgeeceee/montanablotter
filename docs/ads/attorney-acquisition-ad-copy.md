@@ -16,7 +16,7 @@ list automatically — and indexes jail bookings, court records, and daily blott
 all 56 counties. A Pro subscription ($19.99/mo) adds the full searchable archive, name
 and keyword watchlists, statewide alerts, and CSV/PDF exports. Add your name to a
 watchlist and we'll flag any new discipline entry the moment it publishes.
-URL: montanablotter.com/pro/attorneys
+URL: mtblotter.com/pro/attorneys
 
 Headline:
 Monitor your name on Montana's discipline list.
@@ -41,7 +41,7 @@ across the top Montana counties — and our warrant detail and county arrest pag
 showcase local defense attorneys. Silver Featured ($99/mo) pins your firm above the free
 listings in your county. Gold Priority ($199/mo) puts you at the top with a photo, logo,
 and custom callout.
-URL: montanablotter.com/advertise/attorney-sponsorship
+URL: mtblotter.com/advertise/attorney-sponsorship
 
 Headline:
 Be the first call after an arrest in your county.
@@ -64,7 +64,7 @@ counties. List your firm, verify your Montana State Bar admission, and show up w
 people search for a lawyer after an arrest. Free listings are genuinely free. If you
 want a visual edge, Silver ($99/mo) and Gold ($199/mo) sponsorship tiers put your firm
 above the free listings in your county.
-URL: montanablotter.com/attorneys
+URL: mtblotter.com/attorneys
 
 Headline:
 Free Montana defense attorney directory — join the list.

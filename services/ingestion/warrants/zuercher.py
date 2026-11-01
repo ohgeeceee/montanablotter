@@ -152,7 +152,7 @@ def fetch_zuercher_jail_warrant_holds(
     inmates_url = f"{api_base}/#/inmates"
     session.headers.setdefault(
         "User-Agent",
-        "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+        "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
     )
     session.headers.setdefault("Accept", "application/json,text/plain,*/*")
     session.headers["Referer"] = inmates_url
@@ -230,7 +230,7 @@ def fetch_zuercher_warrants(
     referer = source_url if "#/" in source_url else f"{api_base}/#/warrants"
     session.headers.setdefault(
         "User-Agent",
-        "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)",
+        "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
     )
     session.headers.setdefault("Accept", "application/json,text/plain,*/*")
     session.headers["Referer"] = referer

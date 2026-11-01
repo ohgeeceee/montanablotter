@@ -4,11 +4,11 @@ Subject: Request for daily current police-blotter feed
 
 Hello,
 
-Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://montanablotter.com.
+Montana Blotter is a free, open-source Montana public-records service. We collect new daily police-blotter entries from every Montana county and present them in a single, searchable feed at https://mtblotter.com.
 
 We could not locate a daily, machine-readable current police-blotter feed for [COUNTY] Sheriff's Office. Would your agency share a copy of the daily blotter with us through one of these channels?
 
-1. A daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text format.
+1. A daily email delivery to records@mtblotter.com in PDF, DOCX, CSV, or plain-text format.
 2. A nightly FTP, SFTP, or HTTPS upload to a URL you provide.
 3. A direct public link to a daily updated PDF or HTML page on the agency site.
 4. A daily authenticated read of the agency's public records system.
@@ -21,5 +21,5 @@ Please also tell us the best contact for delivery issues and how you would prefe
 
 Thank you,
 Montana Blotter
-https://montanablotter.com
-records@montanablotter.com
+https://mtblotter.com
+records@mtblotter.com

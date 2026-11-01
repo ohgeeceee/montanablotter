@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 email_blotter_ingest.py — Poll Gmail/IMAP for police blotter image attachments,
-convert images to PDF, dedupe against existing blotters, and ingest into montanablotter.com.
+convert images to PDF, dedupe against existing blotters, and ingest into mtblotter.com.
 
 Designed to run as a cron job on the montanablotter VPS.
 """

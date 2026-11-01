@@ -113,12 +113,12 @@ def crm_outreach_draft(lead_id):
         body = (
             f"To: {to}\nSubject: {subject}\n\n"
             f"Hi {p['contact_name'] or 'there'},\n\n"
-            f"I run Montana Blotter (montanablotter.com), Montana's open public-records"
+            f"I run Montana Blotter (mtblotter.com), Montana's open public-records"
             f" site covering all 56 counties. {first_line}\n\n"
             + (f"We already have your {p['target_vertical']} listing on file"
                f" ({p['counties']})." if p['counties'] else '')
             + "\n\nSponsorship tiers start at a county banner. Worth a 10-minute call this week?\n\n"
-            "— Jon, Montana Blotter\nrevenue@montanablotter.com\n")
+            "— Jon, Montana Blotter\nrevenue@mtblotter.com\n")
         draft_body = '=== DRAFT (not sent) ===\n' + body
         eid = crm_service.log_email(
             conn, lead_id, 'outbound', subject=subject, body=draft_body,

@@ -132,7 +132,7 @@ class EmailWorker:
     def _load_accounts() -> list[_ImapAccount]:
         """Build the list of IMAP accounts to poll, in priority order.
 
-        IONOS (records@montanablotter.com) is always first when configured.
+        IONOS (records@mtblotter.com) is always first when configured.
         Gmail (montanablotter@gmail.com) is appended when its envs are set.
         """
         accounts: list[_ImapAccount] = []

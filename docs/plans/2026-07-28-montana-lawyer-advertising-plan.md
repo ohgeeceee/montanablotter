@@ -76,7 +76,7 @@ Day 7: send a one-page sample report showing the exact metrics the firm will rec
 
 Day 14: close the loop with a clear yes/no question and waitlist deadline. Stop after that unless they engage.
 
-Use `advertising@montanablotter.com` as the public sales and support address. Keep internal sales notes out of prospect-facing pages.
+Use `advertising@mtblotter.com` as the public sales and support address. Keep internal sales notes out of prospect-facing pages.
 
 ### Core pitch
 

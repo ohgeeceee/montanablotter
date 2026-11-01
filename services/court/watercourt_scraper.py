@@ -102,7 +102,7 @@ def _absolute_url(href: str, base: str | None = None) -> str:
 
 def _fetch_html(url: str, timeout: int = 30) -> str:
     req = Request(url, headers={
-        'User-Agent': 'Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://montanablotter.com)',
+        'User-Agent': 'Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)',
         'Accept': 'text/html,application/xhtml+xml',
     })
     with urlopen(req, timeout=timeout) as resp:

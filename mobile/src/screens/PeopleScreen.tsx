@@ -117,7 +117,7 @@ export default function PeopleScreen() {
       <View style={styles.footer}>
         <Text style={styles.caseNumber}>{item.case_number ? `Case #${item.case_number}` : ''}</Text>
         {item.public_href ? (
-          <TouchableOpacity onPress={() => openUrl(`https://montanablotter.com${item.public_href}`)}>
+          <TouchableOpacity onPress={() => openUrl(`https://mtblotter.com${item.public_href}`)}>
             <Text style={styles.sourceLink}>Details →</Text>
           </TouchableOpacity>
         ) : null}

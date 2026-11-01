@@ -225,7 +225,7 @@ def build_proposal(prospect, county, package_id, billing_cycle, packages):
                   'Price, placement, and campaign dates: to be agreed in writing.',
                   'No new package price or guaranteed availability is implied.', '']
     lines += ['Current county media kit:',
-              f'https://montanablotter.com/advertise/media-kit/{county_slug(county)}', '',
+              f'https://mtblotter.com/advertise/media-kit/{county_slug(county)}', '',
               'Before booking, agree on:',
               '- Campaign dates and exact placement',
               '- Approved creative and clearly labeled advertising',

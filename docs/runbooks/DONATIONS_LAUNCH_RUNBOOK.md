@@ -24,7 +24,7 @@ Keep `MB_DONATIONS_ENABLED=false` until webhook verification passes.
 ## 3) Stripe webhook endpoint
 In Stripe Dashboard:
 
-1. Add endpoint: `https://montanablotter.com/webhooks/stripe`
+1. Add endpoint: `https://mtblotter.com/webhooks/stripe`
 2. Subscribe at minimum:
 - `checkout.session.completed`
 - `checkout.session.async_payment_succeeded`

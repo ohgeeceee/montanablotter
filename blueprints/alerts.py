@@ -30,7 +30,7 @@ def _send_verify_email(email: str, county: str, verify_url: str) -> None:
         msg['From'] = config.SMTP_USER
         msg['To'] = email
         msg['Subject'] = f'Verify your {county} County alerts — Montana Blotter'
-        msg['Reply-To'] = 'records@montanablotter.com'
+        msg['Reply-To'] = 'records@mtblotter.com'
 
         plain = (
             f"Verify your Montana Blotter alert subscription for {county} County.\n\n"
@@ -43,7 +43,7 @@ def _send_verify_email(email: str, county: str, verify_url: str) -> None:
             <p style="color:#475569;">You signed up for county alerts for <strong>{escape(county)}</strong> County.</p>
             <a href="{verify_url}" style="display:inline-block;margin:1rem 0;padding:.75rem 1.5rem;background:#1e293b;color:#fff;border-radius:12px;text-decoration:none;font-weight:700;">Verify my email</a>
             <p style="color:#94a3b8;font-size:.8rem;">If you didn't request this, just ignore this email.</p>
-            <p style="color:#94a3b8;font-size:.75rem;margin-top:2rem;">Montana Blotter · montanablotter.com</p>
+            <p style="color:#94a3b8;font-size:.75rem;margin-top:2rem;">Montana Blotter · mtblotter.com</p>
         </div>
         """
         msg.attach(MIMEText(plain, 'plain'))

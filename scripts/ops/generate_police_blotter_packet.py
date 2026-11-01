@@ -14,16 +14,16 @@ ROOT = Path(__file__).resolve().parents[2]
 CSV = ROOT / "docs" / "police_blotter_contact_form_followup.csv"
 OUT = ROOT / "docs" / "poloebloter_printable_packet.txt"
 RETURN_TO = "Montana Blotter, PO Box 1174, Helena, MT 59624"
-EMAIL = "records@montanablotter.com"
+EMAIL = "records@mtblotter.com"
 
 
 def paragraph() -> str:
     return (
         "Montana Blotter is a free, open-source Montana public-records service. We collect new daily "
         "police-blotter entries from every Montana county and present them in a single, searchable feed at "
-        "https://montanablotter.com. We could not locate a daily, machine-readable current police-blotter "
+        "https://mtblotter.com. We could not locate a daily, machine-readable current police-blotter "
         "feed for your office. Would your agency share a copy of the daily blotter through one of these "
-        "channels: (1) a daily email delivery to records@montanablotter.com in PDF, DOCX, CSV, or plain-text; "
+        "channels: (1) a daily email delivery to records@mtblotter.com in PDF, DOCX, CSV, or plain-text; "
         "(2) a nightly FTP or HTTPS upload to a URL you provide; (3) a daily updated PDF or HTML page on the "
         "agency site. For a daily blotter we extract incident number, date and time, location, agency, "
         "incident type, and disposition when available. We publish the official source and update time with the "

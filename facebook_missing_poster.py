@@ -22,7 +22,7 @@ from facebook_publisher import queue_post, run_facebook_queue
 LOGGER = logging.getLogger(__name__)
 
 DB_PATH = config.DB_PATH
-BASE_URL = getattr(config, "BASE_URL", "https://montanablotter.com").rstrip("/")
+BASE_URL = getattr(config, "BASE_URL", "https://mtblotter.com").rstrip("/")
 
 MISSING_HASHTAGS = "#MissingPerson #Montana #MontanaBlotter #PublicSafety"
 LOCATED_HASHTAGS = "#MontanaBlotter #Montana #MissingPerson #GoodNews"

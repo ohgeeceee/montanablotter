@@ -63,7 +63,7 @@ class AgencyNormalizationTests(unittest.TestCase):
         self.assertEqual(title, "Daily Police Activity Report - Billings Police Department")
 
     def test_does_not_duplicate_agency_name_in_title(self) -> None:
-        # Regression for montanablotter.com/post/765 -- a looping re.sub in
+        # Regression for mtblotter.com/post/765 -- a looping re.sub in
         # normalize_post_title was stacking "Department" ~150x onto titles
         # whose raw agency name was already the canonical form.
         title = normalize_post_title(

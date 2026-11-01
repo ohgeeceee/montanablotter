@@ -2,7 +2,7 @@
 
 {% set page_title = city.name ~ " Blotter" %}
 {% set meta_description = city.name ~ ", MT police blotter updated daily. Incidents, calls for service, and activity reports from the " ~ city.pd_name ~ ". Free public records." %}
-{% set canonical_url = "https://montanablotter.com/blotter/" ~ city.slug %}
+{% set canonical_url = "https://mtblotter.com/blotter/" ~ city.slug %}
 {% set og_title = city.name ~ " Blotter | Montana Blotter" %}
 {% set og_description = meta_description %}
 
@@ -13,8 +13,8 @@
   "@type": "WebPage",
   "name": "{{ city.name }} Police Blotter — Daily Incident Log",
   "description": "Daily incident log and police blotter for {{ city.name }}, Montana from the {{ city.pd_name }}.",
-  "url": "https://montanablotter.com/blotter/{{ city.slug }}",
-  "publisher": { "@type": "Organization", "name": "Montana Blotter", "url": "https://montanablotter.com" }
+  "url": "https://mtblotter.com/blotter/{{ city.slug }}",
+  "publisher": { "@type": "Organization", "name": "Montana Blotter", "url": "https://mtblotter.com" }
 }
 </script>
 <style>

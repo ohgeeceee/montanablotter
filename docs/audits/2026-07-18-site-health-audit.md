@@ -80,7 +80,7 @@ Incl. real drift: `test_watchdog_drift` — 4 cron jobs (`charge_explainer`, `mi
 ## LOW
 
 - L1: `/favicon.ico` 404; no `<link rel="icon">` anywhere.
-- L2: `https://www.montanablotter.com` serves 200 duplicate content (should 301 → apex).
+- L2: `https://www.mtblotter.com` serves 200 duplicate content (should 301 → apex).
 - L3: Static assets `Cache-Control: no-cache` — every view revalidates every asset (ETag present). Add `max-age`+`immutable` for fingerprinted files.
 - L4: County titles >70 chars (5 sampled); meta descriptions >160 chars (5 + homepage + blog post).
 - L5: Internal link via 301 (`/post/386` → slugged URL) — emit final slug in templates.

@@ -53,7 +53,7 @@ def _build_havre_roster_email() -> EmailMessage:
     msg = EmailMessage()
     msg["Subject"] = "JAILROSTER 6-23-26"
     msg["From"] = "reichl <reichl@hillso.org>"
-    msg["To"] = "records@montanablotter.com"
+    msg["To"] = "records@mtblotter.com"
     msg["Message-ID"] = "<lock-test-msg@hillso.org>"
     msg["Date"] = "Tue, 23 Jun 2026 12:00:00 +0000"
     msg.set_content("Jail roster attached.")
@@ -111,7 +111,7 @@ class ImageBlotterLockDeferralTests(unittest.TestCase):
         self.worker.accounts = [
             _ImapAccount(
                 label="gmail",
-                user="records@montanablotter.com",
+                user="records@mtblotter.com",
                 password="secret",
                 server="imap.example.test",
                 port=993,

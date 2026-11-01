@@ -179,7 +179,7 @@ class AdminMissionControlTests(unittest.TestCase):
         self.assertIn("Command Center Runbook", html)
         self.assertIn("Primary Flask App", html)
         self.assertIn("systemctl status montanablotter.service", html)
-        self.assertIn("curl -sSI https://montanablotter.com/admin/operations/runbook", html)
+        self.assertIn("curl -sSI https://mtblotter.com/admin/operations/runbook", html)
         self.assertIn("Agent Events Sidecar", html)
         self.assertNotIn("Agent Events Service Deployment", html)
         self.assertNotIn("ops/systemd/flask-app.service", html)

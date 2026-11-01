@@ -1,6 +1,6 @@
 # Supporter Tier — $1/month
 
-## Status: LIVE on https://montanablotter.com
+## Status: LIVE on https://mtblotter.com
 
 ## What was built
 
@@ -16,7 +16,7 @@
 ## Stripe dashboard — what you need to do
 
 1. Go to https://dashboard.stripe.com/webhooks
-2. Find the existing webhook endpoint pointed at `https://montanablotter.com/webhooks/stripe` (it already exists for the warrant-access tier and donations)
+2. Find the existing webhook endpoint pointed at `https://mtblotter.com/webhooks/stripe` (it already exists for the warrant-access tier and donations)
 3. **Add events to listen for** (if not already present):
    - `checkout.session.completed`
    - `checkout.session.async_payment_succeeded`
@@ -24,7 +24,7 @@
    - `customer.subscription.deleted`
 4. Copy the signing secret into `MB_STRIPE_WEBHOOK_SECRET` in `/root/montanablotter/.env` (already set, verify it matches)
 5. Test the flow:
-   - Visit https://montanablotter.com/subscribe
+   - Visit https://mtblotter.com/subscribe
    - Click "Upgrade to Supporter"
    - Use Stripe test card `4242 4242 4242 4242` if the dashboard is in test mode, or a real card in live mode
    - After checkout, check `subscribers` table: `SELECT email, subscriber_plan, subscription_status FROM subscribers WHERE subscriber_plan = 'supporter';`
