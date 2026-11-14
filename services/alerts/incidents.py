@@ -175,6 +175,8 @@ def build_incident_object(payload: dict[str, Any]) -> dict[str, Any]:
     return incident
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_incident_notification_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         '''

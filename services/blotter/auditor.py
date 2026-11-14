@@ -451,6 +451,8 @@ def _call_claude_audit(
 # Database helpers
 # ---------------------------------------------------------------------------
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_audit_columns(conn: sqlite3.Connection) -> None:
     """Add audit-related columns to the posts table if they don't exist."""
     new_cols = [

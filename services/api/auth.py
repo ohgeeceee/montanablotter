@@ -98,6 +98,8 @@ def _get_db() -> sqlite3.Connection:
     return _app_get_db()
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_api_auth_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
 

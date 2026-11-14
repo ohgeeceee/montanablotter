@@ -35,6 +35,8 @@ WATCH_TYPES = ('jail_booking', 'court_filing', 'license_sanction', 'code_violati
 # Schema
 # ---------------------------------------------------------------------------
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_data_watch_schema(conn: sqlite3.Connection) -> None:
     conn.executescript('''
         CREATE TABLE IF NOT EXISTS jail_booking_watches (

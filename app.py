@@ -81,7 +81,7 @@ from services.court.tracker import (
     ensure_court_tracker_schema,
 )
 from services.disposition.lookup import lookup_disposition
-from db import connect_db, connect_page_views, get_db
+from db import connect_db, connect_page_views, get_db, is_lock_error, write_with_retry
 from init_db import ensure_lawyer_ad_schema, ensure_treatment_center_schema
 from services.alerts.engine import get_recent_alerts_for_user
 from core.dedupe import incident_key_set
@@ -1238,6 +1238,14 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/county/',  # county blotter listing
     '/funniest',  # public humor feed, read-only + PII-scrubbed
     '/funniest.json',
+    # Public signup flows — must never sit behind the sign-in wall. These are
+    # the top-of-funnel CTAs (18 links point at /subscribe) and blocking them
+    # made every anonymous visitor bounce to /login before they could sign up.
+    '/subscribe',
+    '/newsletter',
+    '/alerts/subscribe',
+    '/alerts/verify/',
+    '/alerts/unsubscribe/',
 )
 _SIGNIN_WALL_EXEMPT_EXACT = {
     '/',
@@ -5866,7 +5874,46 @@ def _table_columns(conn, table_name):
         return set()
 
 
+_SUBSCRIBER_SCHEMA_READY = False
+_SUBSCRIBER_SCHEMA_LOCK = threading.Lock()
+
+
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_subscriber_schema(conn):
+    """Bootstrap the subscriber tables.
+
+    The DDL below takes a SQLite write lock, so calling it on every request
+    made /subscribe and /newsletter throw "database is locked" (HTTP 500)
+    whenever a cron writer held the DB -- anonymous visitors could not sign up.
+    Bootstrap once per process instead.
+    """
+    global _SUBSCRIBER_SCHEMA_READY
+    if _SUBSCRIBER_SCHEMA_READY:
+        return
+    with _SUBSCRIBER_SCHEMA_LOCK:
+        if _SUBSCRIBER_SCHEMA_READY:
+            return
+        # Cheap read-only check first: in steady state both tables already
+        # exist, so the request path never has to take a write lock at all.
+        try:
+            present = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name IN ('subscribers', 'subscribe_events')"
+                ).fetchall()
+            }
+        except sqlite3.Error:
+            present = set()
+        if {'subscribers', 'subscribe_events'} <= present:
+            _SUBSCRIBER_SCHEMA_READY = True
+            return
+        _bootstrap_subscriber_schema(conn)
+        _SUBSCRIBER_SCHEMA_READY = True
+
+
+def _bootstrap_subscriber_schema(conn):
     conn.execute(
         '''
         CREATE TABLE IF NOT EXISTS subscribers (
@@ -9506,28 +9553,49 @@ def subscribe():
         token = secrets.token_urlsafe(32)
         counties_str = ','.join(selected)
 
+        # Close any read snapshot left over from the county list before writing,
+        # then retry transient lock contention from cron writers.
         try:
-            conn.execute(
-                'INSERT INTO subscribers (email, counties, token, source, updated_at) VALUES (?, ?, ?, ?, datetime(\'now\'))',
-                (email, counties_str, token, source))
             conn.commit()
+        except sqlite3.Error:
+            pass
+
+        try:
+            write_with_retry(
+                conn,
+                'INSERT INTO subscribers (email, counties, token, source, updated_at) '
+                "VALUES (?, ?, ?, ?, datetime('now'))",
+                (email, counties_str, token, source),
+                operation='subscribe_insert',
+            )
             _record_subscribe_event('subscribe_success', source=source, page_path=request.path, email=email)
             conn.close()
             return render_template('subscribe.html', counties=all_counties,
                                    source=source,
                                    success=True, email=email,
                                    current_year=datetime.now().year)
-        except Exception:
-            # Email already subscribed — update preferences
-            conn.execute(
-                'UPDATE subscribers SET counties=?, active=1, source=?, updated_at=datetime(\'now\') WHERE email=?',
-                (counties_str, source, email))
-            conn.commit()
+        except sqlite3.IntegrityError:
+            # Email already subscribed — update preferences instead of inserting.
+            write_with_retry(
+                conn,
+                "UPDATE subscribers SET counties=?, active=1, source=?, "
+                "updated_at=datetime('now') WHERE email=?",
+                (counties_str, source, email),
+                operation='subscribe_update',
+            )
             _record_subscribe_event('subscribe_update', source=source, page_path=request.path, email=email)
             conn.close()
             return render_template('subscribe.html', counties=all_counties,
                                    source=source,
                                    success=True, email=email, updated=True,
+                                   current_year=datetime.now().year)
+        except sqlite3.OperationalError as exc:
+            if not is_lock_error(exc):
+                raise
+            conn.close()
+            return render_template('subscribe.html', counties=all_counties,
+                                   source=source,
+                                   error='The site is busy right now — please try again in a moment.',
                                    current_year=datetime.now().year)
 
     subscriber_count = 0

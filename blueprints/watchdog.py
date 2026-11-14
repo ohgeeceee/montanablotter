@@ -66,6 +66,8 @@ def _checkout_redirect_url(checkout_session) -> str:
         return (checkout_session.get("url") or "").strip()
     return (getattr(checkout_session, "url", "") or "").strip()
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_watchdog_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """

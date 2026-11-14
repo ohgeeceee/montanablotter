@@ -23,6 +23,8 @@ _MT_LAT_MIN, _MT_LAT_MAX = 44.0, 49.1
 _MT_LON_MIN, _MT_LON_MAX = -116.2, -103.9
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_cache_table(conn: sqlite3.Connection) -> None:
     conn.execute('''
         CREATE TABLE IF NOT EXISTS zip_geocode_cache (

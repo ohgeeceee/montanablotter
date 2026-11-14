@@ -654,6 +654,8 @@ def _parse_timestamp(value: str | None) -> datetime | None:
     return None
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_public_meeting_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         '''

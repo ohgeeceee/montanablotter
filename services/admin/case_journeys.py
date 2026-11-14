@@ -46,6 +46,8 @@ def _confidence(record: sqlite3.Row) -> tuple[str, int]:
     return "probable", 68
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_case_journey_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         '''

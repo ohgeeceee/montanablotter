@@ -39,6 +39,8 @@ def _case_slug(case_number: str, caption: str, court_slug: str) -> str:
     return f"case-{hashlib.sha1(raw.encode('utf-8')).hexdigest()[:16]}"
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_court_tracker_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         '''

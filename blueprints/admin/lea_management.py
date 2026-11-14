@@ -30,6 +30,8 @@ log = logging.getLogger(__name__)
 # ── helpers ────────────────────────────────────────────────────────────────
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_schema(conn) -> None:
     """Ensure LEA tables exist for the admin panel queries."""
     from init_db import ensure_lea_schema

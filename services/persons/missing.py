@@ -172,6 +172,8 @@ def _parse_aliases(raw_aliases: Any) -> list[str]:
     return aliases
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_missing_person_columns(conn: sqlite3.Connection) -> None:
     existing_columns = {
         row[1]
@@ -244,6 +246,7 @@ def _absolute_official_url(path: Any) -> str:
     return urljoin(OFFICIAL_SOURCE_BASE_URL, raw)
 
 
+@schema_bootstrap_once
 def _ensure_subscriber_columns(conn: sqlite3.Connection) -> None:
     existing_columns = {
         row[1]
@@ -263,6 +266,7 @@ def _ensure_subscriber_columns(conn: sqlite3.Connection) -> None:
             existing_columns.add(column_name)
 
 
+@schema_bootstrap_once
 def _ensure_missing_person_delivery_schema(conn: sqlite3.Connection) -> None:
     delivery_columns = {
         row[1]
@@ -326,6 +330,7 @@ def _ensure_missing_person_delivery_schema(conn: sqlite3.Connection) -> None:
     )
 
 
+@schema_bootstrap_once
 def ensure_missing_person_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         '''

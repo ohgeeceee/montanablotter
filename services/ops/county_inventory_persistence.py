@@ -32,6 +32,8 @@ def _safe_add_column(cursor: sqlite3.Cursor, table: str, col: str, definition: s
         raise
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_county_inventory_schema(conn: sqlite3.Connection) -> None:
     """Create the county_inventory table and supporting indexes if missing."""
     cursor = conn.cursor()

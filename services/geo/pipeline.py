@@ -239,6 +239,8 @@ def geocode_location(raw_location: str, county: Optional[str] = None, city: Opti
 # Pipeline: backfill un-geocoded records
 # ---------------------------------------------------------------------------
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_geocode_failures_table(conn: sqlite3.Connection) -> None:
     conn.execute("""
         CREATE TABLE IF NOT EXISTS geocode_failures (
