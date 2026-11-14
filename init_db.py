@@ -3869,6 +3869,30 @@ def ensure_license_sanction_schema(conn: sqlite3.Connection) -> None:
             UNIQUE(pdf_version, attorney_name, cause_no)
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS public_salaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            slug TEXT NOT NULL UNIQUE,
+            agency TEXT NOT NULL,
+            position TEXT,
+            salary REAL,
+            county TEXT,
+            year TEXT,
+            context TEXT,
+            fiscal_year TEXT,
+            fingerprint TEXT,
+            raw_json TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_salaries_county ON public_salaries(county)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_salaries_agency ON public_salaries(agency)'
+    )
 
     for col, definition in [
         ('board_key', 'TEXT'),

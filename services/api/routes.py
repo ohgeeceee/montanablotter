@@ -110,7 +110,7 @@ def register_api_routes(app):
         total = cur.fetchone()['total']
 
         # Get records
-        sql = f"SELECT id, date, time, location, county, incident_type, incident, status, summary, details, officer, charge_category FROM records {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?"
+        sql = f"SELECT id, date, time, location, county, incident_type, incident, details, officer, charge_category FROM records {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?"
         cur.execute(sql, params + [per_page, offset])
         records = [dict(r) for r in cur.fetchall()]
 
@@ -130,7 +130,7 @@ def register_api_routes(app):
         cur = conn.cursor()
 
         # Get the 50 most recent records
-        cur.execute("SELECT id, date, time, location, county, incident_type, incident, status, summary, details, officer, charge_category FROM records ORDER BY id DESC LIMIT 50")
+        cur.execute("SELECT id, date, time, location, county, incident_type, incident, details, officer, charge_category FROM records ORDER BY id DESC LIMIT 50")
         records = [dict(r) for r in cur.fetchall()]
         conn.close()
 
