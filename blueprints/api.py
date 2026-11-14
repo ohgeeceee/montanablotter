@@ -1297,12 +1297,12 @@ def api_records():
 
     status = (request.args.get('status') or '').strip()
     if status:
-        where.append("status = ?")
-        params.append(status)
+        # records has no `status` column; ignore the filter rather than 500.
+        pass
 
     search = (request.args.get('q') or '').strip()
     if search:
-        where.append("(location LIKE ? OR incident LIKE ? OR summary LIKE ?)")
+        where.append("(location LIKE ? OR incident LIKE ? OR details LIKE ?)")
         params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
 
     where_sql = ' AND '.join(where)
@@ -1313,7 +1313,7 @@ def api_records():
 
     # Records
     cur.execute(
-        f"SELECT id, date, time, location, county, incident_type, incident, status, summary, details, officer, charge_category, created_at FROM records WHERE {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
+        f"SELECT id, date, time, location, county, incident_type, incident, details, officer, charge_category, created_at FROM records WHERE {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
         params + [per_page, offset]
     )
     records = [dict(r) for r in cur.fetchall()]
@@ -1336,7 +1336,7 @@ def api_records_recent():
 
     # Get 50 most recent records
     cur.execute(
-        "SELECT id, date, time, location, county, incident_type, incident, status, summary, details, officer, charge_category, created_at FROM records ORDER BY id DESC LIMIT 50"
+        "SELECT id, date, time, location, county, incident_type, incident, details, officer, charge_category, created_at FROM records ORDER BY id DESC LIMIT 50"
     )
     records = [dict(r) for r in cur.fetchall()]
     conn.close()

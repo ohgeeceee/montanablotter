@@ -19,8 +19,9 @@ from redis.exceptions import RedisError
 from core.news_source_registry import is_allowed_source_url
 
 DB_PATH = config.DB_PATH
-LOG_PATH = "/root/montanablotter/logs/news_planner.log"
-EXTERNAL_SOURCE_PATH = "/root/montanablotter/configs/newsroom_sources.json"
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LOG_PATH = os.path.join(_APP_ROOT, "logs", "news_planner.log")
+EXTERNAL_SOURCE_PATH = os.path.join(_APP_ROOT, "configs", "newsroom_sources.json")
 
 logging.basicConfig(
     filename=LOG_PATH,
@@ -322,8 +323,17 @@ def _fetch_html_packets(*, source_type: str, source_url: str, base_facts: dict[s
 
 def plan_candidates(conn: sqlite3.Connection, *, limit: int = 5) -> list[int]:
     packets = [*fetch_internal_story_packets(conn, limit=limit), *fetch_external_story_packets()]
+    try:
+        existing_today = int(
+            conn.execute(
+                "SELECT COUNT(*) FROM story_candidates WHERE date(created_at) = date('now')"
+            ).fetchone()[0]
+        )
+    except (sqlite3.Error, TypeError, ValueError):
+        existing_today = 0
+    remaining = max(0, int(limit) - existing_today)
     candidate_ids: list[int] = []
-    for packet in packets:
+    for packet in packets[:remaining]:
         candidate_ids.append(persist_candidate(conn, packet))
     return candidate_ids
 

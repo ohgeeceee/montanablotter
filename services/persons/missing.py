@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import sqlite3
 from datetime import datetime
@@ -1104,6 +1105,7 @@ def fetch_official_missing_person_snapshot(
     pages: dict[str, str] = {}
     with sync_playwright() as p:
         browser = p.chromium.launch(
+            executable_path=os.getenv('MB_PLAYWRIGHT_EXECUTABLE_PATH', '/usr/bin/google-chrome'),
             headless=headless,
             args=[
                 '--no-sandbox',

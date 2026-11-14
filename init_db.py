@@ -3855,6 +3855,20 @@ def ensure_license_sanction_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (source_id) REFERENCES license_sanction_sources(id) ON DELETE CASCADE
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS odc_discipline (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            attorney_name TEXT NOT NULL,
+            cause_no TEXT,
+            discipline TEXT,
+            date_ordered TEXT,
+            pdf_version TEXT NOT NULL,
+            source_url TEXT,
+            fetched_at TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(pdf_version, attorney_name, cause_no)
+        )
+    ''')
 
     for col, definition in [
         ('board_key', 'TEXT'),

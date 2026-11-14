@@ -57,10 +57,12 @@ sleep 5
 DIGEST_PATH="$(python3 "$SCRIPT_DIR/aggregator.py" "$MODE" "$STAMP")"
 echo "[$(date +%T)] aggregated → $DIGEST_PATH"
 
-# Step 3 — optional delivery.
+# Step 3 — delivery. Prefer an explicit DIGEST_DELIVERY_CMD; otherwise fall
+# back to the wired email channel so digests never accumulate unread on disk.
 if [[ -n "${DIGEST_DELIVERY_CMD:-}" ]]; then
     echo "[$(date +%T)] delivering via DIGEST_DELIVERY_CMD"
     eval "$DIGEST_DELIVERY_CMD" < "$DIGEST_PATH"
 else
-    echo "[$(date +%T)] no DIGEST_DELIVERY_CMD set; written to disk only"
+    echo "[$(date +%T)] delivering via wired email channel"
+    /opt/montanablotter/agent-queue/bin/deliver-digest.py "$MODE" < "$DIGEST_PATH"
 fi

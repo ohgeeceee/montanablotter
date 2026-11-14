@@ -28,7 +28,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Refresh cached Montana Blotter dataset metrics.")
     parser.add_argument(
         "--lock",
-        default="/root/montanablotter/logs/datasets_refresh.lock",
+        default=os.path.join(PROJECT_ROOT, "logs", "datasets_refresh.lock"),
         help="Path to the lock file used to prevent overlapping refreshes.",
     )
     return parser.parse_args(argv)

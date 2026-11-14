@@ -241,8 +241,8 @@ def well_known_jobs() -> dict[str, dict]:
         },
         "jail_booking_ingest_all": {
             "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",
-            "max_age_hours": 8,
-            "cadence": "every 4 hours",
+            "max_age_hours": 2,
+            "cadence": "every 15 minutes",
         },
         "jail_booking_ingest_cascade": {
             "log_path": f"{REPO_ROOT}/logs/jail_booking_ingest.log",

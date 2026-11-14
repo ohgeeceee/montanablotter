@@ -58,7 +58,7 @@ def systemd_is_active(service_name: str) -> bool:
 
 def service_status_snapshot() -> list[dict[str, Any]]:
     services = [
-        {"label": "Web App", "service": "montanablotter.service"},
+        {"label": "Web App", "service": "mtblotter.service"},
         {"label": "Nginx", "service": "nginx.service"},
         # redis.service is often an alias on Ubuntu; check redis-server too.
         {"label": "Redis", "service": "redis.service", "fallback_service": "redis-server.service"},

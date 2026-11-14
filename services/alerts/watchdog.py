@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "blotter.db")
+DB_PATH = getattr(config, "DB_PATH", os.path.join(os.path.dirname(__file__), "blotter.db"))
 
 # ---------------------------------------------------------------------------
 # Gemini helper

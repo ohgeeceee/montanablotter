@@ -133,7 +133,7 @@ def generate_posts(
             COALESCE(r.time, '') AS time,
             r.county,
             COALESCE(r.officer, '') AS officer,
-            COALESCE(r.details, r.summary, '') AS details,
+            COALESCE(r.details, '') AS details,
             COALESCE(r.charge_category, '') AS charge_category,
             COALESCE(r.cfs_number, '') AS cfs_number
         FROM records r
@@ -174,7 +174,7 @@ def generate_posts(
                     r.date,
                     COALESCE(r.time, '') AS time,
                     r.county,
-                    COALESCE(r.details, r.summary, '') AS details,
+                    COALESCE(r.details, '') AS details,
                     COALESCE(r.cfs_number, '') AS cfs_number
                 FROM records r
                 WHERE r.blotter_id = ?

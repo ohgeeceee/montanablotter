@@ -137,7 +137,7 @@ def _fetch_window_records(conn: sqlite3.Connection, raw_dates: list[str]) -> lis
             COALESCE(NULLIF(county, ''), 'Unknown') AS county,
             COALESCE(NULLIF(location, ''), 'an unspecified location') AS location,
             COALESCE(NULLIF(incident_type, ''), NULLIF(incident, ''), 'Incident') AS incident_type,
-            COALESCE(NULLIF(details, ''), NULLIF(summary, ''), '') AS details
+            COALESCE(NULLIF(details, ''), '') AS details
         FROM records
         WHERE date IN ({placeholders})
         ORDER BY date DESC, county ASC, id DESC

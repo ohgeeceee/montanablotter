@@ -1,11 +1,10 @@
 #!/bin/bash
-# Healthcheck — restart montanablotter if gunicorn stops responding, and
-# ensure RQ worker instances are active. Runs every 3 minutes via cron.
-# Logs to /root/montanablotter/logs/healthcheck.log
+# Healthcheck — restart mtblotter if gunicorn stops responding. Runs every 3
+# minutes via cron. Logs to /opt/montanablotter/logs/healthcheck.log
 
-SERVICE="montanablotter"
+SERVICE="mtblotter"
 PORT="5000"
-LOG="/root/montanablotter/logs/healthcheck.log"
+LOG="/opt/montanablotter/logs/healthcheck.log"
 TIMEOUT=15   # seconds before curl gives up on one attempt
 RETRIES=5
 RETRY_DELAY=3
@@ -14,22 +13,6 @@ POST_RESTART_DELAY=3
 MIN_UPTIME_SECS=300  # don't restart again within 5 min of a prior start
 
 timestamp() { date '+%Y-%m-%d %H:%M:%S'; }
-
-# Ensure the RQ worker instances we rely on are active. These are templated
-# services; if an instance dies (e.g. RQ Redis connection timeout with exit 0)
-# systemd must restart it, but we also revive it here as a safety net.
-RQ_WORKERS=(
-    "montanablotter-rq-ingestion@2.service"
-    "montanablotter-rq-parsing@1.service"
-    "montanablotter-rq-publishing@1.service"
-)
-
-for worker in "${RQ_WORKERS[@]}"; do
-    if [ "$(systemctl is-active "$worker" 2>/dev/null)" != "active" ]; then
-        echo "$(timestamp) [WARN] $worker is not active — restarting" >> "$LOG"
-        systemctl restart "$worker" || true
-    fi
-done
 
 # Assert the systemd unit itself is healthy before trusting the HTTP probe.
 # A manually-started process squatting the port would otherwise answer /healthz

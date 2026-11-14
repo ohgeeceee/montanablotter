@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import re
 import sqlite3
 from collections import Counter
@@ -27,10 +28,9 @@ LOOKBACK_DAYS = 7
 MAX_HIGHLIGHTS = 6
 MAX_RELATED_POSTS = 6
 WINDOW_DAYS = 3
-LOG_PATH = "/root/montanablotter/logs/daily_blog.log"
+LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "daily_blog.log")
 
-import os as _os
-_os.makedirs(_os.path.dirname(LOG_PATH), exist_ok=True)
+os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
 logging.basicConfig(
     filename=LOG_PATH,
@@ -141,7 +141,7 @@ def _fetch_records_for_date(conn: sqlite3.Connection, raw_dates: list[str]) -> l
             COALESCE(county, 'Unknown') AS county,
             COALESCE(location, '') AS location,
             COALESCE(NULLIF(incident_type, ''), NULLIF(incident, ''), 'Incident') AS incident_type,
-            COALESCE(details, summary, '') AS details,
+            COALESCE(details, '') AS details,
             blotter_id
         FROM records
         WHERE date IN ({placeholders})

@@ -1,0 +1,25 @@
+{
+  "departments": [
+    {
+      "name": "Hill County Sheriff's Office",
+      "county": "Hill",
+      "agency": "Hill County Sheriff's Office",
+      "sender_addresses": ["jail@hillcounty.us", "records@hillcounty.us"],
+      "keywords": ["hill county", "havre"]
+    },
+    {
+      "name": "Cascade County Sheriff's Office",
+      "county": "Cascade",
+      "agency": "Cascade County Sheriff's Office",
+      "sender_addresses": ["jail@cascadecounty.us"],
+      "keywords": ["cascade county", "great falls"]
+    },
+    {
+      "name": "Yellowstone County Sheriff's Office",
+      "county": "Yellowstone",
+      "agency": "Yellowstone County Sheriff's Office",
+      "sender_addresses": ["roster@yellowstonecounty.us"],
+      "keywords": ["yellowstone county", "billings"]
+    }
+  ]
+}

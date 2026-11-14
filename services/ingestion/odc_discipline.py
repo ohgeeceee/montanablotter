@@ -27,6 +27,15 @@ from urllib.parse import urljoin
 import pdfplumber
 import requests
 
+_APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
+    _PARENT = os.path.dirname(_APP_ROOT)
+    if _PARENT == _APP_ROOT:
+        break
+    _APP_ROOT = _PARENT
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
+
 logger = logging.getLogger("odc_discipline")
 _HOMEPAGE = "https://montanaodc.org/attorney-discipline"
 _PDF_HOST = "img1.wsimg.com"  # the PDF is hosted on a WebStringer blob endpoint

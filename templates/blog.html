@@ -1,12 +1,20 @@
 {% extends "public_page_base.html" %}
 
-{% set page_title = "Blog" %}
+{% set page_title = "Blog" ~ (" — Page " ~ page if page and page > 1 else "") %}
+{% if active_category %}
+{% set meta_description = "Montana Blotter blog posts in the " ~ active_category ~ " category: public safety, records access, and community reporting." %}
+{% else %}
 {% set meta_description = "Insights on Montana public safety, records access, and community reporting from Montana Blotter." %}
-{% set canonical_url = "https://mtblotter.com/blog" %}
-{% set og_title = "Blog | Montana Blotter" %}
+{% endif %}
+{% set _canonical = "https://mtblotter.com/blog" %}
+{% if active_category %}{% set _canonical = _canonical ~ "?category=" ~ active_category %}{% endif %}
+{% if page and page > 1 %}{% set _canonical = _canonical ~ ("&" if active_category else "?") ~ "page=" ~ page %}{% endif %}
+{% set canonical_url = _canonical %}
+{% set og_title = "Blog | Montana Blotter" ~ (" — Page " ~ page if page and page > 1 else "") %}
 {% set og_description = meta_description %}
 {% set og_type = "website" %}
 {% set twitter_card = "summary_large_image" %}
+{% set og_image = "https://mtblotter.com/static/icons/og-default.png" %}
 {% set active_nav = "blog" %}
 
 {% block extra_head %}

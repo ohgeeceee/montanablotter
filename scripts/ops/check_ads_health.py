@@ -35,7 +35,7 @@ SITE_URL = os.environ.get("MB_HEALTH_URL", "http://localhost:5000/")
 TIMEOUT = float(os.environ.get("MB_HEALTH_TIMEOUT", "10"))
 LOG_FILE = Path(os.environ.get(
     "MB_HEALTH_LOG",
-    "/root/montanablotter/logs/ad_health.log",
+    str(Path(__file__).resolve().parent.parent / "logs" / "ad_health.log"),
 ))
 
 MONETAG_PATTERN = re.compile(

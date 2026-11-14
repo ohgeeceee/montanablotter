@@ -37,6 +37,8 @@
     <meta name="twitter:image" content="{{ og_image or 'https://mtblotter.com/static/icons/og-default.png' }}">
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
     {% include "includes/google_analytics.html" %}
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2061188847733201" crossorigin="anonymous"></script>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#f7f4ee">
     <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
@@ -140,6 +142,12 @@
     {% if request.args.get('newspaper') != '0' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='mb-newspaper.css') }}">
     {% endif %}
+    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-WZ448FHV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    </script>
 </head>
 <body class="{% if request.args.get('newspaper') != '0' %}mb-newspaper-body{% else %}public-app mb-newspaper-off{% endif %} {% block body_class %}{% endblock %}">
     {% if request.args.get('newspaper') == '0' %}

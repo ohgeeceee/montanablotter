@@ -1232,6 +1232,8 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/advertise/lawyers/',  # checkout, success, cancel, intake, control panel
     '/lawyer-control-panel/',  # token-gated, noindex; reach stays open when wall is on
     '/wanted/',
+    '/remove-my-name',
+    '/remove-my-name/',
     '/arrests/',
     '/county/',  # county blotter listing
     '/funniest',  # public humor feed, read-only + PII-scrubbed
@@ -1984,6 +1986,11 @@ def _is_agendas_host():
     if configured:
         return host == configured
     return host.startswith('agendas.')
+
+
+def _is_jail_host():
+    host = _request_host_name()
+    return host == 'jail.mtblotter.com' or host.startswith('jail.')
 
 
 def _public_meetings_href():
@@ -7102,6 +7109,9 @@ def _homepage_sponsors_context(conn):
 @app.route('/')
 def index():
     """Public homepage — daily activity reports with calendar filter"""
+    if _is_jail_host():
+        return redirect(url_for('detention.jail_bookings'), code=302)
+
     if _is_agendas_host():
         return render_template('public_meetings.html', **_public_meetings_dashboard_context())
 
@@ -8095,7 +8105,7 @@ def public_charge_detail(charge_slug):
     }
     label = label_map.get(slug, slug.replace('_', ' ').title())
     incidents = conn.execute(
-        '''SELECT date, location, incident_type, county, summary
+        '''SELECT date, location, incident_type, county, details
            FROM records
            WHERE lower(charge_category) = ?
            ORDER BY date DESC LIMIT 50''',

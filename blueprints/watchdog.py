@@ -94,6 +94,50 @@ def _ensure_watchdog_schema(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS watchdog_subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            name TEXT,
+            organization TEXT,
+            tier TEXT NOT NULL,
+            counties TEXT,
+            beats TEXT,
+            is_nonprofit INTEGER DEFAULT 0,
+            token TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            verified INTEGER DEFAULT 0,
+            digest_enabled INTEGER NOT NULL DEFAULT 1,
+            stripe_customer_id TEXT,
+            stripe_subscription_id TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(email, tier)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS watchdog_keyword_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subscription_id INTEGER NOT NULL,
+            keyword TEXT NOT NULL,
+            data_sources TEXT,
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_watchdog_sub_token ON watchdog_subscriptions(token)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_watchdog_sub_status ON watchdog_subscriptions(status)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_watchdog_kw_sub ON watchdog_keyword_alerts(subscription_id)"
+    )
     conn.commit()
 
 

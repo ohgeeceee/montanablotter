@@ -16,6 +16,7 @@ import sqlite3
 import csv
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -64,11 +65,22 @@ def get_fetcher_for_county(county: str) -> str:
     if " " in county_l:
         variants.add(county_l.replace(" ", "-"))
         variants.add(county_l.replace(" ", "_"))
+    # County-seat aliases: some fetchers are named after the city, not the county.
+    SEAT_ALIASES = {
+        "hill": ["havre"],
+        "silver bow": ["butte"],
+        "deer lodge": ["anaconda"],
+    }
+    if county_l in SEAT_ALIASES:
+        variants.update(SEAT_ALIASES[county_l])
     for fname in os.listdir(FETCHERS_DIR):
         if fname.endswith(".py") and not fname.startswith("__"):
             fname_base = fname[:-3].lower()
             for v in variants:
-                if v in fname_base:
+                vtok = v.replace(" ", "_").replace("-", "_")
+                # Word-boundary match so "hill" won't match inside "phillips".
+                import re as _re
+                if _re.search(r"(^|[^a-z0-9])" + _re.escape(vtok) + r"([^a-z0-9]|$)", fname_base):
                     return fname
     return ""
 

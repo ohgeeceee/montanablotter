@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from html import unescape
 import io
 import logging
+import os
 import re
 from urllib.parse import urlparse
 
@@ -238,11 +239,11 @@ def fetch_cascade_public_viewer_bookings(
     """Render and parse the public Cascade roster with fail-closed checks."""
     all_records: list[JailBookingRecord] = []
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=True,
-            executable_path="/usr/bin/google-chrome",
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
-        )
+        _chrome = os.getenv("MB_PLAYWRIGHT_EXECUTABLE_PATH", "/usr/bin/google-chrome")
+        _launch_kwargs = {"headless": True, "args": ["--no-sandbox", "--disable-dev-shm-usage"]}
+        if _chrome and os.path.exists(_chrome):
+            _launch_kwargs["executable_path"] = _chrome
+        browser = playwright.chromium.launch(**_launch_kwargs)
         try:
             context = browser.new_context(viewport=VIEWPORT, device_scale_factor=1.5)
             page = context.new_page()

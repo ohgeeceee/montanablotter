@@ -81,6 +81,7 @@ class LicenseSanction:
     county: str | None
     source_url: str
     raw_text: str
+    source_id: int | None = None
 
     def fingerprint(self) -> str:
         payload = f"{self.name}|{self.license_number}|{self.board}|{self.effective_date}|{self.action_taken}"
@@ -113,13 +114,10 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         """
     )
     cursor.execute(
-        "CREATE INDEX IF NOT EXISTS idx_sanctions_name ON license_sanctions(person_name)"
+        "CREATE INDEX IF NOT EXISTS idx_sanctions_name ON license_sanctions(name)"
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_sanctions_board ON license_sanctions(board)"
-    )
-    cursor.execute(
-        "CREATE INDEX IF NOT EXISTS idx_sanctions_type ON license_sanctions(board_type)"
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_sanctions_county ON license_sanctions(county)"
@@ -303,42 +301,81 @@ def _name_slug(name: str) -> str:
     return text[:80]
 
 
+def _resolve_source_id(cursor: sqlite3.Cursor, board_name: str) -> int | None:
+    """Map a scraper board label (e.g. "Dental") to a license_sanction_sources row.
+
+    The scraper registry and the source registry use different labels for the
+    same board ("Dental" vs "Montana Board of Dentistry"), so compare 4-char
+    word stems instead of requiring equality.
+    """
+    def stems(text: str) -> set[str]:
+        return {w[:4] for w in re.split(r"[^a-z]+", (text or "").lower()) if len(w) > 3}
+
+    rows = cursor.execute("SELECT id, board_name FROM license_sanction_sources").fetchall()
+    target = stems(board_name)
+    if not target:
+        return None
+    best_id, best_score = None, 0
+    for row in rows:
+        score = len(target & stems(row[1]))
+        if score > best_score:
+            best_id, best_score = row[0], score
+    return best_id if best_score > 0 else None
+
+
 def import_sanctions(conn: sqlite3.Connection, sanctions: list[LicenseSanction]) -> dict[str, int]:
     cursor = conn.cursor()
     inserted = 0
     updated = 0
+    skipped = 0
     for s in sanctions:
-        fp = s.fingerprint()
         name_slug = _name_slug(s.name)
-        cursor.execute("SELECT id FROM license_sanctions WHERE fingerprint = ?", (fp,))
+        # Natural key: person + licence + board + action + effective date.
+        # license_sanctions has no fingerprint / board_type / raw_text columns.
+        cursor.execute(
+            """
+            SELECT id FROM license_sanctions
+            WHERE name_slug = ?
+              AND COALESCE(license_number, '') = COALESCE(?, '')
+              AND board = ?
+              AND COALESCE(action_taken, '') = COALESCE(?, '')
+              AND COALESCE(effective_date, '') = COALESCE(?, '')
+            LIMIT 1
+            """,
+            (name_slug, s.license_number, s.board, s.action_taken, s.effective_date),
+        )
         existing = cursor.fetchone()
+        source_id = s.source_id or _resolve_source_id(cursor, s.board)
+        if source_id is None:
+            skipped += 1
+            continue
         if existing:
             cursor.execute(
                 """
                 UPDATE license_sanctions
-                SET person_name = ?, name = ?, name_slug = ?, license_number = ?, board = ?, board_type = ?,
+                SET name = ?, name_slug = ?, license_number = ?, board = ?,
                     violation_type = ?, action_taken = ?, effective_date = ?, county = ?,
-                    source_url = ?, raw_text = ?, updated_at = datetime('now')
-                WHERE fingerprint = ?
+                    source_url = ?, updated_at = datetime('now')
+                WHERE id = ?
                 """,
-                (s.name, s.name, name_slug, s.license_number, s.board, s.board_type, s.violation_type,
-                 s.action_taken, s.effective_date, s.county, s.source_url, s.raw_text, fp),
+                (s.name, name_slug, s.license_number, s.board, s.violation_type,
+                 s.action_taken, s.effective_date, s.county, s.source_url, existing[0]),
             )
             updated += 1
         else:
             cursor.execute(
                 """
                 INSERT INTO license_sanctions
-                (person_name, name, name_slug, license_number, board, board_type, violation_type,
-                 action_taken, effective_date, county, source_url, fingerprint, raw_text)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (source_id, name, name_slug, license_number, board, violation_type,
+                 action_taken, effective_date, county, source_url, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 """,
-                (s.name, s.name, name_slug, s.license_number, s.board, s.board_type, s.violation_type,
-                 s.action_taken, s.effective_date, s.county, s.source_url, fp, s.raw_text),
+                (source_id, s.name, name_slug, s.license_number, s.board, s.violation_type,
+                 s.action_taken, s.effective_date, s.county, s.source_url),
             )
             inserted += 1
     conn.commit()
-    return {"inserted": inserted, "updated": updated}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
 # ---------------------------------------------------------------------------

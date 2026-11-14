@@ -144,6 +144,14 @@
   {% if recaptcha_site_key and not request.args.get('noads') %}
   <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
   {% endif %}
+    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-WZ448FHV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    </script>
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2061188847733201" crossorigin="anonymous"></script>
 </head>
 <body class="public-app {% block body_class %}{% endblock %}" data-county="{{ county.slug if county is defined and county else '' }}">
   <a href="#main" class="u-skip-link">Skip to content</a>

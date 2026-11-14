@@ -18,8 +18,8 @@ from pathlib import Path
 import config
 
 
-ROOT = Path("/root/montanablotter")
-SYSTEMD_SERVICE = "montanablotter.service"
+ROOT = Path(__file__).resolve().parents[2]
+SYSTEMD_SERVICE = "mtblotter.service"
 AGENT_EVENTS_SERVICE = "montanablotter-agent-events.service"
 WEB_SOCKET_PATH = Path("/tmp/montanablotter.sock")
 WEB_REQUEST_PATH = "/healthz"
@@ -77,7 +77,7 @@ JOBS: tuple[MonitoredJob, ...] = (
     MonitoredJob("jail_booking_ingest_sanders", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
     MonitoredJob("jail_booking_ingest_ravalli", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
     MonitoredJob("jail_booking_ingest_missoula", LOGS / "jail_booking_ingest.log", 5, "every 2 hours"),
-    MonitoredJob("jail_booking_ingest_all", LOGS / "jail_booking_ingest.log", 8, "every 4 hours"),
+    MonitoredJob("jail_booking_ingest_all", LOGS / "jail_booking_ingest.log", 2, "every 15 minutes"),
     MonitoredJob("jail_booking_ingest_cascade", LOGS / "jail_booking_ingest.log", 26, "daily"),
     MonitoredJob("jail_booking_ingest_hill", LOGS / "jail_booking_ingest.log", 2, "every 15 minutes"),
     MonitoredJob("jail_booking_ingest_valley", LOGS / "jail_booking_ingest.log", 26, "daily"),
