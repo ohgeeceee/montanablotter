@@ -83,10 +83,23 @@ def _download_pdf(session: requests.Session, url: str) -> bytes | None:
 def _parse_beaverhead_pdf(pdf_bytes: bytes, source_url: str) -> list[JailBookingRecord]:
     """Parse the Beaverhead County jail roster PDF into booking records.
 
-    The PDF is an "Inmate List" table with columns:
-    Booking Type | Name | Booked For | Scheduled Release | Days in Custody | Disposition
-    Each row is one inmate.  Name is "LAST, FIRST MIDDLE".
+    Current layout (``InmateOffenseList,withStatute`` report): each inmate
+    starts with a header line and is followed by that inmate's offence rows::
+
+        Book#: 26BK00031 Name: COX,CHRISTOPHERM NameID: 15983 Rel.Dt: **/**/**
+        Statute# Statute BillAgncy JudDisp Reference# Booking Num
+        45-5-102 DeliberateHomicide BCSO DC-1-2025- 10/16/25 392
+        0004336-IN
+
+    ``Rel.Dt`` is redacted (``**/**/**``) on the public roster, and the PDF is
+    space-stripped so names arrive as ``LAST,FIRST<MI>`` — both are normalised
+    by the shared helpers in ``roster_generic``.
     """
+    from services.ingestion.roster_generic import (
+        _normalize_beaverhead_date,
+        _normalize_beaverhead_name,
+    )
+
     try:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
             text = "\n".join((page.extract_text() or "") for page in pdf.pages)
@@ -100,48 +113,60 @@ def _parse_beaverhead_pdf(pdf_bytes: bytes, source_url: str) -> list[JailBooking
 
     logger.info("Beaverhead PDF text length: %d chars", len(text))
 
-    records: list[JailBookingRecord] = []
-    seen_names: set[str] = set()
-
-    row_re = re.compile(
-        r'^\w+\s+(.+?,\s*[A-Z][A-Z\s]+?)\s+'
-        r'(Beaverhead|Montana|Dillon|Department|Other)\b',
-        re.IGNORECASE,
+    header_re = re.compile(
+        r"^Book#:\s*(?P<book>\S+)\s+Name:\s*(?P<name>.+?)\s+"
+        r"NameID:\s*(?P<nameid>\d+)\s+Rel\.Dt:\s*(?P<rel>\S+)\s*$"
+    )
+    skip_prefixes = (
+        "Statute#", "Date Days", "InmateOffenseList", "Page ", "Book#:",
+    )
+    # Report footer stamp, e.g. "rpjlciol.x4 11/12/26".
+    footer_re = re.compile(
+        r"^\S+\.(?:x4|pdf|docx?|txt|xlsx?)\s+\d{1,2}/\d{1,2}/\d{2,4}$", re.IGNORECASE
     )
 
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("Booking Type") or line.startswith("Inmate List"):
-            continue
-        if "Page " in line and "of" in line:
-            continue
+    records: list[JailBookingRecord] = []
+    seen: set[str] = set()
+    current: tuple[re.Match, list[str]] | None = None
 
-        m = row_re.match(line)
-        if not m:
-            continue
-
-        raw_name = m.group(1).strip()
-        if raw_name in seen_names:
-            continue
-        seen_names.add(raw_name)
-
-        # Normalise name: "SCHMIDT, CARSON LOGAN" -> "Schmidt, Carson Logan"
-        if "," in raw_name:
-            last_part, first_part = raw_name.split(",", 1)
-            person_name = f"{last_part.strip().title()}, {first_part.strip().title()}"
-        else:
-            person_name = raw_name.title()
-
-        source_record_id = "beaverhead:" + raw_name.lower().replace(" ", "_").replace(",", "")
+    def flush(match: re.Match, body: list[str]) -> None:
+        book = match.group("book")
+        raw_name = match.group("name")
+        if not book or not raw_name or book in seen:
+            return
+        seen.add(book)
+        person_name = _normalize_beaverhead_name(raw_name)
+        charges = " ".join(part for part in body if part).strip()
         records.append(JailBookingRecord(
-            source_record_id=source_record_id,
+            source_record_id=f"beaverhead:{book}",
             person_name=person_name,
             age=None,
-            booking_number=source_record_id[-12:],
+            booking_number=book,
             booking_at=None,
-            charges_summary="Charge details available on the official Beaverhead County roster.",
+            charges_summary=charges or "Charge details available on the official Beaverhead County roster.",
             source_url=source_url,
         ))
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = header_re.match(line)
+        if match:
+            if current is not None:
+                flush(*current)
+            current = (match, [])
+            continue
+        if current is None:
+            continue
+        if line.startswith(skip_prefixes):
+            continue
+        if footer_re.match(line):
+            continue
+        current[1].append(line)
+
+    if current is not None:
+        flush(*current)
 
     logger.info("Beaverhead roster: parsed %d records", len(records))
     return records

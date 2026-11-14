@@ -174,6 +174,35 @@ def index_by_header(
 # ---------------------------------------------------------------------------
 
 
+def _parse_park_rows(page_html: str) -> list[tuple[str, str, str]]:
+    """Extract (name, charge/bond, holding agency/date) rows from the Park table.
+
+    The page wraps the roster in nested tables, which confuses the shared
+    ``_TableParser`` (it emits one cell per character). Match ``<tr>`` blocks
+    directly instead.
+    """
+    import html as _html
+
+    rows: list[tuple[str, str, str]] = []
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", page_html, re.S | re.I):
+        cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S | re.I)
+        texts = [
+            _html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", c))).strip()
+            for c in cells
+        ]
+        if len(texts) != 3:
+            continue
+        name, charge, agency = texts
+        if not name or "," not in name:
+            continue
+        if any(ch.isdigit() for ch in name):
+            continue
+        if name.lower() in {"inmate", "name"}:
+            continue
+        rows.append((name, charge, agency))
+    return rows
+
+
 def fetch_park_bookings(source_url: str) -> list[JailBookingRecord]:
     """Scrape the Park County inmate roster.
 
@@ -185,36 +214,25 @@ def fetch_park_bookings(source_url: str) -> list[JailBookingRecord]:
     in the same cell separated by dollar amounts.
     """
     response = fetch_url(source_url)
-    found = find_roster_table(response.text, header_keywords=("inmate",), min_data_rows=1)
-    if not found:
-        logger.info("Park County roster: no <table> with inmate header found at %s", source_url)
-        return []
-
-    headers, data_rows, _hrefs = found
-    name_idx = index_by_header(headers, "inmate", "name", "defendant")
-    if name_idx is None:
-        logger.warning("Park County roster: could not find INMATE column; headers=%r", headers)
+    parsed_rows = _parse_park_rows(response.text)
+    if not parsed_rows:
+        logger.info("Park County roster: no inmate rows found at %s", source_url)
         return []
 
     records: list[JailBookingRecord] = []
     seen: set[str] = set()
-    for row in data_rows:
-        if name_idx >= len(row):
-            continue
-        raw_name = row[name_idx].strip()
-        if not raw_name or raw_name.lower() in {"name", "inmate"}:
-            continue
+    for raw_name, charges, agency in parsed_rows:
         # Park uses "Lastname, Firstname"
-        if "," not in raw_name:
-            continue
         last, first = (p.strip() for p in raw_name.split(",", 1))
         person_name = f"{first} {last}".strip()
         if not person_name:
             continue
 
-        charges = " ".join(c.strip() for c in row if c.strip()) if row else ""
+        summary = charges
+        if agency:
+            summary = f"{charges} Holding agency/arrest: {agency}".strip()
         source_record_id = hashlib.sha1(
-            f"park:{person_name.lower()}:{charges[:80].lower()}".encode("utf-8")
+            f"park:{person_name.lower()}:{summary[:80].lower()}".encode("utf-8")
         ).hexdigest()[:20]
         if source_record_id in seen:
             continue
@@ -227,7 +245,7 @@ def fetch_park_bookings(source_url: str) -> list[JailBookingRecord]:
                 age=None,
                 booking_number=source_record_id[:12],
                 booking_at=None,
-                charges_summary=charges,
+                charges_summary=summary,
                 source_url=source_url,
             )
         )

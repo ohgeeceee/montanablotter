@@ -144,12 +144,12 @@ TRACKED_SOURCES = {
     "chouteau": {
         "county_name": "Chouteau",
         "facility_name": "Chouteau County Sheriff's Office Jail",
-        "roster_url": "https://chouteaucountysheriff.com/",
+        "roster_url": "https://www.chouteaucountymt.gov/sheriff",
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
         "is_enabled": 1,
-        "notes": "Wix-hosted PDF; fetcher re-discovers the rotating Inmate_Population_*.pdf link each run. Adapter in roster_generic.fetch_chouteau_bookings.",
+        "notes": "Roster PDF moved from the old Wix site (chouteaucountysheriff.com) to the county site; the fetcher re-discovers the rotating Inmate_Population_*.pdf link each run. Adapter in roster_generic.fetch_chouteau_bookings.",
     },
     "blaine": {
         "county_name": "Blaine",
@@ -280,7 +280,7 @@ TRACKED_SOURCES = {
     "beaverhead": {
         "county_name": "Beaverhead",
         "facility_name": "Beaverhead County Detention Center",
-        "roster_url": "https://beaverheadcountymt.gov/wp-content/uploads/2026/03/Jail-Roster.pdf",
+        "roster_url": "https://beaverheadcountymt.gov/sheriff",
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
@@ -314,6 +314,8 @@ TRACKED_SOURCES = {
         "roster_url": "https://www.granitecountymt.gov/598/Sheriff-Coroners-Office",
         "coverage_tier": "standard",
         "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "No public online roster — the Sheriff's Office publishes no inmate list (confirmed 2026-11-14); disable rather than report a false '0 records' every sweep.",
     },
     "mineral": {
         "county_name": "Mineral",
@@ -322,14 +324,18 @@ TRACKED_SOURCES = {
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "No public online roster on the county site (confirmed 2026-11-14); disable rather than report a false '0 records' every sweep.",
     },
     "phillips": {
         "county_name": "Phillips",
         "facility_name": "Phillips County Detention Center",
-        "roster_url": "https://www.phillipscosheriff.com",
+        "roster_url": "http://phillipscountysheriff.org/",
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "72-hour holding facility with no online roster; inmates are transferred to Valley or Hill County. (Old roster_url pointed at phillipscosheriff.com, which is Phillips County, KANSAS — corrected 2026-11-14.)",
     },
     "pondera": {
         "county_name": "Pondera",
@@ -337,6 +343,8 @@ TRACKED_SOURCES = {
         "roster_url": "https://www.ponderacountymt.gov/sheriff",
         "coverage_tier": "standard",
         "is_featured": 0,
+        "is_enabled": 0,
+        "notes": "No public online roster on the sheriff page (confirmed 2026-11-14); disable rather than report a false '0 records' every sweep.",
     },
     "powell": {
         "county_name": "Powell",
@@ -474,12 +482,12 @@ TRACKED_SOURCES = {
     "park": {
         "county_name": "Park",
         "facility_name": "Park County Jail",
-        "roster_url": "https://www.parkcounty.org/Government-Departments/Sheriff-s-Office/",
+        "roster_url": "https://www.parkcounty.org/Government-Departments/Sheriff-s-Office/Inmates-Housed/",
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
-        "is_enabled": 0,
-        "notes": "Registered from county source registry; roster fetcher pending.",
+        "is_enabled": 1,
+        "notes": "Roster is a 3-column table (inmate / charge+bond / holding agency) updated nightly; parsed by roster_generic.fetch_park_bookings.",
     },
     "petroleum": {
         "county_name": "Petroleum",
@@ -736,7 +744,7 @@ def _ensure_tracked_sources(
                 is_featured,
                 created_at,
                 updated_at
-            ) VALUES (?, ?, ?, ?, ?, 'official_roster', ?, 1, ?, datetime('now'), datetime('now'))
+            ) VALUES (?, ?, ?, ?, ?, 'official_roster', ?, ?, ?, datetime('now'), datetime('now'))
             ''',
             (
                 slug,
@@ -745,6 +753,7 @@ def _ensure_tracked_sources(
                 meta["roster_url"],
                 meta.get("phone"),
                 meta["coverage_tier"],
+                meta.get("is_enabled", 1),
                 meta["is_featured"],
             ),
         )
@@ -1717,9 +1726,6 @@ def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[Jail
     if county_slug == "carter":
         from services.ingestion.fetchers.playwright_mt_inmate import fetch_carter_bookings
         return fetch_carter_bookings(roster_url, county_slug=county_slug)
-    if county_slug in GENERIC_MT_COUNTIES:
-        from services.ingestion.fetchers.generic_mt_inmate import fetch_generic_mt_bookings
-        return fetch_generic_mt_bookings(roster_url, county_slug=county_slug)
     if county_slug == "big-horn":
         return fetch_big_horn_bookings(roster_url)
     if county_slug == "fallon":
@@ -1799,6 +1805,13 @@ def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[Jail
     if county_slug == "powell":
         from services.ingestion.fetchers.powell_inmate import fetch_powell_bookings
         return fetch_powell_bookings(roster_url)
+    # Generic tolerant parser comes last: any county with a dedicated adapter
+    # above must win, otherwise the generic branch shadows it and silently
+    # returns zero rows (this is how dawson/granite/mineral/phillips/pondera
+    # were being swallowed).
+    if county_slug in GENERIC_MT_COUNTIES:
+        from services.ingestion.fetchers.generic_mt_inmate import fetch_generic_mt_bookings
+        return fetch_generic_mt_bookings(roster_url, county_slug=county_slug)
     raise RuntimeError(f"No adapter for county slug: {county_slug}")
 
 
