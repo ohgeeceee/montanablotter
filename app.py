@@ -1225,17 +1225,24 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/wanted/subscribe',
     '/health',
     '/ping',
+    '/jail-bookings',   # route is /jail-bookings (no trailing slash)
     '/jail-bookings/',
+    '/jail-rosters',
     '/jail-rosters/',
+    '/bail-bonds',
     '/bail-bonds/',
+    '/lawyers',
     '/lawyers/',
     '/advertise/lawyers/',  # checkout, success, cancel, intake, control panel
     '/lawyer-control-panel/',  # token-gated, noindex; reach stays open when wall is on
+    '/wanted',
     '/wanted/',
     '/remove-my-name',
     '/remove-my-name/',
+    '/arrests',
     '/arrests/',
-    '/county/',  # county blotter listing
+    '/county',  # county blotter listing
+    '/county/',
     '/funniest',  # public humor feed, read-only + PII-scrubbed
     '/funniest.json',
     # Public signup flows — must never sit behind the sign-in wall. These are
