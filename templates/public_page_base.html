@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% from "includes/adsense_unit.html" import adsense_unit with context %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="facebook-domain-verification" content="hov8m0bh6slqwz6y1guh07p5cect0h" />
@@ -38,7 +39,9 @@
     <link rel="alternate" type="application/atom+xml" title="Montana Blotter — Daily Reports" href="/feed.xml">
     {% include "includes/google_analytics.html" %}
   <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2061188847733201" crossorigin="anonymous"></script>
+  {% if adsense_enabled and adsense_client_id %}
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ adsense_client_id }}" crossorigin="anonymous"></script>
+  {% endif %}
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#f7f4ee">
     <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js', { scope: '/' }); }</script>
@@ -150,6 +153,10 @@
     </script>
 </head>
 <body class="{% if request.args.get('newspaper') != '0' %}mb-newspaper-body{% else %}public-app mb-newspaper-off{% endif %} {% block body_class %}{% endblock %}">
+    {# AdSense leaderboard at the top of every page; needs MB_ADSENSE_SLOT_HEADER. #}
+    <div class="mb-adsense" aria-hidden="true">
+      {{ adsense_unit(adsense_slots.header, 'header', style='text-align:center; margin: 0.75rem auto; min-height: 90px;') }}
+    </div>
     {% if request.args.get('newspaper') == '0' %}
     {% include "includes/public_official_banner.html" %}
 
@@ -175,7 +182,15 @@
       {% endwith %}
       {% block hero %}{% endblock %}
       <div class="{% if request.path == '/' %}pb-4 md:pb-0{% else %}pb-16 md:pb-0{% endif %}">
+      {# AdSense in-content unit; needs MB_ADSENSE_SLOT_INCONTENT. #}
+      <div class="mb-adsense" aria-hidden="true">
+        {{ adsense_unit(adsense_slots.incontent, 'incontent', style='text-align:center; margin: 1rem auto;') }}
+      </div>
       {% block content %}{% endblock %}
+      {# AdSense end-of-content unit; needs MB_ADSENSE_SLOT_ARTICLE. #}
+      <div class="mb-adsense" aria-hidden="true">
+        {{ adsense_unit(adsense_slots.article, 'article', style='text-align:center; margin: 1.5rem auto;') }}
+      </div>
       </div>
     {% endset %}
 
@@ -362,9 +377,17 @@
       &middot; <a href="/transparency" style="color:inherit;text-decoration:none;">Transparency</a>
       &middot; <a href="/support" style="color:inherit;text-decoration:none;">Support</a>
     </footer>
+    {# AdSense footer unit; needs MB_ADSENSE_SLOT_FOOTER. #}
+    <div class="mb-adsense" aria-hidden="true">
+      {{ adsense_unit(adsense_slots.footer, 'footer', style='text-align:center; margin: 1rem auto;') }}
+    </div>
     {% else %}
 
     <footer class="public-footer">
+        {# AdSense footer unit; needs MB_ADSENSE_SLOT_FOOTER. #}
+        <div class="mb-adsense" aria-hidden="true">
+          {{ adsense_unit(adsense_slots.footer, 'footer', style='text-align:center; margin: 1rem auto;') }}
+        </div>
         <div class="public-footer__grid max-w-7xl mx-auto px-6">
             <div>
                 <h4 class="public-footer__title">The Montana Blotter</h4>

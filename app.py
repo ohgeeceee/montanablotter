@@ -1663,6 +1663,28 @@ def inject_ad_inventory():
             'ad_slots': {},
         }
 
+@app.context_processor
+def inject_adsense():
+    """Expose the AdSense client ID and configured slot IDs to templates.
+
+    Templates render nothing unless both the client ID and the specific slot ID
+    are set, so an unconfigured slot degrades to no markup instead of a broken
+    ad tag.
+    """
+    slots = {
+        'header': getattr(config, 'ADSENSE_SLOT_HEADER', ''),
+        'sidebar': getattr(config, 'ADSENSE_SLOT_SIDEBAR', ''),
+        'incontent': getattr(config, 'ADSENSE_SLOT_INCONTENT', ''),
+        'footer': getattr(config, 'ADSENSE_SLOT_FOOTER', ''),
+        'article': getattr(config, 'ADSENSE_SLOT_ARTICLE', ''),
+    }
+    return {
+        'adsense_enabled': bool(getattr(config, 'ADSENSE_ENABLED', True)),
+        'adsense_client_id': getattr(config, 'ADSENSE_CLIENT_ID', ''),
+        'adsense_slots': slots,
+    }
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
