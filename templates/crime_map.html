@@ -70,7 +70,7 @@
       <h3>Extra Layers</h3>
       <label class="legend-item" style="cursor:pointer">
         <input type="checkbox" id="layerSexOffenders" style="margin-right:6px">
-        <div class="dot" style="background:#a855f7"></div> Sex Offender Density
+        <div class="dot" style="background:#a855f7"></div> Offender Density (Violent / Sexual)
       </label>
     </div>
 
@@ -308,7 +308,8 @@
     }).addTo(map).bindPopup(`25-mile radius around ${zip}`).openPopup();
   });
 
-  // Sex offender county density layer
+  // Registrant county density layer (violent AND sexual — the registry covers
+  // both, so the popup must not call every dot a sex offender).
   document.getElementById('layerSexOffenders').addEventListener('change', async function() {
     if (!this.checked) {
       if (sexOffenderLayer) { map.removeLayer(sexOffenderLayer); sexOffenderLayer = null; }
@@ -321,10 +322,16 @@
       const county = (item.county || '').toUpperCase();
       const center = COUNTY_CENTROIDS[county];
       if (!center) return;
+      const sexual = Number(item.sexual_count || 0);
+      const violent = Number(item.violent_count || 0);
+      const parts = [];
+      if (sexual) parts.push(`${sexual} sex offender${sexual === 1 ? '' : 's'}`);
+      if (violent) parts.push(`${violent} violent offender${violent === 1 ? '' : 's'}`);
+      const label = parts.length ? parts.join(' &middot; ') : 'no registered offenders';
       L.circleMarker(center, {
         radius: Math.min(30, Math.max(5, Math.sqrt(item.count) * 2.5)),
         fillColor: '#a855f7', color: '#ffffff', weight: 1, fillOpacity: 0.55,
-      }).bindPopup(`<strong>${item.county}</strong><br>${item.count} registered sex offenders`)
+      }).bindPopup(`<strong>${item.county}</strong><br>${label}`)
         .addTo(sexOffenderLayer);
     });
     sexOffenderLayer.addTo(map);

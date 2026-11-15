@@ -1685,6 +1685,18 @@ def inject_adsense():
     }
 
 
+@app.template_global()
+def offender_registry_style(offender_type):
+    """Jinja global: label/heading/CSS for a registry offender_type.
+
+    Templates must go through this instead of hardcoding "sex offender"
+    strings -- the registry covers violent offenders too.
+    """
+    from services.persons.offender_labels import registry_style
+
+    return registry_style(offender_type)
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 

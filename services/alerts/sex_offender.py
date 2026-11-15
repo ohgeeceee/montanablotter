@@ -147,7 +147,10 @@ def check_and_notify(conn: sqlite3.Connection, *, dry_run: bool = False) -> list
                 token = sub['unsubscribe_token'] if 'unsubscribe_token' in sub.keys() else ''
                 unsub_url = f"{BASE_URL}/sex-offender-alerts/unsubscribe?token={token}" if token else BASE_URL
                 html = _build_alert_html(matched, zip_code, sub['radius_miles'], unsub_url)
-                subject = f"Sex Offender Proximity Alert — {len(matched)} update(s) near {zip_code or 'your area'}"
+                # The registry covers violent AND sexual offenders and this
+                # engine matches both; the subject must not call every match a
+                # sex offender.
+                subject = f"Violent/Sexual Offender Proximity Alert — {len(matched)} update(s) near {zip_code or 'your area'}"
                 sent = _send_alert_email(sub['email'], subject, html)
                 if sent:
                     conn.execute(
