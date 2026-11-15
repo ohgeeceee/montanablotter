@@ -16,6 +16,7 @@ import sys
 from datetime import datetime, timedelta
 
 # Add parent dir to path so imports work
+import os
 _APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
     _parent = os.path.dirname(_APP_ROOT)

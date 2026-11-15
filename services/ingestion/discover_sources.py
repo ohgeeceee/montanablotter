@@ -17,6 +17,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 
+import os
 _APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
     _parent = os.path.dirname(_APP_ROOT)

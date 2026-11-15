@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 import requests
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import os
 _APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
     _parent = os.path.dirname(_APP_ROOT)
