@@ -1,0 +1,80 @@
+{% extends 'admin_base.html' %}
+{% block title %}Mail Settings{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+  <h1 class="text-2xl font-bold text-slate-900">Mail settings</h1>
+  <p class="mt-1 text-sm text-slate-600">
+    Outbound mail credentials. Values are written to <code class="text-xs bg-slate-100 px-1 rounded">{{ env_path }}</code>;
+    secrets are never displayed back. A restart is required after saving.
+  </p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mt-4 space-y-2">
+        {% for category, message in messages %}
+          <div class="rounded-lg border px-4 py-3 text-sm
+                      {% if category == 'success' %}border-green-200 bg-green-50 text-green-800
+                      {% elif category == 'error' %}border-red-200 bg-red-50 text-red-800
+                      {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post" action="{{ url_for('admin.admin_mail_settings') }}" class="mt-6 space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="rounded-xl border border-slate-200 bg-white p-5">
+      <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Digest sender (MB_SMTP_*)</h2>
+      <p class="mt-1 text-xs text-slate-500">Used by the daily briefing and other subscriber mail.</p>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        {% for f in fields if f.key.startswith('MB_SMTP_') %}
+        <div>
+          <label class="block text-xs font-semibold text-slate-600" for="{{ f.key }}">
+            {{ f.key }}
+            {% if f.secret and f.set %}<span class="text-slate-400">(set, {{ f.length }} chars)</span>{% endif %}
+          </label>
+          <input id="{{ f.key }}" name="{{ f.key }}" type="{{ 'password' if f.secret else 'text' }}"
+                 value="{{ f.value }}" placeholder="{{ f.placeholder }}"
+                 autocomplete="off"
+                 class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none">
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="rounded-xl border border-slate-200 bg-white p-5">
+      <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Roster request sender (MB_ROSTER_SMTP_*)</h2>
+      <p class="mt-1 text-xs text-slate-500">Used by the public-records request mailer.</p>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        {% for f in fields if f.key.startswith('MB_ROSTER_SMTP_') %}
+        <div>
+          <label class="block text-xs font-semibold text-slate-600" for="{{ f.key }}">
+            {{ f.key }}
+            {% if f.secret and f.set %}<span class="text-slate-400">(set, {{ f.length }} chars)</span>{% endif %}
+          </label>
+          <input id="{{ f.key }}" name="{{ f.key }}" type="{{ 'password' if f.secret else 'text' }}"
+                 value="{{ f.value }}" placeholder="{{ f.placeholder }}"
+                 autocomplete="off"
+                 class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none">
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button type="submit" name="action" value="save"
+              class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+        Save settings
+      </button>
+      <button type="submit" name="action" value="test"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+        Test SMTP login
+      </button>
+      <span class="text-xs text-slate-500">Test uses the values above as entered, including an unsaved password.</span>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -79,6 +79,7 @@ def register_admin_blueprint(app):
     from blueprints.admin import ingestion  # noqa: F401
     from blueprints.admin import mission_control  # noqa: F401
     from blueprints.admin import operations # noqa: F401
+    from blueprints.admin import mail_settings  # noqa: F401
     from blueprints.admin import recovery_ads  # noqa: F401
     from blueprints.admin import attorney_ads  # noqa: F401
     from blueprints.admin import lawyer_ads  # noqa: F401
