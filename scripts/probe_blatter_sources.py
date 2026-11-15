@@ -12,7 +12,14 @@ from urllib.parse import urljoin
 import requests
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-sys.path.insert(0, "/root/montanablotter")
+_APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
+    _parent = os.path.dirname(_APP_ROOT)
+    if _parent == _APP_ROOT:
+        break
+    _APP_ROOT = _parent
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
 
 UA = "Mozilla/5.0 (compatible; MontanaBlotter-Probe/2.0)"
 TIMEOUT = 20

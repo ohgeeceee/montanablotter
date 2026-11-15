@@ -12,8 +12,25 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = os.getenv("MB_DB_PATH", "/root/montanablotter/blotter.db").strip() or "/root/montanablotter/blotter.db"
-COUNTY_INVENTORY_MODULE = "/root/montanablotter/county_inventory.py"
+# App root is this file's grandparent: <root>/services/ops/<this file>.
+# Derive it from __file__ -- hardcoding /root/montanablotter broke every
+# caller once the app moved to /opt/montanablotter.
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _default_db_path() -> str:
+    try:
+        import config
+
+        return config.DB_PATH
+    except Exception:
+        return os.path.join(_APP_ROOT, "blotter.db")
+
+
+DB_PATH = os.getenv("MB_DB_PATH", "").strip() or _default_db_path()
+COUNTY_INVENTORY_MODULE = os.getenv(
+    "MB_COUNTY_INVENTORY_MODULE", ""
+).strip() or os.path.join(_APP_ROOT, "county_inventory.py")
 
 
 def _configure_sqlite(conn: sqlite3.Connection) -> None:

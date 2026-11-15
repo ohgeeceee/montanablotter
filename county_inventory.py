@@ -20,9 +20,23 @@ import re
 import sys
 from pathlib import Path
 
-DB_PATH = "/root/montanablotter/blotter.db"
-FETCHERS_DIR = "/root/montanablotter/services/ingestion/fetchers"
-OUTPUT_DIR = "/root/montanablotter/data"
+# This file lives at the app root; derive every path from __file__ so the
+# script keeps working after the /root/montanablotter -> /opt/montanablotter move.
+_APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def _default_db_path() -> str:
+    try:
+        import config
+
+        return config.DB_PATH
+    except Exception:
+        return os.path.join(_APP_ROOT, "blotter.db")
+
+
+DB_PATH = os.getenv("MB_DB_PATH", "").strip() or _default_db_path()
+FETCHERS_DIR = os.path.join(_APP_ROOT, "services", "ingestion", "fetchers")
+OUTPUT_DIR = os.path.join(_APP_ROOT, "data")
 
 # All 56 Montana counties (alphabetical)
 ALL_COUNTIES = [

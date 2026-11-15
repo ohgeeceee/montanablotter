@@ -20,6 +20,41 @@ from services.court.taxappeal_scraper import TAX_APPEAL_BASE_URL, sync_montana_t
 from init_db import _configure_sqlite
 
 
+SOURCE_UNREACHABLE_MARKERS = (
+    'timeout',
+    'timed out',
+    'connection reset',
+    'connection aborted',
+    'connection refused',
+    'connectionerror',
+    'connecterror',
+    'name or service not known',
+    'temporary failure in name resolution',
+    'network is unreachable',
+    'request rejected',
+    'blocked by',
+    'sslerror',
+    'certificate verify failed',
+    'proxyerror',
+    'max retries exceeded',
+    'failed to establish a new connection',
+    'remote end closed connection',
+    'eof occurred',
+)
+
+
+def is_source_unreachable(error_text: str) -> bool:
+    """True when a source failed because the remote site could not be reached.
+
+    Montana's court portals sit behind a WAF that rejects datacenter IPs, and
+    several county sites intermittently drop automated requests. Those are
+    external availability problems, not code regressions, and they should not
+    turn the whole court refresh red when every other source succeeded.
+    """
+    text = (error_text or '').lower()
+    return any(marker in text for marker in SOURCE_UNREACHABLE_MARKERS)
+
+
 def _sync_montana_criminal_outcomes(conn: sqlite3.Connection) -> dict:
     from services.court.outcome_scraper import run_outcome_backfill
     return run_outcome_backfill(conn, batch=50)
@@ -147,12 +182,20 @@ def main() -> int:
     finally:
         conn.close()
 
+    unreachable = [f for f in failures if is_source_unreachable(f.get('error', ''))]
+    hard_failures = [f for f in failures if not is_source_unreachable(f.get('error', ''))]
+    # A source we cannot reach (WAF block, timeout, DNS) is an external
+    # availability problem. Do not fail the whole run for it as long as the
+    # other sources refreshed -- but a genuine code error still fails.
+    ok = not hard_failures and bool(results)
     payload = {
         'ran_at': datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S'),
         'sources_requested': selected_sources,
         'results': results,
         'failures': failures,
-        'ok': not failures,
+        'unreachable': unreachable,
+        'hard_failures': hard_failures,
+        'ok': ok,
     }
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
@@ -163,8 +206,9 @@ def main() -> int:
                 f"events={result.get('event_count', 0)} filings={result.get('filing_count', 0)}"
             )
         for failure in failures:
-            print(f"{failure['source_slug']}: ERROR {failure['error']}")
-    return 0 if not failures else 1
+            suffix = ' (source unreachable)' if is_source_unreachable(failure.get('error', '')) else ''
+            print(f"{failure['source_slug']}: ERROR {failure['error']}{suffix}")
+    return 0 if ok else 1
 
 
 if __name__ == '__main__':

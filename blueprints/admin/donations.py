@@ -254,7 +254,8 @@ def admin_donations_reconcile():
                 if not isinstance(event, dict):
                     raise ValueError('Webhook payload is not a JSON object')
 
-                _app_module._apply_stripe_bail_ad_event(conn, event)
+                from blueprints.bail_bond_ads import apply_stripe_bail_ad_event
+                apply_stripe_bail_ad_event(conn, event)
                 _app_module._apply_stripe_event(
                     conn,
                     event,

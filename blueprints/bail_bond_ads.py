@@ -3162,3 +3162,7 @@ def advertise_bail_onboarding(token):
         active_nav='advertise',
         current_year=datetime.now().year,
     )
+
+# Public alias: webhook callers in blueprints/payments.py and
+# blueprints/admin/donations.py import the non-underscore name.
+apply_stripe_bail_ad_event = _apply_stripe_bail_ad_event

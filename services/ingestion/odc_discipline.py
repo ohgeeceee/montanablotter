@@ -231,8 +231,16 @@ def run_monthly(dry_run: bool = False, pdf_url: str | None = None,
 
     # --- check whether we already have this version -----------------------------
     # Ensure the project root is on the path so init_db is importable.
-    _proj_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sys.path.insert(0, _proj_root)
+    # This file lives at <root>/services/ingestion/, so walk up to the root
+    # rather than assuming a fixed number of levels.
+    _proj_root = os.path.dirname(os.path.abspath(__file__))
+    while not os.path.isfile(os.path.join(_proj_root, "init_db.py")):
+        _parent = os.path.dirname(_proj_root)
+        if _parent == _proj_root:
+            break
+        _proj_root = _parent
+    if _proj_root not in sys.path:
+        sys.path.insert(0, _proj_root)
 
     import sqlite3
     from init_db import DB_PATH
