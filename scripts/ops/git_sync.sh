@@ -18,7 +18,13 @@ if git merge-base --is-ancestor "$REMOTE" "$LOCAL"; then
     if git diff "$REMOTE..$LOCAL" | grep -qaiE "BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|github_pat_[A-Za-z0-9_]{20}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10}"; then
         log "REFUSED push: possible secret in outgoing commits"; exit 1
     fi
-    git push origin main >>"$LOG" 2>&1 && log "pushed local commits to origin/main" || log "push failed (auth not set up yet?)"
+    if git push origin main >>"$LOG" 2>&1; then
+        log "pushed local commits to origin/main"
+    else
+        # Surface the real reason (auth, network, non-fast-forward) instead of a
+        # misleading 'auth not set up yet' — the remote is git@github.com over SSH.
+        log "push failed: $(tail -n 1 "$LOG" | tr -d '\r')"
+    fi
     exit 0
 fi
 
