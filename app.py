@@ -1253,6 +1253,19 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/alerts/subscribe',
     '/alerts/verify/',
     '/alerts/unsubscribe/',
+    # Public index / search surface. Organic search is the main acquisition
+    # channel for a public-records site, and a login page cannot be indexed.
+    # These are aggregate or already-public-record pages; the paid depth
+    # (charges, warrant detail, salaries, the API) stays behind the wall.
+    '/people',
+    '/missing-persons',
+    '/sex-offender-updates',
+    '/crime-map',
+    '/safety-scorecards',
+    # Sitemaps by prefix: the index lists a dozen children, and new ones get
+    # added over time. An index Google can read whose children all redirect to
+    # /login is worse than no sitemap at all.
+    '/sitemap-',
 )
 _SIGNIN_WALL_EXEMPT_EXACT = {
     '/',
