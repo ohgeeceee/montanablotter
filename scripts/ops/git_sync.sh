@@ -15,8 +15,21 @@ LOCAL=$(git rev-parse HEAD); REMOTE=$(git rev-parse origin/main)
 
 if git merge-base --is-ancestor "$REMOTE" "$LOCAL"; then
     # Local ahead: push, but never push anything that smells like a secret.
-    if git diff "$REMOTE..$LOCAL" | grep -qaiE "BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|github_pat_[A-Za-z0-9_]{20}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10}"; then
-        log "REFUSED push: possible secret in outgoing commits"; exit 1
+    #
+    # The regex below matches the *pattern* text, so scanning raw diff lines
+    # makes this script refuse its own edits (the guard trips on the literal
+    # 'BEGIN OPENSSH PRIVATE KEY' in its own grep expression). Check added/changed
+    # CONTENT lines only, and skip this script entirely — its patterns are the
+    # false-positive source, not a secret.
+    CHANGED=$(git diff --name-only "$REMOTE..$LOCAL" | grep -v '^scripts/ops/git_sync\.sh$' || true)
+    if [ -n "$CHANGED" ]; then
+        if git diff "$REMOTE..$LOCAL" -- $CHANGED \
+            | grep -aE '^\+' \
+            | grep -avE '^\+\+\+' \
+            | grep -qaiE "BEGIN OPENSSH PRIVATE KEY|BEGIN RSA PRIVATE KEY|github_pat_[A-Za-z0-9_]{20}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10}"; then
+            log "REFUSED push: possible secret in outgoing commits"
+            exit 1
+        fi
     fi
     if git push origin main >>"$LOG" 2>&1; then
         log "pushed local commits to origin/main"
