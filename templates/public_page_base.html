@@ -293,7 +293,10 @@
     <!-- Weather -->
     <div class="mb-np-stat-panel__item">
       <div class="mb-np-stat-panel__label mb-np-stat-panel__label--small">Helena</div>
-      <div class="mb-np-stat-panel__value">{{ np_weather_temp }}&nbsp;°F&nbsp;·&nbsp;{{ np_weather_sky }}</div>
+      <div class="mb-np-stat-panel__value">{{ np_weather_temp }}&nbsp;·&nbsp;{{ np_weather_sky }}</div>
+      {% if np_sunrise or np_sunset %}
+      <div class="mb-np-stat-panel__subcaption text-slate-500 text-xs sm:text-sm">Sun {{ np_sunrise }}{% if np_sunset %} &ndash; {{ np_sunset }}{% endif %}</div>
+      {% endif %}
     </div>
     
     <!-- Records - prominent callout -->

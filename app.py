@@ -1461,6 +1461,12 @@ def _newspaper_stats() -> dict:
         now = _dt2.datetime.utcnow()
         out['np_edition_date'] = now.strftime('%A, %B %-d, %Y').upper()
         out['np_edition_date_iso'] = now.strftime('%Y-%m-%d')
+        # Live Helena weather (Lewis & Clark County seat). The masthead panel is
+        # injected on every public page; the fetch is cached and failure-safe so a
+        # flaky upstream can never break the front page.
+        _w = _helena_weather()
+        if _w:
+            out.update(_w)
     except Exception:
         pass
     finally:
@@ -1469,6 +1475,95 @@ def _newspaper_stats() -> dict:
         except Exception:
             pass
     return out
+
+
+# Helena / Lewis & Clark County seat coordinates.
+_HELENA_LAT = 46.5897
+_HELENA_LON = -112.0411
+# Front-page weather lives in the site-wide stats payload rendered by every
+# public page; 30 minutes keeps the panel accurate without hammering the API
+# or adding a network hop to every request.
+_WEATHER_TTL_SECONDS = 1800
+_WEATHER_CACHE = {'fetched_at': 0.0, 'payload': None}
+
+# WMO weather-code -> human-readable label, matching Open-Meteo's own table.
+_WMO_SKY_LABELS = {
+    0: 'Clear', 1: 'Mostly Clear', 2: 'Partly Cloudy', 3: 'Overcast',
+    45: 'Foggy', 48: 'Rime Fog',
+    51: 'Light Drizzle', 53: 'Drizzle', 55: 'Heavy Drizzle',
+    56: 'Freezing Drizzle', 57: 'Freezing Drizzle',
+    61: 'Light Rain', 63: 'Rain', 65: 'Heavy Rain',
+    66: 'Freezing Rain', 67: 'Freezing Rain',
+    71: 'Light Snow', 73: 'Snow', 75: 'Heavy Snow',
+    77: 'Snow Grains',
+    80: 'Light Showers', 81: 'Showers', 82: 'Heavy Showers',
+    85: 'Snow Showers', 86: 'Snow Showers',
+    95: 'Thunderstorms', 96: 'T-storms w/ Hail', 99: 'T-storms w/ Hail',
+}
+
+
+def _helena_weather():
+    """Current Helena conditions + sunrise/sunset for the front-page panel.
+
+    Returns {'np_weather_temp': '<int>°F', 'np_weather_sky': <label>,
+             'np_sunrise': '<h>:<mm>', 'np_sunset': '<h>:<mm>'} or {} on any
+    failure. Cached in-process for _WEATHER_TTL_SECONDS.
+    """
+    try:
+        import time as _time
+        now_ts = _time.time()
+        cached = _WEATHER_CACHE.get('payload')
+        fetched_at = _WEATHER_CACHE.get('fetched_at') or 0.0
+        if cached and (now_ts - fetched_at) < _WEATHER_TTL_SECONDS:
+            return cached
+
+        # Current conditions + today's sun times from Open-Meteo's free,
+        # keyless API (no sign-up required).
+        url = (
+            'https://api.open-meteo.com/v1/forecast'
+            f'?latitude={_HELENA_LAT}&longitude={_HELENA_LON}'
+            '&current=temperature_2m,weather_code'
+            '&daily=sunrise,sunset'
+            '&temperature_unit=fahrenheit&timezone=America%2FDenver'
+            '&forecast_days=1'
+        )
+        req = urllib.request.Request(url, headers={'User-Agent': 'MontanaBlotter/1.0'})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+
+        current = data.get('current') or {}
+        temp_f = current.get('temperature_2m')
+        sky_code = current.get('weather_code')
+        if temp_f is None:
+            return {}
+        sky = _WMO_SKY_LABELS.get(sky_code, 'Unknown')
+
+        daily = data.get('daily') or {}
+        out = {
+            'np_weather_temp': f"{round(float(temp_f))}°F",
+            'np_weather_sky': sky,
+            'np_sunrise': _iso_hour_minute((daily.get('sunrise') or [None])[0]),
+            'np_sunset': _iso_hour_minute((daily.get('sunset') or [None])[0]),
+        }
+        _WEATHER_CACHE['payload'] = out
+        _WEATHER_CACHE['fetched_at'] = _time.time()
+        return out
+    except Exception:
+        return {}
+
+
+def _iso_hour_minute(value):
+    """Extract a local HH:MM from an Open-Meteo ISO timestamp ('2026-11-16T07:12')."""
+    try:
+        if not value or 'T' not in str(value):
+            return ''
+        hhmm = str(value).split('T', 1)[1][:5]
+        hour = int(hhmm[:2])
+        suffix = 'AM' if hour < 12 else 'PM'
+        hour12 = hour % 12 or 12
+        return f'{hour12}:{hhmm[3:]} {suffix}'
+    except Exception:
+        return ''
 
 
 @app.context_processor
