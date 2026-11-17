@@ -280,8 +280,23 @@ def fetch_cascade_public_viewer_bookings(
                     (page_number - 1) * page_stride,
                 )
                 page.wait_for_timeout(1_200)
-                canvas = page.locator("canvas").first
-                canvas.wait_for(state="visible", timeout=30_000)
+                # The viewer renders pages lazily; scrolling can beat the canvas.
+                # Retry a few times before giving up on the whole county.
+                canvas_ready = False
+                last_exc: Exception | None = None
+                for _attempt in range(3):
+                    try:
+                        canvas = page.locator("canvas").first
+                        canvas.wait_for(state="visible", timeout=25_000)
+                        canvas_ready = True
+                        break
+                    except Exception as exc:  # playwright TimeoutError
+                        last_exc = exc
+                        page.wait_for_timeout(1_500)
+                if not canvas_ready:
+                    raise RuntimeError(
+                        f"Cascade roster viewer never produced a canvas for page {page_number}: {last_exc}"
+                    )
                 image = Image.open(io.BytesIO(canvas.screenshot())).convert("RGB")
                 tokens = _tokens_from_image(image)
                 if page_number == 1:
