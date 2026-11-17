@@ -23,6 +23,12 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# Real-browser UA: the county's WAF 403s non-browser clients.
+_BROWSER_UA = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
 SHERIFF_URL = "https://www.yellowstonecountymt.gov/sheriff/"
 DEFAULT_ROSTER_URL = "https://www.yellowstonecountymt.gov/Sheriff/Detention/dcsearch.asp"
 YELLOWSTONE_CHARGE_LOOKBACK_DAYS = 7
@@ -198,6 +204,79 @@ def _fetch_via_browser(roster_url: str) -> list[YellowstoneRecord]:
 
 
 
+def _parse_roster_csv(csv_text: str, source_url: str) -> list[YellowstoneRecord]:
+    """Parse the county's published JailRoster CSV (the reliable primary source).
+
+    Columns: Last Name, First Name, Middle Name, Jacket Number, Housing Unit,
+    Total Bond, Booking Date, Date of Birth.
+    """
+    import csv
+    import io
+
+    records: list[YellowstoneRecord] = []
+    seen: set[str] = set()
+    try:
+        reader = csv.DictReader(io.StringIO(csv_text))
+        for row in reader:
+            last = (row.get("Last Name") or "").strip().title()
+            first = (row.get("First Name") or "").strip().title()
+            middle = (row.get("Middle Name") or "").strip().title()
+            jacket = (row.get("Jacket Number") or "").strip()
+            if not last and not jacket:
+                continue
+            person_name = ", ".join(
+                part for part in [last, " ".join(p for p in [first, middle] if p)] if part
+            )
+            booking_at = _normalize_datetime(f"{row.get('Booking Date') or ''} 12:00 AM")
+            sid = f"yellowstone:{jacket}:{booking_at or ''}"
+            if sid in seen:
+                continue
+            seen.add(sid)
+            records.append(
+                YellowstoneRecord(
+                    source_record_id=sid,
+                    person_name=person_name,
+                    booking_number=jacket,
+                    booking_at=booking_at,
+                    charges_summary=(
+                        "Charge details available on the official Yellowstone County inmate page."
+                    ),
+                    source_url=source_url,
+                )
+            )
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Yellowstone CSV parse failed: %s", exc)
+        return []
+    logger.info("Parsed %d Yellowstone records from CSV", len(records))
+    return records
+
+
+def _fetch_yellowstone_roster_csv(source_url: str) -> list[YellowstoneRecord]:
+    """Fetch the county-published roster CSV. Returns [] when unavailable."""
+    base = (source_url or "").split("/sheriff/")[0].rstrip("/")
+    candidates = [
+        f"{base}/sheriff/detention/JailRoster/JailRoster.csv",
+        f"{base}/Sheriff/Detention/JailRoster/JailRoster.csv",
+    ]
+    session = requests.Session()
+    session.headers.update({"User-Agent": _BROWSER_UA, "Accept-Language": "en-US,en;q=0.9"})
+    for url in candidates:
+        try:
+            resp = session.get(url, timeout=45)
+            if resp.status_code != 200:
+                continue
+            text = resp.text
+            if "Last Name" not in text or "Jacket Number" not in text:
+                continue
+            records = _parse_roster_csv(text, url)
+            if records:
+                return records
+        except Exception as exc:
+            logger.info("Yellowstone CSV fetch failed for %s: %s", url, exc)
+            continue
+    return []
+
+
 def _normalize_datetime(value: str) -> str | None:
     raw = (value or "").strip()
     if not raw:
@@ -369,6 +448,12 @@ def fetch_bookings(
     roster_url = source_url or discover_roster_url()
     if not roster_url:
         raise RuntimeError("Could not discover Yellowstone roster URL")
+
+    # Primary: the county publishes the roster as CSV — stable, complete and
+    # free of the WAF/bot-check that the HTML search form enforces.
+    csv_records = _fetch_yellowstone_roster_csv(roster_url)
+    if csv_records:
+        return csv_records
 
     session = requests.Session()
     # The county's WAF rejects non-browser user agents with 403; a real Chrome
