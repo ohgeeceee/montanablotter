@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import html
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass
@@ -88,6 +89,113 @@ def _text_from_html(fragment: str) -> str:
     text = text.replace("\xa0", " ")
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
+class _BrowserRequired(Exception):
+    """Raised when the page needs a real browser (JS-injected token/WAF)."""
+
+
+def _fetch_via_browser(roster_url: str) -> list[YellowstoneRecord]:
+    """Fallback: drive headless Chromium through the roster search.
+
+    The county injects the ASP.NET ``csrfToken`` via JavaScript and its WAF
+    rejects plain HTTP clients, so the verification prompt must be solved in a
+    real browser context.
+    """
+    from playwright.sync_api import sync_playwright
+
+    chrome = os.getenv("MB_PLAYWRIGHT_EXECUTABLE_PATH", "/usr/bin/google-chrome")
+    launch_kwargs: dict = {"headless": True, "args": ["--no-sandbox", "--disable-dev-shm-usage"]}
+    if chrome and os.path.exists(chrome):
+        launch_kwargs["executable_path"] = chrome
+
+    user_agent = (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(**launch_kwargs)
+        try:
+            page = browser.new_page(user_agent=user_agent)
+            page.goto(roster_url, wait_until="domcontentloaded", timeout=90_000)
+            page.wait_for_timeout(2_000)
+
+            answer_input = page.query_selector('input[name="Answer"]')
+            if not answer_input:
+                logger.warning("Yellowstone browser fallback: no Answer field")
+                return []
+
+            # The prompt is re-rendered per request; read the live label.
+            label = ""
+            try:
+                label = page.eval_on_selector(
+                    'label[for="Answer"]', "el => el.textContent"
+                ) or ""
+            except Exception:
+                pass
+            expr = label.split("=")[0].strip()
+            parts = expr.split()
+            answer = ""
+            if len(parts) == 3:
+                try:
+                    left = _parse_value(parts[0])
+                    right = _parse_value(parts[2])
+                    answer = str(left + right if parts[1] == "+" else left - right)
+                except Exception:
+                    answer = ""
+            if not answer:
+                logger.warning("Yellowstone browser fallback: could not solve %r", label)
+                return []
+
+            answer_input.fill(answer)
+            try:
+                full = page.query_selector('input[name="ViewFullRoster"]')
+                if full and not full.is_checked():
+                    full.check()
+            except Exception:
+                pass
+            page.click('button[type="submit"][value="Search"], input[value="Search"]', timeout=90_000)
+            page.wait_for_timeout(6_000)
+
+            body_text = page.inner_text("body")
+            html_source = page.content()
+            rows = _parse_full_roster(html_source)
+            if not rows and ("You must enter either" in body_text or "Please solve the math" in body_text):
+                logger.warning("Yellowstone browser fallback: verification rejected")
+                return []
+            return [
+                YellowstoneRecord(
+                    source_record_id=(
+                        f"yellowstone:{(r.get('jacket_number') or '').strip()}:"
+                        + str(_normalize_datetime(f"{r.get('booking_date') or ''} 12:00 AM") or '')
+                    ),
+                    person_name=", ".join(
+                        part for part in [
+                            (r.get("last_name") or "").strip().title(),
+                            " ".join(
+                                p.title() for p in [
+                                    (r.get("first_name") or "").strip(),
+                                    (r.get("middle_name") or "").strip(),
+                                ] if p
+                            ),
+                        ] if part
+                    ),
+                    booking_number=str(r.get("jacket_number") or "").strip(),
+                    booking_at=_normalize_datetime(
+                        f"{r.get('booking_date') or ''} 12:00 AM"
+                    ),
+                    charges_summary=(
+                        "Charge details available on the official Yellowstone County inmate page."
+                    ),
+                    source_url=roster_url,
+                )
+                for r in rows
+                if (r.get("jacket_number") or "").strip()
+            ]
+        finally:
+            browser.close()
+
 
 
 def _normalize_datetime(value: str) -> str | None:
@@ -263,26 +371,41 @@ def fetch_bookings(
         raise RuntimeError("Could not discover Yellowstone roster URL")
 
     session = requests.Session()
+    # The county's WAF rejects non-browser user agents with 403; a real Chrome
+    # UA is required for both the roster page and the search POST.
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (compatible; MontanaBlotter/1.0; +https://mtblotter.com)",
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
             "Referer": roster_url,
         }
     )
 
-    page_html = session.get(roster_url, timeout=45).text
-    answer = _solve_prompt(page_html)
+    try:
+        page_html = session.get(roster_url, timeout=45).text
+        token_match = re.search(
+            r'<input[^>]*name="csrfToken"[^>]*value="([^"]+)"', page_html, re.IGNORECASE
+        )
+        if "csrfToken" in page_html and not token_match:
+            # The token is injected client-side by script; requests cannot see it.
+            raise _BrowserRequired("csrfToken injected by JavaScript")
+        answer = _solve_prompt(page_html)
+    except _BrowserRequired:
+        return _fetch_via_browser(roster_url)
 
-    response = session.post(
-        roster_url,
-        data={
-            "ViewFullRoster": "True",
-            "Answer": answer,
-            "action": "Search",
-        },
-        timeout=45,
-    )
+    post_data = {
+        "ViewFullRoster": "True",
+        "Answer": answer,
+        "action": "Search",
+    }
+    if token_match:
+        post_data["csrfToken"] = token_match.group(1)
+
+    response = session.post(roster_url, data=post_data, timeout=45)
     response.raise_for_status()
     roster_rows = _parse_full_roster(response.text)
 

@@ -1736,8 +1736,14 @@ def _fetch_records_for_source(source: sqlite3.Row, roster_url: str) -> list[Jail
         return fetch_glacier_bookings(roster_url)
     if county_slug == "roosevelt":
         return fetch_roosevelt_bookings(roster_url)
-    if county_slug == "lewis-and-clark":
-        return fetch_lewis_clark_bookings(roster_url)
+    if county_slug in ("lewis-and-clark", "lewis_clark"):
+        # The county restructured its site (asset path v212 -> v360) and the
+        # stored roster_url can go stale. Discovery on the detention page finds
+        # the current PDF; only fall back to the stored URL when discovery fails.
+        records = fetch_lewis_clark_bookings(None)
+        if not records:
+            return fetch_lewis_clark_bookings(roster_url)
+        return records
     if county_slug == "silver-bow":
         return fetch_silver_bow_bookings(roster_url)
     if county_slug == "valley":

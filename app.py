@@ -1266,6 +1266,12 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     # added over time. An index Google can read whose children all redirect to
     # /login is worse than no sitemap at all.
     '/sitemap-',
+    # Individual incident/records stories. The homepage and /posts list them as
+    # public records; a reader clicking a headline must not be bounced into
+    # registration before seeing the story they were promised. Paid depth stays
+    # behind the wall (charges, warrant detail, salaries, the API).
+    '/post',
+    '/post/',
 )
 _SIGNIN_WALL_EXEMPT_EXACT = {
     '/',
