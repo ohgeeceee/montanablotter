@@ -64,6 +64,28 @@
       </div>
     </section>
 
+    <section class="rounded-xl border border-slate-200 bg-white p-5">
+      <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">Inbound intake (MB_EMAIL_* / MB_IMAP_*)</h2>
+      <p class="mt-1 text-xs text-slate-500">
+        County blotter and jail roster emails are read from this mailbox every 15 minutes.
+        If these credentials fail, new records stop arriving silently.
+      </p>
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        {% for f in fields if f.key.startswith('MB_EMAIL_') or f.key.startswith('MB_IMAP_') %}
+        <div>
+          <label class="block text-xs font-semibold text-slate-600" for="{{ f.key }}">
+            {{ f.key }}
+            {% if f.secret and f.set %}<span class="text-slate-400">(set, {{ f.length }} chars)</span>{% endif %}
+          </label>
+          <input id="{{ f.key }}" name="{{ f.key }}" type="{{ 'password' if f.secret else 'text' }}"
+                 value="{{ f.value }}" placeholder="{{ f.placeholder }}"
+                 autocomplete="off"
+                 class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none">
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
     <div class="flex flex-wrap items-center gap-3">
       <button type="submit" name="action" value="save"
               class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
@@ -73,7 +95,11 @@
               class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
         Test SMTP login
       </button>
-      <span class="text-xs text-slate-500">Test uses the values above as entered, including an unsaved password.</span>
+      <button type="submit" name="action" value="test_imap"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+        Test inbound IMAP
+      </button>
+      <span class="text-xs text-slate-500">Tests use the values above as entered, including an unsaved password.</span>
     </div>
   </form>
 </div>

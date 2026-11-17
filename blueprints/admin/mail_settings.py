@@ -34,10 +34,20 @@ MAIL_KEYS = [
     "MB_ROSTER_SMTP_PORT",
     "MB_ROSTER_SMTP_USER",
     "MB_ROSTER_SMTP_PASSWORD",
+    # Inbound intake. County blotters and jail rosters arrive by email, so a
+    # broken IMAP credential silently starves the whole records pipeline.
+    "MB_EMAIL_USER",
+    "MB_EMAIL_PASSWORD",
+    "MB_IMAP_SERVER",
+    "MB_IMAP_PORT",
 ]
 
 # Secrets are shown only as a length, never as a value.
-SECRET_KEYS = {"MB_SMTP_PASSWORD", "MB_ROSTER_SMTP_PASSWORD"}
+SECRET_KEYS = {
+    "MB_SMTP_PASSWORD",
+    "MB_ROSTER_SMTP_PASSWORD",
+    "MB_EMAIL_PASSWORD",
+}
 
 
 def _read_env() -> dict:
@@ -102,6 +112,24 @@ def _test_login(server: str, port: str, user: str, password: str) -> tuple[bool,
         return False, f"{type(exc).__name__}: {str(exc)[:120]}"
 
 
+def _test_imap_login(server: str, port: str, user: str, password: str) -> tuple[bool, str]:
+    """Try an IMAP4 SSL login. Never includes the password in the result."""
+    if not server or not user or not password:
+        return False, "server, user and password are all required"
+    try:
+        import imaplib
+        import ssl
+
+        ctx = ssl.create_default_context()
+        with imaplib.IMAP4_SSL(server, int(port or 993), ssl_context=ctx, timeout=20) as mail:
+            mail.login(user, password)
+            status, boxes = mail.list()
+            count = len(boxes) if status == "OK" else 0
+        return True, f"Authenticated ({count} folder(s))"
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {str(exc)[:120]}"
+
+
 @admin_bp.route("/system/mail", methods=["GET", "POST"])
 @login_required
 @require_role(*ADMIN_MANAGEMENT_ROLES)
@@ -122,6 +150,19 @@ def admin_mail_settings():
                 flash(f"SMTP test passed — {detail}.", "success")
             else:
                 flash(f"SMTP test failed — {detail}.", "error")
+            return redirect(url_for("admin.admin_mail_settings"))
+
+        if action == "test_imap":
+            ok, detail = _test_imap_login(
+                request.form.get("imap_server", ""),
+                request.form.get("imap_port", "993"),
+                request.form.get("email_user", ""),
+                request.form.get("email_password", ""),
+            )
+            if ok:
+                flash(f"Inbound IMAP test passed — {detail}.", "success")
+            else:
+                flash(f"Inbound IMAP test failed — {detail}.", "error")
             return redirect(url_for("admin.admin_mail_settings"))
 
         updates = {}
