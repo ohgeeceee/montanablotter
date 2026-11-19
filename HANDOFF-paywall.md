@@ -1,5 +1,16 @@
 # Handoff: Paywall / Sneak Preview Feature
 
+> **SUPERSEDED (2026-11-19) — kept for history, do not implement against this.**
+> The paywall shipped. Tiers were renamed Scout/Insider/Professional →
+> Member/Plus/Pro with owner-confirmed live prices (Plus $7.99/mo, $79/yr; Pro
+> $26/mo, $260/yr) — not the prices below. Crime-map popups intentionally show
+> free summaries with gating at `/record/<id>` (owner decision 2026-11-19,
+> reverses criterion 8 below). Warrant access is bundled with Pro plus a
+> standalone add-on; Plus excludes it. Stale ops facts: `/root/montanablotter`
+> is now `/opt/montanablotter`; the ~13 GB database was lost pre-rebrand
+> (current ~71 MB). Current truth: `docs/audits/2026-11-19-paywall-audit.md`
+> and `memory-bank/`.
+
 **From:** blotter-ops
 **To:** blotter-dev
 **Date:** 2026-05-21

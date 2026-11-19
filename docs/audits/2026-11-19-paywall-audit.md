@@ -4,7 +4,7 @@
 **Spec:** `HANDOFF-paywall.md` (2026-05-21)
 **Method:** static code review of `main` (routes, decorators, templates, tests). No runtime verification — items marked ✅ are code-verified, not load-tested.
 
-## Verdict: the paywall shipped and largely works. Four owner decisions + one live bypass remain.
+## Verdict: the paywall shipped and largely works. Four owner decisions + one live bypass — all resolved same-day; see **Resolutions** at the bottom.
 
 ### Acceptance criteria
 
@@ -49,3 +49,16 @@
 - **Feature matrix unused:** `has_feature()` is never called outside `paywall.py`; the advertised "7-day / 12-month / full archive" history limits and saved-search caps are not enforced through it. Audit each pricing-page promise before relying on it.
 - **Stale codemap:** `docs/CODEMAPS/monetization.md` references `subscription_gate()` — doesn't exist (renamed `gated_detail`/`require_subscription`, both currently unused).
 - **Stripe price IDs hardcoded in `payments.py`** rather than env vars as the handoff proposed (`MB_*_PRICE_ID`). Price IDs aren't secrets, so this is fine, but env-based config would ease test/prod splits.
+
+---
+
+## Resolutions — 2026-11-19 (owner decisions, same day)
+
+1. **Prices: the live page is truth.** Member (free) / Blotter Plus $7.99/mo, $79/yr / Blotter Pro $26/mo, $260/yr. `paywall.py` docstring and `HANDOFF-paywall.md` updated; the legacy `/checkout/subscription` endpoint (which still sells Professional at $14.99/mo via inline `price_data`) is retired to a redirect onto `/checkout/<plus|pro>` in the same queue draft.
+2. **Crime map popups stay as built** — free summary popups, gate at `/record/<id>` (owner: better for SEO). HANDOFF criterion 8 superseded.
+3. **Warrant scope: confirmed bug, fixed.** New model: warrants are bundled with **Pro** and sold as the standalone **warrant_access** add-on; **Plus does not include them**. Code transition (webhook write remap removal, `WARRANT_PLANS = {'pro', 'warrant_access'}`, `warrant_access` first-class at level 0, regression tests) is staged in `agent-queue/dev/2026-11-19-paywall-warrant-scope/`; `scripts/maintenance/2026-11-19-fix-warrant-access-plans.py` restores existing warrant buyers the old webhook stored as `plus`.
+4. **Source-PDF bypass: fix approved and staged** in the same queue draft — `/record/<id>/source` enforces `preview_allowed(resource_type='source_pdf')` and redirects exhausted viewers to `/record/<id>`.
+
+Also staged in the queue draft: duplicate `/pricing` route in `app.py` removed; `/pricing` `already_subscribed` checks `user_has_access('plus')` instead of warrant access. **Nothing code-side has deployed yet — the audit findings stand until the queue draft runs on vm2778.**
+
+**Remaining open items:** one live signup → checkout → webhook → cancel round-trip test; confirm the old fine-grained PAT was revoked in GitHub settings.
