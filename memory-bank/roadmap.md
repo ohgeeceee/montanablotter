@@ -6,14 +6,19 @@ within a lane; respect `MISSION.md` authority tiers; move shipped items to
 
 ## Lane 1 — Monetization (revenue first)
 
-1. **Finish the paywall** — spec: `HANDOFF-paywall.md`.
-   - [ ] Verify status: `services/monetization/` exists; audit against the handoff's
-     acceptance criteria before writing code.
-   - [ ] Fix `/alerts` 500 (import path) if still present — it blocks free signups.
-   - [ ] `/pricing` page with Scout/Insider/Professional comparison + Stripe Checkout.
-   - [ ] Preview-limit enforcement (3/day, 5/week rolling; session+IP for anonymous).
-   - [ ] Gate `/incident/<id>`, booking detail, map popups; wire Stripe webhooks to
-     `public_users`.
+1. **Paywall** — SHIPPED; audited 2026-11-19 (`docs/audits/2026-11-19-paywall-audit.md`).
+   - [x] Audit against `HANDOFF-paywall.md` acceptance criteria — done 2026-11-19
+   - [x] `/alerts` 500 import fix — confirmed fixed
+   - [ ] **Owner: 4 decisions** (audit doc) — price truth source, map popups,
+     warrant-access scope, source-PDF bypass
+   - [ ] Fix `/record/<id>/source` bypass (pending owner sign-off)
+   - [ ] Delete duplicate `/pricing` route in `app.py:15306`; fix
+     `already_subscribed` to check `user_has_access('plus')`
+   - [ ] Move `/pricing` + `/checkout/<plan>` from `bail_bond_ads.py` to
+     `blueprints/payments.py`
+   - [ ] One live round-trip test: signup → checkout → webhook → cancel
+   - [ ] Enforce (or remove from pricing page) the unused `has_feature()` matrix —
+     history-window and saved-search caps are advertised but not systematically gated
 2. **Attorney/referral revenue** — seeds exist (`seed_attorney_referrals.py`,
    `seed_attorney_resources.py`); outreach sequence in
    `docs/criminal_defense_attorney_outreach_sequence.md`.
@@ -35,8 +40,8 @@ within a lane; respect `MISSION.md` authority tiers; move shipped items to
    (`instagram_publisher.py`) and TikTok (`TikTok_Launch_Package.txt`).
 2. **SEO** — every public page: unique title/meta, schema.org markup, county landing
    pages. Sitemap freshness as coverage grows.
-3. **Email digests** — morning briefing already runs; grow free-alert signups (needs
-   the `/alerts` fix).
+3. **Email digests** — morning briefing already runs; grow free-alert signups via
+   `/alerts` (now fixed).
 
 ## Lane 4 — Product & experience
 
@@ -44,15 +49,16 @@ within a lane; respect `MISSION.md` authority tiers; move shipped items to
    system; decide whether mtblotter.com adopts a shared identity (see
    `decisions.md`, 2026-11-17).
 2. **Mobile app** — `mobile/` (Expo/React Native); `npm run ci:verify` gate.
-3. **Warrant access add-on** — gating exists (`user_has_warrant_access()`); package
-   and promote it once paywall is stable.
+3. **Warrant access add-on** — resolve scope conflict first (audit Decision 3), then
+   package and promote.
 
 ## Lane 5 — Ops maturity (keeps agents effective)
 
 1. **Adopt this memory bank** — every agent reads it at start, updates it at end
    (`README.md`). Success metric: no agent asks a question this folder answers.
-2. **Fix doc drift** — reconcile `/root` vs `/opt` paths across `AGENTS.md`,
-   `docs/notes.md`, `HANDOFF-paywall.md`.
+2. **Fix doc drift** — `AGENTS.md` done 2026-11-19; remaining: `docs/notes.md`,
+   `HANDOFF-paywall.md` (`/root` paths, stale prices, stale DB size),
+   `docs/CODEMAPS/monetization.md` (`subscription_gate()` doesn't exist).
 3. **Repo hygiene** — root is cluttered with one-off `test_*.py`, `.bak` files, and
    stray scripts; move tests into `tests/`, archive the rest.
 4. **Staging path** — today `main` → production in 2 minutes with no staging;

@@ -1,8 +1,9 @@
 # Active Context
 
-*Last verified: 2026-11-16 (direct SSH session on vm2778). Update this file whenever
-deployment reality changes. Older docs may contradict this file — this file wins for
-ops facts dated 2026-11-16 or later; verify on the server if unsure.*
+*Last verified: 2026-11-16 (direct SSH session on vm2778) for deployment facts;
+paywall status code-audited 2026-11-19. Update this file whenever reality changes.
+Older docs may contradict this file — this file wins for facts dated 2026-11-16 or
+later; verify on the server if unsure.*
 
 ## Production reality (verified 2026-11-16)
 
@@ -32,19 +33,22 @@ ops facts dated 2026-11-16 or later; verify on the server if unsure.*
 
 ## Known doc drift (fix as you touch)
 
-- `AGENTS.md`, `HANDOFF-paywall.md`, and `docs/notes.md` reference `/root/montanablotter`
-  and `montanablotter.service`. Current reality: `/opt/montanablotter`, user `ubuntu`,
-  unit `mtblotter.service` (since ~Nov 2026).
+- Older docs reference `/root/montanablotter` and `montanablotter.service`. Current
+  reality: `/opt/montanablotter`, user `ubuntu`, unit `mtblotter.service`.
+  `AGENTS.md` was corrected 2026-11-19; `docs/notes.md` and `HANDOFF-paywall.md`
+  still reference `/root`.
 - `HANDOFF-paywall.md` (2026-05) cites `data/blotter.db` at ~13 GB. The old
   montanablotter.com database was **lost** (the rebrand to mtblotter.com started
-  fresh); the current DB is ~71 MB. Treat pre-loss record counts in old docs as
-  historical, not current.
+  fresh); the current DB is ~71 MB. Treat pre-loss record counts as historical.
+- Paywall pricing has three conflicting sources (live page wins until owner says
+  otherwise): live = Plus $7.99/mo, $79/yr; Pro $26/mo, $260/yr. See
+  `docs/audits/2026-11-19-paywall-audit.md`, Decision 1.
 
 ## Current focus
 
-1. **Paywall / subscriptions** — handoff spec exists (`HANDOFF-paywall.md`, May 2026);
-   `services/monetization/` now exists, so work partially landed. Audit against the
-   handoff's acceptance criteria before writing new code.
+1. **Paywall** — SHIPPED, audited 2026-11-19 (`docs/audits/2026-11-19-paywall-audit.md`).
+   9/11 handoff criteria pass. Waiting on 4 owner decisions (audit doc, top section).
+   One live bypass: `/record/<id>/source` serves pre-redaction PDFs ungated.
 2. **Snitch Directory redesign** — landing + forum done in archival-ledger style
    (2026-11-16/17); old-theme templates remaining: thread, submit, contact, faq,
    auth, admin_*, embed, press, premium.
@@ -53,7 +57,9 @@ ops facts dated 2026-11-16 or later; verify on the server if unsure.*
 
 ## Open questions
 
-- Is the `/alerts` 500 import bug from the paywall handoff fixed? (`app.py` importing
-  `alert_dispatcher` instead of `services.alerts.dispatcher`.)
+- ~~Is the `/alerts` 500 import bug fixed?~~ **Resolved 2026-11-19: fixed**
+  (`app.py:10108` imports `services.alerts.dispatcher`).
 - Did the old fine-grained PAT (scrubbed from git remote 2026-11-16) get revoked in
   GitHub settings? Owner holds that action.
+- Should Plus/Pro include warrant access? Code currently says yes, docs say no
+  (audit Decision 3).

@@ -32,8 +32,17 @@ Hard-won lessons. Append with a date; don't delete — strike through if obsolet
   `tests/`. Run `./venv/bin/python3 -m pytest` before pushing code.
 - Tests must patch `DB_PATH` to a temp DB. Never run anything against production
   `blotter.db` from a test or a REPL experiment.
-- 2026-05 handoff flagged `/alerts` 500 from `import alert_dispatcher` (real module:
-  `services.alerts.dispatcher`). Verify before building on alerts.
+- ~~`/alerts` 500 from `import alert_dispatcher`~~ Fixed (2026-11-19 audit).
+- **Duplicate `/pricing` route (2026-11-19):** defined in both
+  `blueprints/bail_bond_ads.py` (registered first — wins) and `app.py:15306`
+  (shadowed dead code). Same blueprint also owns `/checkout/<plus|pro>`. Delete the
+  app.py copy before editing pricing, or you'll edit code that never runs.
+- **Docs quote dead prices (2026-11-19):** HANDOFF says Insider $7.99/Pro $14.99,
+  `paywall.py` docstring says $5.99/$19.99, the live page says Plus $7.99 / Pro $26.
+  Trust the live page; fix docs when touching them.
+- **`/record/<id>/source` bypasses the paywall (2026-11-19):** serves pre-redaction
+  source PDFs with no gate (open since the July audit, H2). Fix or get owner's
+  explicit sign-off.
 
 ## Agent fleet
 
