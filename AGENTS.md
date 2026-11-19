@@ -307,7 +307,7 @@ test: add coverage for bozeman calls fetcher
 - Admin login has brute-force throttling controlled by `MB_ADMIN_LOGIN_MAX_ATTEMPTS`, `MB_ADMIN_LOGIN_WINDOW_MINUTES`, and `MB_ADMIN_LOGIN_LOCKOUT_MINUTES`.
 - API keys are managed via `MB_API_ADMIN_SECRET` for `/api/auth/*` endpoints.
 - The global sign-in wall (`MB_REQUIRE_SIGNIN=true`) requires a free account for most pages except the homepage and a small allow-list of auth/payment/static routes.
-- Warrant access is a separate paid add-on (`warrant_access` plan); `insider` and `professional` plans do **not** include it. Use `user_has_warrant_access()` to gate `/wanted` routes.
+- Warrant access (`/wanted`) is included with **Pro** and sold as the standalone `warrant_access` add-on; **Plus does not include it** (owner decision 2026-11-19; `WARRANT_PLANS = {'pro', 'warrant_access'}`). Use `user_has_warrant_access()` to gate `/wanted` routes.
 
 ### Privacy
 
