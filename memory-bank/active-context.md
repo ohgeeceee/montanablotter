@@ -1,7 +1,8 @@
 # Active Context
 
 *Last verified: 2026-11-16 (direct SSH session on vm2778) for deployment facts;
-paywall status code-audited 2026-11-19. Update this file whenever reality changes.
+paywall audited AND owner decisions implemented 2026-11-19. Update this file
+whenever reality changes.
 Older docs may contradict this file — this file wins for facts dated 2026-11-16 or
 later; verify on the server if unsure.*
 
@@ -35,20 +36,27 @@ later; verify on the server if unsure.*
 
 - Older docs reference `/root/montanablotter` and `montanablotter.service`. Current
   reality: `/opt/montanablotter`, user `ubuntu`, unit `mtblotter.service`.
-  `AGENTS.md` was corrected 2026-11-19; `docs/notes.md` and `HANDOFF-paywall.md`
-  still reference `/root`.
+  `AGENTS.md` and `CLAUDE.md` corrected 2026-11-19; `HANDOFF-paywall.md` carries
+  a superseded banner; `docs/notes.md` still references `/root`.
 - `HANDOFF-paywall.md` (2026-05) cites `data/blotter.db` at ~13 GB. The old
   montanablotter.com database was **lost** (the rebrand to mtblotter.com started
   fresh); the current DB is ~71 MB. Treat pre-loss record counts as historical.
-- Paywall pricing has three conflicting sources (live page wins until owner says
-  otherwise): live = Plus $7.99/mo, $79/yr; Pro $26/mo, $260/yr. See
-  `docs/audits/2026-11-19-paywall-audit.md`, Decision 1.
+- ~~Paywall pricing has three conflicting sources~~ Resolved 2026-11-19: owner
+  confirmed the live page (Plus $7.99/mo, $79/yr; Pro $26/mo, $260/yr). Docs
+  updated; legacy `/checkout/subscription` (old $14.99 Professional) retirement
+  is staged in the queue draft.
 
 ## Current focus
 
-1. **Paywall** — SHIPPED, audited 2026-11-19 (`docs/audits/2026-11-19-paywall-audit.md`).
-   9/11 handoff criteria pass. Waiting on 4 owner decisions (audit doc, top section).
-   One live bypass: `/record/<id>/source` serves pre-redaction PDFs ungated.
+1. **Paywall** — SHIPPED, audited and owner-decided 2026-11-19
+   (`docs/audits/2026-11-19-paywall-audit.md`, "Resolutions"). ALL code changes
+   (warrant scope, source-PDF gate, duplicate `/pricing` removal,
+   `already_subscribed` fix, legacy `/checkout/subscription` retirement) await an
+   on-box run of
+   `agent-queue/dev/2026-11-19-paywall-warrant-scope/patch_paywall_warrant.py`
+   followed by the migration script. Until then: Plus subscribers still get
+   `/wanted` (the confirmed bug), `/record/<id>/source` is still ungated, and
+   `/checkout/subscription` still sells Professional at the old $14.99/mo.
 2. **Snitch Directory redesign** — landing + forum done in archival-ledger style
    (2026-11-16/17); old-theme templates remaining: thread, submit, contact, faq,
    auth, admin_*, embed, press, premium.
@@ -61,5 +69,5 @@ later; verify on the server if unsure.*
   (`app.py:10108` imports `services.alerts.dispatcher`).
 - Did the old fine-grained PAT (scrubbed from git remote 2026-11-16) get revoked in
   GitHub settings? Owner holds that action.
-- Should Plus/Pro include warrant access? Code currently says yes, docs say no
-  (audit Decision 3).
+- ~~Should Plus/Pro include warrant access?~~ **Resolved 2026-11-19: Pro yes,
+  Plus no; standalone `warrant_access` add-on preserved.**

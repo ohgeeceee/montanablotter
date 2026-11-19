@@ -4,6 +4,15 @@ Completed work, newest first. Move items here from `roadmap.md` when they ship.
 
 ## 2026-11
 
+- **2026-11-19 — Paywall decisions implemented**: owner resolved the 4 audit
+  questions (prices = live page; map popups stay free; warrants = Pro +
+  standalone add-on, Plus excluded; source-PDF bypass fixed). Docs corrected;
+  all code changes staged in
+  `agent-queue/dev/2026-11-19-paywall-warrant-scope/` (one patch script +
+  migration; tests included and verified against the patched logic).
+- **2026-11-19 — Paywall audit** (`docs/audits/2026-11-19-paywall-audit.md`):
+  9/11 handoff criteria pass; July H1 (warrant API) confirmed fixed; H2
+  (source-PDF bypass) confirmed open, fix approved and staged same day.
 - **2026-11-19 — Memory bank created** (`memory-bank/`): read/write protocol, active
   context, decisions, gotchas, progress, roadmap, session-log template. Linked from
   `AGENTS.md`.

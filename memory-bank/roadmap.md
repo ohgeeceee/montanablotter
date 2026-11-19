@@ -9,11 +9,13 @@ within a lane; respect `MISSION.md` authority tiers; move shipped items to
 1. **Paywall** — SHIPPED; audited 2026-11-19 (`docs/audits/2026-11-19-paywall-audit.md`).
    - [x] Audit against `HANDOFF-paywall.md` acceptance criteria — done 2026-11-19
    - [x] `/alerts` 500 import fix — confirmed fixed
-   - [ ] **Owner: 4 decisions** (audit doc) — price truth source, map popups,
-     warrant-access scope, source-PDF bypass
-   - [ ] Fix `/record/<id>/source` bypass (pending owner sign-off)
-   - [ ] Delete duplicate `/pricing` route in `app.py:15306`; fix
-     `already_subscribed` to check `user_has_access('plus')`
+   - [x] **Owner: 4 decisions** — decided 2026-11-19 (audit doc, "Resolutions")
+   - [x] Fix `/record/<id>/source` bypass — staged in
+     `agent-queue/dev/2026-11-19-paywall-warrant-scope/`
+   - [x] Delete duplicate `/pricing` route; fix `already_subscribed`; retire
+     legacy `/checkout/subscription` — all staged in the same queue draft
+   - [ ] **Run the warrant-scope queue draft + migration on vm2778, then verify**
+     (single patch script; see its README)
    - [ ] Move `/pricing` + `/checkout/<plan>` from `bail_bond_ads.py` to
      `blueprints/payments.py`
    - [ ] One live round-trip test: signup → checkout → webhook → cancel
@@ -49,16 +51,17 @@ within a lane; respect `MISSION.md` authority tiers; move shipped items to
    system; decide whether mtblotter.com adopts a shared identity (see
    `decisions.md`, 2026-11-17).
 2. **Mobile app** — `mobile/` (Expo/React Native); `npm run ci:verify` gate.
-3. **Warrant access add-on** — resolve scope conflict first (audit Decision 3), then
-   package and promote.
+3. **Warrant access add-on** — scope resolved 2026-11-19 (Pro + standalone
+   add-on; Plus excluded). Next: package and promote — the weekly option is an
+   under-marketed impulse buy for bail/attorney users.
 
 ## Lane 5 — Ops maturity (keeps agents effective)
 
 1. **Adopt this memory bank** — every agent reads it at start, updates it at end
    (`README.md`). Success metric: no agent asks a question this folder answers.
-2. **Fix doc drift** — `AGENTS.md` done 2026-11-19; remaining: `docs/notes.md`,
-   `HANDOFF-paywall.md` (`/root` paths, stale prices, stale DB size),
-   `docs/CODEMAPS/monetization.md` (`subscription_gate()` doesn't exist).
+2. **Fix doc drift** — done 2026-11-19: `AGENTS.md`, `CLAUDE.md`,
+   `HANDOFF-paywall.md` (superseded banner), `docs/CODEMAPS/monetization.md`.
+   Remaining: `docs/notes.md` (`/root` paths).
 3. **Repo hygiene** — root is cluttered with one-off `test_*.py`, `.bak` files, and
    stray scripts; move tests into `tests/`, archive the rest.
 4. **Staging path** — today `main` → production in 2 minutes with no staging;

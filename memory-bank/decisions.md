@@ -2,6 +2,20 @@
 
 Append-only. Newest at top. Format: date, decision, why, where to learn more.
 
+## 2026-11-19 — Paywall: prices, map popups, warrant scope, source-PDF gate (owner)
+
+Four decisions resolving `docs/audits/2026-11-19-paywall-audit.md`:
+
+1. **Prices: the live page is truth** — Member free / Plus $7.99/mo, $79/yr /
+   Pro $26/mo, $260/yr. Supersedes the 2026-05-21 prices below.
+2. **Crime-map popups stay free-summary**, gate at `/record/<id>` (SEO
+   reasoning). Supersedes the "popups paid" note in the 2026-05-21 entry.
+3. **Warrant access: bundled with Pro + standalone add-on; Plus excluded.**
+   The old code (`WARRANT_PLANS` incl. `plus`, webhook remap
+   `warrant_access→plus`) was a bug that gave every Plus subscriber warrants.
+4. **`/record/<id>/source` bypass fixed** — source PDFs now count against the
+   preview budget like any other detail view.
+
 ## 2026-11-17 — Snitch Directory design language: archival ledger
 
 Landing and forum restyled in light paper/ink monochrome (Trirong + EB Garamond +
