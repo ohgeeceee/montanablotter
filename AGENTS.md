@@ -4,11 +4,23 @@ This file is the primary orientation document for AI coding agents working in th
 
 ---
 
+## Memory Bank (Living Context — Read Second)
+
+This repo maintains a shared, agent-maintained memory bank in `memory-bank/` so every agent (Hermes, Codex, Kimi Code, OpenClaw, Claude, and chat sessions) starts with current context instead of cold.
+
+**At session start:** after this file, read `memory-bank/active-context.md` and `memory-bank/gotchas.md`. Check `memory-bank/roadmap.md` for current priorities and `memory-bank/session-log/` for recent handoffs.
+
+**Before ending a session:** update the memory bank per `memory-bank/README.md` (active context, decisions, gotchas, and a session-log entry).
+
+> **Doc-drift notice (2026-11-19):** production moved from `/root/montanablotter` (user `root`, unit `montanablotter.service`) to `/opt/montanablotter` (user `ubuntu`, unit `mtblotter.service`). Some paths below and in older docs still reference `/root` — treat `memory-bank/active-context.md` as the current source of truth and fix stale paths as you touch them.
+
+---
+
 ## Project Overview
 
 Montana Blotter (`mtblotter.com`, alias `fertherecerd.com`) is an open-source public-records aggregation platform for Montana. It ingests, normalizes, and publishes police blotters, jail bookings, court records, missing-persons alerts, warrants, public meetings, and related government transparency data from all 56 Montana counties.
 
-The production deployment runs on a single VPS at `/root/montanablotter`. The repository is a Python Flask monolith with a large ecosystem of background workers, scrapers, AI-assisted content pipelines, a React Native mobile app, and a family of related services (`blotter-host`, `claw3d-office`) that share authentication and operational infrastructure.
+The production deployment runs on a single VPS at `/opt/montanablotter` (see Memory Bank notice above). The repository is a Python Flask monolith with a large ecosystem of background workers, scrapers, AI-assisted content pipelines, a React Native mobile app, and a family of related services (`blotter-host`, `claw3d-office`) that share authentication and operational infrastructure.
 
 ### High-level responsibilities
 
@@ -42,7 +54,7 @@ The production deployment runs on a single VPS at `/root/montanablotter`. The re
 ## Repository Structure
 
 ```
-/root/montanablotter/
+/opt/montanablotter/
 ├── app.py                      # Flask application entry point (~15.7k lines, monolithic)
 ├── config.py                   # Environment-based configuration; loads `.env`
 ├── db.py                       # SQLAlchemy models + raw SQLite helpers
@@ -51,6 +63,8 @@ The production deployment runs on a single VPS at `/root/montanablotter`. The re
 ├── .env.example                # Documented environment variable template
 ├── .gitleaks.toml              # Secret scanning config
 ├── crontab.txt                 # Canonical cron schedule for workers
+│
+├── memory-bank/                # Living agent memory (read second, update at session end)
 │
 ├── blueprints/                 # Flask route modules
 │   ├── api.py                  # REST API with token auth
@@ -121,9 +135,10 @@ The production VPS hosts a coordinated set of services that share admin authenti
 
 | Path | Service | Tech |
 |------|---------|------|
-| `/root/montanablotter` | Montana Blotter flagship | Python Flask + SQLite |
+| `/opt/montanablotter` | Montana Blotter flagship | Python Flask + SQLite |
 | `/root/blotter-host` | Multi-tenant `blotter.host` router | Node.js / Express |
 | `/root/claw3d-office` | Claw3D Office / 3D hub | Separate service |
+| `/opt/snitchdirectory` | Snitch Directory (sister site) | Python Flask + SQLite |
 
 Shared admin login is implemented via cookies:
 - `blotter_ops_session` — JWT signed by `OPS_SESSION_SECRET` (shared between Montana Blotter and Blotter Host).
@@ -133,11 +148,11 @@ Shared admin login is implemented via cookies:
 
 ## Build, Test, and Development Commands
 
-All backend work assumes the virtualenv at `/root/montanablotter/venv`.
+All backend work assumes the virtualenv at `/opt/montanablotter/venv`.
 
 ```bash
 # Activate the environment
-source /root/montanablotter/venv/bin/activate
+source /opt/montanablotter/venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -262,7 +277,7 @@ test: add coverage for bozeman calls fetcher
 
 ## Testing Instructions
 
-1. **Activate the virtualenv**: `source /root/montanablotter/venv/bin/activate`.
+1. **Activate the virtualenv**: `source /opt/montanablotter/venv/bin/activate`.
 2. **Run targeted tests first** when iterating on a specific area, then run the full suite for broad changes.
 3. **New code requires tests** for:
    - New parsers or fetchers
@@ -314,12 +329,16 @@ test: add coverage for bozeman calls fetcher
 ### Production services
 
 ```bash
-systemctl restart montanablotter   # Flask app via Gunicorn
+systemctl restart mtblotter        # Flask app via Gunicorn (see Memory Bank notice)
 systemctl restart blotter-host     # Multi-tenant Node router
 systemctl restart claw3d-office    # 3D office service
 systemctl restart agent-events     # WebSocket events service
 systemctl reload nginx             # Reverse proxy
 ```
+
+### Git-based auto-deploy (installed 2026-11-16)
+
+`scripts/ops/git_sync.sh` runs every 2 minutes from the ubuntu crontab: it fetches origin, pushes local commits (with a secret scan), and on remote-ahead does a fast-forward pull, restarts `mtblotter`, health-checks port 5000, and auto-rolls back on failure. **Pushing to `main` on GitHub deploys to production within ~2 minutes.** There is no staging environment — test before you push.
 
 ### Cron schedule
 
@@ -333,7 +352,7 @@ The canonical schedule is in `crontab.txt`. Key jobs include:
 - Daily blog worker at 05:30 (`daily_blog_worker.py`).
 - Morning briefing email at 13:00 UTC / 7:00am MT.
 - Newsroom planner/writer/editor every 3 hours.
-- Database backup daily at 03:00 (`scripts/ops/backup_db.sh`).
+- Database backup daily at 03:00 (`scripts/ops/backup_db.sh`); gpg-encrypted offsite backup at 03:30 (`scripts/ops/offsite_backup.sh`).
 - Healthcheck restart every 3 minutes (`scripts/ops/healthcheck_restart.sh`).
 
 Apply the schedule with:
@@ -358,9 +377,9 @@ for col, col_type in [('new_column', 'TEXT'), ...]:
 
 ### Backup and recovery
 
-- Daily DB backup at 03:00 via `scripts/ops/backup_db.sh`.
-- Keep a rolling 7-day backup chain.
-- Manual snapshot: copy `blotter.db` to a `.bak` file.
+- Daily WAL-safe DB backup at 03:00 via `scripts/ops/backup_db.sh` (14-day local retention in `db_backups/`).
+- Nightly gpg-encrypted offsite backup to the private `mtblotter-backups` repo at 03:30.
+- Never `cp` a live SQLite DB in WAL mode — use the backup script.
 
 ### Health monitoring
 
@@ -389,7 +408,7 @@ The VPS is the single operations dashboard for `mtblotter.com` and `blotter.host
 
 One login at `/admin/login` opens every surface. Secrets live in:
 
-- `/root/montanablotter/.env` — `OPS_SESSION_SECRET`, `STUDIO_ACCESS_TOKEN`
+- `/opt/montanablotter/.env` — `OPS_SESSION_SECRET`, `STUDIO_ACCESS_TOKEN`
 - `/root/blotter-host/.env` — `OPS_SESSION_SECRET`
 - `/root/claw3d-office/.env` — `STUDIO_ACCESS_TOKEN`
 
@@ -436,16 +455,16 @@ sqlite3 blotter.db "SELECT * FROM blotters ORDER BY upload_date DESC LIMIT 5;"
 python3 -c "from rq import Queue; from redis import Redis; q = Queue(connection=Redis()); print(q.count)"
 
 # Tail live logs
-journalctl -u montanablotter -f
-tail -f /root/montanablotter/logs/mail.log
-tail -f /root/montanablotter/cron_errors.log
+journalctl -u mtblotter -f
+tail -f /opt/montanablotter/logs/mail.log
+tail -f /opt/montanablotter/cron_errors.log
 
 # Check services
-systemctl status montanablotter.service
+systemctl status mtblotter.service
 systemctl status agent-events.service
 systemctl status redis-server
 ```
 
 ---
 
-*Last updated: 2026-06-17. Keep this file in sync with changes to `.env.example`, `crontab.txt`, `requirements.txt`, service architecture, or security practices.*
+*Last updated: 2026-11-19. Keep this file in sync with changes to `.env.example`, `crontab.txt`, `requirements.txt`, service architecture, or security practices. Living day-to-day state belongs in `memory-bank/`, not here.*
