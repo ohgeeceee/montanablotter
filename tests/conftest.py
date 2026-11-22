@@ -42,17 +42,40 @@ def _reset_schema_bootstrap_class():
 @pytest.fixture(autouse=True)
 def _preserve_app_module_singleton():
     # Several checkout/registration tests pop sys.modules['app'] and re-import
-    # it for isolation. Left unrestored, later tests end up with a stale Flask
-    # app paired with a freshly-imported module: cache backends go missing
-    # (KeyError in blueprints/api.py), DB handles point at deleted temp files,
-    # and pages 404/500 depending on test order. Restore the original module
-    # object after every test so the singleton stays stable suite-wide.
+    # it for isolation; test_datasets_pages also pops config/init_db/db. Left
+    # unrestored, later tests end up with a stale Flask app paired with
+    # freshly-imported modules: cache backends go missing (KeyError in
+    # blueprints/api.py), DB handles point at deleted temp files, and pages
+    # 404/500 depending on test order. Restore the original module objects
+    # after every test so the singletons stay stable suite-wide.
     import sys
 
-    original = sys.modules.get('app')
+    names = ('app', 'config', 'init_db', 'db')
+    originals = {name: sys.modules.get(name) for name in names}
     yield
-    if original is not None and sys.modules.get('app') is not original:
-        sys.modules['app'] = original
+    for name, original in originals.items():
+        if original is not None and sys.modules.get(name) is not original:
+            sys.modules[name] = original
+
+
+@pytest.fixture(autouse=True)
+def _preserve_detention_blueprint_globals():
+    # register_detention_blueprint injects get_db/context loaders into module
+    # globals. Tests building throwaway Flask apps (jail hub, roster search)
+    # clobber them for the real app: booking pages then 404 or 500 by order.
+    from blueprints import detention
+
+    snapshot = (
+        detention._get_db,
+        detention._booking_context_loader,
+        detention._roster_directory_loader,
+    )
+    yield
+    (
+        detention._get_db,
+        detention._booking_context_loader,
+        detention._roster_directory_loader,
+    ) = snapshot
 
 
 @pytest.fixture(autouse=True)
