@@ -3,6 +3,8 @@ PDF Parser for Montana Sheriff's Office Blotters
 Handles GCSO format and adaptable for other counties
 """
 
+import io
+import logging
 import os
 import pdfplumber
 import re
@@ -207,9 +209,11 @@ class BlotterParser:
             text_parts = []
             for idx, page in enumerate(pages):
                 try:
+                    png_buf = io.BytesIO()
+                    page.save(png_buf, format="PNG")
                     out = subprocess.run(
                         ['tesseract', 'stdin', 'stdout', '-l', 'eng'],
-                        input=page.tobytes('png') if hasattr(page, 'tobytes') else None,
+                        input=png_buf.getvalue(),
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                         timeout=120,
                     )
