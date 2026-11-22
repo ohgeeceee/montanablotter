@@ -497,7 +497,7 @@ TRACKED_SOURCES = {
     "powder-river": {
         "county_name": "Powder River",
         "facility_name": "Powder River County Jail",
-        "roster_url": "https://www.powderrivercounty.org/sheriff",
+        "roster_url": "https://prco.mt.gov/Sheriff-Office",
         "phone": None,
         "coverage_tier": "standard",
         "is_featured": 0,
@@ -593,6 +593,7 @@ class SyncStats:
     new_count: int = 0
     updated_count: int = 0
     missing_count: int = 0
+    sanitized_date_count: int = 0
     alert_candidates: list[dict[str, object]] = field(default_factory=list)
 
 
@@ -828,6 +829,36 @@ def _normalize_datetime(value: str) -> str | None:
         except ValueError:
             continue
     return None
+
+
+# Booking timestamps outside this window are parser garbage, not real custody
+# events. Montana's first computerized booking systems predate 1990 by little,
+# and a booking "from the future" means a bad date parse. Clamp to NULL so the
+# rows stop poisoning date sorts, digests, and analytics.
+BOOKING_AT_EARLIEST = datetime(1990, 1, 1)
+BOOKING_AT_MAX_FUTURE_DAYS = 2
+_BOOKING_AT_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d")
+
+
+def _sane_booking_at(value: str | None) -> str | None:
+    """Return ``value`` when it looks like a real booking time, otherwise None."""
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    parsed = None
+    for fmt in _BOOKING_AT_FORMATS:
+        try:
+            parsed = datetime.strptime(raw, fmt)
+            break
+        except ValueError:
+            continue
+    if parsed is None:
+        return None
+    if parsed < BOOKING_AT_EARLIEST:
+        return None
+    if parsed > datetime.now() + timedelta(days=BOOKING_AT_MAX_FUTURE_DAYS):
+        return None
+    return raw
 
 
 def _extract_text_lines(page_html: str) -> list[str]:
@@ -1567,6 +1598,16 @@ def _sync_records(
     seen_ids: set[str] = set()
 
     for record in payload:
+        sane_booking_at = _sane_booking_at(record.booking_at)
+        if (record.booking_at or "").strip() and sane_booking_at is None:
+            stats.sanitized_date_count += 1
+            logger.warning(
+                "Dropping implausible booking_at %r for %s (%s)",
+                record.booking_at,
+                record.person_name,
+                source["county_name"],
+            )
+        record = replace(record, booking_at=sane_booking_at)
         seen_ids.add(record.source_record_id)
         current = existing_by_key.get(record.source_record_id)
         hash_id, raw_json = _build_booking_payload(source, record)
