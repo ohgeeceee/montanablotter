@@ -50,7 +50,7 @@ def _require_pro_user():
     ).fetchone()
     conn.close()
     if not user:
-        return None, redirect(url_for('auth.register'))
+        return None, redirect(url_for('auth.public_register'))
     if not user['is_subscribed'] or user['subscriber_plan'] != 'pro':
         return None, redirect('/pricing?required=pro')
     return int(public_user_id), None

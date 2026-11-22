@@ -2492,7 +2492,7 @@ def checkout_subscription():
     # Require public user session so we can tie the subscription to an account
     public_user_id = session.get('public_user_id')
     if not public_user_id:
-        return redirect(url_for('auth.register', next=request.full_path, message='Please create a free account before subscribing.'))
+        return redirect(url_for('auth.public_register', next=request.full_path, message='Please create a free account before subscribing.'))
 
     conn = get_db()
     user_row = conn.execute(
@@ -2501,7 +2501,7 @@ def checkout_subscription():
     ).fetchone()
     conn.close()
     if not user_row:
-        return redirect(url_for('auth.register', next=request.full_path, message='Please create a free account before subscribing.'))
+        return redirect(url_for('auth.public_register', next=request.full_path, message='Please create a free account before subscribing.'))
 
     pricing = {
         'insider': {'monthly': 799, 'yearly': 6999, 'name': 'Insider'},
