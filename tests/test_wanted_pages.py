@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from app import app
 from blueprints import payments
+import blueprints.bail_bond_ads as bail_bond_ads_module
 from services.ingestion.warrants.models import ensure_warrant_schema
 from services.ingestion.warrants.scraper import resolve_stale_warrants, upsert_warrants
 from services.ingestion.warrants.models import WarrantRecord
@@ -35,9 +36,12 @@ class WantedPagesTestCase(unittest.TestCase):
         app.config["TESTING"] = True
         self._original_get_db = app.view_functions["wanted_index"].__globals__["get_db"]
         self._original_payments_get_db = payments.get_db
+        self._original_bail_get_db = bail_bond_ads_module.get_db
         app.view_functions["wanted_index"].__globals__["get_db"] = lambda: self.conn
         app.view_functions["wanted_detail"].__globals__["get_db"] = lambda: self.conn
         payments.get_db = lambda: self.conn
+        # /wanted/subscribe lives in the bail_bond_ads blueprint now.
+        bail_bond_ads_module.get_db = lambda: self.conn
         # Reset the paywall function to the real implementation in case another
         # test file left it patched.
         from services.monetization.paywall import user_has_warrant_access as real_user_has_warrant_access
@@ -112,6 +116,7 @@ class WantedPagesTestCase(unittest.TestCase):
         app.view_functions["wanted_index"].__globals__["get_db"] = self._original_get_db
         app.view_functions["wanted_detail"].__globals__["get_db"] = self._original_get_db
         payments.get_db = self._original_payments_get_db
+        bail_bond_ads_module.get_db = self._original_bail_get_db
         if self._original_pick_attorneys is None:
             app.view_functions["wanted_detail"].__globals__.pop(
                 "_pick_attorneys_for_county", None

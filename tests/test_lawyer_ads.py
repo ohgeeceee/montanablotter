@@ -359,8 +359,8 @@ class LawyerAdWebhookWiringTests(unittest.TestCase):
 
         la_mod.apply_stripe_lawyer_ad_event = spy_handler
         try:
-            with patch.object(
-                app_module, '_apply_stripe_bail_ad_event', lambda conn, event: None
+            with patch(
+                'blueprints.bail_bond_ads.apply_stripe_bail_ad_event', lambda conn, event: None
             ), patch(
                 'blueprints.recovery_ads.apply_stripe_recovery_ad_event',
                 lambda conn, event: None,

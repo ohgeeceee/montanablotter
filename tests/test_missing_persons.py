@@ -209,6 +209,10 @@ class MissingPersonsTests(unittest.TestCase):
         )
         conn.commit()
 
+        # setUp's init_database() already consumed the @schema_bootstrap_once
+        # guards; reset so this test exercises the real legacy-column migration.
+        from core.schema_guard import reset_schema_bootstrap
+        reset_schema_bootstrap()
         missing_persons_module.ensure_missing_person_schema(conn)
 
         columns = {
@@ -355,6 +359,11 @@ class MissingPersonsTests(unittest.TestCase):
         )
         conn.commit()
 
+        # Reset the bootstrap guards (consumed by setUp) so the legacy
+        # delivery-schema migration actually runs; the second call verifies
+        # idempotency.
+        from core.schema_guard import reset_schema_bootstrap
+        reset_schema_bootstrap()
         missing_persons_module.ensure_missing_person_schema(conn)
         missing_persons_module.ensure_missing_person_schema(conn)
 

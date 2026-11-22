@@ -518,9 +518,16 @@ class ServeUploadDocxGuardTests(unittest.TestCase):
                 )
 
     def test_pdf_still_serves(self) -> None:
-        # 0304 log.pdf is a real police-blotter PDF in uploads/ — must
-        # continue to serve normally.
-        resp = self.client.get("/uploads/0304 log.pdf")
+        # Police-blotter PDFs in uploads/ must continue to serve normally.
+        # Seed our own file instead of depending on a specific real PDF that
+        # only exists on the production machine.
+        import os
+        import config as app_config
+        os.makedirs(app_config.UPLOAD_DIR, exist_ok=True)
+        pdf_name = "serve-upload-guard-test.pdf"
+        with open(os.path.join(app_config.UPLOAD_DIR, pdf_name), "wb") as fh:
+            fh.write(b"%PDF-1.4\n% serve-upload guard test fixture\n")
+        resp = self.client.get(f"/uploads/{pdf_name}")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(
             resp.headers.get("Content-Type", "").split(";")[0].strip(),

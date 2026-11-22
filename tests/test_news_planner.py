@@ -217,7 +217,8 @@ class NewsPlannerTests(unittest.TestCase):
         self.assertEqual(packets, [])
 
     def test_crontab_includes_newsroom_jobs(self) -> None:
-        with open("/root/montanablotter/crontab.txt", "r", encoding="utf-8") as handle:
+        crontab_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "crontab.txt")
+        with open(crontab_path, "r", encoding="utf-8") as handle:
             content = handle.read()
 
         self.assertIn("news_planner", content)

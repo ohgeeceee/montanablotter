@@ -29,6 +29,16 @@ init_db.migrate()
 import pytest  # noqa: E402
 
 
+@pytest.fixture(autouse=True, scope='class')
+def _reset_schema_bootstrap_class():
+    # Class-scoped companion: setUpClass builds fresh temp DBs too, and runs
+    # before any function-scoped fixture.
+    from core.schema_guard import reset_schema_bootstrap
+
+    reset_schema_bootstrap()
+    yield
+
+
 @pytest.fixture(autouse=True)
 def _reset_schema_bootstrap_between_tests():
     # ensure_*_schema helpers are memoized per-process by @schema_bootstrap_once

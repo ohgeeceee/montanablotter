@@ -273,7 +273,19 @@ class YellowstoneFetcherTests(unittest.TestCase):
             mock_get_detail.url = "https://example.com/inmatedet.asp?Booknum=12345"
 
             session = MockSession.return_value
-            session.get.side_effect = [mock_get_prompt, mock_get_detail]
+
+            # The fetcher tries the county CSV endpoints before the HTML
+            # flow; answer by URL so the mock is not order-fragile.
+            mock_csv_miss = mock.Mock(status_code=404)
+
+            def _get(url, **kwargs):
+                if "JailRoster.csv" in url:
+                    return mock_csv_miss
+                if "inmatedet" in url:
+                    return mock_get_detail
+                return mock_get_prompt
+
+            session.get.side_effect = _get
             session.post.side_effect = [mock_post_roster, mock_post_search]
 
             records = fetch_bookings(
