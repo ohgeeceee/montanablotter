@@ -82,7 +82,9 @@
 {% endblock %}
 
 {% block content %}
+{% from "includes/bail_ad_units.html" import render_bail_banner, render_bail_panel, render_bail_tracking_script %}
 <div class="mx-auto max-w-6xl space-y-8 px-4 py-10">
+  {{ render_bail_banner(bail_ad_placements.banner, 'jail_bookings_banner') }}
   {% if not selected_source %}
   <section class="mb-jail-map-card" aria-labelledby="county-map-heading">
     <div class="border-b border-slate-200 px-5 py-5 sm:px-6">
@@ -193,6 +195,7 @@
     </section>
 
     <aside class="space-y-5">
+      {{ render_bail_panel(bail_ad_placements.county_sponsor or bail_ad_placements.sidebar, 'jail_bookings_sidebar') }}
       {% if selected_source %}
       <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">County feed</p>
@@ -225,4 +228,5 @@
     </aside>
   </div>
 </div>
+{{ render_bail_tracking_script() }}
 {% endblock %}

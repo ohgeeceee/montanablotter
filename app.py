@@ -68,6 +68,7 @@ from blueprints.bail_bond_ads import (
     _bail_county_sections,
     _bail_help_contact,
     _all_bail_counties,
+    _bail_ad_public_placements,
 )
 from blueprints.threedhub import threedhub_bp
 from blueprints.chat_agent import chat_agent_bp
@@ -10282,11 +10283,6 @@ def name_watch_cancel():
         unsubscribed_email=email,
         current_year=datetime.now().year,
     )
-
-
-def _bail_ad_public_placements(conn, county=''):
-    """Return public bail-ad placements; fail closed when ad helpers are unavailable."""
-    return {'banner': None, 'sidebar': None, 'county_sponsor': None}
 
 
 @app.route('/post/<slug>')

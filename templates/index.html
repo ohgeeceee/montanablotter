@@ -137,6 +137,22 @@
     </div>
 
     <aside style="display:flex; flex-direction:column; gap:var(--space-4);">
+      {% if homepage_sponsors %}
+      <div class="mb-record-card" style="background: var(--surface-page, #f8fafc);">
+        <div class="mb-record-card__kicker">Sponsored</div>
+        {% for sponsor in homepage_sponsors %}
+        <div style="padding: var(--space-2) 0;{% if not loop.last %} border-bottom: 1px solid var(--border-subtle, #e2e8f0);{% endif %}">
+          <h3 class="mb-record-card__headline" style="margin-bottom: var(--space-1);">{{ sponsor.headline or sponsor.name }}</h3>
+          {% if sponsor.body %}<p class="mb-record-card__summary">{{ sponsor.body }}</p>{% endif %}
+          <div class="mb-record-card__meta">
+            {% if sponsor.phone %}<a href="{{ sponsor.phone_href }}">{{ sponsor.phone }}</a>{% endif %}
+            <a href="{{ sponsor.target_url or sponsor.website_url or sponsor.phone_href }}" {% if (sponsor.target_url or sponsor.website_url or '').startswith('http') %}target="_blank" rel="sponsored noopener"{% endif %}>{{ sponsor.cta_text or 'Contact Now' }}</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
       <header class="mb-section-header mb-section-header--light">
         <h2 class="mb-section-header__title">Missing</h2>
         <a href="/missing-persons" class="mb-section-header__action">See all &rarr;</a>

@@ -6,6 +6,7 @@ from flask import Blueprint, abort, jsonify, redirect, render_template, request,
 
 from services.monetization.paywall import preview_allowed, user_has_access
 from services.monetization.name_suppression import redact_person_name, redact_text
+from blueprints.bail_bond_ads import _bail_ad_public_placements
 
 import config as config
 
@@ -38,16 +39,21 @@ def register_detention_blueprint(
     app.register_blueprint(detention_bp)
 
 
-def _load_booking_context(*, county_filter='', status_filter='current', q='', county_page=False):
+def _load_booking_context(*, county_filter='', status_filter='current', q='', county_page=False, include_ads=False):
     conn = _get_db()
     try:
-        return _booking_context_loader(
+        context = _booking_context_loader(
             conn,
             county_filter=county_filter,
             status_filter=status_filter,
             q=q,
             county_page=county_page,
         )
+        if include_ads:
+            # Bail-bond sponsor units (banner / county sponsor / sidebar) ride
+            # on the same connection so booking pages carry paid placements.
+            context['bail_ad_placements'] = _bail_ad_public_placements(conn, county=county_filter)
+        return context
     finally:
         conn.close()
 
@@ -65,6 +71,7 @@ def jail_bookings():
         county_filter=request.args.get('county'),
         status_filter=request.args.get('status'),
         q=request.args.get('q'),
+        include_ads=True,
     )
     return render_template('jail_bookings.html', **context)
 
@@ -89,6 +96,7 @@ def jail_bookings_county(county_slug):
         status_filter=request.args.get('status'),
         q=request.args.get('q'),
         county_page=True,
+        include_ads=True,
     )
     if not context.get('selected_source'):
         abort(404)
