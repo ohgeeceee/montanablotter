@@ -14,6 +14,9 @@ _TEST_TMP = pathlib.Path(tempfile.mkdtemp(prefix='mb-pytest-'))
 os.environ.setdefault('MB_TURSO_ENABLED', 'false')
 os.environ.setdefault('MB_DB_PATH', str(_TEST_TMP / 'blotter.db'))
 os.environ.setdefault('MB_PAGE_VIEWS_DB_PATH', str(_TEST_TMP / 'page_views.db'))
+# Keep uploads inside the disposable test dir — the production default
+# (/root/montanablotter/uploads) is not writable on dev checkouts.
+os.environ.setdefault('MB_UPLOAD_DIR', str(_TEST_TMP / 'uploads'))
 
 # Build the full schema before any test module imports app or raw sqlite3;
 # init_database()/migrate() are idempotent so forked workers can repeat it.

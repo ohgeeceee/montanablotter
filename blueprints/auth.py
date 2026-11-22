@@ -357,7 +357,7 @@ def public_register():
                 m._sync_public_user_subscription_from_donations(conn, cursor.lastrowid, email)
                 if subscribe_digest:
                     m._upsert_digest_subscription(conn, email, selected_counties, source='account_registration')
-                    m._record_subscribe_event('subscribe_success', source='account_registration', page_path=request.path, email=email)
+                    m._record_subscribe_event('subscribe_success', source='account_registration', page_path=request.path, email=email, conn=conn)
                 conn.commit()
                 m._set_public_user_session(cursor.lastrowid)
                 flash('Account created. Your comments will enter moderation before they go live.', 'success')

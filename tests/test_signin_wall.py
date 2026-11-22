@@ -84,13 +84,68 @@ class SigninWallTestCase(unittest.TestCase):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
 
-    def test_content_page_redirects_anonymous_to_login(self):
-        # Use a detail-style path that would normally 404; the wall should
-        # intercept it first and send the visitor to login. Booking detail
-        # pages are walled content (wanted pages are deliberately exempt).
-        response = self.client.get('/booking/1', follow_redirects=False)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/login', response.headers['Location'])
+    def test_account_pages_redirect_anonymous_to_login(self):
+        # Account dashboards and commercial tools stay behind the wall; the
+        # wall should intercept them and send the visitor to login. (Public
+        # record listings and detail pages are exempt — see below.)
+        for path in ['/account', '/my-alerts']:
+            response = self.client.get(path, follow_redirects=False)
+            self.assertEqual(response.status_code, 302, f'{path} should be gated')
+            self.assertIn('/login', response.headers['Location'])
+
+    def test_public_data_surfaces_are_exempt(self):
+        # Listings, search pages, and record details are open to anonymous
+        # visitors. With an empty test DB many of these 404; the assertion is
+        # only that the wall does not bounce them to /login.
+        for path in [
+            '/blotter',
+            '/counties',
+            '/cities',
+            '/county/gallatin',
+            '/city/bozeman',
+            '/courts',
+            '/court-search',
+            '/charges',
+            '/people',
+            '/missing-persons',
+            '/jail-bookings',
+            '/jail-roster-search',
+            '/arrests',
+            '/meetings',
+            '/datacenter',
+            '/datasets',
+            '/trends',
+            '/blog',
+            '/guides',
+            '/laws',
+            '/incident/1',
+            '/record/1',
+            '/post/test-slug',
+            '/court-case/test-slug',
+        ]:
+            response = self.client.get(path, follow_redirects=False)
+            location = response.headers.get('Location', '')
+            self.assertNotIn('/login', location, f'{path} should not redirect to login')
+
+    def test_machine_consumers_are_exempt(self):
+        # Feeds, service workers, and sitemaps cannot authenticate and must
+        # never be redirected to the login page.
+        for path in [
+            '/feed.xml',
+            '/crime-wire.json',
+            '/sw.js',
+            '/admin-sw.js',
+            '/robots.txt',
+            '/sitemap.xml',
+            '/sitemap-records.xml',
+            '/sitemap-blog.xml',
+            '/manifest.json',
+            '/manifest.webmanifest',
+            '/ads.txt',
+        ]:
+            response = self.client.get(path, follow_redirects=False)
+            location = response.headers.get('Location', '')
+            self.assertNotIn('/login', location, f'{path} should not redirect to login')
 
     def test_wanted_routes_are_exempt_from_general_wall(self):
         # /wanted pages bypass the general sign-in wall: warrant access has its

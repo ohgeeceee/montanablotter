@@ -1205,53 +1205,166 @@ def enforce_admin_access():
 
 
 # Paths that anonymous visitors may access even when the sign-in wall is on.
+# Sign-in wall policy: keep every public data surface open — listings, search
+# pages, and detail pages — along with the machine consumers (feeds, service
+# workers, sitemaps, robots) that cannot authenticate. Warrant content stays
+# gated: /wanted routes bypass this wall only to reach their own subscribe
+# flow, and account/dashboard/commercial pages remain behind login.
 _SIGNIN_WALL_EXEMPT_PREFIXES = (
+    # Machine consumers & crawlers (cannot log in)
+    '/sitemap-',
     '/static/',
-    '/api/',
-    '/admin/',
-    '/status',  # public system-status page (mirrors garageroute.com/status)
-
+    # Auth flows
     '/login',
     '/register',
     '/signup',
     '/logout',
     '/forgot-password',
     '/reset-password',
+    # Infra & ops
+    '/api/',
+    '/admin/',
+    '/status',
+    '/health',
+    '/ping',
     '/webhooks/',
+    # Editorial pages
+    '/post/',
+    '/blog/',
+    '/learn/',
+    '/guides/',
+    '/laws/',
+    # Record listings & detail pages
+    '/blotter',
+    '/county/',
+    '/city/',
+    '/incident/',
+    '/record/',
+    '/court-case/',
+    '/case-journeys/',
+    '/charge/',
+    '/charges/',
+    '/person/',
+    '/people/',
+    '/patterns/',
+    '/annual-roundups/',
+    '/missing-persons/',
+    '/sex-offender-updates/',
+    '/jail-bookings/',
+    '/booking/',
+    '/jail-rosters/',
+    '/arrests',
+    '/fwp-violations',
+    '/code-violations/',
+    '/property/',
+    '/license-sanctions/',
+    '/employee/',
+    '/government-spending',
+    '/datacenter/',
+    '/datasets/',
+    '/embed/',
+    # Warrants bypass the general wall only to reach the paid subscribe flow
+    '/wanted/',
+    '/wanted/subscribe',
+    '/wanted/notify-when-cleared',
+    # Already-open commercial funnels
     '/supporter/',
     '/donate/',
     '/checkout/',
     '/advertise/',
-    '/wanted/subscribe',
-    '/health',
-    '/ping',
-    '/jail-bookings/',
-    '/jail-rosters/',
     '/bail-bonds/',
     '/lawyers/',
-    '/advertise/lawyers/',  # checkout, success, cancel, intake, control panel
     '/lawyer-control-panel/',  # token-gated, noindex; reach stays open when wall is on
-    '/wanted/',
-    '/arrests/',
-    '/county/',  # county blotter listing
-    '/funniest',  # public humor feed, read-only + PII-scrubbed
+    # Public humor feed, read-only + PII-scrubbed
+    '/funniest',
     '/funniest.json',
 )
 _SIGNIN_WALL_EXEMPT_EXACT = {
     '/',
+    # Machine consumers & crawlers (cannot log in)
     '/favicon.ico',
     '/robots.txt',
     '/sitemap.xml',
     '/sitemap-seo.xml',
     '/manifest.json',
+    '/manifest.webmanifest',
     '/ads.txt',
+    '/sw.js',
+    '/admin-sw.js',
+    '/offline',
+    '/feed.xml',
+    '/crime-wire.json',
     '/api/subscribe-event',
+    # Editorial & reference pages
     '/advertise',
     '/careers',
     '/sources',
     '/lawyers',
     '/advertise/lawyers',  # landing page for the paid directory
     '/learn',
+    '/blog',
+    '/guides',
+    '/annual-roundups',
+    '/how-to-use',
+    '/resources',
+    '/laws',
+    '/corrections',
+    '/standards',
+    '/privacy',
+    '/terms',
+    '/terms-of-use',
+    '/transparency',
+    '/about',
+    '/support',
+    '/submit-a-tip',
+    '/remove-my-name',
+    '/funniest',
+    # Public data listings & search pages
+    '/blotter',
+    '/blotters',
+    '/records',
+    '/counties',
+    '/cities',
+    '/courts',
+    '/court-hearings',
+    '/court-search',
+    '/criminal-cases',
+    '/case-status',
+    '/court-sources',
+    '/charges',
+    '/charge/',
+    '/people',
+    '/person',
+    '/patterns',
+    '/opinions',
+    '/case-journeys',
+    '/missing-persons',
+    '/sex-offender-updates',
+    '/jail-bookings',
+    '/jail-rosters',
+    '/jail-roster-search',
+    '/detention',
+    '/arrests',
+    '/fwp-violations',
+    '/eviction-records',
+    '/code-violations',
+    '/license-sanctions',
+    '/public-salaries',
+    '/government-spending',
+    '/meetings',
+    '/public-meetings',
+    '/datacenter',
+    '/datasets',
+    '/crime-map',
+    '/crime-atlas',
+    '/crime-data',
+    '/county-coverage',
+    '/safety-scorecards',
+    '/trends',
+    '/dui',
+    '/leaderboard',
+    '/wanted/subscribe',
+    '/wanted/notify-when-cleared',
 }
 
 
@@ -5749,7 +5862,7 @@ def track_page_view():
                 pass
 
 
-def _record_subscribe_event(event_type, source='', page_path='', email=''):
+def _record_subscribe_event(event_type, source='', page_path='', email='', conn=None):
     event_type = (event_type or '').strip()[:40]
     if not event_type:
         return
@@ -5771,7 +5884,10 @@ def _record_subscribe_event(event_type, source='', page_path='', email=''):
     }
 
     if has_request_context() and getattr(current_app, 'testing', False):
-        _write_subscribe_event(event)
+        # Tests write inline (no background writer), but a caller that already
+        # holds an open write transaction on `conn` must share it — a second
+        # connection would deadlock on SQLite's writer lock.
+        _write_subscribe_event(event, conn=conn)
         return
 
     _enqueue_subscribe_event(event)
@@ -5782,10 +5898,13 @@ _SUBSCRIBE_EVENT_WRITER_STARTED = False
 _SUBSCRIBE_EVENT_WRITER_LOCK = threading.Lock()
 
 
-def _write_subscribe_event(event: dict[str, str]) -> None:
-    conn = None
+def _write_subscribe_event(event: dict[str, str], conn=None) -> None:
+    import logging
+    own_conn = None
     try:
-        conn = get_db()
+        if conn is None:
+            own_conn = get_db()
+            conn = own_conn
         conn.execute(
             '''
             INSERT INTO subscribe_events (
@@ -5801,13 +5920,14 @@ def _write_subscribe_event(event: dict[str, str]) -> None:
                 event['email_hash'],
             ),
         )
-        conn.commit()
+        if own_conn is not None:
+            own_conn.commit()
     except Exception:
-        pass
+        logging.getLogger(__name__).exception('Failed to write subscribe_event %s', event.get('event_type'))
     finally:
-        if conn is not None:
+        if own_conn is not None:
             try:
-                conn.close()
+                own_conn.close()
             except Exception:
                 pass
 
