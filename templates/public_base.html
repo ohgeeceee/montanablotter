@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   {% from "includes/adsense_unit.html" import adsense_unit with context %}
+  {% set adsense_slots = adsense_slots|default({}, true) %}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark light">
