@@ -29,6 +29,8 @@ SUBSCRIBER_ALERT_COLUMNS: tuple[tuple[str, str], ...] = (
 )
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_bail_bonds_alert_schema(conn: sqlite3.Connection) -> None:
     existing_columns = {
         row[1]

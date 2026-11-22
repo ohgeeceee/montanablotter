@@ -108,14 +108,20 @@ Geo quota: `2000 req / 24h` per IP.
 
 ### Legacy standalone endpoints (`services/api/routes.py`)
 
-| Method | Route | Notes |
-|--------|-------|-------|
-| GET | `/api/stats` | Counts of records, blotters, bookings, posts, counties, incident types. |
-| GET | `/api/records` | Paginated/filterable records. |
-| GET | `/api/records/recent` | 50 most recent records. |
-| GET | `/api/fwp-violations` | Records where `officer='MT FWP'`. |
-| GET | `/api/filters` | Distinct counties and incident types. |
-| GET | `/api/timeline` | Daily counts for last 30 days. |
+This module is **disabled** — `app.py` does not register it ("disabled while the
+redesign is consolidated"). `register_api_routes(app)` exists but nothing calls
+it, so none of the routes below are served. Do not build integrations against
+them; use the canonical `blueprints/api.py` blueprint instead.
+
+| Method | Route | Status |
+|--------|-------|--------|
+| GET | `/api/stats` | removed — use `/api/stats` from `blueprints/api.py` |
+| GET | `/api/records` | canonical version lives in `blueprints/api.py` |
+| GET | `/api/records/recent` | canonical version lives in `blueprints/api.py` |
+| GET | `/api/records/timeline` | served by `blueprints/api.py` (daily counts) |
+| GET | `/api/fwp-violations` | removed — 404; filter `/api/records?q=<term>` instead |
+| GET | `/api/filters` | removed — 404; use `/api/counties` and `/api/stats` |
+| GET | `/api/timeline` | removed — 404; use `/api/records/timeline` |
 
 ### B2B data endpoints (`app.py`)
 

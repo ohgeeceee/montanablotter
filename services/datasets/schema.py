@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_dataset_metrics_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """

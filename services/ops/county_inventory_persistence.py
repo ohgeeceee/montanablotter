@@ -12,6 +12,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# App root is this file's grandparent: <root>/services/ops/<this file>.
+# Derive it from __file__ -- hardcoding /root/montanablotter broke every
+# caller once the app moved to /opt/montanablotter.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -31,7 +34,7 @@ def _default_db_path() -> str:
 
 DB_PATH = _default_db_path()
 COUNTY_INVENTORY_MODULE = os.getenv(
-    "MB_COUNTY_INVENTORY_SCRIPT",
+    "MB_COUNTY_INVENTORY_MODULE",
     str(REPO_ROOT / "county_inventory.py"),
 )
 
@@ -52,6 +55,8 @@ def _safe_add_column(cursor: sqlite3.Cursor, table: str, col: str, definition: s
         raise
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_county_inventory_schema(conn: sqlite3.Connection) -> None:
     """Create the county_inventory table and supporting indexes if missing."""
     cursor = conn.cursor()

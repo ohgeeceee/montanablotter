@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import sqlite3
 from datetime import UTC, datetime
@@ -12,7 +13,8 @@ from services.agents.events_bus import publish_agent_event
 from redis.exceptions import RedisError
 
 DB_PATH = config.DB_PATH
-LOG_PATH = "/root/montanablotter/logs/news_writer.log"
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LOG_PATH = os.path.join(_APP_ROOT, "logs", "news_writer.log")
 
 logging.basicConfig(
     filename=LOG_PATH,

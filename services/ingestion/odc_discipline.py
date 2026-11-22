@@ -27,6 +27,15 @@ from urllib.parse import urljoin
 import pdfplumber
 import requests
 
+_APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
+    _PARENT = os.path.dirname(_APP_ROOT)
+    if _PARENT == _APP_ROOT:
+        break
+    _APP_ROOT = _PARENT
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
+
 logger = logging.getLogger("odc_discipline")
 _HOMEPAGE = "https://montanaodc.org/attorney-discipline"
 _PDF_HOST = "img1.wsimg.com"  # the PDF is hosted on a WebStringer blob endpoint
@@ -222,8 +231,16 @@ def run_monthly(dry_run: bool = False, pdf_url: str | None = None,
 
     # --- check whether we already have this version -----------------------------
     # Ensure the project root is on the path so init_db is importable.
-    _proj_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sys.path.insert(0, _proj_root)
+    # This file lives at <root>/services/ingestion/, so walk up to the root
+    # rather than assuming a fixed number of levels.
+    _proj_root = os.path.dirname(os.path.abspath(__file__))
+    while not os.path.isfile(os.path.join(_proj_root, "init_db.py")):
+        _parent = os.path.dirname(_proj_root)
+        if _parent == _proj_root:
+            break
+        _proj_root = _parent
+    if _proj_root not in sys.path:
+        sys.path.insert(0, _proj_root)
 
     import sqlite3
     from init_db import DB_PATH

@@ -1279,6 +1279,8 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/donate/',
     '/checkout/',
     '/advertise/',
+    '/jail-bookings/',
+    '/jail-rosters/',
     '/bail-bonds',
     '/bail-bonds/',
     '/lawyers',
@@ -1291,6 +1293,9 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/wanted/subscribe',
     '/wanted/notify-when-cleared',
     '/remove-my-name',
+    '/remove-my-name/',
+    '/arrests/',
+    '/county/',
     # Public index / search surface
     '/crime-map',
     '/safety-scorecards',

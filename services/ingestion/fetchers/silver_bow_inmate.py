@@ -24,7 +24,15 @@ from pdf2image import convert_from_bytes
 import pytesseract
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-sys.path.insert(0, "/root/montanablotter")
+import os
+_APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
+    _parent = os.path.dirname(_APP_ROOT)
+    if _parent == _APP_ROOT:
+        break
+    _APP_ROOT = _parent
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
 from services.ingestion.models import JailBookingRecord
 
 logger = logging.getLogger(__name__)

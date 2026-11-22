@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from html import unescape
 import io
 import logging
+import os
 import re
 from urllib.parse import urlparse
 
@@ -32,6 +33,9 @@ MIN_EXPECTED_PAGES = 20
 MAX_EXPECTED_PAGES = 100
 MIN_EXPECTED_RECORDS = 100
 MAX_EXPECTED_RECORDS = 1000
+# The SharePoint viewer intermittently fails to mount; one bad render would
+# otherwise drop the entire county from a sweep.
+CASCADE_FETCH_ATTEMPTS = 2
 
 _DATE_RE = re.compile(r"\d{2}/\d{2}/\d{2}")
 _TIME_RE = re.compile(r"\d{2}:\d{2}")
@@ -232,17 +236,11 @@ def _extract_embed_url(page) -> str:
     return embed_url
 
 
-def fetch_cascade_public_viewer_bookings(
-    source_url: str = COUNTY_ROSTER_PAGE,
-) -> list[JailBookingRecord]:
-    """Render and parse the public Cascade roster with fail-closed checks."""
+def _fetch_cascade_once(source_url: str, launch_kwargs: dict) -> list[JailBookingRecord]:
+    """Single attempt at rendering and OCR-ing the public Cascade roster."""
     all_records: list[JailBookingRecord] = []
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=True,
-            executable_path="/usr/bin/google-chrome",
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
-        )
+        browser = playwright.chromium.launch(**launch_kwargs)
         try:
             context = browser.new_context(viewport=VIEWPORT, device_scale_factor=1.5)
             page = context.new_page()
@@ -268,19 +266,48 @@ def fetch_cascade_public_viewer_bookings(
             if not MIN_EXPECTED_PAGES <= page_count <= MAX_EXPECTED_PAGES:
                 raise RuntimeError(f"Cascade roster page count failed validation: {page_count}.")
 
-            viewer = page.locator('[class*="pdfViewer_"]').first
-            viewer.wait_for(state="visible", timeout=30_000)
-            scroll_height = float(viewer.evaluate("element => element.scrollHeight"))
+            # The SharePoint viewer mounts and re-mounts the PDF container while
+            # it initialises, which intermittently detaches the node and turns a
+            # simple scrollHeight read into a 30s stall. Re-resolve it instead of
+            # holding one locator across the render.
+            scroll_height = None
+            for _attempt in range(3):
+                try:
+                    scroll_height = float(
+                        page.locator('[class*="pdfViewer_"]').first.evaluate(
+                            "element => element.scrollHeight"
+                        )
+                    )
+                    break
+                except Exception:
+                    page.wait_for_timeout(2_000)
+            if not scroll_height:
+                raise RuntimeError("Cascade roster viewer never produced a scrollable page.")
             page_stride = scroll_height / page_count
 
             for page_number in range(1, page_count + 1):
-                viewer.evaluate(
+                page.locator('[class*="pdfViewer_"]').first.evaluate(
                     "(element, y) => { element.scrollTop = y; }",
                     (page_number - 1) * page_stride,
                 )
                 page.wait_for_timeout(1_200)
-                canvas = page.locator("canvas").first
-                canvas.wait_for(state="visible", timeout=30_000)
+                # The viewer renders pages lazily; scrolling can beat the canvas.
+                # Retry a few times before giving up on the whole county.
+                canvas_ready = False
+                last_exc: Exception | None = None
+                for _attempt in range(3):
+                    try:
+                        canvas = page.locator("canvas").first
+                        canvas.wait_for(state="visible", timeout=25_000)
+                        canvas_ready = True
+                        break
+                    except Exception as exc:  # playwright TimeoutError
+                        last_exc = exc
+                        page.wait_for_timeout(1_500)
+                if not canvas_ready:
+                    raise RuntimeError(
+                        f"Cascade roster viewer never produced a canvas for page {page_number}: {last_exc}"
+                    )
                 image = Image.open(io.BytesIO(canvas.screenshot())).convert("RGB")
                 tokens = _tokens_from_image(image)
                 if page_number == 1:
@@ -310,3 +337,32 @@ def fetch_cascade_public_viewer_bookings(
         raise RuntimeError(f"Cascade roster record count failed validation: {len(all_records)}.")
     logger.info("Cascade public roster validated: %d records", len(all_records))
     return all_records
+
+
+def fetch_cascade_public_viewer_bookings(
+    source_url: str = COUNTY_ROSTER_PAGE,
+) -> list[JailBookingRecord]:
+    """Render and parse the public Cascade roster with fail-closed checks.
+
+    The SharePoint PDF viewer is a heavy JS app that intermittently fails to
+    mount its page container or canvas. A single stall drops the whole county
+    from a sweep, so the full render is retried rather than each wait patched.
+    """
+    _chrome = os.getenv("MB_PLAYWRIGHT_EXECUTABLE_PATH", "/usr/bin/google-chrome")
+    launch_kwargs: dict = {"headless": True, "args": ["--no-sandbox", "--disable-dev-shm-usage"]}
+    if _chrome and os.path.exists(_chrome):
+        launch_kwargs["executable_path"] = _chrome
+
+    last_error: Exception | None = None
+    for attempt in range(1, CASCADE_FETCH_ATTEMPTS + 1):
+        try:
+            return _fetch_cascade_once(source_url, launch_kwargs)
+        except Exception as exc:
+            last_error = exc
+            logger.warning(
+                "Cascade roster fetch attempt %d/%d failed: %s",
+                attempt,
+                CASCADE_FETCH_ATTEMPTS,
+                str(exc)[:200],
+            )
+    raise last_error  # type: ignore[misc]

@@ -1,5 +1,14 @@
 {% extends "public_page_base.html" %}
 
+{# Label the registrant by their OWN registry type. The registry covers violent
+   AND sexual offenders; a blanket "sex offender" label published registered
+   violent offenders as sex offenders. All wording and tone come from
+   services/persons/offender_labels.py via the offender_registry_style global,
+   and scripts/ops/check_offender_labels.py fails if a template hardcodes one. #}
+{% if sex_offender %}
+  {% set reg = offender_registry_style(sex_offender.offender_type) %}
+{% endif %}
+
 {% block breadcrumb %}
 <span class="mx-2">/</span>
 <a href="/people" class="hover:text-slate-700">People</a>
@@ -19,7 +28,7 @@
                 <div class="rounded-full border border-slate-200 bg-white/80 px-4 py-2">{{ county }} County</div>
                 {% endfor %}
                 {% if sex_offender %}
-                <div class="rounded-full border border-red-300 bg-red-50 px-4 py-2 text-red-700">Registered Sex Offender</div>
+                <div class="rounded-full border px-4 py-2 {{ reg.pill_cls }}">{{ reg.label }}</div>
                 {% endif %}
             </div>
             <a href="/remove-my-name?name={{ display_name | urlencode }}"
@@ -105,11 +114,11 @@
             {% from "includes/remove_name_ad.html" import render_remove_name_ad %}
             {{ render_remove_name_ad(display_name=display_name, amount_label=name_removal_amount_label) }}
             {% if sex_offender %}
-            <section class="public-sidebar-card p-5 border border-red-200 bg-red-50">
-                <h2 class="public-sidebar-card__eyebrow text-red-700">Sex offender registry</h2>
-                <p class="mt-3 text-sm font-bold text-red-900">{{ sex_offender.full_name }}</p>
+            <section class="public-sidebar-card p-5 border {{ reg.card_cls }}">
+                <h2 class="public-sidebar-card__eyebrow {{ reg.title_cls }}">{{ reg.card_title }}</h2>
+                <p class="mt-3 text-sm font-bold {{ reg.name_cls }}">{{ sex_offender.full_name }}</p>
                 {% if sex_offender.address %}
-                <p class="mt-1 text-xs text-red-700">{{ sex_offender.address }}</p>
+                <p class="mt-1 text-xs {{ reg.title_cls }}">{{ sex_offender.address }}</p>
                 {% endif %}
                 {% if sex_offender.offense_description %}
                 <p class="mt-2 text-xs text-slate-600">{{ sex_offender.offense_description[:200] }}</p>

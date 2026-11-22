@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'blotter.db')
+DB_PATH = getattr(config, "DB_PATH", os.path.join(os.path.dirname(__file__), 'blotter.db'))
 
 def get_gemini_model():
     key = getattr(config, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")

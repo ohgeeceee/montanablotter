@@ -5,7 +5,9 @@ Health check for the public site ad configuration on mtblotter.com.
 Verifies the live homepage:
   1. Responds with HTTP 200
   2. Contains NO Monetag verification meta tag or loader script
-  3. Contains NO AdSense references (regression guard)
+  3. AdSense state matches configuration: when enabled with a client ID the
+     loader must be present, and every configured slot must render its unit;
+     when disabled there must be no AdSense markup at all
 
 Cron example (every 15 minutes):
   */15 * * * * /root/montanablotter/venv/bin/python3 \\
@@ -33,9 +35,32 @@ from pathlib import Path
 
 SITE_URL = os.environ.get("MB_HEALTH_URL", "http://localhost:5000/")
 TIMEOUT = float(os.environ.get("MB_HEALTH_TIMEOUT", "10"))
+
+
+def _load_env_file() -> None:
+    """Load .env for the slot IDs this check validates.
+
+    The app reads .env through systemd's EnvironmentFile, but this script runs
+    as a standalone cron job, so without this the configured-slot assertions
+    would always be skipped.
+    """
+    root = Path(__file__).resolve().parent.parent.parent
+    env_path = root / ".env"
+    if not env_path.is_file():
+        return
+    for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_env_file()
+
 LOG_FILE = Path(os.environ.get(
     "MB_HEALTH_LOG",
-    "/root/montanablotter/logs/ad_health.log",
+    str(Path(__file__).resolve().parent.parent / "logs" / "ad_health.log"),
 ))
 
 MONETAG_PATTERN = re.compile(
@@ -94,9 +119,40 @@ def main() -> int:
     if monetag_matches:
         failures.append(f"Monetag references present: {monetag_matches}")
 
-    bad = sorted(set(ADSENSE_PATTERN.findall(body)))
-    if bad:
-        failures.append(f"AdSense references present: {bad}")
+    # AdSense is a supported revenue channel now: the loader is emitted only
+    # when it is enabled AND a publisher client ID is configured, and each
+    # individual unit renders only when its slot ID is set. Guard that
+    # intended state instead of the old "no adsbygoogle anywhere" rule.
+    adsense_enabled = os.environ.get("MB_ADSENSE_ENABLED", "true").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+    client_id = os.environ.get("MB_ADSENSE_CLIENT_ID", "ca-pub-2061188847733201").strip()
+    loader_present = "pagead2.googlesyndication.com/pagead/js/adsbygoogle.js" in body
+
+    if adsense_enabled and client_id:
+        if not loader_present:
+            failures.append("AdSense enabled but the adsbygoogle.js loader is missing")
+        if client_id not in body:
+            failures.append(f"AdSense client ID {client_id} not referenced")
+        slot_vars = [
+            ("MB_ADSENSE_SLOT_HEADER", "header"),
+            ("MB_ADSENSE_SLOT_SIDEBAR", "sidebar"),
+            ("MB_ADSENSE_SLOT_INCONTENT", "in-content"),
+            ("MB_ADSENSE_SLOT_FOOTER", "footer"),
+            ("MB_ADSENSE_SLOT_ARTICLE", "article"),
+        ]
+        for env_name, label in slot_vars:
+            slot_id = os.environ.get(env_name, "").strip()
+            if not slot_id:
+                continue
+            if f'data-ad-slot="{slot_id}"' not in body:
+                failures.append(f"AdSense {label} unit missing (slot {slot_id})")
+    else:
+        if loader_present:
+            failures.append("AdSense disabled but the adsbygoogle.js loader is still present")
+        bad = sorted(set(ADSENSE_PATTERN.findall(body)))
+        if bad:
+            failures.append(f"AdSense references present while disabled: {bad}")
 
     elapsed_ms = int((time.time() - started) * 1000)
     if failures:

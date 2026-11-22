@@ -35,6 +35,8 @@ WATCH_TYPES = ('jail_booking', 'court_filing', 'license_sanction', 'code_violati
 # Schema
 # ---------------------------------------------------------------------------
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_data_watch_schema(conn: sqlite3.Connection) -> None:
     conn.executescript('''
         CREATE TABLE IF NOT EXISTS jail_booking_watches (
@@ -224,16 +226,16 @@ def dispatch_license_sanction_watches(conn: sqlite3.Connection, dry_run: bool = 
         since = w['last_alerted_at'] or '2000-01-01'
         like = f"%{w['watch_term']}%"
         sql = """SELECT * FROM license_sanctions
-                 WHERE (person_name LIKE ? OR COALESCE(name,'') LIKE ? OR board LIKE ?)
+                 WHERE (name LIKE ? OR board LIKE ?)
                    AND created_at > ?"""
-        params = [like, like, like, since]
+        params = [like, like, since]
         if w['county']:
             sql += " AND LOWER(COALESCE(county,'')) LIKE ?"
             params.append(f"%{w['county'].lower()}%")
         matches = conn.execute(sql + " ORDER BY created_at DESC LIMIT 10", params).fetchall()
         if not matches:
             continue
-        rows = [{'Name': m['person_name'], 'Board': m['board'],
+        rows = [{'Name': m['name'], 'Board': m['board'],
                  'Violation': (m['violation_type'] or '')[:80],
                  'Action': (m['action_taken'] or '')[:80],
                  'Effective': m['effective_date'], 'County': m['county']} for m in matches]

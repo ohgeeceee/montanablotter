@@ -21,8 +21,9 @@ from services.ingestion.models import JailBookingRecord
 
 logger = logging.getLogger(__name__)
 
-# Use the system Chrome if present; otherwise let Playwright find its own.
-_CHROME = "/usr/bin/google-chrome"
+# Prefer the configured Chromium (MB_PLAYWRIGHT_EXECUTABLE_PATH, set in .env);
+# fall back to the system Chrome if present, then to Playwright's own build.
+_CHROME = os.getenv("MB_PLAYWRIGHT_EXECUTABLE_PATH", "/usr/bin/google-chrome")
 _USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
 
 # Extra wait (seconds) after load for JS lists to populate.

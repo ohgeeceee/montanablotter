@@ -1,0 +1,21 @@
+{# Google AdSense display unit.
+   Renders nothing unless AdSense is enabled AND both the publisher client ID
+   and this unit's slot ID are configured -- an unconfigured slot must degrade
+   to no markup rather than emit a broken ad tag.
+   Usage: {% from "includes/adsense_unit.html" import adsense_unit %}
+          {{ adsense_unit(adsense_slots.sidebar, "sidebar") }} #}
+{% macro adsense_unit(slot_id, name, style='', ad_format='auto', full_width_responsive=true, layout='', layout_key='') %}
+{% if adsense_enabled and adsense_client_id and slot_id %}
+<ins class="adsbygoogle"
+     style="display:block{% if style %}; {{ style }}{% endif %}"
+     data-ad-client="{{ adsense_client_id }}"
+     data-ad-slot="{{ slot_id }}"
+     data-ad-format="{{ ad_format }}"
+     {% if full_width_responsive %}data-full-width-responsive="true"{% endif %}
+     {% if layout %}data-ad-layout="{{ layout }}"{% endif %}
+     {% if layout_key %}data-ad-layout-key="{{ layout_key }}"{% endif %}></ins>
+<script>
+  (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+{% endif %}
+{% endmacro %}

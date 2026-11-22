@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import sys
+import threading
 from datetime import datetime, timedelta
 from html import escape
 from urllib.parse import urlparse
@@ -177,7 +178,44 @@ def _table_columns(conn, table_name):
         return set()
 
 
+_SUBSCRIBER_SCHEMA_READY = False
+_SUBSCRIBER_SCHEMA_LOCK = threading.Lock()
+
+
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_subscriber_schema(conn):
+    """Bootstrap subscriber tables once per process.
+
+    DDL takes a SQLite write lock; running it per request caused
+    "database is locked" under concurrent cron writers.
+    """
+    global _SUBSCRIBER_SCHEMA_READY
+    if _SUBSCRIBER_SCHEMA_READY:
+        return
+    with _SUBSCRIBER_SCHEMA_LOCK:
+        if _SUBSCRIBER_SCHEMA_READY:
+            return
+        # Cheap read-only check first so the admin pages never take a write
+        # lock once the tables exist.
+        try:
+            present = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name IN ('subscribers', 'subscribe_events')"
+                ).fetchall()
+            }
+        except sqlite3.Error:
+            present = set()
+        if {'subscribers', 'subscribe_events'} <= present:
+            _SUBSCRIBER_SCHEMA_READY = True
+            return
+        _bootstrap_subscriber_schema(conn)
+        _SUBSCRIBER_SCHEMA_READY = True
+
+
+def _bootstrap_subscriber_schema(conn):
     conn.execute(
         '''
         CREATE TABLE IF NOT EXISTS subscribers (

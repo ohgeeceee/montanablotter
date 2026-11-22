@@ -27,10 +27,17 @@ import sqlite3
 import sys
 from datetime import datetime
 
-sys.path.insert(0, '/root/montanablotter')
+_APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
+    _PARENT = os.path.dirname(_APP_ROOT)
+    if _PARENT == _APP_ROOT:
+        break
+    _APP_ROOT = _PARENT
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
 import init_db  # noqa: E402
 
-LOG_PATH = '/root/montanablotter/logs/bail_outreach_cadence.log'
+LOG_PATH = os.path.join(_APP_ROOT, 'logs', 'bail_outreach_cadence.log')
 log = logging.getLogger('bail_outreach.cadence')
 
 WORKER_NAME = 'bail_outreach_cadence'
@@ -343,7 +350,7 @@ def mark_draft_sent(conn: sqlite3.Connection, draft_id: int) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--dry-run', action='store_true')
-    ap.add_argument('--db', default='/root/montanablotter/blotter.db')
+    ap.add_argument('--db', default=os.path.join(_APP_ROOT, 'blotter.db'))
     args = ap.parse_args()
 
     logging.basicConfig(

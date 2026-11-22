@@ -16,7 +16,18 @@ from typing import Optional
 import random
 import requests
 
-DB_PATH = os.getenv("MB_DB_PATH", "/root/montanablotter/blotter.db").strip() or "/root/montanablotter/blotter.db"
+def _default_db_path() -> str:
+    try:
+        import config
+
+        return config.DB_PATH
+    except Exception:
+        return os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "blotter.db"
+        )
+
+
+DB_PATH = os.getenv("MB_DB_PATH", "").strip() or _default_db_path()
 GEOCODE_SLEEP = float(os.getenv("MB_GEOCODE_SLEEP", "0.25"))
 
 # Primary city for each Montana county — used as geocoding context when
@@ -239,6 +250,8 @@ def geocode_location(raw_location: str, county: Optional[str] = None, city: Opti
 # Pipeline: backfill un-geocoded records
 # ---------------------------------------------------------------------------
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_geocode_failures_table(conn: sqlite3.Connection) -> None:
     conn.execute("""
         CREATE TABLE IF NOT EXISTS geocode_failures (
@@ -325,10 +338,24 @@ def backfill_geocodes(batch_size: int = 200, county: Optional[str] = None) -> di
 # Scorecard computation
 # ---------------------------------------------------------------------------
 
+def _iso_date_expr(column: str = "date") -> str:
+    """SQL expression turning this DB's ``MM/DD/YY`` dates into ``YYYY-MM-DD``.
+
+    ``records.date`` is stored as ``11/14/26`` (every one of the 4,770 rows),
+    so any range comparison against ISO dates silently matches nothing.
+    """
+    return (
+        "('20' || substr({c},7,2) || '-' || substr({c},1,2) || '-' || substr({c},4,2))".format(
+            c=column
+        )
+    )
+
+
 def compute_safety_scorecards(period_days: int = 30) -> dict:
     conn = _connect()
     period_end = datetime.utcnow().isoformat()[:10]
     period_start = (datetime.utcnow() - __import__("datetime").timedelta(days=period_days)).isoformat()[:10]
+    date_expr = _iso_date_expr("date")
 
     # County-level scorecards
     rows = conn.execute(
@@ -340,9 +367,9 @@ def compute_safety_scorecards(period_days: int = 30) -> dict:
                         WHEN incident_type IN ('DUI','Drug','Theft','Fraud') THEN 3
                         ELSE 1 END) as avg_severity
         FROM records
-        WHERE date >= ? AND date <= ? AND county IS NOT NULL
+        WHERE {d} >= ? AND {d} <= ? AND county IS NOT NULL
         GROUP BY county
-        """,
+        """.format(d=date_expr),
         (period_start, period_end),
     ).fetchall()
 
@@ -351,8 +378,13 @@ def compute_safety_scorecards(period_days: int = 30) -> dict:
         total = row["total_incidents"]
         diversity = row["diversity"]
         avg_severity = row["avg_severity"] or 1.0
-        # Simple composite: lower is better; invert so 100 = safest
-        raw_score = max(0, 100 - (total * 0.5) - (diversity * 2) - (avg_severity * 10))
+        # Simple composite: lower is better; invert so 100 = safest.
+        # Volume is sqrt-scaled -- a linear term drives every county to 0 once
+        # a single county carries thousands of incidents (Gallatin has 2,974).
+        raw_score = max(
+            0,
+            100 - (total ** 0.5) * 0.35 - (diversity * 0.5) - (avg_severity * 2),
+        )
         score = round(min(100, max(0, raw_score)), 2)
 
         metrics = {
@@ -364,7 +396,9 @@ def compute_safety_scorecards(period_days: int = 30) -> dict:
         # Trends: compare with previous period
         prev_start = (datetime.utcnow() - timedelta(days=period_days * 2)).isoformat()[:10]
         prev = conn.execute(
-            "SELECT COUNT(*) as c FROM records WHERE county=? AND date >= ? AND date < ?",
+            "SELECT COUNT(*) as c FROM records WHERE county=? AND {d} >= ? AND {d} < ?".format(
+                d=date_expr
+            ),
             (row["county"], prev_start, period_start),
         ).fetchone()
         prev_total = prev["c"] if prev else 0

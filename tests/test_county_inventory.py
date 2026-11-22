@@ -72,6 +72,16 @@ class FetcherDiscoveryTestCase(unittest.TestCase):
         self._seed("phillips_inmate.py")
         self.assertEqual(county_inventory.get_fetcher_for_county("Hill"), "")
 
+    def test_county_seat_aliases_match(self):
+        self._seed("havre_inmate.py", "butte_inmate.py", "anaconda_inmate.py")
+        self.assertEqual(county_inventory.get_fetcher_for_county("Hill"), "havre_inmate.py")
+        self.assertEqual(county_inventory.get_fetcher_for_county("Silver Bow"), "butte_inmate.py")
+        self.assertEqual(county_inventory.get_fetcher_for_county("Deer Lodge"), "anaconda_inmate.py")
+
+    def test_county_name_match_wins_over_alias(self):
+        self._seed("hill_inmate.py", "havre_inmate.py")
+        self.assertEqual(county_inventory.get_fetcher_for_county("Hill"), "hill_inmate.py")
+
     def test_lookalike_county_names_stay_distinct(self):
         self._seed("carbon_inmate.py", "carter_inmate.py", "cascade_roster.py")
         self.assertEqual(county_inventory.get_fetcher_for_county("Carter"), "carter_inmate.py")

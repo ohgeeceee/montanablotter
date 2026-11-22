@@ -34,7 +34,8 @@ from datetime import datetime
 import init_db
 from services.lawyer_outreach.importer import import_prospects_from_csv
 
-LOG_PATH = '/root/montanablotter/logs/lawyer_outreach_cadence.log'
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LOG_PATH = os.path.join(_APP_ROOT, 'logs', 'lawyer_outreach_cadence.log')
 log = logging.getLogger('lawyer_outreach.cadence')
 
 # Single reply address for all outreach templates. Replies from prospects

@@ -1297,12 +1297,12 @@ def api_records():
 
     status = (request.args.get('status') or '').strip()
     if status:
-        where.append("status = ?")
-        params.append(status)
+        # records has no `status` column; ignore the filter rather than 500.
+        pass
 
     search = (request.args.get('q') or '').strip()
     if search:
-        where.append("(location LIKE ? OR incident LIKE ? OR summary LIKE ?)")
+        where.append("(location LIKE ? OR incident LIKE ? OR details LIKE ?)")
         params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
 
     where_sql = ' AND '.join(where)
@@ -1313,7 +1313,7 @@ def api_records():
 
     # Records
     cur.execute(
-        f"SELECT id, date, time, location, county, incident_type, incident, status, summary, details, officer, charge_category, created_at FROM records WHERE {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
+        f"SELECT id, date, time, location, county, incident_type, incident, details, officer, charge_category, created_at FROM records WHERE {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
         params + [per_page, offset]
     )
     records = [dict(r) for r in cur.fetchall()]
@@ -1336,7 +1336,7 @@ def api_records_recent():
 
     # Get 50 most recent records
     cur.execute(
-        "SELECT id, date, time, location, county, incident_type, incident, status, summary, details, officer, charge_category, created_at FROM records ORDER BY id DESC LIMIT 50"
+        "SELECT id, date, time, location, county, incident_type, incident, details, officer, charge_category, created_at FROM records ORDER BY id DESC LIMIT 50"
     )
     records = [dict(r) for r in cur.fetchall()]
     conn.close()
@@ -1909,15 +1909,35 @@ def api_geo_zip_location():
 @api_bp.route('/api/geo/sex-offender-county-counts')
 @require_api_key(allow_anonymous=True, anonymous_quota=_GEO_QUOTA)
 def api_geo_sex_offender_county_counts():
-    """County-level aggregate sex offender counts — no individual locations exposed."""
+    """County-level aggregate registrant counts — no individual locations exposed.
+
+    The registry covers BOTH violent and sexual offenders. Reporting a single
+    total and labelling it "sex offenders" mislabelled every violent offender
+    in the state (a registered violent offender complained he was published as
+    a sex offender). Return the split so callers can label each group
+    correctly.
+    """
     conn = get_db()
     rows = conn.execute(
-        "SELECT address_county AS county, COUNT(*) AS count FROM sex_offenders "
+        "SELECT address_county AS county, COUNT(*) AS count, "
+        "SUM(CASE WHEN lower(COALESCE(offender_type,'')) LIKE '%sexual%' THEN 1 ELSE 0 END) AS sexual_count, "
+        "SUM(CASE WHEN lower(COALESCE(offender_type,'')) NOT LIKE '%sexual%' THEN 1 ELSE 0 END) AS violent_count "
+        "FROM sex_offenders "
         "WHERE status='active' AND address_county IS NOT NULL AND address_county!='' "
         "GROUP BY address_county ORDER BY address_county"
     ).fetchall()
     conn.close()
-    return jsonify({'counts': [{'county': r['county'], 'count': int(r['count'])} for r in rows]})
+    return jsonify({
+        'counts': [
+            {
+                'county': r['county'],
+                'count': int(r['count']),
+                'sexual_count': int(r['sexual_count']),
+                'violent_count': int(r['violent_count']),
+            }
+            for r in rows
+        ]
+    })
 
 
 # ---------------------------------------------------------------------------

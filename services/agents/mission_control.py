@@ -55,6 +55,8 @@ def _observed_agent_snapshot() -> dict[str, Any]:
     return admin_agents._agent_snapshot()
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_agent_mission_control_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute(

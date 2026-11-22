@@ -250,58 +250,56 @@ def _upsert_sanction(
     county = (record.get('county_if_known') or '').strip() or None
     description = (record.get('description') or '').strip() or None
     source_url = (record.get('source_url') or '').strip() or None
-    fingerprint = _fingerprint(name, license_number, board, effective_date, action_taken)
-    raw_text = description or name
     now = datetime.now(timezone.utc).isoformat()
 
+    # Natural key: same person + licence + board + action + effective date.
+    # license_sanctions has no fingerprint / board_type / raw_text columns.
     existing = conn.execute(
         '''
         SELECT id FROM license_sanctions
-        WHERE fingerprint = ?
+        WHERE name_slug = ?
+          AND COALESCE(license_number, '') = COALESCE(?, '')
+          AND board = ?
+          AND COALESCE(action_taken, '') = COALESCE(?, '')
+          AND COALESCE(effective_date, '') = COALESCE(?, '')
         LIMIT 1
         ''',
-        (fingerprint,),
+        (name_slug, license_number, board, action_taken, effective_date),
     ).fetchone()
 
     if existing:
         conn.execute(
             '''
             UPDATE license_sanctions SET
-                person_name = ?,
                 name = ?,
                 name_slug = ?,
                 license_number = COALESCE(?, license_number),
                 violation_type = COALESCE(?, violation_type),
                 action_taken = ?,
                 board = ?,
-                board_type = COALESCE(board_type, ?),
                 effective_date = COALESCE(?, effective_date),
                 county = COALESCE(?, county),
                 description = COALESCE(?, description),
                 source_url = COALESCE(?, source_url),
                 source_document_url = COALESCE(?, source_document_url),
                 raw_extraction_id = ?,
-                raw_text = COALESCE(?, raw_text),
                 updated_at = ?,
                 is_active = 1
             WHERE id = ?
             ''',
             (
                 name,
-                name,
                 name_slug,
                 license_number,
                 violation_type,
                 action_taken,
                 board,
-                source['board_key'],
                 effective_date,
                 county,
                 description,
                 source_url,
                 source_url,
                 raw_id,
-                raw_text,
                 now,
                 existing['id'],
             ),
@@ -310,17 +308,15 @@ def _upsert_sanction(
         conn.execute(
             '''
             INSERT INTO license_sanctions
-            (source_id, person_name, name, name_slug, license_number, board, board_type, violation_type, action_taken, effective_date, county, description, source_url, source_document_url, fingerprint, raw_extraction_id, raw_text, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            (source_id, name, name_slug, license_number, board, violation_type, action_taken, effective_date, county, description, source_url, source_document_url, raw_extraction_id, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
             ''',
             (
                 source_id,
                 name,
-                name,
                 name_slug,
                 license_number,
                 board,
-                source_board_key,
                 violation_type,
                 action_taken,
                 effective_date,
@@ -328,9 +324,7 @@ def _upsert_sanction(
                 description,
                 source_url,
                 source_url,
-                fingerprint,
                 raw_id,
-                raw_text,
                 now,
                 now,
             ),

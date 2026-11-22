@@ -11,6 +11,7 @@ import io
 import json
 import logging
 import os
+import re
 import sqlite3
 import sys
 from dataclasses import dataclass
@@ -96,13 +97,16 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS public_salaries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            employee_name TEXT NOT NULL,
+            name TEXT NOT NULL,
+            slug TEXT NOT NULL UNIQUE,
             agency TEXT NOT NULL,
             position TEXT,
             salary REAL,
             county TEXT,
+            year TEXT,
+            context TEXT,
             fiscal_year TEXT,
-            fingerprint TEXT NOT NULL UNIQUE,
+            fingerprint TEXT,
             raw_json TEXT,
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
@@ -360,6 +364,12 @@ def _queue_watchdog_spending_alerts(
             )
 
 
+def _slugify_salary(name: str, agency: str, year: str) -> str:
+    text = f"{name}-{agency}-{year}".lower()
+    text = re.sub(r'[^a-z0-9]+', '-', text)
+    return text.strip('-')[:120]
+
+
 def import_salaries(conn: sqlite3.Connection, records: list[SalaryRecord]) -> dict[str, int]:
     cursor = conn.cursor()
     inserted = 0
@@ -369,25 +379,29 @@ def import_salaries(conn: sqlite3.Connection, records: list[SalaryRecord]) -> di
         cursor.execute("SELECT id FROM public_salaries WHERE fingerprint = ?", (fp,))
         existing = cursor.fetchone()
         raw_json = json.dumps(rec.raw_row)
+        year = rec.fiscal_year or ''
+        slug = _slugify_salary(rec.employee_name, rec.agency, year)
         if existing:
             cursor.execute(
                 """
                 UPDATE public_salaries
-                SET employee_name = ?, agency = ?, position = ?, salary = ?, county = ?,
-                    fiscal_year = ?, raw_json = ?, updated_at = datetime('now')
+                SET name = ?, slug = ?, agency = ?, position = ?, salary = ?, county = ?,
+                    year = ?, fiscal_year = ?, raw_json = ?, updated_at = datetime('now')
                 WHERE fingerprint = ?
                 """,
-                (rec.employee_name, rec.agency, rec.position, rec.salary, rec.county, rec.fiscal_year, raw_json, fp),
+                (rec.employee_name, slug, rec.agency, rec.position, rec.salary, rec.county,
+                 year, rec.fiscal_year, raw_json, fp),
             )
             updated += 1
         else:
             cursor.execute(
                 """
                 INSERT INTO public_salaries
-                (employee_name, agency, position, salary, county, fiscal_year, fingerprint, raw_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (name, slug, agency, position, salary, county, year, fiscal_year, fingerprint, raw_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (rec.employee_name, rec.agency, rec.position, rec.salary, rec.county, rec.fiscal_year, fp, raw_json),
+                (rec.employee_name, slug, rec.agency, rec.position, rec.salary, rec.county,
+                 year, rec.fiscal_year, fp, raw_json),
             )
             inserted += 1
     conn.commit()

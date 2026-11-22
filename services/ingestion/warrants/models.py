@@ -26,6 +26,8 @@ class WarrantRecord:
     mugshot_url: str = ""  # official sheriff booking/warrant photo when published
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_warrant_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute(

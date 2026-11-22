@@ -561,6 +561,8 @@ https://mtblotter.com
 # Template CRUD + seed
 # ---------------------------------------------------------------------------
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_template_schema(conn):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS email_templates (

@@ -41,6 +41,8 @@ def get_db():
     return conn
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_digest_tables(conn):
     conn.execute('''
         CREATE TABLE IF NOT EXISTS digest_runs (

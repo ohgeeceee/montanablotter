@@ -318,6 +318,8 @@ def _bail_ad_allowed_asset(filename):
     return ext in {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_bail_ad_simulator_order_columns(conn):
     columns = {
         (row['name'] if isinstance(row, sqlite3.Row) else row[1])
@@ -334,6 +336,7 @@ def _ensure_bail_ad_simulator_order_columns(conn):
             conn.execute(sql)
 
 
+@schema_bootstrap_once
 def _ensure_bail_ad_simulator_event_schema(conn):
     conn.execute(
         '''
@@ -514,6 +517,7 @@ def _bail_ad_contract_context(onboarding_token: str | None = None):
     }
 
 
+@schema_bootstrap_once
 def _ensure_bail_consumer_lead_schema(conn):
     conn.execute(
         '''
@@ -1399,6 +1403,7 @@ def _bail_agency_dedupe_key(agency_name, email, phone):
     return f'{agency_token}|{email_token}|{phone_token}'
 
 
+@schema_bootstrap_once
 def _ensure_bail_agency_outreach_schema(conn):
     conn.execute(
         '''
@@ -3157,3 +3162,7 @@ def advertise_bail_onboarding(token):
         active_nav='advertise',
         current_year=datetime.now().year,
     )
+
+# Public alias: webhook callers in blueprints/payments.py and
+# blueprints/admin/donations.py import the non-underscore name.
+apply_stripe_bail_ad_event = _apply_stripe_bail_ad_event

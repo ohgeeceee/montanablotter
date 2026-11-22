@@ -152,6 +152,8 @@ def _create_core_tables(cursor: sqlite3.Cursor) -> None:
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)')
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_public_engagement_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute(
@@ -288,6 +290,7 @@ def ensure_public_engagement_schema(conn: sqlite3.Connection) -> None:
             pass
 
 
+@schema_bootstrap_once
 def ensure_jail_roster_digest_schema(conn: sqlite3.Connection) -> None:
     """Store paid jail-roster email preferences and delivery checkpoints."""
     conn.execute(
@@ -310,6 +313,7 @@ def ensure_jail_roster_digest_schema(conn: sqlite3.Connection) -> None:
     )
 
 
+@schema_bootstrap_once
 def ensure_email_campaign_schema(conn: sqlite3.Connection) -> None:
     """Create campaign templates, aggregate sends, and per-recipient delivery logs."""
     conn.execute(
@@ -371,6 +375,7 @@ def ensure_email_campaign_schema(conn: sqlite3.Connection) -> None:
         'ON email_campaign_deliveries(recipient_email, sent_at)'
     )
 
+@schema_bootstrap_once
 def ensure_jail_booking_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute(
@@ -630,6 +635,7 @@ def init_database():
     print("  - sex_offender_alert_subscriptions")
 
 
+@schema_bootstrap_once
 def ensure_source_material_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute('''
@@ -720,6 +726,7 @@ def ensure_source_material_schema(conn: sqlite3.Connection) -> None:
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_pipeline_events_job_stage ON pipeline_events(ingestion_job_id, stage)')
 
 
+@schema_bootstrap_once
 def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
     """Create recovery_ad_orders and recovery_ad_listings tables if not present."""
     conn.execute('''
@@ -765,6 +772,7 @@ def ensure_recovery_ad_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
     """Create lawyer_ad_orders + lawyer_ad_listings + lawyer_consumer_leads tables.
 
@@ -932,6 +940,7 @@ def ensure_lawyer_ad_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_lawyer_arrest_alert_schema(conn: sqlite3.Connection) -> None:
     """2026-07-29: Real-time arrest alerts + case claim for lawyer_ad_orders subscribers.
 
@@ -981,6 +990,7 @@ def ensure_lawyer_arrest_alert_schema(conn: sqlite3.Connection) -> None:
 
 
 
+@schema_bootstrap_once
 def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
     """2026-06-06: Sponsored-listing tier on attorney_referrals.
 
@@ -1060,6 +1070,7 @@ def ensure_attorney_ad_schema(conn: sqlite3.Connection) -> None:
 
 
 
+@schema_bootstrap_once
 def ensure_attorney_checkout_schema(conn):
     """Self-serve Stripe checkout for attorney sponsorship — orders + listings.
 
@@ -1181,6 +1192,7 @@ def ensure_attorney_checkout_schema(conn):
 
 
 
+@schema_bootstrap_once
 def ensure_lawyer_outreach_schema(conn: sqlite3.Connection) -> None:
     """Per-firm lawyer advertising outreach workflow."""
     conn.execute(
@@ -1253,6 +1265,7 @@ def ensure_lawyer_outreach_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_treatment_center_schema(conn: sqlite3.Connection) -> None:
     """Free public treatment-center directory — mirrors attorney_referrals shape.
 
@@ -1295,6 +1308,7 @@ def ensure_treatment_center_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_for_the_record_drafts_schema(conn: sqlite3.Connection) -> None:
     """Weekly "For the Record" narrative drafts queue.
 
@@ -1366,6 +1380,7 @@ def ensure_for_the_record_drafts_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_outreach_drafts_schema(conn: sqlite3.Connection) -> None:
     """Weekly outreach drafts queue for the source-discovery cron.
 
@@ -1416,6 +1431,7 @@ def ensure_outreach_drafts_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_advertise_sales_lead_schema(conn):
     """Sales-call leads from /advertise/* landing pages.
 
@@ -1454,6 +1470,7 @@ def ensure_advertise_sales_lead_schema(conn):
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_advertising_center_schema(conn):
     """Canonical business pipeline; source orders remain in their own systems."""
     conn.execute('''CREATE TABLE IF NOT EXISTS advertising_prospects (
@@ -1484,6 +1501,7 @@ def ensure_advertising_center_schema(conn):
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_subscription_events_schema(conn):
     """Audit Stripe subscription lifecycle and dunning notices."""
     conn.execute(
@@ -3129,6 +3147,7 @@ def migrate():
     print("✅ Subscription feature tables ensured")
 
 
+@schema_bootstrap_once
 def ensure_sponsored_listing_schema(conn: sqlite3.Connection) -> None:
     """Create sponsored_listings table for bail bond agencies and criminal defense
     attorneys that pay for placement on county jail booking pages."""
@@ -3244,6 +3263,7 @@ def _ensure_subscription_feature_tables():
 
 
 
+@schema_bootstrap_once
 def ensure_sex_offender_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
 
@@ -3455,6 +3475,7 @@ def ensure_sex_offender_schema(conn: sqlite3.Connection) -> None:
     ''')
 
 
+@schema_bootstrap_once
 def ensure_crash_incident_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute('''
@@ -3533,6 +3554,7 @@ def ensure_crash_incident_schema(conn: sqlite3.Connection) -> None:
             pass
 
 
+@schema_bootstrap_once
 def ensure_code_violation_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
 
@@ -3647,6 +3669,7 @@ def ensure_code_violation_schema(conn: sqlite3.Connection) -> None:
             pass
 
 
+@schema_bootstrap_once
 def ensure_civil_filing_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
 
@@ -3805,6 +3828,7 @@ def ensure_civil_filing_schema(conn: sqlite3.Connection) -> None:
             pass
 
 
+@schema_bootstrap_once
 def ensure_license_sanction_schema(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute('''
@@ -3855,6 +3879,44 @@ def ensure_license_sanction_schema(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (source_id) REFERENCES license_sanction_sources(id) ON DELETE CASCADE
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS odc_discipline (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            attorney_name TEXT NOT NULL,
+            cause_no TEXT,
+            discipline TEXT,
+            date_ordered TEXT,
+            pdf_version TEXT NOT NULL,
+            source_url TEXT,
+            fetched_at TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(pdf_version, attorney_name, cause_no)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS public_salaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            slug TEXT NOT NULL UNIQUE,
+            agency TEXT NOT NULL,
+            position TEXT,
+            salary REAL,
+            county TEXT,
+            year TEXT,
+            context TEXT,
+            fiscal_year TEXT,
+            fingerprint TEXT,
+            raw_json TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_salaries_county ON public_salaries(county)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_public_salaries_agency ON public_salaries(agency)'
+    )
 
     for col, definition in [
         ('board_key', 'TEXT'),
@@ -3969,6 +4031,7 @@ def seed_civil_filing_sources(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_agency_contacts_schema(conn):
     """Create agency_contacts table for weekly crime brief emails."""
     conn.execute('''
@@ -3989,6 +4052,7 @@ def ensure_agency_contacts_schema(conn):
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_civic_records_requests_schema(conn):
     """End-to-end tracker for public-records requests to county agencies."""
     conn.execute(
@@ -4019,6 +4083,7 @@ def ensure_civic_records_requests_schema(conn):
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_lea_schema(conn: sqlite3.Connection) -> None:
     """Create LEA panel tables for multi-tenant agency self-service."""
     cursor = conn.cursor()
@@ -4230,6 +4295,7 @@ def ensure_lea_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+@schema_bootstrap_once
 def ensure_lea_security_policies(conn: sqlite3.Connection) -> None:
     """Apply CJIS-compliant security policies for LEA panel tables.
 

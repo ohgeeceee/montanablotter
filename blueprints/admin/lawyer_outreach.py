@@ -88,6 +88,8 @@ def _stage_label(stage: str) -> str:
     }.get(stage, stage)
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_schema(conn) -> None:
     from init_db import ensure_lawyer_outreach_schema
     ensure_lawyer_outreach_schema(conn)

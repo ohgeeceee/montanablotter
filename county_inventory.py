@@ -23,6 +23,8 @@ import re
 import sys
 from pathlib import Path
 
+# This file lives at the app root; derive every path from __file__ so the
+# script keeps working after the /root/montanablotter -> /opt/montanablotter move.
 REPO_ROOT = Path(__file__).resolve().parent
 
 
@@ -83,7 +85,9 @@ def get_fetcher_for_county(county: str) -> str:
     Matching is token-based: the module stem is split on ``_``/``-`` and the
     county's tokens must all be present. Substring matching is deliberately
     avoided — ``"hill" in "phillips_inmate"`` would otherwise claim Phillips
-    County's fetcher for Hill County.
+    County's fetcher for Hill County. County-seat aliases (Hill -> havre,
+    Silver Bow -> butte, Deer Lodge -> anaconda) match fetchers named after
+    the city instead of the county.
     """
     county_tokens = set(re.split(r"[\s\-_]+", county.lower()))
     # Stopwords never appear in module names ("Lewis and Clark" -> lewis_clark_inmate.py).
@@ -91,16 +95,26 @@ def get_fetcher_for_county(county: str) -> str:
     county_tokens.discard("")
     if not county_tokens:
         return ""
+    # County-seat aliases: some fetchers are named after the city, not the county.
+    SEAT_ALIASES = {
+        "hill": ["havre"],
+        "silver bow": ["butte"],
+        "deer lodge": ["anaconda"],
+    }
+    token_variants = [county_tokens]
+    token_variants.extend({alias} for alias in SEAT_ALIASES.get(county.lower(), []))
     try:
-        filenames = os.listdir(FETCHERS_DIR)
+        filenames = sorted(os.listdir(FETCHERS_DIR))
     except FileNotFoundError:
         return ""
-    for fname in filenames:
-        if not fname.endswith(".py") or fname.startswith("__"):
-            continue
-        stem_tokens = set(re.split(r"[\s\-_]+", fname[:-3].lower()))
-        if county_tokens <= stem_tokens:
-            return fname
+    # Direct county-name matches win over seat aliases.
+    for variant in token_variants:
+        for fname in filenames:
+            if not fname.endswith(".py") or fname.startswith("__"):
+                continue
+            stem_tokens = set(re.split(r"[\s\-_]+", fname[:-3].lower()))
+            if variant <= stem_tokens:
+                return fname
     return ""
 
 

@@ -8,7 +8,7 @@ Covers subscription gating/paywall, bail ads, recovery-center ads, donations, an
 
 | Path | Purpose | Key entry points |
 |------|---------|-----------------|
-| `services/monetization/paywall.py` | Subscription plan hierarchy, preview-limit tracking, and gating decorators. | `PLAN_HIERARCHY` (~L25), `PREVIEW_LIMITS`, `connect_page_views()`, `subscription_gate()`, `require_subscription()` |
+| `services/monetization/paywall.py` | Subscription plan hierarchy, preview-limit tracking, and gating helpers. | `PLAN_HIERARCHY`, `WARRANT_PLANS`, `PREVIEW_LIMITS`, `preview_allowed()`, `user_has_access()`, `user_has_warrant_access()`, `gated_detail()`, `require_subscription()` |
 | `services/monetization/bondsman.py` | Bondsman "command center": subscription state, watchlists, alerts, cases, check-ins. | Schema columns (~L24-80), API routes (`/api/bondsman/*`; ~L474-501), `_subscriber_required()`, watchlist/case helpers |
 | `services/monetization/bondsman_watch.py` | CLI wrapper that runs the watchlist match cycle. | `run_watchlist_match_cycle()` (20-line wrapper) |
 | `services/monetization/recovery_renewals.py` | Deterministic renewal-date projection for recovery ad subscriptions. | `project_next_renewal()` (L65), `days_until_renewal()` (L101), `find_upcoming_renewals()` (L118) |
@@ -64,13 +64,13 @@ A separate SQLite file managed by `services/monetization/paywall.py`:
 
 ### Subscription / paywall
 
-1. User requests a gated page (warrant records, full docket, disposition details, etc.).
-2. `subscription_gate(min_plan='insider')` or `require_subscription(...)` resolves the viewer to `(viewer_type, viewer_id)`.
-3. `PLAN_HIERARCHY` (~L25-37) compares the viewer's `subscriber_plan` rank to the page minimum (`scout`=0, `warrant_access`/`insider`=1, `professional`=2).
+1. User requests a gated page (incident/booking detail, source PDF, warrant records, etc.).
+2. The route calls `preview_allowed(resource_type=..., resource_id=...)` — or `user_has_access('plus')` / `user_has_warrant_access()` for hard gates — which resolves the viewer to `(viewer_type, viewer_id)`: admin, `public_users.id`, or anonymous session-id + IP hash.
+3. `PLAN_HIERARCHY` ranks plans: `free`=0, `warrant_access`=0 (standalone warrants-only add-on), `plus`=1, `pro`=2; legacy `insider`→`plus`, `professional`→`pro` via `LEGACY_PLAN_REMAP`. Paid users with status `active`/`trialing`/`past_due` bypass preview counting.
 4. If no active plan and preview budget remains (`PREVIEW_LIMITS: 3/day, 5/week`), a row is inserted into `page_views.db.preview_views` and access is granted.
-5. Otherwise the user is redirected to checkout (or a JSON paywall response is returned for API calls).
+5. Otherwise the page renders its locked/upsell state (a JSON 403 for API calls).
 6. Checkout creates a Stripe Session/Subscription with metadata `flow=subscription` or `flow=warrant_access`.
-7. Webhook `/webhooks/stripe` calls `app._apply_stripe_event()` → `_apply_subscription_stripe_event()` / `_apply_warrant_access_stripe_event()`, which set `public_users.is_subscribed`, `subscriber_plan`, `stripe_subscription_id`, `subscription_status`, etc.
+7. Webhook `/webhooks/stripe` calls `app._apply_stripe_event()` → `_apply_subscription_stripe_event()`, which sets `public_users.is_subscribed`, `subscriber_plan`, `stripe_subscription_id`, `subscription_status`, etc.
 8. Lifecycle events (`customer.subscription.updated`/`deleted`) keep `public_users` in sync; cancellation clears the subscription columns and records `subscription_canceled_at`.
 
 ### Bail ads
@@ -145,10 +145,11 @@ If the bondsman watchlist matching or recovery renewal reminders need to run una
 - **Two databases for payments**: gated-page previews live in `page_views.db` (created by `connect_page_views()`), while subscriptions/ads/donations live in the main app DB. Backups must cover both files.
 - **Stripe webhook is single endpoint**: `blueprints/payments.py::stripe_webhook()` (L357) received all Stripe events, stores them in `payment_webhook_events`, then dispatches to `_apply_stripe_bail_ad_event()`, `apply_stripe_recovery_ad_event()`, and `_apply_stripe_event()`. Duplicate event IDs are handled by the unique index on `event_id`.
 - **Metadata routing**: webhooks route by `metadata.flow` (`bail_ad`, `recovery_ad`, `subscription`, `warrant_access`, `disposition_api`) or `tier='supporter'`. Payment Link warrant checkouts may lack `flow` metadata; `_apply_stripe_event()` falls back to `client_reference_id` + subscription detection.
-- **Plan ranks**: `scout=0 < warrant_access/insider=1 < professional=2`. The `require_subscription` and `subscription_gate` decorators check these ranks.
+- **Plan ranks**: `free=0`, `warrant_access=0` (standalone add-on, warrants only), `plus=1`, `pro=2`; legacy `insider→plus`, `professional→pro`. Gates use `user_has_access()` / `preview_allowed()`; `/wanted` uses `user_has_warrant_access()` with `WARRANT_PLANS = {'pro', 'warrant_access'}` — Plus excluded (owner decision 2026-11-19). `subscription_gate()` was referenced here historically but never existed.
 - **Preview limits are per viewer**: counted separately for anonymous sessions, public users, and admins.
 - **Bail ad state is wide**: orders carry many runtime-added columns (`simulator_*`, `add_on_ids`, `county_targets`, etc.); schema migrations in `app.py` add missing columns at startup via `_ensure_bail_ad_simulator_order_columns()`.
 - **Recovery renewals are projected**: `recovery_ad_orders` has no `renews_on` column. Use `recovery_renewals.py` to compute the next date from `activated_at` + `billing_cycle` (`monthly`=30, `annual`=365).
 - **Metrics model mismatch**: `ad_metrics.py` bridges the two ad products — recovery uses counter columns, bail uses an event-log. `get_advertiser_metrics()` matches by business name/email case-insensitively.
 - **Subscription lifecycle edge cases**: when a Stripe subscription is canceled, `public_users` is cleared and `subscription_canceled_at` is set, but the bondman dashboard does not automatically close `bondsman_cases`. Build a cleanup job if required.
+- **Legacy warrant buyers were stored as `plus`**: until 2026-11-19 the webhook remapped `warrant_access→plus` at write time. `scripts/maintenance/2026-11-19-fix-warrant-access-plans.py` restores them (dry-run first, then `--apply`).
 - **No secrets in source**: all Stripe keys, webhook secrets, and ad credentials are read from `config.py`/env; never hardcode or log them.

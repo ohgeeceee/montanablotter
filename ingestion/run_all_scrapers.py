@@ -18,7 +18,7 @@ from services.alerts.engine import process_new_record
 from ingestion.alert_engine import run_alert_delivery
 from services.alerts.watchdog_spending import dispatch_watchdog_spending_alerts
 from services.ingestion.civil_violations_pipeline import run_pipeline as run_civil_violations_pipeline
-from transparency_portal import run_contract_ingest, run_expenditure_ingest, run_salary_ingest
+from ingestion.transparency_portal import run_contract_ingest, run_expenditure_ingest, run_salary_ingest
 
 # Scrapers
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scrapers"))

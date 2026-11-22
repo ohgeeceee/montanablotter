@@ -59,6 +59,12 @@ BOARD_SOURCES = [
         'source_type': 'html',
     },
     {
+        'board_key': 'mt_optometry',
+        'board_name': 'Montana Board of Optometry',
+        'board_url': 'https://boards.bsd.dli.mt.gov/optometry/',
+        'source_type': 'html',
+    },
+    {
         'board_key': 'mt_psychologists',
         'board_name': 'Montana Board of Psychologists',
         'board_url': 'https://boards.bsd.dli.mt.gov/psychologists/',

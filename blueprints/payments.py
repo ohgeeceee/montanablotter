@@ -431,7 +431,6 @@ def stripe_webhook():
     webhook_ip_hash = hashlib.sha256((m._client_ip() or '').encode()).hexdigest()[:16]
     webhook_referrer = (request.referrer or '')[:500]
     try:
-        m._apply_stripe_bail_ad_event(conn, event)
         from blueprints.recovery_ads import apply_stripe_recovery_ad_event
         apply_stripe_recovery_ad_event(conn, event)
         from blueprints.bail_bond_ads import apply_stripe_bail_ad_event

@@ -36,7 +36,14 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # Add montanablotter to path for config/db access
-sys.path.insert(0, "/root/montanablotter")
+_APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+while not os.path.isfile(os.path.join(_APP_ROOT, "config.py")):
+    _parent = os.path.dirname(_APP_ROOT)
+    if _parent == _APP_ROOT:
+        break
+    _APP_ROOT = _parent
+if _APP_ROOT not in sys.path:
+    sys.path.insert(0, _APP_ROOT)
 import config
 from core.dedupe import incident_key_set
 try:
@@ -628,6 +635,8 @@ def _connect_db() -> sqlite3.Connection:
     return conn
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def ensure_scraped_records_schema(conn: sqlite3.Connection) -> None:
     """Create tables for scraped data if they don't exist."""
     conn.execute("""

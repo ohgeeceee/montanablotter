@@ -47,7 +47,7 @@ from typing import Any, Iterable, Optional
 # Constants — paths, env vars, status vocabulary
 # ---------------------------------------------------------------------------
 
-REPO_ROOT = Path("/root/montanablotter")
+REPO_ROOT = Path(__file__).resolve().parent.parent
 CIVIC_QUEUE_DIR = REPO_ROOT / "agent-queue" / "civic"
 CIVIC_ARCHIVE_DIR = CIVIC_QUEUE_DIR / "archive"
 DB_PATH = REPO_ROOT / "blotter.db"

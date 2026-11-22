@@ -213,6 +213,19 @@ SMTP_SERVER = _env('MB_SMTP_SERVER', 'smtp.gmail.com')
 SMTP_PORT = _env_int('MB_SMTP_PORT', 587)
 SMTP_USER = _env('MB_SMTP_USER')
 SMTP_PASSWORD = _env('MB_SMTP_PASSWORD')
+
+# Google AdSense display units. The client ID ships as a default because the
+# loader script in the base templates already references it; the individual
+# slot IDs (MB_ADSENSE_SLOT_*) come from the AdSense account and are blank
+# until supplied -- a unit with no slot ID renders nothing rather than
+# emitting broken markup.
+ADSENSE_CLIENT_ID = _env('MB_ADSENSE_CLIENT_ID', 'ca-pub-2061188847733201').strip()
+ADSENSE_ENABLED = _env_bool('MB_ADSENSE_ENABLED', default=True)
+ADSENSE_SLOT_HEADER = _env('MB_ADSENSE_SLOT_HEADER').strip()
+ADSENSE_SLOT_SIDEBAR = _env('MB_ADSENSE_SLOT_SIDEBAR').strip()
+ADSENSE_SLOT_INCONTENT = _env('MB_ADSENSE_SLOT_INCONTENT').strip()
+ADSENSE_SLOT_FOOTER = _env('MB_ADSENSE_SLOT_FOOTER').strip()
+ADSENSE_SLOT_ARTICLE = _env('MB_ADSENSE_SLOT_ARTICLE').strip()
 ADMIN_ALERT_EMAILS = _env_csv('MB_ADMIN_ALERT_EMAILS')
 INGEST_ALERT_REPEAT_HOURS = max(1, _env_int('MB_INGEST_ALERT_REPEAT_HOURS', 24))
 TWILIO_ACCOUNT_SID = _env('MB_TWILIO_ACCOUNT_SID')

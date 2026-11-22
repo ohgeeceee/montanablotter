@@ -68,11 +68,11 @@ def register_public_salaries_blueprint(app, get_db):
             
         record = dict(row)
         
-        # Cross-reference with existing data (records table has no 'name' column — search details and summary)
+        # Cross-reference with existing data (records table has no 'name' column — search details)
         search_name = f"%{record['name']}%"
         cur.execute(
-            "SELECT * FROM records WHERE details LIKE ? OR summary LIKE ? ORDER BY date DESC LIMIT 5",
-            (search_name, search_name)
+            "SELECT * FROM records WHERE details LIKE ? ORDER BY date DESC LIMIT 5",
+            (search_name,)
         )
         arrests = [dict(r) for r in cur.fetchall()]
         

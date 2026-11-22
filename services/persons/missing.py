@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import sqlite3
 from datetime import datetime
@@ -171,6 +172,8 @@ def _parse_aliases(raw_aliases: Any) -> list[str]:
     return aliases
 
 
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_missing_person_columns(conn: sqlite3.Connection) -> None:
     existing_columns = {
         row[1]
@@ -243,6 +246,7 @@ def _absolute_official_url(path: Any) -> str:
     return urljoin(OFFICIAL_SOURCE_BASE_URL, raw)
 
 
+@schema_bootstrap_once
 def _ensure_subscriber_columns(conn: sqlite3.Connection) -> None:
     existing_columns = {
         row[1]
@@ -262,6 +266,7 @@ def _ensure_subscriber_columns(conn: sqlite3.Connection) -> None:
             existing_columns.add(column_name)
 
 
+@schema_bootstrap_once
 def _ensure_missing_person_delivery_schema(conn: sqlite3.Connection) -> None:
     delivery_columns = {
         row[1]
@@ -325,6 +330,7 @@ def _ensure_missing_person_delivery_schema(conn: sqlite3.Connection) -> None:
     )
 
 
+@schema_bootstrap_once
 def ensure_missing_person_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         '''
@@ -1104,6 +1110,7 @@ def fetch_official_missing_person_snapshot(
     pages: dict[str, str] = {}
     with sync_playwright() as p:
         browser = p.chromium.launch(
+            executable_path=os.getenv('MB_PLAYWRIGHT_EXECUTABLE_PATH', '/usr/bin/google-chrome'),
             headless=headless,
             args=[
                 '--no-sandbox',

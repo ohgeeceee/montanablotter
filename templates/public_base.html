@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  {% from "includes/adsense_unit.html" import adsense_unit with context %}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111111">
   <meta name="facebook-domain-verification" content="hov8m0bh6slqwz6y1guh07p5cect0h" />
+  <meta name="google-adsense-account" content="ca-pub-2061188847733201">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}{% if page_title is defined %}{{ page_title }} | Montana Blotter{% else %}Montana Blotter{% endif %}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{% if meta_description is defined %}{{ meta_description }}{% else %}Real-time Montana public records: incidents, arrests, courts, jails, and county blotters.{% endif %}{% endblock %}">
@@ -144,6 +146,16 @@
   {% if recaptcha_site_key and not request.args.get('noads') %}
   <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
   {% endif %}
+    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-WZ448FHV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    </script>
+  <!-- Google AdSense -->
+  {% if adsense_enabled and adsense_client_id %}
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ adsense_client_id }}" crossorigin="anonymous"></script>
+  {% endif %}
 </head>
 <body class="public-app {% block body_class %}{% endblock %}" data-county="{{ county.slug if county is defined and county else '' }}">
   <a href="#main" class="u-skip-link">Skip to content</a>
@@ -238,6 +250,12 @@
       </div>
     </div>
   </header>
+
+  {# AdSense leaderboard under the masthead. Renders nothing until
+     MB_ADSENSE_SLOT_HEADER is set in the environment. #}
+  <div class="u-container mb-adsense" aria-hidden="true">
+    {{ adsense_unit(adsense_slots.header, 'header', style='text-align:center; margin: 0.75rem auto; min-height: 90px;') }}
+  </div>
 
   <div id="mb-mobile-sheet" class="mb-mobile-sheet" aria-hidden="true">
     <div class="mb-mobile-sheet__backdrop" id="mb-mobile-sheet-backdrop"></div>
@@ -381,6 +399,11 @@
           <a href="https://www.facebook.com/montanablotter" class="mb-footer-bottom__link" target="_blank" rel="noopener" data-nav-track="1" data-nav-location="footer_social">Facebook</a>
           <a href="/status" class="mb-footer-bottom__link" data-nav-track="1" data-nav-location="footer_social">Status</a>
         </div>
+      </div>
+
+      {# AdSense footer unit; needs MB_ADSENSE_SLOT_FOOTER. #}
+      <div class="mb-adsense" aria-hidden="true">
+        {{ adsense_unit(adsense_slots.footer, 'footer', style='text-align:center; margin-top: 1rem;') }}
       </div>
     </div>
   </footer>
