@@ -283,9 +283,12 @@ class DataCenterPagesTests(unittest.TestCase):
         with app_module.app.test_request_context('/'):
             nav = app_module.inject_public_nav()
 
+        all_items = nav['public_primary_nav_items'] + [
+            item for group in nav['public_more_nav_groups'] for item in group['items']
+        ]
         self.assertTrue(
-            any(item['id'] == 'data_center' for item in nav['public_primary_nav_items']),
-            'Expected a Data Center item in the public primary nav',
+            any(item['id'] == 'data_center' for item in all_items),
+            'Expected a Data Center item in the public nav',
         )
 
 

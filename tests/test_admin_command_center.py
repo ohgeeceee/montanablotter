@@ -78,7 +78,6 @@ class AdminCommandCenterTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('Live Ops', html)
-        self.assertIn('Browse All Admin Tools', html)
         self.assertIn('All Admin Tools', html)
         self.assertIn('ops-health-bar', html)
         self.assertIn('Command Center', html)

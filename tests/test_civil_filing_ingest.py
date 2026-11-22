@@ -163,7 +163,7 @@ class TestCivilFilingIngest(unittest.TestCase):
             os.unlink(path)
 
     def test_parse_icourtcase_search_results_extracts_case_rows(self):
-        fixture_path = Path('/root/montanablotter/tests/fixtures/icourtcase_civil_search.html')
+        fixture_path = Path(__file__).resolve().parent / 'fixtures' / 'icourtcase_civil_search.html'
         html = fixture_path.read_text(encoding='utf-8')
         rows = parse_icourtcase_search_results(html, county='Yellowstone')
         self.assertEqual(rows[0]['case_number'], 'UD-26-1234')
@@ -214,7 +214,7 @@ class TestCivilFilingIngest(unittest.TestCase):
             checkpoint={'county': 'Yellowstone', 'date_from': '2026-05-01', 'page': 1},
         )
 
-        fixture_path = Path('/root/montanablotter/tests/fixtures/icourtcase_civil_search.html')
+        fixture_path = Path(__file__).resolve().parent / 'fixtures' / 'icourtcase_civil_search.html'
         html = fixture_path.read_text(encoding='utf-8')
 
         def fake_fetcher(url: str) -> str:

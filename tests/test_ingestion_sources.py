@@ -428,7 +428,17 @@ class IngestionSourceTests(unittest.TestCase):
         )
 
         session = mock.Mock()
-        session.get.side_effect = [prompt_page, charge_page]
+        # CSV-first fetch flow: answer by URL so the mock is not order-fragile.
+        csv_miss = mock.Mock(status_code=404)
+
+        def _get(url, **kwargs):
+            if "JailRoster.csv" in url:
+                return csv_miss
+            if "inmatedet" in url:
+                return charge_page
+            return prompt_page
+
+        session.get.side_effect = _get
         session.post.side_effect = [roster_page, search_page]
         session_cls.return_value = session
 

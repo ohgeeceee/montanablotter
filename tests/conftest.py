@@ -40,6 +40,22 @@ def _reset_schema_bootstrap_class():
 
 
 @pytest.fixture(autouse=True)
+def _preserve_app_module_singleton():
+    # Several checkout/registration tests pop sys.modules['app'] and re-import
+    # it for isolation. Left unrestored, later tests end up with a stale Flask
+    # app paired with a freshly-imported module: cache backends go missing
+    # (KeyError in blueprints/api.py), DB handles point at deleted temp files,
+    # and pages 404/500 depending on test order. Restore the original module
+    # object after every test so the singleton stays stable suite-wide.
+    import sys
+
+    original = sys.modules.get('app')
+    yield
+    if original is not None and sys.modules.get('app') is not original:
+        sys.modules['app'] = original
+
+
+@pytest.fixture(autouse=True)
 def _reset_schema_bootstrap_between_tests():
     # ensure_*_schema helpers are memoized per-process by @schema_bootstrap_once
     # so request paths do not repeatedly take SQLite write locks. Tests build a
