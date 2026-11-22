@@ -72,6 +72,59 @@ def timed_db_transaction(
             )
 
 
+def is_lock_error(exc: Exception) -> bool:
+    """True when ``exc`` is a transient SQLite lock/busy failure."""
+    if not isinstance(exc, sqlite3.OperationalError):
+        return False
+    text = str(exc).lower()
+    return "database is locked" in text or "database table is locked" in text or "busy" in text
+
+
+def write_with_retry(
+    conn: sqlite3.Connection,
+    sql: str,
+    params: tuple | list = (),
+    *,
+    attempts: int = 4,
+    sleep_seconds: float = 0.75,
+    operation: str = "write",
+):
+    """Execute a single write, retrying transient SQLite lock errors.
+
+    Cron writers (jail roster sync, scrapers) hold the database lock for
+    seconds at a time. Without this, a visitor submitting the subscribe or
+    register form during one of those windows got a bare 500. Retries absorb
+    the short contention; the caller still sees the error if it persists.
+    """
+    last: Exception | None = None
+    for attempt in range(max(1, attempts)):
+        try:
+            cursor = conn.execute(sql, params)
+            conn.commit()
+            return cursor
+        except sqlite3.OperationalError as exc:
+            if not is_lock_error(exc):
+                raise
+            last = exc
+            logger.warning(
+                "SQLite lock error in %s (attempt %s/%s, process=%s): %s",
+                operation,
+                attempt + 1,
+                attempts,
+                _process_label(),
+                exc,
+            )
+            try:
+                conn.rollback()
+            except sqlite3.Error:
+                pass
+            if attempt < attempts - 1:
+                time.sleep(max(0.0, sleep_seconds) * (attempt + 1))
+    if last is not None:
+        raise last
+    raise sqlite3.OperationalError("database is locked")
+
+
 # ---------------------------------------------------------------------------
 # Turso / libsql support
 # ---------------------------------------------------------------------------

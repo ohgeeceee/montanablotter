@@ -306,6 +306,40 @@ def public_register():
                 current_year=datetime.now().year,
             )
 
+        # Bot/abuse defense: cap registrations per network per hour. Anonymous
+        # signup is the top-of-funnel conversion path, so it needs a guard rail
+        # that does not depend on reCAPTCHA being configured. Reuses the
+        # existing auth_login_attempts table (already keyed by ip_address) with
+        # a dedicated marker username so it never mixes with admin logins.
+        ip_address = (request.headers.get('X-Forwarded-For') or request.remote_addr or '').split(',')[0].strip()
+        try:
+            recent = conn.execute(
+                '''SELECT COUNT(*) FROM auth_login_attempts
+                   WHERE username = '__register__'
+                     AND ip_address = ?
+                     AND created_at >= datetime('now', '-1 hour')''',
+                (ip_address,),
+            ).fetchone()[0]
+        except Exception:
+            recent = 0
+        if int(recent or 0) >= 5:
+            flash('Too many accounts created from this network. Please try again later.', 'error')
+            conn.close()
+            return render_template(
+                'register.html',
+                counties=counties,
+                next_url=next_url,
+                form_values=form_values,
+                recaptcha_site_key=config.RECAPTCHA_SITE_KEY if config.RECAPTCHA_ENABLED else '',
+                page_title='Create Account',
+                meta_description='Create a Montana Blotter account to comment and manage email subscription preferences.',
+                canonical_url=f'{m.BASE_URL}/register',
+                og_title='Create Account | Montana Blotter',
+                og_description='Create a Montana Blotter account to comment and manage email subscription preferences.',
+                active_nav='register',
+                current_year=datetime.now().year,
+            )
+
         display_name = (request.form.get('display_name') or '').strip()
         email = (request.form.get('email') or '').strip().lower()
         password = request.form.get('password') or ''
@@ -359,6 +393,15 @@ def public_register():
                     m._upsert_digest_subscription(conn, email, selected_counties, source='account_registration')
                     m._record_subscribe_event('subscribe_success', source='account_registration', page_path=request.path, email=email, conn=conn)
                 conn.commit()
+                try:
+                    conn.execute(
+                        '''INSERT INTO auth_login_attempts (username, ip_address, success)
+                           VALUES ('__register__', ?, 1)''',
+                        (ip_address,),
+                    )
+                    conn.commit()
+                except Exception:
+                    pass
                 m._set_public_user_session(cursor.lastrowid)
                 flash('Account created. Your comments will enter moderation before they go live.', 'success')
                 conn.close()

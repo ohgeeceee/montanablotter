@@ -81,7 +81,7 @@ from services.court.tracker import (
     ensure_court_tracker_schema,
 )
 from services.disposition.lookup import lookup_disposition
-from db import connect_db, connect_page_views, get_db
+from db import connect_db, connect_page_views, get_db, is_lock_error, write_with_retry
 from init_db import ensure_lawyer_ad_schema, ensure_treatment_center_schema
 from services.alerts.engine import get_recent_alerts_for_user
 from core.dedupe import incident_key_set
@@ -1224,19 +1224,30 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     # Infra & ops
     '/api/',
     '/admin/',
-    '/status',
+    '/status',  # public system-status page (mirrors garageroute.com/status)
     '/health',
     '/ping',
     '/webhooks/',
     # Editorial pages
+    '/post',
     '/post/',
     '/blog/',
     '/learn/',
     '/guides/',
     '/laws/',
-    # Record listings & detail pages
+    # Public signup flows — must never sit behind the sign-in wall. These are
+    # the top-of-funnel CTAs (18 links point at /subscribe) and blocking them
+    # made every anonymous visitor bounce to /login before they could sign up.
+    '/subscribe',
+    '/newsletter',
+    '/alerts/subscribe',
+    '/alerts/verify/',
+    '/alerts/unsubscribe/',
+    # Record listings & detail pages. Organic search is the main acquisition
+    # channel for a public-records site, and a login page cannot be indexed.
+    # Paid depth (charges, warrant detail, salaries, the API) stays gated.
     '/blotter',
-    '/county/',
+    '/county',  # county blotter listing
     '/city/',
     '/incident/',
     '/record/',
@@ -1245,14 +1256,14 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/charge/',
     '/charges/',
     '/person/',
-    '/people/',
+    '/people',
     '/patterns/',
     '/annual-roundups/',
-    '/missing-persons/',
-    '/sex-offender-updates/',
-    '/jail-bookings/',
+    '/missing-persons',
+    '/sex-offender-updates',
+    '/jail-bookings',
     '/booking/',
-    '/jail-rosters/',
+    '/jail-rosters',
     '/arrests',
     '/fwp-violations',
     '/code-violations/',
@@ -1263,18 +1274,26 @@ _SIGNIN_WALL_EXEMPT_PREFIXES = (
     '/datacenter/',
     '/datasets/',
     '/embed/',
-    # Warrants bypass the general wall only to reach the paid subscribe flow
-    '/wanted/',
-    '/wanted/subscribe',
-    '/wanted/notify-when-cleared',
     # Already-open commercial funnels
     '/supporter/',
     '/donate/',
     '/checkout/',
     '/advertise/',
+    '/bail-bonds',
     '/bail-bonds/',
+    '/lawyers',
     '/lawyers/',
+    '/advertise/lawyers/',  # checkout, success, cancel, intake, control panel
     '/lawyer-control-panel/',  # token-gated, noindex; reach stays open when wall is on
+    # Warrants bypass the general wall only to reach the paid subscribe flow
+    '/wanted',
+    '/wanted/',
+    '/wanted/subscribe',
+    '/wanted/notify-when-cleared',
+    '/remove-my-name',
+    # Public index / search surface
+    '/crime-map',
+    '/safety-scorecards',
     # Public humor feed, read-only + PII-scrubbed
     '/funniest',
     '/funniest.json',
@@ -1317,7 +1336,6 @@ _SIGNIN_WALL_EXEMPT_EXACT = {
     '/about',
     '/support',
     '/submit-a-tip',
-    '/remove-my-name',
     '/funniest',
     # Public data listings & search pages
     '/blotter',
@@ -1333,33 +1351,25 @@ _SIGNIN_WALL_EXEMPT_EXACT = {
     '/court-sources',
     '/charges',
     '/charge/',
-    '/people',
     '/person',
     '/patterns',
     '/opinions',
     '/case-journeys',
-    '/missing-persons',
-    '/sex-offender-updates',
-    '/jail-bookings',
-    '/jail-rosters',
     '/jail-roster-search',
     '/detention',
-    '/arrests',
     '/fwp-violations',
     '/eviction-records',
     '/code-violations',
     '/license-sanctions',
     '/public-salaries',
     '/government-spending',
-    '/meetings',
-    '/public-meetings',
     '/datacenter',
     '/datasets',
-    '/crime-map',
+    '/meetings',
+    '/public-meetings',
     '/crime-atlas',
     '/crime-data',
     '/county-coverage',
-    '/safety-scorecards',
     '/trends',
     '/dui',
     '/leaderboard',
@@ -1544,6 +1554,12 @@ def _newspaper_stats() -> dict:
         now = _dt2.datetime.utcnow()
         out['np_edition_date'] = now.strftime('%A, %B %-d, %Y').upper()
         out['np_edition_date_iso'] = now.strftime('%Y-%m-%d')
+        # Live Helena weather (Lewis & Clark County seat). The masthead panel is
+        # injected on every public page; the fetch is cached and failure-safe so a
+        # flaky upstream can never break the front page.
+        _w = _helena_weather()
+        if _w:
+            out.update(_w)
     except Exception:
         pass
     finally:
@@ -1552,6 +1568,95 @@ def _newspaper_stats() -> dict:
         except Exception:
             pass
     return out
+
+
+# Helena / Lewis & Clark County seat coordinates.
+_HELENA_LAT = 46.5897
+_HELENA_LON = -112.0411
+# Front-page weather lives in the site-wide stats payload rendered by every
+# public page; 30 minutes keeps the panel accurate without hammering the API
+# or adding a network hop to every request.
+_WEATHER_TTL_SECONDS = 1800
+_WEATHER_CACHE = {'fetched_at': 0.0, 'payload': None}
+
+# WMO weather-code -> human-readable label, matching Open-Meteo's own table.
+_WMO_SKY_LABELS = {
+    0: 'Clear', 1: 'Mostly Clear', 2: 'Partly Cloudy', 3: 'Overcast',
+    45: 'Foggy', 48: 'Rime Fog',
+    51: 'Light Drizzle', 53: 'Drizzle', 55: 'Heavy Drizzle',
+    56: 'Freezing Drizzle', 57: 'Freezing Drizzle',
+    61: 'Light Rain', 63: 'Rain', 65: 'Heavy Rain',
+    66: 'Freezing Rain', 67: 'Freezing Rain',
+    71: 'Light Snow', 73: 'Snow', 75: 'Heavy Snow',
+    77: 'Snow Grains',
+    80: 'Light Showers', 81: 'Showers', 82: 'Heavy Showers',
+    85: 'Snow Showers', 86: 'Snow Showers',
+    95: 'Thunderstorms', 96: 'T-storms w/ Hail', 99: 'T-storms w/ Hail',
+}
+
+
+def _helena_weather():
+    """Current Helena conditions + sunrise/sunset for the front-page panel.
+
+    Returns {'np_weather_temp': '<int>°F', 'np_weather_sky': <label>,
+             'np_sunrise': '<h>:<mm>', 'np_sunset': '<h>:<mm>'} or {} on any
+    failure. Cached in-process for _WEATHER_TTL_SECONDS.
+    """
+    try:
+        import time as _time
+        now_ts = _time.time()
+        cached = _WEATHER_CACHE.get('payload')
+        fetched_at = _WEATHER_CACHE.get('fetched_at') or 0.0
+        if cached and (now_ts - fetched_at) < _WEATHER_TTL_SECONDS:
+            return cached
+
+        # Current conditions + today's sun times from Open-Meteo's free,
+        # keyless API (no sign-up required).
+        url = (
+            'https://api.open-meteo.com/v1/forecast'
+            f'?latitude={_HELENA_LAT}&longitude={_HELENA_LON}'
+            '&current=temperature_2m,weather_code'
+            '&daily=sunrise,sunset'
+            '&temperature_unit=fahrenheit&timezone=America%2FDenver'
+            '&forecast_days=1'
+        )
+        req = urllib.request.Request(url, headers={'User-Agent': 'MontanaBlotter/1.0'})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+
+        current = data.get('current') or {}
+        temp_f = current.get('temperature_2m')
+        sky_code = current.get('weather_code')
+        if temp_f is None:
+            return {}
+        sky = _WMO_SKY_LABELS.get(sky_code, 'Unknown')
+
+        daily = data.get('daily') or {}
+        out = {
+            'np_weather_temp': f"{round(float(temp_f))}°F",
+            'np_weather_sky': sky,
+            'np_sunrise': _iso_hour_minute((daily.get('sunrise') or [None])[0]),
+            'np_sunset': _iso_hour_minute((daily.get('sunset') or [None])[0]),
+        }
+        _WEATHER_CACHE['payload'] = out
+        _WEATHER_CACHE['fetched_at'] = _time.time()
+        return out
+    except Exception:
+        return {}
+
+
+def _iso_hour_minute(value):
+    """Extract a local HH:MM from an Open-Meteo ISO timestamp ('2026-11-16T07:12')."""
+    try:
+        if not value or 'T' not in str(value):
+            return ''
+        hhmm = str(value).split('T', 1)[1][:5]
+        hour = int(hhmm[:2])
+        suffix = 'AM' if hour < 12 else 'PM'
+        hour12 = hour % 12 or 12
+        return f'{hour12}:{hhmm[3:]} {suffix}'
+    except Exception:
+        return ''
 
 
 @app.context_processor
@@ -1758,6 +1863,40 @@ def inject_ad_inventory():
         return {
             'ad_slots': {},
         }
+
+@app.context_processor
+def inject_adsense():
+    """Expose the AdSense client ID and configured slot IDs to templates.
+
+    Templates render nothing unless both the client ID and the specific slot ID
+    are set, so an unconfigured slot degrades to no markup instead of a broken
+    ad tag.
+    """
+    slots = {
+        'header': getattr(config, 'ADSENSE_SLOT_HEADER', ''),
+        'sidebar': getattr(config, 'ADSENSE_SLOT_SIDEBAR', ''),
+        'incontent': getattr(config, 'ADSENSE_SLOT_INCONTENT', ''),
+        'footer': getattr(config, 'ADSENSE_SLOT_FOOTER', ''),
+        'article': getattr(config, 'ADSENSE_SLOT_ARTICLE', ''),
+    }
+    return {
+        'adsense_enabled': bool(getattr(config, 'ADSENSE_ENABLED', True)),
+        'adsense_client_id': getattr(config, 'ADSENSE_CLIENT_ID', ''),
+        'adsense_slots': slots,
+    }
+
+
+@app.template_global()
+def offender_registry_style(offender_type):
+    """Jinja global: label/heading/CSS for a registry offender_type.
+
+    Templates must go through this instead of hardcoding "sex offender"
+    strings -- the registry covers violent offenders too.
+    """
+    from services.persons.offender_labels import registry_style
+
+    return registry_style(offender_type)
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -2097,6 +2236,11 @@ def _is_agendas_host():
     if configured:
         return host == configured
     return host.startswith('agendas.')
+
+
+def _is_jail_host():
+    host = _request_host_name()
+    return host == 'jail.mtblotter.com' or host.startswith('jail.')
 
 
 def _public_meetings_href():
@@ -5979,7 +6123,46 @@ def _table_columns(conn, table_name):
         return set()
 
 
+_SUBSCRIBER_SCHEMA_READY = False
+_SUBSCRIBER_SCHEMA_LOCK = threading.Lock()
+
+
+from core.schema_guard import schema_bootstrap_once
+@schema_bootstrap_once
 def _ensure_subscriber_schema(conn):
+    """Bootstrap the subscriber tables.
+
+    The DDL below takes a SQLite write lock, so calling it on every request
+    made /subscribe and /newsletter throw "database is locked" (HTTP 500)
+    whenever a cron writer held the DB -- anonymous visitors could not sign up.
+    Bootstrap once per process instead.
+    """
+    global _SUBSCRIBER_SCHEMA_READY
+    if _SUBSCRIBER_SCHEMA_READY:
+        return
+    with _SUBSCRIBER_SCHEMA_LOCK:
+        if _SUBSCRIBER_SCHEMA_READY:
+            return
+        # Cheap read-only check first: in steady state both tables already
+        # exist, so the request path never has to take a write lock at all.
+        try:
+            present = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name IN ('subscribers', 'subscribe_events')"
+                ).fetchall()
+            }
+        except sqlite3.Error:
+            present = set()
+        if {'subscribers', 'subscribe_events'} <= present:
+            _SUBSCRIBER_SCHEMA_READY = True
+            return
+        _bootstrap_subscriber_schema(conn)
+        _SUBSCRIBER_SCHEMA_READY = True
+
+
+def _bootstrap_subscriber_schema(conn):
     conn.execute(
         '''
         CREATE TABLE IF NOT EXISTS subscribers (
@@ -7222,6 +7405,9 @@ def _homepage_sponsors_context(conn):
 @app.route('/')
 def index():
     """Public homepage — daily activity reports with calendar filter"""
+    if _is_jail_host():
+        return redirect(url_for('detention.jail_bookings'), code=302)
+
     if _is_agendas_host():
         return render_template('public_meetings.html', **_public_meetings_dashboard_context())
 
@@ -8215,7 +8401,7 @@ def public_charge_detail(charge_slug):
     }
     label = label_map.get(slug, slug.replace('_', ' ').title())
     incidents = conn.execute(
-        '''SELECT date, location, incident_type, county, summary
+        '''SELECT date, location, incident_type, county, details
            FROM records
            WHERE lower(charge_category) = ?
            ORDER BY date DESC LIMIT 50''',
@@ -9616,28 +9802,49 @@ def subscribe():
         token = secrets.token_urlsafe(32)
         counties_str = ','.join(selected)
 
+        # Close any read snapshot left over from the county list before writing,
+        # then retry transient lock contention from cron writers.
         try:
-            conn.execute(
-                'INSERT INTO subscribers (email, counties, token, source, updated_at) VALUES (?, ?, ?, ?, datetime(\'now\'))',
-                (email, counties_str, token, source))
             conn.commit()
+        except sqlite3.Error:
+            pass
+
+        try:
+            write_with_retry(
+                conn,
+                'INSERT INTO subscribers (email, counties, token, source, updated_at) '
+                "VALUES (?, ?, ?, ?, datetime('now'))",
+                (email, counties_str, token, source),
+                operation='subscribe_insert',
+            )
             _record_subscribe_event('subscribe_success', source=source, page_path=request.path, email=email)
             conn.close()
             return render_template('subscribe.html', counties=all_counties,
                                    source=source,
                                    success=True, email=email,
                                    current_year=datetime.now().year)
-        except Exception:
-            # Email already subscribed — update preferences
-            conn.execute(
-                'UPDATE subscribers SET counties=?, active=1, source=?, updated_at=datetime(\'now\') WHERE email=?',
-                (counties_str, source, email))
-            conn.commit()
+        except sqlite3.IntegrityError:
+            # Email already subscribed — update preferences instead of inserting.
+            write_with_retry(
+                conn,
+                "UPDATE subscribers SET counties=?, active=1, source=?, "
+                "updated_at=datetime('now') WHERE email=?",
+                (counties_str, source, email),
+                operation='subscribe_update',
+            )
             _record_subscribe_event('subscribe_update', source=source, page_path=request.path, email=email)
             conn.close()
             return render_template('subscribe.html', counties=all_counties,
                                    source=source,
                                    success=True, email=email, updated=True,
+                                   current_year=datetime.now().year)
+        except sqlite3.OperationalError as exc:
+            if not is_lock_error(exc):
+                raise
+            conn.close()
+            return render_template('subscribe.html', counties=all_counties,
+                                   source=source,
+                                   error='The site is busy right now — please try again in a moment.',
                                    current_year=datetime.now().year)
 
     subscriber_count = 0
