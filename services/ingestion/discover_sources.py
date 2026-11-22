@@ -73,7 +73,7 @@ SHERIFF_SITES = [
     ("Petroleum", "https://www.petroleumcountymt.org/sheriff"),
     ("Phillips", "https://www.phillipscounty.org/sheriff"),
     ("Pondera", "https://www.ponderacountymontana.org/sheriff"),
-    ("Powder River", "https://www.powderrivercounty.org/sheriff"),
+    ("Powder River", "https://prco.mt.gov/Sheriff-Office"),
     ("Powell", "https://www.powellcountymt.gov/sheriff"),
     ("Prairie", "https://www.prairiecountyMT.gov/sheriff"),
     ("Ravalli", "https://ravallicounty.gov/239/Adult-Detention-Center"),

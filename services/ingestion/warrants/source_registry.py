@@ -164,7 +164,7 @@ COUNTY_SOURCES: dict[str, dict[str, str]] = {
     },
     "powder-river": {
         "county": "Powder River",
-        "url": "https://www.powderrivercounty.org/sheriff",
+        "url": "https://prco.mt.gov/Sheriff-Office",
     },
     "powell": {
         "county": "Powell",

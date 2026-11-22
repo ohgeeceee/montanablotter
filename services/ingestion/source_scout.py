@@ -87,7 +87,7 @@ CANDIDATE_SITES: list[tuple[str, str, str, str]] = [
     ("Petroleum", "", "Petroleum County Sheriff", "https://www.petroleumcountymt.org/sheriff"),
     ("Phillips", "", "Phillips County Sheriff", "https://www.phillipscounty.org/sheriff"),
     ("Pondera", "", "Pondera County Sheriff", "https://www.ponderacountymontana.org/sheriff"),
-    ("Powder River", "", "Powder River County Sheriff", "https://www.powderrivercounty.org/sheriff"),
+    ("Powder River", "", "Powder River County Sheriff", "https://prco.mt.gov/Sheriff-Office"),
     ("Powell", "", "Powell County Sheriff", "https://www.powellcountymt.gov/sheriff"),
     ("Prairie", "", "Prairie County Sheriff", "https://www.prairiecountymt.gov/sheriff"),
     ("Ravalli", "", "Ravalli County Detention", "https://ravallicounty.gov/239/Adult-Detention-Center"),
