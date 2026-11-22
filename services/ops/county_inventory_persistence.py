@@ -12,8 +12,28 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = os.getenv("MB_DB_PATH", "/root/montanablotter/blotter.db").strip() or "/root/montanablotter/blotter.db"
-COUNTY_INVENTORY_MODULE = "/root/montanablotter/county_inventory.py"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _default_db_path() -> str:
+    env = os.getenv("MB_DB_PATH")
+    if env:
+        return env.strip()
+    repo_db = REPO_ROOT / "blotter.db"
+    if repo_db.exists():
+        return str(repo_db)
+    try:
+        import config
+        return str(config.DB_PATH)
+    except Exception:
+        return str(repo_db)
+
+
+DB_PATH = _default_db_path()
+COUNTY_INVENTORY_MODULE = os.getenv(
+    "MB_COUNTY_INVENTORY_SCRIPT",
+    str(REPO_ROOT / "county_inventory.py"),
+)
 
 
 def _configure_sqlite(conn: sqlite3.Connection) -> None:
@@ -96,6 +116,17 @@ def refresh_county_inventory(conn: sqlite3.Connection) -> int:
             now,
         ))
         refreshed += 1
+
+    # Self-heal: drop rows for counties that no longer exist in the inventory
+    # (e.g. non-counties removed from the canonical list). The table is
+    # derived, so deleting stale members is always safe.
+    kept = [row["county"] for row in inventory]
+    if kept:
+        placeholders = ", ".join("?" for _ in kept)
+        cursor.execute(
+            f"DELETE FROM county_inventory WHERE county NOT IN ({placeholders})",
+            kept,
+        )
 
     conn.commit()
     return refreshed

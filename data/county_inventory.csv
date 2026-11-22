@@ -1,57 +1,57 @@
-county,status,blotters_30d,fetcher_module,source_types,stale_alerts,population_rank
-Beaverhead,configured,0,beaverhead_inmate.py,jail_roster,0,12
-Big Horn,configured,0,,jail_roster,0,13
-Blaine,not_covered,0,,,0,14
-Broadwater,configured,0,broadwater_inmate.py,jail_roster,0,15
-Brown,not_covered,0,,,0,54
-Carbon,configured,0,carbon_inmate.py,jail_roster,0,16
-Carter,not_covered,0,,,0,17
-Cascade,partial,9,cascade_roster.py,jail_roster,0,2
-Chouteau,not_covered,0,,,0,18
-Custer,configured,0,custer_inmate.py,jail_roster,0,19
-Daniels,not_covered,0,,,0,20
-Dawson,configured,0,dawson_inmate.py,jail_roster,0,21
-Deer Lodge,not_covered,0,,,0,22
-Fallon,configured,0,,jail_roster,0,23
-Fergus,configured,0,fergus_inmate.py,jail_roster,0,11
-Flathead,active,30,flathead_inmate.py,jail_roster,0,5
-Gallatin,active,42,,jail_roster,0,4
-Garfield,not_covered,0,,,0,55
-Glacier,configured,0,,jail_roster,0,24
-Golden Valley,not_covered,0,,,0,25
-Hill,partial,5,phillips_inmate.py,"jail_roster, jail_roster",0,26
-Jefferson,active,17,,jail_roster,0,7
-Judith Basin,not_covered,0,,,0,27
-Lake,configured,0,lake_inmate.py,jail_roster,0,8
-Lewis and Clark,active,12,,"jail_roster, jail_roster",0,10
-Liberty,not_covered,0,,,0,28
-Lincoln,configured,0,lincoln_inmate.py,jail_roster,0,29
-Madison,configured,0,madison_inmate.py,jail_roster,0,30
-McCone,not_covered,0,,,0,31
-Meagher,configured,0,meagher_inmate.py,jail_roster,0,32
-Mineral,configured,0,mineral_inmate.py,jail_roster,0,33
-Missoula,active,30,missoula.py,jail_roster,1,3
-Musselshell,not_covered,0,,,0,34
-Park,configured,0,,jail_roster,0,35
-Pendroy,not_covered,0,,,0,56
-Petroleum,not_covered,0,,,0,36
-Phillips,configured,0,phillips_inmate.py,jail_roster,0,37
-Pondera,configured,0,pondera_inmate.py,jail_roster,0,38
-Powder River,not_covered,0,,,0,39
-Powell,configured,0,powell_inmate.py,jail_roster,0,40
-Prairie,not_covered,0,,,0,41
-Ravalli,configured,0,,jail_roster,0,42
-Richland,not_covered,0,,,0,6
-Roosevelt,configured,0,,jail_roster,0,43
-Rosebud,configured,0,rosebud_inmate.py,jail_roster,0,44
-Sanders,configured,0,,jail_roster,0,45
-Sheridan,not_covered,0,,,0,46
-Silver Bow,configured,0,silver_bow_inmate.py,"jail_roster, jail_roster",0,9
-Stillwater,configured,0,stillwater_inmate.py,jail_roster,0,47
-Sweet Grass,not_covered,0,,,0,48
-Teton,not_covered,0,,,0,49
-Toole,not_covered,0,,,0,50
-Treasure,not_covered,0,,,0,51
-Valley,configured,0,valley_inmate.py,jail_roster,0,52
-Wheatland,configured,0,wheatland_inmate.py,jail_roster,0,53
-Yellowstone,partial,9,yellowstone_inmate.py,jail_roster,0,1
+county,status,blotters_30d,records_total,jail_bookings_total,jail_bookings_30d,last_success_at,latest_error,fetcher_module,source_types,stale_alerts,population_rank
+Beaverhead,active,0,0,17,17,2026-11-18 05:54:20,,beaverhead_inmate.py,jail_roster,0,12
+Big Horn,failing,0,0,0,0,,Big Horn County CitizenRIMS has public inmate access disabled by the agency.,,jail_roster,0,13
+Blaine,failing,0,0,0,0,,"HTTPSConnectionPool(host='www.blainecountymt.gov', port=443): Max retries exceeded with url: /sheriff (Caused by NameResolutionError(""HTTPSConnection(host='www.blainecountymt.gov', port=443): Failed to resolve 'www.blainecountymt.gov' ([Errno -5] No address associated with hostname)""))",,jail_roster,0,14
+Broadwater,failing,0,0,0,0,,Site times out from ingest machine (TCP connect to 34.94.199.155:443 fails; both HTTP and HTTPS). Parser ready — re-enable when network path recovers.,broadwater_inmate.py,jail_roster,0,15
+Carbon,failing,0,0,0,0,,Zuercher API endpoint not found for https://carbon-so-mt.zuercherportal.com (portal may not expose public API).,carbon_inmate.py,jail_roster,0,16
+Carter,active,0,0,58,58,2026-11-18 05:54:20,,,jail_roster,0,17
+Cascade,active,0,0,311,311,2026-11-18 05:54:19,,cascade_jail_roster.py,jail_roster,0,2
+Chouteau,active,0,0,14,14,2026-11-18 05:54:20,,,jail_roster,0,18
+Custer,active,0,0,19,19,2026-11-18 05:54:20,,custer_inmate.py,jail_roster,0,19
+Daniels,configured,0,0,0,0,2026-11-02 10:38:45,,,jail_roster,0,20
+Dawson,active,0,0,21,21,2026-11-18 05:54:20,,dawson_inmate.py,jail_roster,0,21
+Deer Lodge,partial,0,0,1,1,2026-11-18 05:54:20,,,jail_roster,0,22
+Fallon,partial,0,0,4,4,2026-11-18 05:54:20,,,jail_roster,0,23
+Fergus,active,0,0,35,35,2026-11-18 05:54:20,,fergus_inmate.py,jail_roster,0,11
+Flathead,active,24,715,155,155,2026-11-18 05:54:19,,flathead_inmate.py,jail_roster,0,5
+Gallatin,active,21,3478,0,0,,Zuercher portal at https://gallatin-so-mt.zuercherportal.com returned HTML instead of JSON — likely in maintenance mode.,,jail_roster,0,4
+Garfield,active,0,0,138,138,2026-11-18 05:54:20,,,jail_roster,0,54
+Glacier,active,0,0,18,18,2026-11-18 05:54:20,,,jail_roster,0,24
+Golden Valley,failing,0,0,0,0,,"HTTPSConnectionPool(host='www.goldenvalleymt.gov', port=443): Max retries exceeded with url: /sheriff (Caused by NameResolutionError(""HTTPSConnection(host='www.goldenvalleymt.gov', port=443): Failed to resolve 'www.goldenvalleymt.gov' ([Errno -2] Name or service not known)""))",,jail_roster,0,25
+Granite,configured,0,0,0,0,2026-11-18 05:54:20,,granite_inmate.py,jail_roster,0,52
+Hill,configured,0,0,0,0,,,,jail_roster,0,26
+Jefferson,active,0,0,26,26,2026-11-18 05:54:20,,,jail_roster,0,7
+Judith Basin,failing,0,0,0,0,,"HTTPSConnectionPool(host='www.judithbasincountymt.gov', port=443): Max retries exceeded with url: /sheriff (Caused by NameResolutionError(""HTTPSConnection(host='www.judithbasincountymt.gov', port=443): Failed to resolve 'www.judithbasincountymt.gov' ([Errno -5] No address associated with hostname)""))",,jail_roster,0,27
+Lake,active,0,0,56,56,2026-11-18 05:54:19,,lake_inmate.py,jail_roster,0,8
+Lewis and Clark,active,0,0,195,195,2026-11-18 05:54:20,,lewis_clark_inmate.py,jail_roster,0,10
+Liberty,configured,0,0,0,0,2026-11-02 10:38:45,,,jail_roster,0,28
+Lincoln,configured,0,0,0,0,2026-11-02 10:38:45,,lincoln_inmate.py,jail_roster,0,29
+Madison,failing,0,0,0,0,,Zuercher API endpoint not found for https://madison-so-mt.zuercherportal.com (portal may not expose public API).,madison_inmate.py,jail_roster,0,30
+McCone,configured,0,0,0,0,2026-11-02 10:38:45,,,jail_roster,0,31
+Meagher,failing,0,0,0,0,,Zuercher API endpoint not found for https://meagher-so-mt.zuercherportal.com (portal may not expose public API).,meagher_inmate.py,jail_roster,0,32
+Mineral,configured,0,0,0,0,2026-11-18 05:54:20,,mineral_inmate.py,jail_roster,0,33
+Missoula,active,14,1358,423,423,2026-11-18 05:54:20,,missoula.py,jail_roster,0,3
+Musselshell,failing,0,0,0,0,,"HTTPSConnectionPool(host='www.musselshellcountymt.gov', port=443): Max retries exceeded with url: /sheriff (Caused by NameResolutionError(""HTTPSConnection(host='www.musselshellcountymt.gov', port=443): Failed to resolve 'www.musselshellcountymt.gov' ([Errno -5] No address associated with hostname)""))",,jail_roster,0,34
+Park,active,0,0,18,18,2026-11-18 05:54:20,,,jail_roster,0,35
+Petroleum,failing,0,0,0,0,,"HTTPSConnectionPool(host='www.petroleumcountymt.gov', port=443): Max retries exceeded with url: /sheriff (Caused by NameResolutionError(""HTTPSConnection(host='www.petroleumcountymt.gov', port=443): Failed to resolve 'www.petroleumcountymt.gov' ([Errno -5] No address associated with hostname)""))",,jail_roster,0,56
+Phillips,configured,0,0,0,0,2026-11-18 05:54:20,,phillips_inmate.py,jail_roster,0,36
+Pondera,configured,0,0,0,0,2026-11-18 05:54:20,,pondera_inmate.py,jail_roster,0,37
+Powder River,failing,0,0,0,0,,404 Client Error: Not Found for url: https://www.powderrivercounty.org/sheriff,,jail_roster,0,38
+Powell,configured,0,0,0,0,2026-11-18 05:54:20,,powell_inmate.py,jail_roster,0,39
+Prairie,active,0,0,47,47,2026-11-18 05:54:20,,,jail_roster,0,40
+Ravalli,active,0,0,162,162,2026-11-18 05:54:20,,,jail_roster,0,41
+Richland,failing,0,0,0,0,,"HTTPSConnectionPool(host='www.richlandcountymt.gov', port=443): Max retries exceeded with url: /sheriff (Caused by NameResolutionError(""HTTPSConnection(host='www.richlandcountymt.gov', port=443): Failed to resolve 'www.richlandcountymt.gov' ([Errno -5] No address associated with hostname)""))",,jail_roster,0,6
+Roosevelt,active,0,0,59,59,2026-11-18 05:54:20,,,jail_roster,0,42
+Rosebud,configured,0,0,0,0,2026-11-02 10:38:45,,rosebud_inmate.py,jail_roster,0,43
+Sanders,failing,0,0,0,0,,Sanders roster temporarily unavailable: 404 Client Error: Not Found for url: https://co.sanders.mt.us/212/Sheriffs-Office/jms_public/functions/search.php,,jail_roster,0,44
+Sheridan,configured,0,0,0,0,2026-11-02 10:38:45,,,jail_roster,0,45
+Silver Bow,active,0,0,263,263,2026-11-18 05:54:20,,silver_bow_inmate.py,jail_roster,0,9
+Stillwater,failing,0,0,0,0,,Zuercher API endpoint not found for https://stillwater-so-mt.zuercherportal.com (portal may not expose public API).,stillwater_inmate.py,jail_roster,0,46
+Sweet Grass,failing,0,0,0,0,,"HTTPSConnectionPool(host='www.sweetgrasscountymt.gov', port=443): Max retries exceeded with url: /sheriff (Caused by NameResolutionError(""HTTPSConnection(host='www.sweetgrasscountymt.gov', port=443): Failed to resolve 'www.sweetgrasscountymt.gov' ([Errno -5] No address associated with hostname)""))",,jail_roster,0,47
+Teton,configured,0,0,0,0,2026-11-02 10:38:45,,,jail_roster,0,48
+Toole,partial,0,0,1,1,2026-11-02 10:38:45,,,jail_roster,0,49
+Treasure,configured,0,0,0,0,2026-11-02 10:38:45,,,jail_roster,0,53
+Valley,active,0,0,28,28,2026-11-18 05:54:20,,valley_inmate.py,jail_roster,0,50
+Wheatland,failing,0,0,0,0,,Zuercher API endpoint not found for https://wheatland-so-mt.zuercherportal.com (portal may not expose public API).,wheatland_inmate.py,jail_roster,0,51
+Wibaux,failing,0,0,0,0,,"HTTPSConnectionPool(host='www.wibauxcountymt.gov', port=443): Max retries exceeded with url: /sheriff (Caused by NameResolutionError(""HTTPSConnection(host='www.wibauxcountymt.gov', port=443): Failed to resolve 'www.wibauxcountymt.gov' ([Errno -5] No address associated with hostname)""))",,jail_roster,0,55
+Yellowstone,active,0,0,1468,1468,2026-11-18 05:54:20,,yellowstone_inmate.py,jail_roster,0,1

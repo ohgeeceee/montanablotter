@@ -51,6 +51,10 @@ BASH_ENV=/root/montanablotter/.env
 # public datasets at 06:10 daily.
 10 6 * * * /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name datasets_refresh --log /root/montanablotter/logs/datasets_refresh.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/scripts/refresh_datasets.py
 
+# County coverage inventory refresh — rebuilds the county_inventory table
+# (coverage status, jail volume, source health for all 56 counties) at 06:20 daily.
+20 6 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name county_inventory_refresh --shared-lock blotter_db_writer --wait-for-lock 60 --timeout 300 --log /root/montanablotter/logs/county_inventory.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 -m services.ops.county_inventory_persistence
+
 # Warrant ingestion — fetch and store Montana county warrant lists every 6 hours.
 # Runs at :30 past hours 0, 6, 12, 18 UTC to stagger from court_refresh (:50).
 30 0,6,12,18 * * * /usr/bin/nice -n 19 /root/montanablotter/venv/bin/python3 /root/montanablotter/job_runner.py --name warrant_ingest --log /root/montanablotter/logs/warrant_ingest.log --workdir /root/montanablotter -- /root/montanablotter/venv/bin/python3 /root/montanablotter/warrant_ingest.py --all
