@@ -23,7 +23,7 @@ from db import get_db
 from services.crm import crm_service
 from init_db import ensure_advertise_sales_lead_schema
 
-from blueprints.payments import _checkout_redirect_url, _plan_price_ids  # noqa: E402  shared Stripe helpers
+from blueprints.payments import _checkout_redirect_url, _plan_checkout_line_item  # noqa: E402  shared Stripe helpers
 
 log = logging.getLogger(__name__)
 
@@ -2572,10 +2572,8 @@ def checkout_subscription_cancel():
 @bail_bond_ads_bp.route('/checkout/<any(plus, pro):plan>', methods=['GET'])
 def checkout_tier(plan):
     """Create a Stripe Checkout Session for the given plan."""
-    from urllib.parse import urlencode
     from services.monetization.black_friday import (
         CAMPAIGN_SLUG as BLACK_FRIDAY_SLUG,
-        PLAN_OFFERS as BLACK_FRIDAY_PLAN_OFFERS,
         campaign_is_live as black_friday_is_live,
         promotion_code_for_checkout,
     )
@@ -2615,23 +2613,6 @@ def checkout_tier(plan):
     keys = _app()._stripe_keys()
     base_url = (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
     stripe.api_key = keys['secret_key']
-    price_ids = _plan_price_ids(plan)
-    price_id = price_ids.get(interval)
-
-    if not price_id:
-        if promotion_code_id:
-            flash('The discounted plan is not available right now. Please try again before the offer ends.', 'error')
-            return redirect('/black-friday')
-        params = {'client_reference_id': str(public_user_id)}
-        if email:
-            params['prefilled_email'] = email
-        payment_link = PLAN_PAYMENT_LINKS.get((plan, interval), '')
-        if not payment_link:
-            flash('Subscription plan is not available right now.', 'error')
-            return redirect('/subscribe')
-        dest = f"{payment_link}?{urlencode(params)}"
-        log.info('subscription checkout: falling back to payment link %s %s/%s', public_user_id, plan, interval)
-        return redirect(dest)
 
     metadata = {
         'flow': 'subscription',
@@ -2641,18 +2622,7 @@ def checkout_tier(plan):
     }
     if promotion_code_id:
         metadata['campaign'] = BLACK_FRIDAY_SLUG
-    line_item = {'price': price_id, 'quantity': 1}
-    if promotion_code_id:
-        offer = BLACK_FRIDAY_PLAN_OFFERS[plan]
-        line_item = {
-            'price_data': {
-                'currency': 'usd',
-                'product': offer['product_id'],
-                'unit_amount': offer['regular_cents'],
-                'recurring': {'interval': 'year', 'interval_count': 1},
-            },
-            'quantity': 1,
-        }
+    line_item = _plan_checkout_line_item(plan, interval)
     checkout_params = {
         'mode': 'subscription',
         'client_reference_id': str(public_user_id),
@@ -2678,16 +2648,9 @@ def checkout_tier(plan):
             log.exception('Black Friday checkout failed for user %s plan=%s', public_user_id, plan)
             flash('Unable to start discounted checkout right now. You will not be charged the standard price instead; please try again.', 'error')
             return redirect('/black-friday')
-        params = {'client_reference_id': str(public_user_id)}
-        if email:
-            params['prefilled_email'] = email
-        payment_link = PLAN_PAYMENT_LINKS.get((plan, interval), '')
-        if not payment_link:
-            flash('Subscription could not be processed. Please try again.', 'error')
-            return redirect('/subscribe')
-        dest = f"{payment_link}?{urlencode(params)}"
-        log.exception('subscription checkout: error, falling back to payment link %s %s/%s', public_user_id, plan, interval)
-        return redirect(dest)
+        log.exception('subscription checkout failed for user %s plan=%s/%s', public_user_id, plan, interval)
+        flash('Subscription could not be processed. Please try again.', 'error')
+        return redirect('/pricing')
 
 
 def _warrant_access_price_ids() -> dict[str, str]:

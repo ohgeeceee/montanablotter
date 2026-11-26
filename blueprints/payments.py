@@ -17,34 +17,16 @@ import config
 from db import get_db
 from init_db import ensure_advertise_sales_lead_schema
 
-# Subscription tier pricing — created 2026-08-05
-_PLUS_MONTHLY_PRICE_ID = 'price_1U1ASIGL8T8btZcuzB9kv1Vx'
-_PLUS_ANNUAL_PRICE_ID = 'price_1U1ASIGL8T8btZcuVdB0VRSx'
-_PRO_MONTHLY_PRICE_ID = 'price_1U1ASIGL8T8btZcubZ3yUd2B'
-_PRO_ANNUAL_PRICE_ID = 'price_1U1ASIGL8T8btZcu6xdYIHLR'
-
-_PLUS_PAYMENT_LINKS = {
-    'monthly': 'https://buy.stripe.com/eVq6oH3Va1BOfQ6aOF8EM0e',
-    'annual': 'https://buy.stripe.com/6oU9ATezO94g8nE4qh8EM0f',
+PLAN_PRODUCT_IDS = {
+    'plus': 'prod_UcOWCDGyNU1Anp',
+    'pro': 'prod_V1Cs2JkMO1Alya',
 }
 
-_PRO_PAYMENT_LINKS = {
-    'monthly': 'https://buy.stripe.com/fZufZh1N2bco9rI9KB8EM0g',
-    'annual': 'https://buy.stripe.com/3cI00jdvK0xK9rI9KB8EM0h',
-}
-
-PLAN_PRICE_IDS = {
-    ('plus', 'monthly'): _PLUS_MONTHLY_PRICE_ID,
-    ('plus', 'annual'): _PLUS_ANNUAL_PRICE_ID,
-    ('pro', 'monthly'): _PRO_MONTHLY_PRICE_ID,
-    ('pro', 'annual'): _PRO_ANNUAL_PRICE_ID,
-}
-
-PLAN_PAYMENT_LINKS = {
-    ('plus', 'monthly'): _PLUS_PAYMENT_LINKS['monthly'],
-    ('plus', 'annual'): _PLUS_PAYMENT_LINKS['annual'],
-    ('pro', 'monthly'): _PRO_PAYMENT_LINKS['monthly'],
-    ('pro', 'annual'): _PRO_PAYMENT_LINKS['annual'],
+PLAN_PRICE_CENTS = {
+    ('plus', 'monthly'): 799,
+    ('plus', 'annual'): 7900,
+    ('pro', 'monthly'): 2600,
+    ('pro', 'annual'): 26000,
 }
 
 VALID_PLANS = {'plus', 'pro'}
@@ -117,13 +99,16 @@ def _app():
     return _app_module
 
 
-def _plan_price_ids(plan: str) -> dict[str, str]:
-    """Return the active Stripe price IDs for a given subscription plan."""
+def _plan_checkout_line_item(plan: str, interval: str) -> dict:
+    stripe_interval = 'month' if interval == 'monthly' else 'year'
     return {
-        'monthly': (getattr(config, 'PLAN_MONTHLY_PRICE_IDS', {}).get(plan, '') or
-                     PLAN_PRICE_IDS.get((plan, 'monthly'), '')),
-        'annual': (getattr(config, 'PLAN_ANNUAL_PRICE_IDS', {}).get(plan, '') or
-                    PLAN_PRICE_IDS.get((plan, 'annual'), '')),
+        'price_data': {
+            'currency': 'usd',
+            'product': PLAN_PRODUCT_IDS[plan],
+            'unit_amount': PLAN_PRICE_CENTS[(plan, interval)],
+            'recurring': {'interval': stripe_interval, 'interval_count': 1},
+        },
+        'quantity': 1,
     }
 
 

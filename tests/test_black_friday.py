@@ -230,25 +230,48 @@ class BlackFridayCampaignTests(unittest.TestCase):
         self.assertEqual(response.headers['Location'], '/black-friday')
         self.assertNotIn('buy.stripe.com', response.headers['Location'])
 
-    def test_regular_annual_checkout_still_works_without_campaign(self):
+    def test_regular_checkouts_use_displayed_prices(self):
         fake_session = {
             'id': 'cs_test_regular',
             'url': 'https://checkout.stripe.com/c/pay/test_regular',
         }
+        cases = (
+            ('plus', 'monthly', 799, 'month'),
+            ('plus', 'annual', 7900, 'year'),
+            ('pro', 'monthly', 2600, 'month'),
+            ('pro', 'annual', 26000, 'year'),
+        )
+        with self.client.session_transaction() as browser_session:
+            browser_session['public_user_id'] = 11
+        for plan, interval, amount, stripe_interval in cases:
+            with self.subTest(plan=plan, interval=interval):
+                with patch(
+                    'blueprints.bail_bond_ads.stripe.checkout.Session.create',
+                    return_value=fake_session,
+                ) as create_session:
+                    response = self.client.get(f'/checkout/{plan}?interval={interval}')
+                self.assertEqual(response.headers['Location'], fake_session['url'])
+                checkout = create_session.call_args.kwargs
+                self.assertNotIn('discounts', checkout)
+                self.assertNotIn('campaign', checkout['metadata'])
+                price_data = checkout['line_items'][0]['price_data']
+                self.assertEqual(price_data['unit_amount'], amount)
+                self.assertEqual(
+                    price_data['recurring'],
+                    {'interval': stripe_interval, 'interval_count': 1},
+                )
+
+    def test_regular_stripe_failure_never_uses_outdated_payment_links(self):
         with self.client.session_transaction() as browser_session:
             browser_session['public_user_id'] = 11
         with patch(
             'blueprints.bail_bond_ads.stripe.checkout.Session.create',
-            return_value=fake_session,
-        ) as create_session:
+            side_effect=RuntimeError('Stripe unavailable'),
+        ):
             response = self.client.get('/checkout/plus?interval=annual')
-        self.assertEqual(response.headers['Location'], fake_session['url'])
-        self.assertNotIn('discounts', create_session.call_args.kwargs)
-        self.assertNotIn('campaign', create_session.call_args.kwargs['metadata'])
-        self.assertEqual(
-            create_session.call_args.kwargs['line_items'][0]['price'],
-            'price_1U1ASIGL8T8btZcuVdB0VRSx',
-        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], '/pricing')
+        self.assertNotIn('buy.stripe.com', response.headers['Location'])
 
 
 if __name__ == '__main__':
