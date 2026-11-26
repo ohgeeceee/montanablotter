@@ -23,7 +23,7 @@ from db import get_db
 from services.crm import crm_service
 from init_db import ensure_advertise_sales_lead_schema
 
-from blueprints.payments import _checkout_redirect_url  # noqa: E402  shared Stripe-session helper
+from blueprints.payments import _checkout_redirect_url, _plan_price_ids  # noqa: E402  shared Stripe helpers
 
 log = logging.getLogger(__name__)
 
@@ -2573,6 +2573,13 @@ def checkout_subscription_cancel():
 def checkout_tier(plan):
     """Create a Stripe Checkout Session for the given plan."""
     from urllib.parse import urlencode
+    from services.monetization.black_friday import (
+        CAMPAIGN_SLUG as BLACK_FRIDAY_SLUG,
+        PLAN_OFFERS as BLACK_FRIDAY_PLAN_OFFERS,
+        campaign_is_live as black_friday_is_live,
+        promotion_code_for_checkout,
+    )
+
     public_user_id = session.get('public_user_id')
     log.info('subscription checkout: public_user_id=%s plan=%s', public_user_id, plan)
     if not public_user_id:
@@ -2593,14 +2600,30 @@ def checkout_tier(plan):
         flash('Please select a valid billing interval.', 'error')
         return redirect('/subscribe')
 
+    campaign = (request.args.get('campaign') or '').strip()
+    black_friday_requested = campaign == BLACK_FRIDAY_SLUG
+    promotion_code_id = promotion_code_for_checkout(
+        plan,
+        interval,
+        campaign,
+        public_user_id,
+    ) if black_friday_requested else ''
+    if black_friday_requested and not promotion_code_id:
+        flash('This Black Friday price is available only to new customers buying an annual plan during the offer window.', 'info')
+        return redirect('/black-friday' if black_friday_is_live() else '/pricing')
+
     keys = _app()._stripe_keys()
     base_url = (getattr(config, 'BASE_URL', '') or '').strip() or request.host_url.rstrip('/')
     stripe.api_key = keys['secret_key']
     price_ids = _plan_price_ids(plan)
     price_id = price_ids.get(interval)
+    if promotion_code_id:
+        price_id = BLACK_FRIDAY_PLAN_OFFERS[plan]['price_id']
 
     if not price_id:
-        # Fallback to Payment Link
+        if promotion_code_id:
+            flash('The discounted plan is not available right now. Please try again before the offer ends.', 'error')
+            return redirect('/black-friday')
         params = {'client_reference_id': str(public_user_id)}
         if email:
             params['prefilled_email'] = email
@@ -2612,36 +2635,39 @@ def checkout_tier(plan):
         log.info('subscription checkout: falling back to payment link %s %s/%s', public_user_id, plan, interval)
         return redirect(dest)
 
+    metadata = {
+        'flow': 'subscription',
+        'plan': plan,
+        'interval': interval,
+        'public_user_id': str(public_user_id),
+    }
+    if promotion_code_id:
+        metadata['campaign'] = BLACK_FRIDAY_SLUG
+    checkout_params = {
+        'mode': 'subscription',
+        'client_reference_id': str(public_user_id),
+        'customer_email': email or None,
+        'line_items': [{'price': price_id, 'quantity': 1}],
+        'success_url': f"{base_url}/subscribe/success?session_id={{CHECKOUT_SESSION_ID}}",
+        'cancel_url': f"{base_url}{'/black-friday' if promotion_code_id else '/pricing?canceled=1'}",
+        'subscription_data': {'metadata': dict(metadata)},
+        'metadata': metadata,
+    }
+    if promotion_code_id:
+        checkout_params['discounts'] = [{'promotion_code': promotion_code_id}]
+
     try:
-        checkout_session = stripe.checkout.Session.create(
-            mode='subscription',
-            client_reference_id=str(public_user_id),
-            customer_email=email or None,
-            line_items=[{'price': price_id, 'quantity': 1}],
-            success_url=f"{base_url}/subscribe/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{base_url}/pricing?canceled=1",
-            subscription_data={
-                'metadata': {
-                    'flow': 'subscription',
-                    'plan': plan,
-                    'interval': interval,
-                    'public_user_id': str(public_user_id),
-                },
-            },
-            metadata={
-                'flow': 'subscription',
-                'plan': plan,
-                'interval': interval,
-                'public_user_id': str(public_user_id),
-            },
-        )
+        checkout_session = stripe.checkout.Session.create(**checkout_params)
         checkout_url = _checkout_redirect_url(checkout_session)
         if checkout_url:
             log.info('subscription checkout: created Stripe Checkout Session for user %s plan=%s/%s', public_user_id, plan, interval)
             return redirect(checkout_url)
         raise RuntimeError('Stripe checkout session did not return a URL')
     except Exception:
-        # Fallback to Payment Link
+        if promotion_code_id:
+            log.exception('Black Friday checkout failed for user %s plan=%s', public_user_id, plan)
+            flash('Unable to start discounted checkout right now. You will not be charged the standard price instead; please try again.', 'error')
+            return redirect('/black-friday')
         params = {'client_reference_id': str(public_user_id)}
         if email:
             params['prefilled_email'] = email
@@ -2886,10 +2912,12 @@ def pro_landing():
 
 @bail_bond_ads_bp.route('/pricing')
 def pricing_page():
+    from services.monetization.black_friday import is_new_customer
     from services.monetization.paywall import user_has_warrant_access
     public_user_id = session.get('public_user_id')
     is_logged_in = bool(public_user_id)
     already_subscribed = is_logged_in and user_has_warrant_access()
+    black_friday_eligible = not public_user_id or is_new_customer(public_user_id)
     next_url = request.args.get('next', '/subscribe')
     return render_template(
         'pricing.html',
@@ -2900,6 +2928,7 @@ def pricing_page():
         current_year=datetime.now().year,
         is_logged_in=is_logged_in,
         already_subscribed=already_subscribed,
+        black_friday_eligible=black_friday_eligible,
         next_url=next_url,
     )
 

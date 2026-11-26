@@ -6,6 +6,7 @@ import tempfile
 # The sign-in wall is on by default in production, but tests need anonymous
 # access to most pages. Leave it off unless the runner explicitly enabled it.
 os.environ.setdefault('MB_REQUIRE_SIGNIN', 'false')
+os.environ['MB_BLACK_FRIDAY_PROMOTION_CODE_ID'] = ''
 
 # Tests must never touch the production database. Default to a disposable
 # session DB (explicitly-set paths, e.g. from CI or an individual test's

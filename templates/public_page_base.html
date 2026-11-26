@@ -155,6 +155,7 @@
     </script>
 </head>
 <body class="{% if request.args.get('newspaper') != '0' %}mb-newspaper-body{% else %}public-app mb-newspaper-off{% endif %} {% block body_class %}{% endblock %}">
+    {% include "includes/black_friday_banner.html" %}
     {# AdSense leaderboard at the top of every page; needs MB_ADSENSE_SLOT_HEADER. #}
     <div class="mb-adsense" aria-hidden="true">
       {{ adsense_unit(adsense_slots.header, 'header', style='text-align:center; margin: 0.75rem auto; min-height: 90px;') }}
@@ -536,7 +537,7 @@
         }
 
         document.addEventListener('click', function (event) {
-            var link = event.target.closest('a[href*="/subscribe"]');
+            var link = event.target.closest('a[href*="/subscribe"], a[href*="/checkout/"], a[data-subscribe-source]');
             if (!link) return;
             var source = link.getAttribute('data-subscribe-source') || '';
             if (!source) {

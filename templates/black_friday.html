@@ -1,0 +1,104 @@
+{% extends "public_page_base.html" %}
+
+{% block content %}
+<div class="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-2xl">
+    <section class="relative px-5 py-12 text-center sm:px-10 sm:py-16">
+        <div class="absolute left-0 top-0 h-1 w-full bg-amber-400"></div>
+        <div class="mx-auto max-w-3xl">
+            <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-400 bg-amber-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+                <span>Black Friday</span>
+                <span aria-hidden="true">&bull;</span>
+                <span>{{ campaign.date_label }}</span>
+            </div>
+            <h1 class="text-4xl font-black tracking-tight sm:text-6xl">A clearer view of Montana.<br><span class="text-amber-300">Half the price.</span></h1>
+            <p class="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+                Get <strong class="text-white">50% off your first year</strong> of Blotter Plus or Pro. Search deeper history, follow the places and names that matter to you, and spend less time checking source sites.
+            </p>
+            <div class="mt-7 flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-slate-300">
+                <span><i class="fas fa-check mr-1.5 text-amber-300" aria-hidden="true"></i>New customers only</span>
+                <span><i class="fas fa-check mr-1.5 text-amber-300" aria-hidden="true"></i>Annual plans</span>
+                <span><i class="fas fa-check mr-1.5 text-amber-300" aria-hidden="true"></i>Cancel anytime</span>
+            </div>
+        </div>
+    </section>
+
+    {% if not black_friday_eligible %}
+    <div class="mb-8 px-5 sm:px-10">
+        <div class="mx-auto max-w-3xl rounded-2xl border border-amber-400 bg-amber-400/10 px-5 py-4 text-center text-sm text-amber-100">
+            This introductory price is reserved for accounts that have never had a paid subscription. You can review your current plan on the <a href="/account/subscription" class="font-bold underline">subscription page</a>.
+        </div>
+    </div>
+    {% endif %}
+
+    <section class="grid gap-6 px-5 pb-8 sm:px-10 lg:grid-cols-2" aria-label="Black Friday plans">
+        <article class="flex flex-col rounded-3xl border border-red-400 bg-white p-6 text-slate-900 shadow-xl">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.18em] text-red-700">For everyday readers</p>
+                    <h2 class="mt-2 text-3xl font-black">Blotter Plus</h2>
+                </div>
+                <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-700">Save {{ campaign.plans.plus.savings }}</span>
+            </div>
+            <div class="mt-6 flex items-end gap-3">
+                <span class="text-5xl font-black tracking-tight">{{ campaign.plans.plus.sale_price }}</span>
+                <span class="pb-1 text-sm font-bold text-slate-500">for your first year</span>
+            </div>
+            <p class="mt-2 text-sm text-slate-500"><s>{{ campaign.plans.plus.regular_price }}/year</s> <span class="mx-1">&middot;</span> Renews at {{ campaign.plans.plus.regular_price }}/year</p>
+            <ul class="my-6 space-y-3 text-sm leading-6 text-slate-700">
+                <li class="flex gap-3"><i class="fas fa-check mt-1.5 text-red-600" aria-hidden="true"></i><span><strong>12 months</strong> of searchable history</span></li>
+                <li class="flex gap-3"><i class="fas fa-check mt-1.5 text-red-600" aria-hidden="true"></i><span>Alerts for up to <strong>5 counties</strong></span></li>
+                <li class="flex gap-3"><i class="fas fa-check mt-1.5 text-red-600" aria-hidden="true"></i><span><strong>5 name or keyword</strong> watchlists</span></li>
+                <li class="flex gap-3"><i class="fas fa-check mt-1.5 text-red-600" aria-hidden="true"></i><span>Saved searches, PDF exports, and ad-free browsing</span></li>
+            </ul>
+            {% if black_friday_eligible %}
+                {% set plus_checkout = url_for('bail_bond_ads.checkout_tier', plan='plus', interval='annual', campaign=campaign.slug) %}
+                {% if is_logged_in %}
+                <a href="{{ plus_checkout }}" data-subscribe-source="black_friday_2026_plus" class="mt-auto block rounded-xl bg-red-700 px-5 py-4 text-center text-base font-black text-white transition-colors hover:bg-red-800">Get Plus for {{ campaign.plans.plus.sale_price }}</a>
+                {% else %}
+                <a href="{{ url_for('auth.public_register', next=plus_checkout) }}" data-subscribe-source="black_friday_2026_plus" class="mt-auto block rounded-xl bg-red-700 px-5 py-4 text-center text-base font-black text-white transition-colors hover:bg-red-800">Create account &amp; get Plus</a>
+                {% endif %}
+            {% else %}
+            <a href="/pricing" class="mt-auto block rounded-xl bg-slate-200 px-5 py-4 text-center text-base font-black text-slate-700">View standard plans</a>
+            {% endif %}
+        </article>
+
+        <article class="flex flex-col rounded-3xl border border-amber-400 bg-slate-900 p-6 text-white shadow-xl">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.18em] text-amber-300">For professionals</p>
+                    <h2 class="mt-2 text-3xl font-black">Blotter Pro</h2>
+                </div>
+                <span class="rounded-full bg-amber-400 px-3 py-1 text-xs font-black text-slate-950">Save {{ campaign.plans.pro.savings }}</span>
+            </div>
+            <div class="mt-6 flex items-end gap-3">
+                <span class="text-5xl font-black tracking-tight text-amber-300">{{ campaign.plans.pro.sale_price }}</span>
+                <span class="pb-1 text-sm font-bold text-slate-300">for your first year</span>
+            </div>
+            <p class="mt-2 text-sm text-slate-400"><s>{{ campaign.plans.pro.regular_price }}/year</s> <span class="mx-1">&middot;</span> Renews at {{ campaign.plans.pro.regular_price }}/year</p>
+            <ul class="my-6 space-y-3 text-sm leading-6 text-slate-200">
+                <li class="flex gap-3"><i class="fas fa-check mt-1.5 text-amber-300" aria-hidden="true"></i><span><strong>Full archive</strong> with no history time limit</span></li>
+                <li class="flex gap-3"><i class="fas fa-check mt-1.5 text-amber-300" aria-hidden="true"></i><span><strong>Statewide alerts</strong> and unlimited counties</span></li>
+                <li class="flex gap-3"><i class="fas fa-check mt-1.5 text-amber-300" aria-hidden="true"></i><span>Unlimited watchlists, saved searches, and case tracking</span></li>
+                <li class="flex gap-3"><i class="fas fa-check mt-1.5 text-amber-300" aria-hidden="true"></i><span>CSV and PDF exports, API access, and priority support</span></li>
+            </ul>
+            {% if black_friday_eligible %}
+                {% set pro_checkout = url_for('bail_bond_ads.checkout_tier', plan='pro', interval='annual', campaign=campaign.slug) %}
+                {% if is_logged_in %}
+                <a href="{{ pro_checkout }}" data-subscribe-source="black_friday_2026_pro" class="mt-auto block rounded-xl bg-amber-400 px-5 py-4 text-center text-base font-black text-slate-950 transition-colors hover:bg-amber-300">Get Pro for {{ campaign.plans.pro.sale_price }}</a>
+                {% else %}
+                <a href="{{ url_for('auth.public_register', next=pro_checkout) }}" data-subscribe-source="black_friday_2026_pro" class="mt-auto block rounded-xl bg-amber-400 px-5 py-4 text-center text-base font-black text-slate-950 transition-colors hover:bg-amber-300">Create account &amp; get Pro</a>
+                {% endif %}
+            {% else %}
+            <a href="/pricing" class="mt-auto block rounded-xl bg-slate-700 px-5 py-4 text-center text-base font-black text-white">View standard plans</a>
+            {% endif %}
+        </article>
+    </section>
+
+    <section class="border-t border-slate-800 px-5 py-7 text-center sm:px-10">
+        <p class="text-sm font-bold text-slate-200">Code <span class="ml-1 rounded bg-slate-800 px-2 py-1 font-mono text-amber-300">{{ campaign.code }}</span> is applied automatically at checkout.</p>
+        <p class="mx-auto mt-3 max-w-3xl text-xs leading-5 text-slate-400">
+            Offer ends {{ campaign.end_label }}. For new customers purchasing an annual Plus or Pro plan. The 50% discount applies to the first subscription year only; renewals bill at the standard annual rate unless canceled. Secure Stripe checkout. Current public reports remain available with a free Member account.
+        </p>
+    </section>
+</div>
+{% endblock %}

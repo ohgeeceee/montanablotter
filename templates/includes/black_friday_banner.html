@@ -1,0 +1,9 @@
+{% if black_friday_banner and black_friday_banner.is_live and request.path not in ['/black-friday', '/pricing'] %}
+<aside class="bg-slate-950 text-white border-b border-amber-400" aria-label="Black Friday offer">
+    <a href="{{ url_for('black_friday.landing') }}" class="mx-auto flex max-w-7xl flex-col items-center justify-center gap-1 px-4 py-3 text-center sm:flex-row sm:gap-4">
+        <span class="rounded-full bg-amber-400 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-950">Black Friday</span>
+        <span class="text-sm font-bold">New customers get 50% off their first year of Plus or Pro.</span>
+        <span class="text-sm font-black text-amber-300 underline">See the deal <span aria-hidden="true">&rarr;</span></span>
+    </a>
+</aside>
+{% endif %}

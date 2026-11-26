@@ -41,6 +41,7 @@ from services.api.auth import after_api_request
 from blueprints.api import register_api_blueprint
 from blueprints.auth import register_auth_blueprint
 from blueprints.payments import register_payments_blueprint
+from blueprints.black_friday import register_black_friday_blueprint
 from blueprints.detention import register_detention_blueprint
 from blueprints.datacenter import register_datacenter_blueprint
 from blueprints.code_violations import register_code_violations_blueprint
@@ -1381,6 +1382,7 @@ _SIGNIN_WALL_EXEMPT_EXACT = {
     '/leaderboard',
     '/wanted/subscribe',
     '/wanted/notify-when-cleared',
+    '/black-friday',
 }
 
 
@@ -14919,6 +14921,7 @@ register_admin_blueprint(app)
 register_api_blueprint(app)
 register_auth_blueprint(app)
 register_payments_blueprint(app)
+register_black_friday_blueprint(app)
 register_datacenter_blueprint(app)
 register_code_violations_blueprint(app, get_db=get_db)
 register_license_sanctions_blueprint(app, get_db=get_db)
