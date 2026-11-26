@@ -65,8 +65,8 @@ later; verify on the server if unsure.*
 4. **Black Friday 2026** — deployed on commit `8addc38a` and scheduled for
    November 27–30. Live route-driven Stripe checks confirmed $39.50 Plus and
    $130 Pro; all six verification sessions expired unpaid with no subscriptions.
-   Facebook start announcement published 2026-11-26; other advertising remains
-   draft-only with no spend. Launch handoff:
+   Facebook start announcement and free-member email sent 2026-11-26; other
+   advertising remains draft-only with no spend. Launch handoff:
    `agent-queue/dev/2026-11-26-black-friday-2026/`.
 5. **Standard Plus/Pro checkout pricing** — fixed and deployed on commit
    `52a6238a` 2026-11-26. New checkouts use the displayed $7.99/$79 Plus and
