@@ -66,6 +66,16 @@ Hard-won lessons. Append with a date; don't delete — strike through if obsolet
   campaign checkout uses inline annual `price_data` on the existing products to
   avoid that replication dependency.
 
+## Facebook publishing
+
+- **Custom posts (2026-11-26):** `queue_post(content_type='custom')` is not
+  compatible with the current `facebook_post_queue` schema: `post_id` is NOT NULL
+  and has a foreign key, so both NULL and `0` fail before any API request. For a
+  one-off owner-approved custom photo post, publish directly through the existing
+  page settings and record the result in `facebook_page_actions`; verify the post
+  through Graph API afterward. Do not leave a queued row that could auto-publish
+  a duplicate.
+
 ## Agent fleet
 
 - Multiple agents (Hermes, Codex, Kimi Code, OpenClaw) commit on the same box. Pull
