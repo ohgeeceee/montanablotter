@@ -49,6 +49,22 @@ Hard-won lessons. Append with a date; don't delete — strike through if obsolet
   as `plus` — `scripts/maintenance/2026-11-19-fix-warrant-access-plans.py`
   restores them (dry-run first, then `--apply`).
 
+## Monetization / Stripe
+
+- **Live price verification (2026-11-26):** the legacy default checkout price IDs
+  bill Plus/Pro at $5.99/$19.99 monthly and $59/$199 annually even though the
+  owner-confirmed display prices are $7.99/$26 and $79/$260. The Black Friday
+  campaign uses inline prices with the correct annual amounts; the standard
+  checkout mismatch remains a separate open issue. Retrieve live `Price` objects
+  before advertising or changing a checkout offer.
+- **Stripe `2026-11-18.endive` API:** `PromotionCode.create` requires
+  `promotion={'type': 'coupon', 'coupon': coupon_id}` instead of the legacy
+  top-level `coupon` parameter. Coupon `applies_to` is includable; retrieve with
+  `expand=['applies_to']` to verify product restrictions. Newly created price IDs
+  also proved intermittently unavailable to Checkout despite successful reads;
+  campaign checkout uses inline annual `price_data` on the existing products to
+  avoid that replication dependency.
+
 ## Agent fleet
 
 - Multiple agents (Hermes, Codex, Kimi Code, OpenClaw) commit on the same box. Pull

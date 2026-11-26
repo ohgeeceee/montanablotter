@@ -62,6 +62,11 @@ later; verify on the server if unsure.*
    auth, admin_*, embed, press, premium.
 3. **County/source coverage** — see `docs/COUNTY_COVERAGE_EXPANSION_2026-08-11.md`,
    `county_sources_manifest.md`, `docs/jail_tier2_assessment.md`.
+4. **Black Friday 2026** — deployed on commit `8addc38a` and scheduled for
+   November 27–30. Live route-driven Stripe checks confirmed $39.50 Plus and
+   $130 Pro; all six verification sessions expired unpaid with no subscriptions.
+   Advertising remains draft-only with no spend. Launch handoff:
+   `agent-queue/dev/2026-11-26-black-friday-2026/`.
 
 ## Open questions
 

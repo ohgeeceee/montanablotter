@@ -2,6 +2,21 @@
 
 Append-only. Newest at top. Format: date, decision, why, where to learn more.
 
+## 2026-11-26 — Black Friday 2026 new-customer annual offer
+
+The campaign offers 50% off the first year of annual Plus ($39.50) or Pro ($130)
+from November 27–30, for accounts with no current or former paid subscription.
+Monthly prices and standard renewals do not change. Annual billing gives new
+readers time to adopt alerts and deeper search without discounting the monthly
+anchor. Campaign UI requires a configured Stripe promotion-code ID; discounted
+checkout never falls back to a full-price Payment Link. Local implementation and
+advertising drafts are in `agent-queue/dev/2026-11-26-black-friday-2026/` and
+`agent-queue/growth/2026-11-26-black-friday-2026/`. The owner approved live
+Stripe setup and deployment later on 2026-11-26. Campaign checkout uses inline
+$79/$260 annual prices on the correct Stripe products after live verification
+exposed legacy price mismatches and intermittent new-price retrieval; regular
+checkout behavior is unchanged. Advertising and spend remain separately gated.
+
 ## 2026-11-19 — Paywall: prices, map popups, warrant scope, source-PDF gate (owner)
 
 Four decisions resolving `docs/audits/2026-11-19-paywall-audit.md`:
