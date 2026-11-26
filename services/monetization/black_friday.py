@@ -14,7 +14,7 @@ DEFAULT_END_AT = '2026-12-01T07:00:00+00:00'
 PLAN_OFFERS = {
     'plus': {
         'name': 'Blotter Plus',
-        'price_id': 'price_1U4Pw0GL8T8btZcur4hvliu2',
+        'product_id': 'prod_UcOWCDGyNU1Anp',
         'regular_cents': 7900,
         'sale_cents': 3950,
         'regular_price': '$79',
@@ -23,7 +23,7 @@ PLAN_OFFERS = {
     },
     'pro': {
         'name': 'Blotter Pro',
-        'price_id': 'price_1U4Pw0GL8T8btZucsRif7sb',
+        'product_id': 'prod_V1Cs2JkMO1Alya',
         'regular_cents': 26000,
         'sale_cents': 13000,
         'regular_price': '$260',

@@ -2617,8 +2617,6 @@ def checkout_tier(plan):
     stripe.api_key = keys['secret_key']
     price_ids = _plan_price_ids(plan)
     price_id = price_ids.get(interval)
-    if promotion_code_id:
-        price_id = BLACK_FRIDAY_PLAN_OFFERS[plan]['price_id']
 
     if not price_id:
         if promotion_code_id:
@@ -2643,11 +2641,23 @@ def checkout_tier(plan):
     }
     if promotion_code_id:
         metadata['campaign'] = BLACK_FRIDAY_SLUG
+    line_item = {'price': price_id, 'quantity': 1}
+    if promotion_code_id:
+        offer = BLACK_FRIDAY_PLAN_OFFERS[plan]
+        line_item = {
+            'price_data': {
+                'currency': 'usd',
+                'product': offer['product_id'],
+                'unit_amount': offer['regular_cents'],
+                'recurring': {'interval': 'year', 'interval_count': 1},
+            },
+            'quantity': 1,
+        }
     checkout_params = {
         'mode': 'subscription',
         'client_reference_id': str(public_user_id),
         'customer_email': email or None,
-        'line_items': [{'price': price_id, 'quantity': 1}],
+        'line_items': [line_item],
         'success_url': f"{base_url}/subscribe/success?session_id={{CHECKOUT_SESSION_ID}}",
         'cancel_url': f"{base_url}{'/black-friday' if promotion_code_id else '/pricing?canceled=1'}",
         'subscription_data': {'metadata': dict(metadata)},

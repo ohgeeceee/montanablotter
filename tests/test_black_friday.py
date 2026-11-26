@@ -157,7 +157,10 @@ class BlackFridayCampaignTests(unittest.TestCase):
         )
         self.assertEqual(checkout['metadata']['campaign'], CAMPAIGN_SLUG)
         self.assertEqual(checkout['subscription_data']['metadata']['campaign'], CAMPAIGN_SLUG)
-        self.assertEqual(checkout['line_items'][0]['price'], 'price_1U4Pw0GL8T8btZcur4hvliu2')
+        price_data = checkout['line_items'][0]['price_data']
+        self.assertEqual(price_data['unit_amount'], 7900)
+        self.assertEqual(price_data['product'], 'prod_UcOWCDGyNU1Anp')
+        self.assertEqual(price_data['recurring'], {'interval': 'year', 'interval_count': 1})
 
     def test_pro_campaign_checkout_uses_advertised_annual_price(self):
         fake_session = {
@@ -177,10 +180,10 @@ class BlackFridayCampaignTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         checkout = create_session.call_args.kwargs
-        self.assertEqual(
-            checkout['line_items'][0]['price'],
-            'price_1U4Pw0GL8T8btZucsRif7sb',
-        )
+        price_data = checkout['line_items'][0]['price_data']
+        self.assertEqual(price_data['unit_amount'], 26000)
+        self.assertEqual(price_data['product'], 'prod_V1Cs2JkMO1Alya')
+        self.assertEqual(price_data['recurring'], {'interval': 'year', 'interval_count': 1})
         self.assertEqual(
             checkout['discounts'],
             [{'promotion_code': 'promo_test_black_friday'}],
