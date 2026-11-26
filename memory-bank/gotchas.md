@@ -53,10 +53,11 @@ Hard-won lessons. Append with a date; don't delete — strike through if obsolet
 
 - **Live price verification (2026-11-26):** the legacy default checkout price IDs
   bill Plus/Pro at $5.99/$19.99 monthly and $59/$199 annually even though the
-  owner-confirmed display prices are $7.99/$26 and $79/$260. The Black Friday
-  campaign uses inline prices with the correct annual amounts; the standard
-  checkout mismatch remains a separate open issue. Retrieve live `Price` objects
-  before advertising or changing a checkout offer.
+  owner-confirmed display prices are $7.99/$26 and $79/$260. Standard and Black
+  Friday checkouts now share an inline-price catalog with the correct amounts;
+  the mismatch was fixed for new checkouts on `52a6238a`, without changing
+  existing subscriptions. Retrieve live `Price` objects before advertising or
+  changing a checkout offer.
 - **Stripe `2026-11-18.endive` API:** `PromotionCode.create` requires
   `promotion={'type': 'coupon', 'coupon': coupon_id}` instead of the legacy
   top-level `coupon` parameter. Coupon `applies_to` is includable; retrieve with

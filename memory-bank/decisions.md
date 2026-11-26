@@ -2,6 +2,15 @@
 
 Append-only. Newest at top. Format: date, decision, why, where to learn more.
 
+## 2026-11-26 — Standard Plus/Pro checkout matches displayed prices
+
+New Plus/Pro subscriptions use a single inline-price catalog of $7.99/$79 and
+$26/$260 for monthly/annual billing. The legacy price IDs and outdated Payment
+Link fallbacks were removed after the owner requested a fix. Existing Stripe
+subscriptions are unchanged, and Black Friday checkout shares the same helper
+with its promotion applied separately. Deployed and verified on `52a6238a`;
+details are in `agent-queue/dev/2026-11-26-standard-checkout-pricing/`.
+
 ## 2026-11-26 — Black Friday 2026 new-customer annual offer
 
 The campaign offers 50% off the first year of annual Plus ($39.50) or Pro ($130)

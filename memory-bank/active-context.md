@@ -67,6 +67,11 @@ later; verify on the server if unsure.*
    $130 Pro; all six verification sessions expired unpaid with no subscriptions.
    Advertising remains draft-only with no spend. Launch handoff:
    `agent-queue/dev/2026-11-26-black-friday-2026/`.
+5. **Standard Plus/Pro checkout pricing** — fixed and deployed on commit
+   `52a6238a` 2026-11-26. New checkouts use the displayed $7.99/$79 Plus and
+   $26/$260 Pro prices; outdated Payment Link fallbacks were removed. Existing
+   subscriptions were not changed. Handoff:
+   `agent-queue/dev/2026-11-26-standard-checkout-pricing/`.
 
 ## Open questions
 
